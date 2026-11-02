@@ -1260,7 +1260,7 @@ namespace {
         if (have) snprintf(locator, sizeof(locator), "%s", Utils::getMaidenheadLocator(lat, lon, 8));
         char altText[12] = "---";
         if (altitudeAvailable() || fix) formatAltitudeUnits(GPS_Utils::getAltitudeMeters(), unitSystem, altText, sizeof(altText));
-        char line[28];
+        char line[48];
         row(2, "%s A=%s", locator, altText);
 
         unsigned used = gps.satellites.isValid() ? (unsigned)gps.satellites.value() : 0u;
@@ -1268,7 +1268,7 @@ namespace {
         #ifdef GPS_CONFIG_CONSTELLATIONS
             inView = GPS_Utils::satsInView();
         #endif
-        char sats[12];
+        char sats[24];
         if (inView >= (int)used) snprintf(sats, sizeof(sats), "%u/%d", used, inView);
         else snprintf(sats, sizeof(sats), "%u", used);
         if (gps.hdop.isValid()) {

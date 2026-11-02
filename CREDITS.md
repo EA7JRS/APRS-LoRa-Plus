@@ -1,6 +1,6 @@
 # Créditos / Credits
 
-**APRS LoRa+** — Manuel EA7JRS, © 2026 Manuel - EA7JRS (código nuevo y ampliaciones).
+**APRS LoRa+** — Manuel EA7JRS ([@EA7JRS](https://github.com/EA7JRS)), © 2026 Manuel - EA7JRS (código nuevo y ampliaciones). Repositorio: https://github.com/EA7JRS/APRS-LoRa-Plus
 
 ## Cadena de autoría
 

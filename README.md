@@ -1,8 +1,8 @@
 # APRS LoRa+
 
-![version](https://img.shields.io/badge/version-5.2.12-red) ![license](https://img.shields.io/badge/license-GPL--3.0-blue) ![platform](https://img.shields.io/badge/platform-ESP32%20%7C%20ESP32--S3%20%7C%20ESP32--C3-lightgrey)
+[![release](https://img.shields.io/github/v/release/EA7JRS/APRS-LoRa-Plus?include_prereleases&color=red)](https://github.com/EA7JRS/APRS-LoRa-Plus/releases) [![build](https://github.com/EA7JRS/APRS-LoRa-Plus/actions/workflows/commit.yml/badge.svg)](https://github.com/EA7JRS/APRS-LoRa-Plus/actions/workflows/commit.yml) ![license](https://img.shields.io/badge/license-GPL--3.0-blue) ![platform](https://img.shields.io/badge/platform-ESP32%20%7C%20ESP32--S3%20%7C%20ESP32--C3-lightgrey)
 
-**APRS LoRa+** es una ampliación del firmware [CA2RXU LoRa APRS Tracker/Station](https://github.com/richonguzman/LoRa_APRS_Tracker) de Ricardo Guzman (CA2RXU) para placas ESP32 con módulo LoRa y GPS. Desarrollado por **Manuel EA7JRS**.
+**APRS LoRa+** es una ampliación del firmware [CA2RXU LoRa APRS Tracker/Station](https://github.com/richonguzman/LoRa_APRS_Tracker) de Ricardo Guzman (CA2RXU) para placas ESP32 con módulo LoRa y GPS. Desarrollado por **Manuel EA7JRS** ([@EA7JRS](https://github.com/EA7JRS)).
 
 Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KISS, Winlink, WebUI…) y añade nuevos modos de radio, una interfaz de pantallas con un solo botón y herramientas de calibración.
 
@@ -54,6 +54,7 @@ Las placas sin botón (ESP32-C3 SuperMini DIY, Heltec HT-CT62) no tienen selecto
 Requiere [PlatformIO](https://platformio.org/) (Arduino-ESP32 3.x, plataforma `espressif32 @ 8.0.0`).
 
 ```bash
+git clone https://github.com/EA7JRS/APRS-LoRa-Plus.git && cd APRS-LoRa-Plus
 pio run -e ttgo_t_beam_s3_SUPREME_v3            # firmware (cambia el entorno por tu placa)
 pio run -e ttgo_t_beam_s3_SUPREME_v3 -t upload  # grabar firmware
 pio run -e ttgo_t_beam_s3_SUPREME_v3 -t uploadfs   # grabar el sistema de archivos (configuración)
@@ -61,7 +62,7 @@ pio run -e ttgo_t_beam_s3_SUPREME_v3 -t uploadfs   # grabar el sistema de archiv
 
 La WebUI (`data_embed/`) se comprime automáticamente en cada compilación (`tools/compress.py`), por lo que los `.gz` no se guardan en el repositorio. Para ver los entornos disponibles: `pio project config | grep "^\[env:"`.
 
-El código se compila con `-Werror -Wall`; cualquier aviso nuevo rompe la compilación.
+El código se compila con `-Werror -Wall`. Los avisos `#warning`, de `switch` con caída intencionada y de truncado de texto en `snprintf` (muy habituales al recortar texto para una pantalla de 21 caracteres) se muestran pero no detienen la compilación; cualquier otro aviso sí.
 
 ### Pruebas en PC
 
@@ -73,7 +74,7 @@ g++ -std=c++17 -Wall -Iinclude tools/test_pocsag.cpp -o /tmp/test_pocsag && /tmp
 
 ## Estado de las pruebas
 
-El proyecto está en desarrollo activo. Se compila y se prueba en las placas del autor (por ejemplo T-Beam S3 Supreme); **muchas funciones nuevas no se han verificado en todas las placas** y algunas (por ejemplo DAPNET en el aire) están pendientes de confirmación en campo. Los documentos indican qué está probado y qué no. Si lo pruebas en otra placa, abre un *issue* con el entorno de PlatformIO, el modo y el resultado.
+El proyecto está en desarrollo activo. Se compila y se prueba en las placas del autor (por ejemplo T-Beam S3 Supreme); **muchas funciones nuevas no se han verificado en todas las placas** y algunas (por ejemplo DAPNET en el aire) están pendientes de confirmación en campo. Los documentos indican qué está probado y qué no. Si lo pruebas en otra placa, abre un [issue](https://github.com/EA7JRS/APRS-LoRa-Plus/issues/new/choose) con el entorno de PlatformIO, el modo y el resultado.
 
 ## Créditos y licencia
 

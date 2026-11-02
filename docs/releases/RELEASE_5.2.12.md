@@ -47,3 +47,8 @@ Revisión de compatibilidad: ver el capítulo 28 del manual (tabla por chip: SX1
 - Pantalla de bienvenida: arriba a la izquierda aparece ahora **EA7JRS** (antes CA2RXU); también en la pantalla de bienvenida clásica de las placas sin páginas. Los mensajes del puerto serie citan «APRS LoRa+ by Manuel EA7JRS (base: CA2RXU LoRa APRS Tracker)».
 - WebUI → About: la línea «APRS LoRa+ - by Manuel EA7JRS» lleva ahora «© 2026 Manuel - EA7JRS»; se conserva la línea original de CA2RXU y se añade la cadena de créditos (OE5BPA, DL9SAU, DC2MH, ON4AA; GPL-3.0). Los dos enlaces de apoyo (GitHub Sponsors y PayPal de CA2RXU) quedan **ocultos** (`d-none`, bloque `supportLinks` en `index.html`): para poner enlaces propios basta cambiar los `href` y quitar `d-none`.
 - README: nuevo título «APRS LoRa+» y sección «Cadena de créditos». Los avisos de copyright de los fuentes de CA2RXU no se tocan (GPLv3).
+
+## Corrección tras el primer CI en GitHub (ttgo-t-beam-v1_2)
+
+- `pages_utils.cpp` (pantalla GPS): `snprintf(sats, …, "%u/%d", …)` con un búfer de 12 bytes daba `-Werror=format-truncation` en las placas sin `GPS_CONFIG_CONSTELLATIONS` (GCC 14 de GitHub). Búfer de `sats` a 24 bytes y de `line` a 48.
+- `common_settings.ini`: `-Wno-error=format-truncation`. El truncado de texto en `snprintf` es habitual y deliberado al ajustar el texto a la pantalla; el aviso se sigue mostrando, pero ya no detiene la compilación. El resto de avisos sigue siendo un error (`-Werror -Wall`).
