@@ -1,0 +1,584 @@
+/* Copyright (C) 2026 Ricardo Guzman - CA2RXU
+ *
+ * This file is part of LoRa APRS Tracker.
+ *
+ * LoRa APRS Tracker is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * LoRa APRS Tracker is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include <SPI.h>
+#include "notification_utils.h"
+#include "configuration.h"
+#include "battery_utils.h"
+#include "board_pinout.h"
+#include "power_utils.h"
+#include "lora_utils.h"
+#include "ble_utils.h"
+#include "gps_utils.h"
+#include "display.h"
+#include "logger.h"
+
+
+#if !defined(TTGO_T_Beam_S3_SUPREME_V3) && !defined(HELTEC_WIRELESS_TRACKER)
+    #define I2C_SDA 21
+    #define I2C_SCL 22
+    #define IRQ_PIN 35
+#endif
+
+#ifdef TTGO_T_Beam_S3_SUPREME_V3
+    #define I2C0_SDA 17
+    #define I2C0_SCL 18
+    #define I2C1_SDA 42
+    #define I2C1_SCL 41
+    #define IRQ_PIN  40
+#endif
+
+#ifdef HAS_AXP192
+    XPowersAXP192 PMU;
+#endif
+#ifdef HAS_AXP2101
+    XPowersAXP2101 PMU;
+#endif
+
+extern  Configuration                   Config;
+extern  logging::Logger                 logger;
+extern  bool                            transmitFlag;
+extern  bool                            gpsIsActive;
+
+bool    pmuInterrupt;
+bool    disableGPS;
+
+String  batteryChargeDischargeCurrent   = "";
+
+
+namespace POWER_Utils {
+
+    #ifdef TTGO_T_Beam_S3_SUPREME_V3
+        // Comprueba si un GPIO colisiona con los buses SPI/I2C, GPS, Radio o interrupciones internas de la T-Beam S3 Supreme V3
+        static bool isReservedSupremePin(int pin) {
+            switch (pin) {
+                case 0:                             // BUTTON_PIN
+                case 1: case 4: case 5:             // LoRa DIO1, RST, BUSY
+                case 6: case 7: case 8: case 9:     // GPS PPS, Wakeup, TX, RX
+                case 10: case 11: case 12: case 13: // LoRa SPI (CS, MOSI, SCLK, MISO)
+                case 14:                            // RTC INT
+                case 17: case 18:                   // I2C0 (OLED, BME280, QMC6310)
+                case 33: case 34: case 35: case 36: case 37: // IMU SPI + IMU INT
+                case 40: case 41: case 42:          // I2C1 (PMU, RTC) + PMU IRQ
+                case 47:                            // SD CS
+                    return true;
+                default:
+                    return false;
+            }
+        }
+    #endif
+
+    #ifdef VEXT_CTRL
+        void vext_ctrl_ON() {
+            #if defined(HELTEC_V3_GPS) || defined(HELTEC_V3_TNC) || defined(HELTEC_WIRELESS_TRACKER) || defined(HELTEC_WSL_V3_GPS_DISPLAY) || defined(HELTEC_WSL_V3_TNC)
+                digitalWrite(VEXT_CTRL, HIGH);
+            #endif
+            #if defined(HELTEC_V3_2_GPS) || defined(HELTEC_V3_2_TNC)
+                digitalWrite(VEXT_CTRL, LOW);
+            #endif
+        }
+
+        void vext_ctrl_OFF() {
+            #if defined(HELTEC_V3_GPS) || defined(HELTEC_V3_TNC) || defined(HELTEC_WIRELESS_TRACKER) || defined(HELTEC_WSL_V3_GPS_DISPLAY) || defined(HELTEC_WSL_V3_TNC)
+                digitalWrite(VEXT_CTRL, LOW);
+            #endif
+            #if defined(HELTEC_V3_2_GPS) || defined(HELTEC_V3_2_TNC)
+                digitalWrite(VEXT_CTRL, HIGH);
+            #endif
+        }
+    #endif
+
+
+    #ifdef ADC_CTRL
+        void adc_ctrl_ON() {
+            #if defined(HELTEC_WIRELESS_TRACKER) || defined(HELTEC_V3_2_GPS) || defined(HELTEC_V3_2_TNC)
+                digitalWrite(ADC_CTRL, HIGH);
+            #endif
+            #if defined(HELTEC_V3_GPS) || defined(HELTEC_V3_TNC) || defined(HELTEC_V2_GPS) || defined(HELTEC_V2_GPS_915) || defined(HELTEC_V2_TNC) || defined(HELTEC_WSL_V3_GPS_DISPLAY) || defined(HELTEC_WSL_V3_TNC)
+                digitalWrite(ADC_CTRL, LOW);
+            #endif
+        }
+
+        void adc_ctrl_OFF() {
+            #if defined(HELTEC_WIRELESS_TRACKER) || defined(HELTEC_V3_2_GPS) || defined(HELTEC_V3_2_TNC)
+                digitalWrite(ADC_CTRL, LOW);
+            #endif
+            #if defined(HELTEC_V3_GPS) || defined(HELTEC_V3_TNC) || defined(HELTEC_V2_GPS) || defined(HELTEC_V2_GPS_915) || defined(HELTEC_V2_TNC) || defined(HELTEC_WSL_V3_GPS_DISPLAY) || defined(HELTEC_WSL_V3_TNC)
+                digitalWrite(ADC_CTRL, HIGH);
+            #endif
+        }
+    #endif
+
+    #if defined(HAS_AXP192) || defined(HAS_AXP2101)
+        void activateMeasurement() {
+            PMU.disableTSPinMeasure();
+            PMU.enableBattDetection();
+            PMU.enableVbusVoltageMeasure();
+            PMU.enableBattVoltageMeasure();
+            // Desactivar medicion continua de SystemVoltage ahorra ciclos de ADC en el PMU
+            PMU.disableSystemVoltageMeasure();
+        }
+
+        void enableChgLed() {
+            PMU.setChargingLedMode(XPOWERS_CHG_LED_ON);
+        }
+
+        void disableChgLed() {
+            PMU.setChargingLedMode(XPOWERS_CHG_LED_OFF);
+        }
+
+        void handleChargingLed() {
+            if (isCharging()) {
+                enableChgLed();
+            } else {
+                disableChgLed();
+            }
+        }
+
+        String getBatteryInfoCurrent() {
+            return batteryChargeDischargeCurrent;
+        }
+
+        float getBatteryChargeDischargeCurrent() {
+            #ifdef HAS_AXP192
+                if (PMU.isCharging()) {
+                    return PMU.getBatteryChargeCurrent();
+                }
+                return -1.0 * PMU.getBattDischargeCurrent();
+            #endif
+            #ifdef HAS_AXP2101
+                return PMU.getBatteryPercent();
+            #endif
+        }
+    #endif
+
+    float getVbusVoltage() {
+        #if defined(HAS_AXP2101)
+            if (!PMU.isVbusIn()) return 0.0f;
+            return PMU.getVbusVoltage() / 1000.0f;
+        #elif defined(HAS_AXP192)
+            if (!PMU.isVbusIn()) return 0.0f;
+            return PMU.getVbusVoltage() / 1000.0f;
+        #else
+            return 0.0f;
+        #endif
+    }
+
+    float getPmuTemperature() {
+        #if defined(HAS_AXP2101)
+            static bool measurementEnabled = false;
+            if (!measurementEnabled) {
+                PMU.enableTemperatureMeasure();     // el primer valor valido llega en la siguiente lectura
+                measurementEnabled = true;
+                return NAN;
+            }
+            float temperature = PMU.getTemperature();
+            return (temperature > -40.0f && temperature < 125.0f) ? temperature : NAN;
+        #else
+            return NAN;
+        #endif
+    }
+
+    bool isCharging() {
+        #if defined(HAS_AXP192) || defined(HAS_AXP2101)
+            return PMU.isCharging();
+        #else
+            return 0;
+        #endif
+    }
+
+    void activateGPS() {
+        #ifdef HAS_AXP192
+            PMU.setLDO3Voltage(3300);
+            PMU.enableLDO3();
+        #endif
+
+        #ifdef HAS_AXP2101
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                PMU.setALDO4Voltage(3300);
+                PMU.enableALDO4();
+            #else
+                PMU.setALDO3Voltage(3300);
+                PMU.enableALDO3();
+            #endif
+        #endif
+        #ifdef HELTEC_WIRELESS_TRACKER
+            vext_ctrl_ON();
+        #endif
+        gpsIsActive = true;
+    }
+
+    void deactivateGPS() {
+        #ifdef HAS_AXP192
+            PMU.disableLDO3();
+        #endif
+
+        #ifdef HAS_AXP2101
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                PMU.disableALDO4();
+            #else
+                PMU.disableALDO3();
+            #endif
+        #endif
+        #ifdef HELTEC_WIRELESS_TRACKER
+            vext_ctrl_OFF();
+        #endif
+        gpsIsActive = false;
+    }
+
+    void activateLoRa() {
+        #ifdef HAS_AXP192
+            PMU.setLDO2Voltage(3300);
+            PMU.enableLDO2();
+        #endif
+
+        #ifdef HAS_AXP2101
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                PMU.setALDO3Voltage(3300);
+                PMU.enableALDO3();
+            #else
+                PMU.setALDO2Voltage(3300);
+                PMU.enableALDO2();
+            #endif
+        #endif
+    }
+
+    void deactivateLoRa() {
+        #ifdef HAS_AXP192
+            PMU.disableLDO2();
+        #endif
+
+        #ifdef HAS_AXP2101
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                PMU.disableALDO3();
+            #else
+                PMU.disableALDO2();
+            #endif
+        #endif
+    }
+
+    void externalPinSetup() {
+        if (Config.notification.buzzerActive && Config.notification.buzzerPinTone >= 0 && Config.notification.buzzerPinVcc >= 0) {
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                if (isReservedSupremePin(Config.notification.buzzerPinTone) || isReservedSupremePin(Config.notification.buzzerPinVcc)) {
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Buzzer pin conflicts with Supreme internal bus, disabled");
+                    Config.notification.buzzerActive = false;
+                } else
+            #endif
+            {
+                pinMode(Config.notification.buzzerPinTone, OUTPUT);
+                pinMode(Config.notification.buzzerPinVcc, OUTPUT);
+                if (Config.notification.bootUpBeep) NOTIFICATION_Utils::start();
+            }
+        } else if (Config.notification.buzzerActive && (Config.notification.buzzerPinTone < 0 || Config.notification.buzzerPinVcc < 0)) {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Buzzer Pins not defined, disabled");
+            Config.notification.buzzerActive = false;
+        }
+
+        #ifdef RPC_MicroTracker
+            Config.notification.ledTxPin = LED_TX;
+            pinMode(Config.notification.ledTxPin, OUTPUT);
+            digitalWrite(Config.notification.ledTxPin, HIGH);
+        #else
+            if (Config.notification.ledTx && Config.notification.ledTxPin >= 0) {
+                #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                    if (isReservedSupremePin(Config.notification.ledTxPin)) {
+                        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Tx pin conflicts with Supreme internal bus, disabled");
+                        Config.notification.ledTx = false;
+                    } else
+                #endif
+                {
+                    pinMode(Config.notification.ledTxPin, OUTPUT);
+                }
+            } else if (Config.notification.ledTx && Config.notification.ledTxPin < 0) {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Tx Pin not defined, disabled");
+                Config.notification.ledTx = false;
+            }
+        #endif
+
+        #ifdef RPC_MicroTracker
+            Config.notification.ledMessagePin = LED_RX;
+            pinMode(Config.notification.ledMessagePin, OUTPUT);
+            digitalWrite(Config.notification.ledMessagePin, HIGH);
+        #else
+            if (Config.notification.ledMessage && Config.notification.ledMessagePin >= 0) {
+                #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                    if (isReservedSupremePin(Config.notification.ledMessagePin)) {
+                        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Message pin conflicts with Supreme internal bus, disabled");
+                        Config.notification.ledMessage = false;
+                    } else
+                #endif
+                {
+                    pinMode(Config.notification.ledMessagePin, OUTPUT);
+                }
+            } else if (Config.notification.ledMessage && Config.notification.ledMessagePin < 0) {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Message Pin not defined, disabled");
+                Config.notification.ledMessage = false;
+            }
+        #endif
+
+        if (Config.notification.ledFlashlight && Config.notification.ledFlashlightPin >= 0) {
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                if (isReservedSupremePin(Config.notification.ledFlashlightPin)) {
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Flashlight pin conflicts with Supreme internal bus, disabled");
+                    Config.notification.ledFlashlight = false;
+                } else
+            #endif
+            {
+                pinMode(Config.notification.ledFlashlightPin, OUTPUT);
+            }
+        } else if (Config.notification.ledFlashlight && Config.notification.ledFlashlightPin < 0) {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Flashlight Pin not defined, disabled");
+            Config.notification.ledFlashlight = false;
+        }
+
+        if (Config.ptt.active && Config.ptt.io_pin >= 0) {
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                if (isReservedSupremePin(Config.ptt.io_pin)) {
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "PTT pin conflicts with Supreme internal bus, disabled");
+                    Config.ptt.active = false;
+                } else
+            #endif
+            {
+                pinMode(Config.ptt.io_pin, OUTPUT);
+                digitalWrite(Config.ptt.io_pin, Config.ptt.reverse ? HIGH : LOW);
+            }
+        } else if (Config.ptt.active && Config.ptt.io_pin < 0) {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "PTT Pin not defined, disabled");
+            Config.ptt.active = false;
+        }
+        #ifdef RPC_MicroTracker
+            pinMode(LED_BT, OUTPUT);        // Led BT/BLE
+            digitalWrite(LED_BT, HIGH);
+            pinMode(LED_WIFI, OUTPUT);      // Led WiFI
+            digitalWrite(LED_WIFI, HIGH);
+        #endif
+    }
+
+    bool begin(TwoWire &port) {
+        #if !defined(HAS_AXP192) && !defined(HAS_AXP2101)
+            return true; // no powerManagment chip for this boards (only a few measure battery voltage).
+        #endif
+
+        #ifdef HAS_AXP192
+            bool result = PMU.begin(Wire, AXP192_SLAVE_ADDRESS, I2C_SDA, I2C_SCL);
+            if (result) {
+                PMU.disableDC2();
+                PMU.disableLDO2();
+                PMU.disableLDO3();
+                PMU.setDC1Voltage(3300);
+                PMU.enableDC1();
+                PMU.setProtectedChannel(XPOWERS_DCDC3);
+                PMU.disableIRQ(XPOWERS_AXP192_ALL_IRQ);
+            }
+            return result;
+        #endif
+
+        #ifdef HAS_AXP2101
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                bool result = PMU.begin(Wire1, AXP2101_SLAVE_ADDRESS, I2C1_SDA, I2C1_SCL);
+            #else
+                bool result = PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, I2C_SDA, I2C_SCL);
+            #endif
+            if (result) {
+                PMU.disableDC2();
+                PMU.disableDC3();
+                PMU.disableDC4();
+                PMU.disableDC5();
+                #ifndef TTGO_T_Beam_S3_SUPREME_V3
+                    PMU.disableALDO1();
+                    PMU.disableALDO4();
+                #endif
+                PMU.disableBLDO1();
+                PMU.disableBLDO2();
+                PMU.disableCPUSLDO();
+                PMU.disableDLDO1();
+                PMU.disableDLDO2();
+                PMU.setDC1Voltage(3300);
+                PMU.enableDC1();
+                PMU.setProtectedChannel(XPOWERS_DCDC1);
+                #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                    PMU.setALDO1Voltage(3300);
+                    PMU.enableALDO1();      // ALDO1 alimenta I2C0 (OLED, BME280, QMC6310)
+                    PMU.setALDO2Voltage(3300);
+                    PMU.enableALDO2();      // ALDO2 alimenta IMU QMI8658
+                #endif
+                PMU.setButtonBatteryChargeVoltage(3300);
+                PMU.enableButtonBatteryCharge();
+                PMU.disableIRQ(XPOWERS_AXP2101_ALL_IRQ);
+            }
+            return result;
+        #endif
+    }
+
+    void setup() {
+        #if defined(TTGO_T_Beam_S3_SUPREME_V3) && defined(IMU_CS_PIN)
+            // Selecciones del bus SPI compartido (IMU y SD) en alto desde el principio, antes de cualquier otra actividad
+            pinMode(IMU_CS_PIN, OUTPUT);
+            digitalWrite(IMU_CS_PIN, HIGH);
+            #ifdef SD_CS_PIN
+                pinMode(SD_CS_PIN, OUTPUT);
+                digitalWrite(SD_CS_PIN, HIGH);
+            #endif
+        #endif
+        #ifdef HAS_NO_GPS
+            disableGPS = true;
+        #else
+            if (Config.wifiAP.active) {
+                disableGPS = true;
+            } else {
+                disableGPS = Config.disableGPS;
+            }
+        #endif
+
+        #ifdef HAS_AXP192
+            Wire.begin(SDA, SCL);
+            if (begin(Wire)) {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "AXP192", "init done!");
+            } else {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "AXP192", "init failed!");
+            }
+            activateLoRa();
+            if (disableGPS) {
+                deactivateGPS();
+            } else {
+                activateGPS();
+            }
+            activateMeasurement();
+            PMU.setChargerTerminationCurr(XPOWERS_AXP192_CHG_ITERM_LESS_10_PERCENT);
+            PMU.setChargeTargetVoltage(XPOWERS_AXP192_CHG_VOL_4V2);
+            PMU.setChargerConstantCurr(XPOWERS_AXP192_CHG_CUR_780MA);
+            PMU.setSysPowerDownVoltage(2900);
+        #endif
+
+        #ifdef HAS_AXP2101
+            bool beginStatus = false;
+            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+                Wire1.begin(I2C1_SDA, I2C1_SCL);
+                Wire1.setClock(400000);
+                Wire.begin(I2C0_SDA, I2C0_SCL);
+                Wire.setClock(400000);
+                if (begin(Wire1)) beginStatus = true;
+            #else
+                Wire.begin(SDA, SCL);
+                if (begin(Wire)) beginStatus = true;
+            #endif
+            if (beginStatus) {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "AXP2101", "init done!");
+            } else {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "AXP2101", "init failed!");
+            }
+            activateLoRa();
+            if (disableGPS) {
+                deactivateGPS();
+            } else {
+                activateGPS();
+            }
+            activateMeasurement();
+            PMU.setPrechargeCurr(XPOWERS_AXP2101_PRECHARGE_150MA);
+            PMU.setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_25MA);
+            PMU.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);
+            PMU.setChargerConstantCurr(XPOWERS_AXP2101_CHG_CUR_500MA);
+            PMU.setSysPowerDownVoltage(2900);
+            handleChargingLed();
+        #endif
+
+        #ifdef BATTERY_PIN
+            pinMode(BATTERY_PIN, INPUT);
+        #endif
+
+        #ifdef VEXT_CTRL
+            pinMode(VEXT_CTRL, OUTPUT);
+            vext_ctrl_ON();
+        #endif
+
+        #ifdef ADC_CTRL
+            pinMode(ADC_CTRL, OUTPUT);
+        #endif
+
+        #ifdef HELTEC_WIRELESS_TRACKER
+            Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
+        #endif
+
+        #if defined(HELTEC_V3_GPS) || defined(HELTEC_V3_TNC) || defined(HELTEC_V3_2_GPS) || defined(HELTEC_V3_2_TNC) || defined(HELTEC_WSL_V3_GPS_DISPLAY) || defined(HELTEC_WSL_V3_TNC)
+            Wire1.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
+        #endif
+
+        #if defined(TTGO_T_DECK_GPS) || defined(TTGO_T_DECK_PLUS)
+            pinMode(BOARD_POWERON, OUTPUT);
+            digitalWrite(BOARD_POWERON, HIGH);
+
+            pinMode(BOARD_SDCARD_CS, OUTPUT);
+            pinMode(RADIO_CS_PIN, OUTPUT);
+            pinMode(TFT_CS, OUTPUT);
+
+            digitalWrite(BOARD_SDCARD_CS, HIGH);
+            digitalWrite(RADIO_CS_PIN, HIGH);
+            digitalWrite(TFT_CS, HIGH);
+
+            delay(500);
+            Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
+        #endif
+    }
+
+    void lowerCpuFrequency() {
+        if (setCpuFrequencyMhz(80)) {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_DEBUG, "Main", "CPU frequency set to 80MHz");
+        } else {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "CPU frequency unchanged");
+        }
+    }
+
+    void shutdown() {
+        delay(3000);
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "SHUTDOWN !!!");
+        #if defined(HAS_AXP192) || defined(HAS_AXP2101)
+            if (Config.notification.shutDownBeep) NOTIFICATION_Utils::shutDownBeep();
+            displayToggle(false);
+            PMU.shutdown();
+        #else
+            if (Config.bluetooth.active && Config.bluetooth.useBLE) {
+                BLE_Utils::stop();
+            }
+
+            #ifdef VEXT_CTRL
+                vext_ctrl_OFF();
+            #endif
+
+            #ifdef ADC_CTRL
+                adc_ctrl_OFF();
+            #endif
+
+            #if defined(TTGO_T_DECK_GPS) || defined(TTGO_T_DECK_PLUS)
+                digitalWrite(BOARD_POWERON, LOW);
+            #endif
+
+            #if defined(TTGO_T_BEAM_1W)
+                digitalWrite(FAN_CTRL_PIN, LOW);
+            #endif
+
+            LoRa_Utils::sleepRadio();
+
+            long DEEP_SLEEP_TIME_SEC = 1296000; // 15 days
+            esp_sleep_enable_timer_wakeup(1000000ULL * DEEP_SLEEP_TIME_SEC);
+            delay(500);
+            esp_deep_sleep_start();
+        #endif
+    }
+
+}

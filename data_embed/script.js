@@ -1,0 +1,1150 @@
+
+// ---- IARU band plans (70 cm / 33 cm) used by the LoRa / FSK profile cards ----
+// Amateur allocation limits (MHz) per IARU region. National rules always prevail.
+const IARU_REGIONS = {
+    1: { name: "Region 1 (Europe, Africa, Middle East)", bands: [[430.0, 440.0]] },
+    2: { name: "Region 2 (Americas)",                    bands: [[420.0, 450.0], [902.0, 928.0]] },
+    3: { name: "Region 3 (Asia-Pacific)",                bands: [[430.0, 440.0]] }
+};
+// Channel presets: [label, MHz]. Region 1 digital segments from the IARU R1 UHF band plan; Region 3 from the WIA 70 cm plan.
+const IARU_CHANNELS = {
+    1: [
+        ["433.625  Digital communications", 433.625], ["433.650  Digital communications", 433.65],
+        ["433.675  Digital communications", 433.675], ["433.700  Digital communications", 433.7],
+        ["433.725  Digital communications", 433.725], ["433.750  Digital communications", 433.75],
+        ["433.775  LoRa APRS / Digital communications", 433.775],
+        ["434.450  Digital communications", 434.45], ["434.475  Digital communications", 434.475],
+        ["434.500  Digital communications", 434.5], ["434.525  Digital communications", 434.525],
+        ["434.550  Digital communications", 434.55], ["434.575  Digital communications", 434.575],
+        ["434.855  LoRa APRS Poland", 434.855],
+        ["438.025  Digital communications", 438.025], ["438.050  Digital communications", 438.05],
+        ["438.075  Digital communications", 438.075], ["438.100  Digital communications", 438.1],
+        ["438.125  Digital communications", 438.125], ["438.150  Digital communications", 438.15],
+        ["438.175  Digital communications", 438.175],
+        ["439.9125 LoRa APRS UK", 439.9125]
+    ],
+    2: [
+        ["433.775  LoRa APRS (check local plan)", 433.775]
+    ],
+    3: [
+        ["433.775  LoRa APRS (check local plan)", 433.775],
+        ["439.100  APRS (Australia)", 439.1],
+        ["439.125  Internet gateways (Australia)", 439.125],
+        ["439.150  Internet gateways (Australia)", 439.15]
+    ]
+};
+// APRS FSK 9600 (G3RUH, ~12 kHz): same digital channels plus the IARU R1 narrow-band APRS frequency 432.500.
+const IARU_CHANNELS_FSK = {
+    1: [["432.500  APRS (IARU R1, 12 kHz)", 432.5]].concat(IARU_CHANNELS[1].filter(c => c[1] < 439)),
+    2: IARU_CHANNELS[2], 3: IARU_CHANNELS[3]
+};
+// CW / telegraphy per region, from the official plans: R1 UHF-Bandplan (432.000-432.100 MGM and telegraphy, centre 432.050),
+// R2 Band plan (432.000-432.100 CW EME / weak signal, calling 432.100; 33 cm weak-signal calling 902.100 / 903.100),
+// R3-004 (431.9-432.24 EME / weak signal; no CW or beacon sub-segments are defined).
+const IARU_CHANNELS_CW = {
+    1: [["432.025  CW (weak-signal / EME)", 432.025], ["432.050  Telegraphy centre of activity (IARU R1)", 432.05],
+        ["432.075  CW / telegraphy", 432.075], ["432.100  CW / SSB calling", 432.1]],
+    2: [["432.025  CW (EME / weak signal, IARU R2)", 432.025], ["432.050  CW weak signal (IARU R2)", 432.05],
+        ["432.100  CW / SSB calling (IARU R2)", 432.1], ["902.100  33 cm CW / SSB calling (IARU R2)", 902.1],
+        ["903.100  33 cm CW / SSB calling (IARU R2)", 903.1]],
+    3: [["432.050  CW weak signal (IARU R3 431.9-432.24)", 432.05], ["432.100  CW / SSB weak signal (IARU R3)", 432.1]]
+};
+// CW Beacon profile = telegraphy channels + beacon segments. The plans fix no channels inside the beacon segments,
+// so these points are suggestions; ask your national beacon coordinator (e.g. URE) before choosing one.
+//   R1: 432.400-432.490 beacons exclusive.  R2: 432.300-432.400 CW beacons, 432.400-432.420 digital beacons, 903.000-903.100 (33 cm).  R3: none defined.
+const IARU_CHANNELS_CWB = {
+    1: [["432.410  Beacon segment (IARU R1, exclusive)", 432.41], ["432.430  Beacon segment (IARU R1, exclusive)", 432.43],
+        ["432.450  Beacon segment (IARU R1, exclusive)", 432.45], ["432.470  Beacon segment (IARU R1, exclusive)", 432.47]].concat(IARU_CHANNELS_CW[1]),
+    2: [["432.320  CW beacon segment (IARU R2 432.3-432.4)", 432.32], ["432.350  CW beacon segment (IARU R2 432.3-432.4)", 432.35],
+        ["432.380  CW beacon segment (IARU R2 432.3-432.4)", 432.38], ["903.050  33 cm beacon segment (IARU R2 903.0-903.1)", 903.05]].concat(IARU_CHANNELS_CW[2]),
+    3: IARU_CHANNELS_CW[3]
+};
+function iaruList(o, region) {
+    const t = o && o.kind === "cwb" ? IARU_CHANNELS_CWB : o && o.kind === "cw" ? IARU_CHANNELS_CW : (o && o.kind === "fsk" ? IARU_CHANNELS_FSK : IARU_CHANNELS);
+    return t[region] || [];
+}
+function iaruCheckFrequency(region, hz) {
+    const mhz = hz / 1e6;
+    const r = IARU_REGIONS[region] || IARU_REGIONS[1];
+    return r.bands.some(b => mhz >= b[0] && mhz <= b[1]);
+}
+function iaruBandText(region) {
+    const r = IARU_REGIONS[region] || IARU_REGIONS[1];
+    return r.bands.map(b => b[0] + "–" + b[1] + " MHz").join(" / ");
+}
+// Reusable "IARU region + band plan channel + frequency + power" group (FSK profiles and the two CW profiles).
+// o: { regionName, freqName, powerName, region, freq, power }  (ids = names)
+function iaruProfileHtml(o) {
+    return `
+        <div class="form-floating col-6 col-md-4 px-1 mb-2">
+            <select class="form-select form-select-sm" name="${o.regionName}" id="${o.regionName}">
+                ${[1, 2, 3].map(r => `<option value="${r}" ${(o.region || 1) == r ? 'selected' : ''}>${IARU_REGIONS[r].name}</option>`).join('')}
+            </select>
+            <label for="${o.regionName}">IARU region</label>
+        </div>
+        <div class="form-floating col-12 col-md-4 px-1 mb-2">
+            <select class="form-select form-select-sm" id="${o.regionName}.preset"></select>
+            <label for="${o.regionName}.preset">IARU band plan channel</label>
+        </div>
+        <div class="col-12 px-1 mb-1"><small class="text-muted" id="${o.regionName}.bandinfo"></small></div>
+        <div class="form-floating col-6 col-md-3 px-1 mb-2">
+            <input type="number" class="form-control form-control-sm" name="${o.freqName}" id="${o.freqName}" min="137000000" max="1020000000" required value="${o.freq}">
+            <label for="${o.freqName}">Frequency (Hz)</label>
+        </div>
+        <div class="form-floating col-4 col-md-2 px-1 mb-2">
+            <input type="number" class="form-control form-control-sm" name="${o.powerName}" id="${o.powerName}" min="2" max="22" required value="${o.power}">
+            <label for="${o.powerName}">Power (dBm)</label>
+        </div>`;
+}
+function iaruProfileWire(root, o) {
+    const $ = id => root.querySelector('[id="' + id + '"]');
+    const regSel = $(o.regionName), preset = $(o.regionName + ".preset"), freq = $(o.freqName), info = $(o.regionName + ".bandinfo");
+    const refresh = () => {
+        const region = parseInt(regSel.value, 10);
+        const ok = iaruCheckFrequency(region, parseFloat(freq.value));
+        info.className = ok ? "text-muted" : "text-danger fw-semibold";
+        info.textContent = "Amateur allocation, " + IARU_REGIONS[region].name + ": " + iaruBandText(region)
+            + (ok ? "" : " \u2014 the frequency is OUTSIDE this region's amateur allocation") + ". National rules prevail.";
+    };
+    const fillPresets = () => {
+        const region = parseInt(regSel.value, 10);
+        preset.innerHTML = ['<option value="">Custom</option>'].concat(iaruList(o, region).map(c => '<option value="' + Math.round(c[1] * 1e6) + '">' + c[0] + '</option>')).join("");
+        const cur = String(Math.round(parseFloat(freq.value)));
+        if ([...preset.options].some(x => x.value === cur)) preset.value = cur;
+    };
+    preset.addEventListener("change", () => { if (preset.value) freq.value = preset.value; refresh(); });
+    regSel.addEventListener("change", () => { fillPresets(); refresh(); });
+    freq.addEventListener("input", () => {
+        const cur = String(Math.round(parseFloat(freq.value)));
+        preset.value = [...preset.options].some(x => x.value === cur) ? cur : "";
+        refresh();
+    });
+    fillPresets();
+    refresh();
+}
+
+// Custom scripts
+
+let currentSettings = null;
+
+function backupSettings() {
+    const data =
+        "data:text/json;charset=utf-8," +
+        encodeURIComponent(JSON.stringify(currentSettings));
+    const a = document.createElement("a");
+    a.setAttribute("href", data);
+    a.setAttribute("download", "TrackerConfigurationBackup.json");
+    a.click();
+}
+
+document.getElementById("backup").onclick = backupSettings;
+
+document.getElementById("restore").onclick = function (e) {
+    e.preventDefault();
+
+    document.querySelector("input[type=file]").click();
+};
+
+document.querySelector("input[type=file]").onchange = function () {
+    const files = document.querySelector("input[type=file]").files;
+
+    if (!files.length) return;
+
+    const file = files.item(0);
+
+    const reader = new FileReader();
+    reader.readAsText(file);
+    reader.onload = () => {
+        const data = JSON.parse(reader.result);
+
+        loadSettings(data);
+    };
+};
+
+function fetchSettings() {
+    fetch("/configuration.json")
+        .then((response) => response.json())
+        .then((settings) => {
+            console.log(settings);
+            loadSettings(settings);
+        })
+        .catch((err) => {
+            console.error(err);
+
+            alert(`Failed to load configuration`);
+        });
+}
+
+// AIS nautical profile (4th beacon): vessel types. Must match src/ais_vessel.cpp
+const AIS_VESSELS = [
+    { id: 0,  label: "Sailing yacht (recreational)",   cls: "B-CS", ssid: 5, overlay: "/",  symbol: "Y", group: "Recreational (AIS Class B)" },
+    { id: 1,  label: "Power boat (recreational)",      cls: "B-SO", ssid: 8, overlay: "/",  symbol: "s", group: "Recreational (AIS Class B)" },
+    { id: 2,  label: "Cargo ship",                     cls: "A",    ssid: 8, overlay: "C",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 3,  label: "Tanker",                         cls: "A",    ssid: 8, overlay: "\\", symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 4,  label: "Passenger ship / ferry",         cls: "A",    ssid: 8, overlay: "X",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 5,  label: "Fishing vessel",                 cls: "A",    ssid: 8, overlay: "F",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 6,  label: "Tug",                            cls: "A",    ssid: 8, overlay: "T",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 7,  label: "Pilot vessel",                   cls: "A",    ssid: 8, overlay: "P",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 8,  label: "High-speed craft",               cls: "A",    ssid: 8, overlay: "H",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 9,  label: "Law enforcement",                cls: "A",    ssid: 8, overlay: "L",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 10, label: "Search and rescue",              cls: "A",    ssid: 8, overlay: "S",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 11, label: "Emergency / medical transport",  cls: "A",    ssid: 8, overlay: "E",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 12, label: "Military",                       cls: "A",    ssid: 8, overlay: "M",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 13, label: "Diving vessel",                  cls: "A",    ssid: 8, overlay: "D",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 14, label: "Sailing ship (large)",           cls: "A",    ssid: 8, overlay: "Y",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 15, label: "Wing-in-ground / hovercraft",    cls: "A",    ssid: 8, overlay: "W",  symbol: "s", group: "Commercial (AIS Class A)" },
+    { id: 16, label: "Other ship",                     cls: "A",    ssid: 8, overlay: "\\", symbol: "s", group: "Commercial (AIS Class A)" }
+];
+
+function aisVesselInfoText(vesselId) {
+    const v = AIS_VESSELS.find(x => x.id == vesselId) || AIS_VESSELS[0];
+    const clsText = v.cls === "A" ? "Class A" : (v.cls === "B-SO" ? 'Class B "SO"' : 'Class B "CS"');
+    const symbolText = v.overlay === "/" ? "/" + v.symbol : (v.overlay === "\\" ? "\\" + v.symbol : "\\" + v.symbol + " (overlay " + v.overlay + ")");
+    return `AIS ${clsText} &middot; SSID -${v.ssid} &middot; APRS symbol ${symbolText} &middot; SmartBeacon AIS ${clsText} &middot; LoRa profile: AIS (SF9, CR 4/5)`;
+}
+
+function aisVesselChanged(index) {
+    const select = document.getElementById(`beacons.${index}.aisVesselType`);
+    const v = AIS_VESSELS.find(x => x.id == select.value) || AIS_VESSELS[0];
+    document.getElementById(`beacons.${index}.ssidLabel`).textContent = "-" + v.ssid;
+    document.getElementById(`beacons.${index}.aisInfo`).innerHTML = aisVesselInfoText(select.value);
+    const len = document.getElementById(`beacons.${index}.aisLength`);
+    if (len) {
+        const b = v.cls !== "A";
+        len.min = b ? 6 : 0;
+        len.max = b ? 24 : 999;
+        const n = Number(len.value) || 0;
+        if (n > 0) len.value = Math.min(Math.max(n, len.min), len.max);
+    }
+}
+
+function renderAisBeacon(beacons, index) {
+    const baseCall = String(beacons.callsign || "").replace(/-.*$/, "");
+    const v = AIS_VESSELS.find(x => x.id == beacons.aisVesselType) || AIS_VESSELS[0];
+    let options = "";
+    let group = "";
+    AIS_VESSELS.forEach(item => {
+        if (item.group !== group) {
+            if (group !== "") options += "</optgroup>";
+            options += `<optgroup label="${item.group}">`;
+            group = item.group;
+        }
+        options += `<option value="${item.id}" ${item.id == v.id ? "selected" : ""}>${item.label}</option>`;
+    });
+    options += "</optgroup>";
+    return `
+            <div class="d-flex align-items-start pt-3" style="flex: 0 0 50px; width: 50px;">
+                <strong>${index + 1})</strong>
+            </div>
+            <div class="col">
+                <div class="row g-2 mb-2">
+                    <div class="col-12"><span class="badge text-bg-primary">AIS nautical profile</span>
+                        <small class="text-muted ms-1">Callsign, SSID, symbol, SmartBeacon and LoRa profile follow the vessel type.</small></div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-6">
+                        <div class="input-group input-group-sm">
+                            <div class="form-floating">
+                                <input type="text" class="form-control form-control-sm"
+                                    name="beacons.${index}.callsign" id="beacons.${index}.callsign"
+                                    required maxlength="6" pattern="[A-Za-z0-9]{3,6}"
+                                    value="${baseCall}"
+                                    oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');">
+                                <label for="beacons.${index}.callsign">Callsign (amateur radio)</label>
+                            </div>
+                            <span class="input-group-text" id="beacons.${index}.ssidLabel">-${v.ssid}</span>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="beacons.${index}.aisVesselType" class="form-label"><small>Vessel type</small></label>
+                        <select name="beacons.${index}.aisVesselType" id="beacons.${index}.aisVesselType" class="form-control" onchange="aisVesselChanged(${index})">${options}</select>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="form-floating col-12 col-md-6">
+                        <input type="text" class="form-control form-control-sm" maxlength="20"
+                            name="beacons.${index}.aisName" id="beacons.${index}.aisName"
+                            value="${beacons.aisName || ""}"
+                            oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9 .\\/&'()+#-]/g, '');">
+                        <label for="beacons.${index}.aisName">Vessel name (max. 20)</label>
+                    </div>
+                    <div class="form-floating col-12 col-md-6">
+                        <input type="text" inputmode="numeric" class="form-control form-control-sm" maxlength="9" pattern="(|[2-7][0-9]{8})"
+                            name="beacons.${index}.aisMmsi" id="beacons.${index}.aisMmsi"
+                            value="${beacons.aisMmsi ? beacons.aisMmsi : ""}"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+                        <label for="beacons.${index}.aisMmsi">MMSI (9 digits; empty = not sent)</label>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="form-floating col-4">
+                        <input type="number" class="form-control form-control-sm" min="${v.cls !== "A" ? 6 : 0}" max="${v.cls !== "A" ? 24 : 999}" step="1"
+                            name="beacons.${index}.aisLength" id="beacons.${index}.aisLength" value="${beacons.aisLength || 0}">
+                        <label for="beacons.${index}.aisLength">Length (m) - Class B: 6-24</label>
+                    </div>
+                    <div class="form-floating col-4">
+                        <input type="number" class="form-control form-control-sm" min="0" max="126" step="1"
+                            name="beacons.${index}.aisBeam" id="beacons.${index}.aisBeam" value="${beacons.aisBeam || 0}">
+                        <label for="beacons.${index}.aisBeam">Beam (m)</label>
+                    </div>
+                    <div class="form-floating col-4">
+                        <input type="number" class="form-control form-control-sm" min="0" max="25.5" step="0.1"
+                            name="beacons.${index}.aisDraft" id="beacons.${index}.aisDraft" value="${Number(beacons.aisDraft || 0).toFixed(1)}">
+                        <label for="beacons.${index}.aisDraft">Draft (m)</label>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12"><small class="text-muted" id="beacons.${index}.aisInfo">${aisVesselInfoText(v.id)}</small></div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="form-floating col-12">
+                        <input type="text" class="form-control form-control-sm"
+                            name="beacons.${index}.comment" id="beacons.${index}.comment" value="${beacons.comment}">
+                        <label for="beacons.${index}.comment">Comment</label>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-sm-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                name="beacons.${index}.gpsEcoMode" id="beacons.${index}.gpsEcoMode" value="1" ${beacons.gpsEcoMode ? 'checked' : ''}>
+                            <label class="form-check-label" for="beacons.${index}.gpsEcoMode">GPS Eco Mode</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="form-floating col-12 col-sm-6">
+                        <input type="text" class="form-control form-control-sm"
+                            name="beacons.${index}.status" id="beacons.${index}.status" value="${beacons.status}">
+                        <label for="beacons.${index}.status">Status</label>
+                    </div>
+                    <div class="form-floating col-12 col-sm-6">
+                        <input type="text" class="form-control form-control-sm"
+                            name="beacons.${index}.profileLabel" id="beacons.${index}.profileLabel" value="${beacons.profileLabel}">
+                        <label for="beacons.${index}.profileLabel">Profile Label</label>
+                    </div>
+                </div>
+            </div>
+    `;
+}
+
+function loadSettings(settings) {
+    currentSettings = settings;
+    
+    // BEACONS
+    const beaconContainer = document.getElementById("beacon-settings");
+    beaconContainer.innerHTML = ""; // Clear previous content
+
+    settings.beacons.forEach((beacons, index) => {
+        const beaconElement = document.createElement("div");
+        beaconElement.classList.add("row", "g-0", "beacons", "border-bottom", "py-2");
+
+        if (beacons.aisProfile) {
+            beaconElement.innerHTML = renderAisBeacon(beacons, index);
+            beaconContainer.appendChild(beaconElement);
+            return;
+        }
+
+        beaconElement.innerHTML = `
+            <div class="d-flex align-items-start pt-3" style="flex: 0 0 50px; width: 50px;">
+                <strong>${index + 1})</strong>
+            </div>
+            <div class="col">
+                <div class="row g-2 mb-2">
+                    <div class="form-floating col-12 col-md-6">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            name="beacons.${index}.callsign" 
+                            id="beacons.${index}.callsign" 
+                            required
+                            value="${beacons.callsign}"
+                            oninput="this.value = this.value.toUpperCase();">
+                        <label for="beacons.${index}.callsign">Callsign</label>
+                    </div>
+                    <div class="form-floating col-4 col-md-2">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            name="beacons.${index}.symbol" 
+                            id="beacons.${index}.symbol" 
+                            value="${beacons.symbol}">
+                        <label for="beacons.${index}.symbol">Symbol</label>
+                    </div>
+                    <div class="form-floating col-4 col-md-2">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            name="beacons.${index}.overlay" 
+                            id="beacons.${index}.overlay" 
+                            value="${beacons.overlay}">
+                        <label for="beacons.${index}.overlay">Overlay</label>
+                    </div>
+                    <div class="form-floating col-4 col-md-2">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            name="beacons.${index}.micE" 
+                            id="beacons.${index}.micE" 
+                            value="${beacons.micE}">
+                        <label for="beacons.${index}.micE">Mic-E</label>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="form-floating col-12">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            name="beacons.${index}.comment" 
+                            id="beacons.${index}.comment" 
+                            value="${beacons.comment}">
+                        <label for="beacons.${index}.comment">Comment</label>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-sm-6">
+                        <div class="form-check form-switch">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                name="beacons.${index}.smartBeaconActive" 
+                                id="beacons.${index}.smartBeaconActive" 
+                                value="1" 
+                                ${beacons.smartBeaconActive ? 'checked' : ''}>
+                            <label class="form-check-label" for="beacons.${index}.smartBeaconActive">
+                                Smart Beacon Active
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <div class="form-check form-switch">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                name="beacons.${index}.gpsEcoMode" 
+                                id="beacons.${index}.gpsEcoMode"
+                                value="1"
+                                ${beacons.gpsEcoMode ? 'checked' : ''}>
+                            <label class="form-check-label" for="beacons.${index}.gpsEcoMode">
+                                GPS Eco Mode
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-6">
+                        <label for="beacons.${index}.smartBeaconSetting" class="form-label"><small>Smart Beacon Setting</small></label>
+                        <select name="beacons.${index}.smartBeaconSetting" id="beacons.${index}.smartBeaconSetting" class="form-control">
+                            <optgroup label="SmartBeacon presets">
+                                <option value="0" ${beacons.smartBeaconSetting == 0 ? 'selected' : ''}>Human/Runner (Slow Speed)</option>
+                                <option value="1" ${beacons.smartBeaconSetting == 1 ? 'selected' : ''}>Bicycle (Mid Speed)</option>
+                                <option value="2" ${beacons.smartBeaconSetting == 2 ? 'selected' : ''}>Car/Motorcycle (Fast Speed)</option>
+                                <option value="3" ${beacons.smartBeaconSetting == 3 ? 'selected' : ''}>AIS Class A (ITU-R M.1371-6)</option>
+                                <option value="4" ${beacons.smartBeaconSetting == 4 ? 'selected' : ''}>AIS Class B "SO" (ITU-R M.1371-6)</option>
+                                <option value="5" ${beacons.smartBeaconSetting == 5 ? 'selected' : ''}>AIS Class B "CS" (ITU-R M.1371-6)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="form-floating col-12 col-sm-6">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            name="beacons.${index}.status" 
+                            id="beacons.${index}.status" 
+                            value="${beacons.status}">
+                        <label for="beacons.${index}.status">Status</label>
+                    </div>
+                    <div class="form-floating col-12 col-sm-6">
+                        <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            name="beacons.${index}.profileLabel" 
+                            id="beacons.${index}.profileLabel" 
+                            value="${beacons.profileLabel}">
+                        <label for="beacons.${index}.profileLabel">Profile Label</label>
+                    </div>
+                </div>
+            </div>
+        `;
+        beaconContainer.appendChild(beaconElement);
+    });
+
+    // ADITIONAL STATION CONFIG
+    document.getElementById("simplifiedTrackerMode").checked            = settings.other.simplifiedTrackerMode;
+    document.getElementById("sendCommentAfterXBeacons").value           = settings.other.sendCommentAfterXBeacons;
+    document.getElementById("path").value                               = settings.other.path;
+    document.getElementById("nonSmartBeaconRate").value                 = settings.other.nonSmartBeaconRate;
+    document.getElementById("rememberStationTime").value                = settings.other.rememberStationTime;
+    document.getElementById("standingUpdateTime").value                 = settings.other.standingUpdateTime;
+    document.getElementById("sendAltitude").checked                     = settings.other.sendAltitude ;
+    document.getElementById("disableGPS").checked                       = settings.other.disableGPS;
+    {
+        const cw = settings.cw || { wpm: 15, messages: [] };
+        document.getElementById("cw.wpm").value = cw.wpm || 15;
+        document.getElementById("cw.trainerLevel").value = cw.trainerLevel ?? 4;
+        document.getElementById("cw.trainerGapWpm").value = cw.trainerGapWpm ?? 10;
+        document.getElementById("cw.beaconMin").value = cw.beaconMin ?? 0;
+        const cwProfiles = document.getElementById("cw-profiles");
+        const baseLora = (settings.lora && settings.lora[0]) || { frequency: 433775000, power: 17 };
+        const cwDefs = [
+            { key: "beacon", title: "1) CW Beacon profile", note: "Used by the autonomous CW beacon." },
+            { key: "key",    title: "2) Telegraphy profile", note: "Used by the key / paddles, the fixed messages and the CW trainer." }
+        ];
+        cwProfiles.innerHTML = "";
+        cwDefs.forEach(d => {
+            const o = {
+                kind: d.key === "beacon" ? "cwb" : "cw", regionName: "cw." + d.key + "Region", freqName: "cw." + d.key + "Freq", powerName: "cw." + d.key + "Power",
+                region: cw[d.key + "Region"] || 1, freq: cw[d.key + "Freq"] || 432050000, power: cw[d.key + "Power"] || baseLora.power
+            };
+            const row = document.createElement("div");
+            row.className = "row border-bottom py-2";
+            row.innerHTML = `<div class="col-12 px-1 mb-1"><strong>${d.title}</strong> <small class="text-muted">${d.note}</small></div>` + iaruProfileHtml(o);
+            cwProfiles.appendChild(row);
+            iaruProfileWire(row, o);
+        });
+        document.getElementById("cw.beaconText").value = cw.beaconText ?? "DE {CALL}/B {LOC} V{VBAT}";
+        const wspr = settings.wspr || {};
+        document.getElementById("wspr.freqHz").value = 432301500;      // fixed: not editable
+        document.getElementById("wspr.corrHz").value = wspr.corrHz ?? 0;
+        document.getElementById("wspr.useGlobalPpm").checked = wspr.useGlobalPpm ?? false;
+        document.getElementById("radio.freqCorrPpm").value = ((settings.radioPpm1000 ?? 0) / 1000).toFixed(3);
+        document.getElementById("freqcal.apply").onclick = () => {
+            const f = parseFloat(document.getElementById("freqcal.freqMHz").value);
+            const e = parseFloat(document.getElementById("freqcal.errHz").value);
+            const cur = parseFloat(document.getElementById("radio.freqCorrPpm").value) || 0;
+            if (!(f > 0) || isNaN(e)) return;
+            const next = Math.max(-50, Math.min(50, cur - e / f));
+            document.getElementById("radio.freqCorrPpm").value = next.toFixed(3);
+            document.getElementById("freqcal.errHz").value = 0;
+        };
+        const dap = settings.dapnet || {};
+        document.getElementById("dapnet.freqMHz").value = ((dap.freqHz ?? 439987500) / 1e6).toFixed(4);
+        document.getElementById("dapnet.baud").value = String(dap.baud ?? 1200);
+        document.getElementById("dapnet.devKHz").value = ((dap.devTenthsKHz ?? 45) / 10).toFixed(1);
+        document.getElementById("dapnet.rxBwTenthsKHz").value = String(dap.rxBwTenthsKHz ?? 146);
+        document.getElementById("dapnet.rics").value = dap.rics ?? "";
+        document.getElementById("dapnet.charset").value = String(dap.charset ?? 1);
+        document.getElementById("dapnet.monitorAll").checked = dap.monitorAll ?? false;
+        document.getElementById("dapnet.timeSync").checked = dap.timeSync ?? false;
+        document.getElementById("wspr.powerDbm").value = String(wspr.powerDbm ?? 10);
+        document.getElementById("wspr.intervalMin").value = String(wspr.intervalMin ?? 10);
+        document.getElementById("wspr.locator").value = wspr.locator ?? "";
+        document.getElementById("wspr.dither").checked = wspr.dither ?? true;
+        document.getElementById("wspr.screenOff").checked = wspr.screenOff ?? false;
+        document.getElementById("wspr.driftTenths").value = wspr.driftTenths ?? 0;
+        document.getElementById("wspr.perPower").checked = wspr.perPower ?? false;
+        for (let i = 0; i < 7; i++) {
+            document.getElementById("wspr.ppCorrHz" + i).value = (wspr.ppCorrHz && wspr.ppCorrHz[i] !== undefined) ? wspr.ppCorrHz[i] : (wspr.corrHz ?? 0);
+            document.getElementById("wspr.ppDriftTenths" + i).value = (wspr.ppDriftTenths && wspr.ppDriftTenths[i] !== undefined) ? wspr.ppDriftTenths[i] : (wspr.driftTenths ?? 0);
+        }
+        document.getElementById("cw.keyMode").value = String(cw.keyMode ?? 0);
+        document.getElementById("cw.keyPin").value = cw.keyPin ?? -1;
+        document.getElementById("cw.dahPin").value = cw.dahPin ?? -1;
+        document.getElementById("cw.keyTx").checked = cw.keyTx ?? true;
+        document.getElementById("cw.sidetone").checked = cw.sidetone ?? true;
+        document.getElementById("cw.swapPaddles").checked = cw.swapPaddles ?? false;
+        const box = document.getElementById("cw-messages");
+        box.innerHTML = "";
+        for (let i = 0; i < 5; i++) {
+            const div = document.createElement("div");
+            div.className = "form-floating px-1 mb-2";
+            const input = document.createElement("input");
+            input.type = "text"; input.maxLength = 60; input.className = "form-control form-control-sm";
+            input.name = "cw.message." + i; input.id = "cw.message." + i;
+            input.value = (cw.messages && cw.messages[i]) || "";
+            const label = document.createElement("label");
+            label.htmlFor = input.id; label.textContent = "CW message " + (i + 1);
+            div.appendChild(input); div.appendChild(label);
+            box.appendChild(div);
+        }
+    }
+    document.getElementById("cadActive").checked                        = settings.other.cadActive;
+    document.getElementById("cadWaitSec").value                         = settings.other.cadWaitSec ?? 10;
+    document.getElementById("cadFskRssi").value                         = settings.other.cadFskRssi ?? -95;
+    document.getElementById("email").value                              = settings.other.email;
+
+    // DISPLAY
+    document.getElementById("display.ecoMode").checked                  = settings.display.ecoMode;
+    document.getElementById("display.turn180").checked                  = settings.display.turn180;
+    document.getElementById("display.timeout").value                    = settings.display.timeout;
+    document.getElementById("display.showSymbol").checked               = settings.display.showSymbol;
+    DisplayEcoModeCheckbox.checked  = settings.display.ecoMode;
+    DisplayTimeout.disabled         = !DisplayEcoModeCheckbox.checked;
+
+    // BLUETOOTH
+    document.getElementById("bluetooth.active").checked                 = settings.bluetooth.active;
+    document.getElementById("bluetooth.deviceName").value               = settings.bluetooth.deviceName;
+    document.getElementById("bluetooth.useBLE").value                   = settings.bluetooth.useBLE ? "1" : "0";
+    document.getElementById("bluetooth.useKISS").value                  = settings.bluetooth.useKISS ? "1" : "0";
+    BluetoothActiveCheckbox.checked = settings.bluetooth.active;
+    BluetoothDeviceName.disabled    = !BluetoothActiveCheckbox.checked;
+    BluetoothUseBle.disabled        = !BluetoothActiveCheckbox.checked;
+    BluetoothUseKiss.disabled       = !BluetoothActiveCheckbox.checked;
+
+    // LORA
+    const loraContainer = document.getElementById("lora-settings");
+    loraContainer.innerHTML = ""; // Clear previous content
+    const fskContainer = document.getElementById("fsk-settings");
+    fskContainer.innerHTML = "";
+
+    settings.lora.forEach((lora, index) => {
+        const loraElement = document.createElement("div");
+        loraElement.classList.add("row", "lora", "border-bottom", "py-2");
+
+        loraElement.innerHTML = `
+            <div class="col-1 px-1 mb-2 d-flex align-items-center">
+                <strong>${index + 1})</strong> <!-- Adding numbering here -->
+            </div>
+            ${lora.ais ? '<div class="col-12 px-1 mb-1"><span class="badge text-bg-primary">AIS nautical</span> <small class="text-muted">Used automatically by the AIS nautical beacon profile. SF 9 and CR 4/5 are fixed.</small></div>' : ''}
+            ${lora.ais ? '' : `
+            <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                <select class="form-select form-select-sm" name="lora.${index}.iaruRegion" id="lora.${index}.iaruRegion">
+                    ${[1, 2, 3].map(r => `<option value="${r}" ${(lora.iaruRegion || 1) == r ? 'selected' : ''}>${IARU_REGIONS[r].name}</option>`).join('')}
+                </select>
+                <label for="lora.${index}.iaruRegion">IARU region</label>
+            </div>
+            <div class="form-floating col-12 col-md-4 px-1 mb-2">
+                <select class="form-select form-select-sm" id="lora.${index}.preset"></select>
+                <label for="lora.${index}.preset">IARU band plan channel</label>
+            </div>
+            <div class="col-12 px-1 mb-1"><small class="text-muted" id="lora.${index}.bandinfo"></small></div>
+            `}
+            <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                <input 
+                    type="number" 
+                    class="form-control form-control-sm" 
+                    name="lora.${index}.frequency" 
+                    id="lora.${index}.frequency" 
+                    min="137000000"
+                    max="1020000000"
+                    required
+                    value="${lora.frequency}">
+                <label for="lora.${index}.frequency">Frequency</label>
+            </div>
+            <div class="form-floating col-4 col-md-2 px-1 mb-2">
+                <input 
+                    type="number" 
+                    class="form-control form-control-sm" 
+                    name="lora.${index}.spreadingFactor" 
+                    id="lora.${index}.spreadingFactor" 
+                    value="${lora.spreadingFactor}"
+                    min="7"
+                    max="12"
+                    ${lora.ais ? 'readonly' : ''}
+                    required>
+                <label for="lora.${index}.spreadingFactor">SF</label>
+            </div>
+            <div class="form-floating col-4 col-md-2 px-1 mb-2">
+                <input 
+                    type="number" 
+                    class="form-control form-control-sm" 
+                    name="lora.${index}.codingRate4" 
+                    id="lora.${index}.codingRate4" 
+                    value="${lora.codingRate4}"
+                    min="5"
+                    max="8"
+                    ${lora.ais ? 'readonly' : ''}
+                    required>
+                <label for="lora.${index}.codingRate4">CR4</label>
+            </div>
+            <div class="form-floating col-4 col-md-2 px-1 mb-2">
+                <input 
+                    type="number" 
+                    class="form-control form-control-sm" 
+                    name="lora.${index}.signalBandwidth" 
+                    id="lora.${index}.signalBandwidth" 
+                    value="${lora.signalBandwidth}"
+                    min="62500"
+                    max="500000"
+                    required>
+                <label for="lora.${index}.signalBandwidth">BW</label>
+            </div>
+            <div class="form-floating col-4 col-md-2 px-1 mb-2">
+                <input
+                    type="number"
+                    class="form-control form-control-sm"
+                    name="lora.${index}.power"
+                    id="lora.${index}.power"
+                    value="${lora.power}"
+                    min="2"
+                    max="22"
+                    required>
+                <label for="lora.${index}.power">Power (dBm)</label>
+            </div>
+        `;
+        loraContainer.appendChild(loraElement);
+
+        if (!lora.ais) {
+            const fskElement = document.createElement("div");
+            fskElement.classList.add("row", "fsk", "border-bottom", "py-2");
+            fskElement.innerHTML = `
+            <div class="col-1 px-1 mb-2 d-flex align-items-center">
+                <strong>${index + 1})</strong>
+            </div>
+            ${iaruProfileHtml({ kind: "fsk", regionName: `lora.${index}.fskIaruRegion`, freqName: `lora.${index}.fskFrequency`, powerName: `lora.${index}.fskPower`, region: lora.fskIaruRegion || lora.iaruRegion || 1, freq: lora.fskFrequency || lora.frequency, power: lora.fskPower || lora.power })}
+            <div class="form-floating col-4 col-md-3 px-1 mb-2">
+                <input type="number" step="0.1" min="1.2" max="100" class="form-control form-control-sm" name="lora.${index}.fskBitRate" id="lora.${index}.fskBitRate" value="${lora.fskBitRate ?? 9.6}">
+                <label for="lora.${index}.fskBitRate">FSK bit rate (kbps)</label>
+            </div>
+            <div class="form-floating col-4 col-md-3 px-1 mb-2">
+                <input type="number" step="0.1" min="0.6" max="200" class="form-control form-control-sm" name="lora.${index}.fskFreqDev" id="lora.${index}.fskFreqDev" value="${lora.fskFreqDev ?? 3.0}">
+                <label for="lora.${index}.fskFreqDev">FSK deviation (kHz)</label>
+            </div>
+            <div class="form-floating col-4 col-md-3 px-1 mb-2">
+                <input type="number" step="0.1" min="4.8" max="500" class="form-control form-control-sm" name="lora.${index}.fskRxBandwidth" id="lora.${index}.fskRxBandwidth" value="${lora.fskRxBandwidth ?? 39.0}">
+                <label for="lora.${index}.fskRxBandwidth">FSK Rx bandwidth (kHz)</label>
+            </div>
+            <div class="form-floating col-12 col-md-5 px-1 mb-2">
+                <select class="form-select form-select-sm" name="lora.${index}.fskShaping" id="lora.${index}.fskShaping" title="Gaussian filter of the FSK transmitter. GFSK BT 0.5 is the G3RUH standard. For true GMSK use deviation = bit rate / 4 (2.4 kHz at 9.6 kbps).">
+                    <option value="1">GFSK, BT 0.5 (G3RUH, default)</option>
+                    <option value="2">GMSK, BT 0.3</option>
+                    <option value="3">GFSK, BT 0.7</option>
+                    <option value="4">GFSK, BT 1.0</option>
+                    <option value="0">FSK (no filter)</option>
+                </select>
+                <label for="lora.${index}.fskShaping">Modulation / Gaussian filter (TX)</label>
+            </div>
+            <div class="col-12 col-md-7 px-1 mb-2 d-flex align-items-center"><small class="text-muted">GMSK = minimum shift keying with a Gaussian filter: set the deviation to bit rate / 4 (2.4 kHz at 9.6 kbps). The receiver does not depend on this setting. SX127x radios have no BT 0.7 (BT 0.5 is used instead); LLCC68 boards have no FSK.</small></div>
+            `;
+            fskContainer.appendChild(fskElement);
+            iaruProfileWire(fskElement, { kind: "fsk", regionName: `lora.${index}.fskIaruRegion`, freqName: `lora.${index}.fskFrequency`, powerName: `lora.${index}.fskPower` });
+            fskElement.querySelector('[id="lora.' + index + '.fskShaping"]').value = String(lora.fskShaping ?? 1);
+        }
+
+        if (!lora.ais) {
+            const $ = id => loraElement.querySelector('[id="lora.' + index + '.' + id + '"]');
+            const regSel = $("iaruRegion"), preset = $("preset"), freq = $("frequency"), info = $("bandinfo");
+            const refresh = () => {
+                const region = parseInt(regSel.value, 10);
+                const ok = iaruCheckFrequency(region, parseFloat(freq.value));
+                info.className = ok ? "text-muted" : "text-danger fw-semibold";
+                info.textContent = "Amateur allocation, " + IARU_REGIONS[region].name + ": " + iaruBandText(region)
+                    + (ok ? "" : " — the frequency is OUTSIDE this region's amateur allocation") + ". National rules prevail.";
+            };
+            const fillPresets = () => {
+                const region = parseInt(regSel.value, 10);
+                const opts = ['<option value="">Custom</option>'].concat(IARU_CHANNELS[region].map(c => '<option value="' + Math.round(c[1] * 1e6) + '">' + c[0] + '</option>'));
+                preset.innerHTML = opts.join("");
+                const cur = String(Math.round(parseFloat(freq.value)));
+                if ([...preset.options].some(o => o.value === cur)) preset.value = cur;
+            };
+            preset.addEventListener("change", () => { if (preset.value) { freq.value = preset.value; } refresh(); });
+            regSel.addEventListener("change", () => { fillPresets(); refresh(); });
+            freq.addEventListener("input", () => {
+                const cur = String(Math.round(parseFloat(freq.value)));
+                preset.value = [...preset.options].some(o => o.value === cur) ? cur : "";
+                refresh();
+            });
+            fillPresets();
+            refresh();
+        }
+    });
+
+    // GPS receiver
+    const gpsCfg = settings.gps || {};
+    const gpsMask = gpsCfg.gnssMask ?? 35;
+    GPS_GNSS_BITS.forEach(([id, bit]) => { document.getElementById(id).checked = (gpsMask & bit) !== 0; });
+    document.getElementById("gps.assistNow").checked        = gpsCfg.assistNow ?? true;
+    document.getElementById("gps.dynModel").value           = String(gpsCfg.dynModel ?? 0);
+    document.getElementById("gps.rateMs").value             = String(gpsCfg.rateMs ?? 1000);
+    document.getElementById("gps.nmeaLean").checked         = gpsCfg.nmeaLean ?? true;
+    document.getElementById("gps.minElev").value            = gpsCfg.minElev ?? 5;
+    document.getElementById("gps.staticHoldCms").value      = gpsCfg.staticHoldCms ?? 0;
+    document.getElementById("gps.staticHoldDistM").value    = gpsCfg.staticHoldDistM ?? 0;
+    document.getElementById("gps.sbasDiffCorr").checked     = gpsCfg.sbasDiffCorr ?? true;
+    document.getElementById("gps.sbasRanging").checked      = gpsCfg.sbasRanging ?? true;
+    document.getElementById("gps.sbasIntegrity").checked    = gpsCfg.sbasIntegrity ?? false;
+    document.getElementById("gps.ppsEnabled").checked       = gpsCfg.ppsEnabled ?? true;
+    document.getElementById("gps.ppsFreqHz").value          = String(gpsCfg.ppsFreqHz ?? 1);
+    document.getElementById("gps.ppsLenMs").value           = gpsCfg.ppsLenMs ?? 100;
+    document.getElementById("gps.ppsRising").value          = (gpsCfg.ppsRising ?? true) ? "1" : "0";
+    document.getElementById("gps.ppsCableDelayNs").value    = gpsCfg.ppsCableDelayNs ?? 50;
+    document.getElementById("gps.ppsUserDelayNs").value     = gpsCfg.ppsUserDelayNs ?? 0;
+    gpsCheckGnss();
+    fetchGpsInfo();
+
+    // BATTERY
+    document.getElementById("battery.sendVoltage").checked              = settings.battery.sendVoltage;
+    document.getElementById("battery.voltageAsTelemetry").checked       = settings.battery.voltageAsTelemetry;
+    document.getElementById("battery.sendVoltageAlways").checked        = settings.battery.sendVoltageAlways;
+    BatterySendVoltageCheckbox.checked  = settings.battery.sendVoltage;
+    BatteryVoltageAsTelemetry.disabled  = !BatterySendVoltageCheckbox.checked;
+    BatteryForceSendVoltage.disabled    = !BatterySendVoltageCheckbox.checked;
+
+    document.getElementById("battery.monitorVoltage").checked           = settings.battery.monitorVoltage;
+    document.getElementById("battery.sleepVoltage").value               = settings.battery.sleepVoltage.toFixed(1);
+    BatteryMonitorVoltageCheckbox.checked   = settings.battery.monitorVoltage;
+    BatteryMonitorSleepVoltage.disabled     = !BatteryMonitorVoltageCheckbox.checked;
+
+    // TELEMETRY (WX Sensor)
+    document.getElementById("telemetry.active").checked                  = settings.telemetry.active;
+    document.getElementById("telemetry.sendTelemetry").checked           = settings.telemetry.sendTelemetry;
+    document.getElementById("telemetry.temperatureCorrection").value     = settings.telemetry.temperatureCorrection.toFixed(1);
+    TelemetryCheckbox.checked           = settings.telemetry.active;
+    TelemetrySendCheckbox.disabled      = !TelemetryCheckbox.checked;
+    TelemetryTempCorrection.disabled    = !TelemetryCheckbox.checked;
+
+    // WINLINK
+    document.getElementById("winlink.password").value                   = settings.winlink.password;
+
+    // WiFi AP
+    document.getElementById("wifiAP.password").value                    = settings.wifiAP.password;
+
+    // NOTIFICATION
+    document.getElementById("notification.ledTx").checked               = settings.notification.ledTx;
+    document.getElementById("notification.ledTxPin").value              = settings.notification.ledTxPin;
+    NotificationLedTxCheckbox.checked   = settings.notification.ledTx;
+    NotificationLedTxPin.disabled       = !NotificationLedTxCheckbox.checked;
+
+    document.getElementById("notification.ledMessage").checked          = settings.notification.ledMessage;
+    document.getElementById("notification.ledMessagePin").value         = settings.notification.ledMessagePin;
+    NotificationLedMessageCheckbox.checked  = settings.notification.ledMessage;
+    NotificationLedMessagePin.disabled      = !NotificationLedMessageCheckbox.checked;
+    
+    document.getElementById("notification.buzzerActive").checked        = settings.notification.buzzerActive;
+    document.getElementById("notification.buzzerPinTone").value         = settings.notification.buzzerPinTone;
+    document.getElementById("notification.buzzerPinVcc").value          = settings.notification.buzzerPinVcc;
+    document.getElementById("notification.bootUpBeep").checked          = settings.notification.bootUpBeep;
+    document.getElementById("notification.txBeep").checked              = settings.notification.txBeep;
+    document.getElementById("notification.messageRxBeep").checked       = settings.notification.messageRxBeep;
+    document.getElementById("notification.stationBeep").checked         = settings.notification.stationBeep;
+    document.getElementById("notification.lowBatteryBeep").checked      = settings.notification.lowBatteryBeep;
+    document.getElementById("notification.shutDownBeep").checked        = settings.notification.shutDownBeep;
+    document.getElementById("notification.bellRings").checked           = settings.notification.bellRings ?? true;
+    NotificationBuzzerCheckbox.checked          = settings.notification.buzzerActive;
+    NotificationBuzzerTonePin.disabled          = !NotificationBuzzerCheckbox.checked;
+    NotificationBuzzerVccPin.disabled           = !NotificationBuzzerCheckbox.checked;
+    NotificationBuzzerBootUpBeep.disabled       = !NotificationBuzzerCheckbox.checked;
+    NotificationBuzzerTxBeep.disabled           = !NotificationBuzzerCheckbox.checked;
+    NotificationBuzzerMessageBeep.disabled      = !NotificationBuzzerCheckbox.checked;
+    NotificationBuzzerStationBeep.disabled      = !NotificationBuzzerCheckbox.checked;
+    NotificationBuzzerLowBatteryBeep.disabled   = !NotificationBuzzerCheckbox.checked;
+    NotificationBuzzerShutDownBeep.disabled     = !NotificationBuzzerCheckbox.checked;
+
+    document.getElementById("notification.ledFlashlight").checked       = settings.notification.ledFlashlight;
+    document.getElementById("notification.ledFlashlightPin").value      = settings.notification.ledFlashlightPin;
+    NotificationLedFlashlightCheckbox.checked   = settings.notification.ledFlashlight;
+    NotificationLedFlashlightPin.disabled       = !NotificationLedFlashlightCheckbox.checked;
+    
+    //  PTT Trigger
+    document.getElementById("ptt.active").checked                       = settings.pttTrigger.active;
+    document.getElementById("ptt.reverse").checked                      = settings.pttTrigger.reverse;
+    document.getElementById("ptt.preDelay").value                       = settings.pttTrigger.preDelay;
+    document.getElementById("ptt.postDelay").value                      = settings.pttTrigger.postDelay;
+    document.getElementById("ptt.io_pin").value                         = settings.pttTrigger.io_pin;
+    pttTriggerCheckbox.checked  = settings.pttTrigger.active;
+    pttReverseCheckbox.disabled = !pttTriggerCheckbox.checked;
+    pttPreDelayInput.disabled   = !pttTriggerCheckbox.checked;
+    pttPostDelayInput.disabled  = !pttTriggerCheckbox.checked;
+    pttPinInput.disabled        = !pttTriggerCheckbox.checked;
+
+    clampOutOfRangeInputs();
+}
+
+function showToast(message) {
+    const el = document.querySelector('#toast');
+
+    el.querySelector('.toast-body').innerHTML = message;
+
+    (new bootstrap.Toast(el)).show();
+}
+
+function clampOutOfRangeInputs() {
+    const fixed = [];
+
+    document.querySelectorAll("#configuration input[type=number]").forEach((el) => {
+        if (el.disabled || el.value === "") return;
+
+        const value = parseFloat(el.value);
+        if (isNaN(value)) return;
+
+        const min = el.min !== "" ? parseFloat(el.min) : null;
+        const max = el.max !== "" ? parseFloat(el.max) : null;
+
+        let clamped = value;
+        if (max !== null && value > max) clamped = max;
+        if (min !== null && value < min) clamped = min;
+
+        if (clamped !== value) {
+            el.value = clamped;
+            fixed.push((el.name || el.id) + ": " + value + " &rarr; " + clamped);
+        }
+    });
+
+    if (fixed.length) {
+        showToast("Stored values outside the allowed range, adjusted:<br>" + fixed.join("<br>")
+                  + "<br><small>Save to keep them.</small>");
+    }
+}
+
+document.getElementById('reboot').addEventListener('click', function (e) {
+    e.preventDefault();
+
+    fetch("/action?type=reboot", { method: "POST" });
+
+    showToast("Your device will be rebooted in a while");
+});
+
+
+// Display Switches
+const DisplayEcoModeCheckbox    = document.querySelector('input[name="display.ecoMode"]');
+const DisplayTimeout            = document.querySelector('input[name="display.timeout"]');
+DisplayEcoModeCheckbox.addEventListener("change", function () {
+    DisplayTimeout.disabled     = !this.checked;
+});
+
+// Bluetooth Switches
+const BluetoothActiveCheckbox   = document.querySelector('input[name="bluetooth.active"]');
+const BluetoothDeviceName       = document.querySelector('input[name="bluetooth.deviceName"]');
+const BluetoothUseBle           = document.querySelector('select[name="bluetooth.useBLE"]');
+const BluetoothUseKiss          = document.querySelector('select[name="bluetooth.useKISS"]');
+BluetoothActiveCheckbox.addEventListener("change", function () {
+    BluetoothDeviceName.disabled    = !this.checked;
+    BluetoothUseBle.disabled        = !this.checked;
+    BluetoothUseKiss.disabled       = !this.checked;
+});
+
+// Battery Switches
+const BatterySendVoltageCheckbox    = document.querySelector('input[name="battery.sendVoltage"]');
+const BatteryVoltageAsTelemetry     = document.querySelector('input[name="battery.voltageAsTelemetry"]');
+const BatteryForceSendVoltage       = document.querySelector('input[name="battery.sendVoltageAlways"]');
+BatterySendVoltageCheckbox.addEventListener("change", function () {
+    BatteryVoltageAsTelemetry.disabled  = !this.checked;
+    BatteryForceSendVoltage.disabled    = !this.checked;
+});
+
+const BatteryMonitorVoltageCheckbox = document.querySelector('input[name="battery.monitorVoltage"]');
+const BatteryMonitorSleepVoltage    = document.querySelector('input[name="battery.sleepVoltage"]');
+BatteryMonitorVoltageCheckbox.addEventListener("change", function () {
+    BatteryMonitorSleepVoltage.disabled = !this.checked;
+});
+
+// Telemetry Switches
+const TelemetryCheckbox         = document.querySelector('input[name="telemetry.active"]');
+const TelemetrySendCheckbox     = document.querySelector('input[name="telemetry.sendTelemetry"]');
+const TelemetryTempCorrection   = document.querySelector('input[name="telemetry.temperatureCorrection"]');
+TelemetryCheckbox.addEventListener("change", function () {
+    TelemetrySendCheckbox.disabled      = !this.checked;
+    TelemetryTempCorrection.disabled    = !this.checked;
+});
+
+// Notifications Switches
+const NotificationLedTxCheckbox         = document.querySelector('input[name="notification.ledTx"]');
+const NotificationLedTxPin              = document.querySelector('input[name="notification.ledTxPin"]');
+NotificationLedTxCheckbox.addEventListener("change", function () {
+    NotificationLedTxPin.disabled       = !this.checked;
+});
+
+const NotificationLedMessageCheckbox    = document.querySelector('input[name="notification.ledMessage"]');
+const NotificationLedMessagePin         = document.querySelector('input[name="notification.ledMessagePin"]');
+NotificationLedMessageCheckbox.addEventListener("change", function () {
+    NotificationLedMessagePin.disabled  = !this.checked;
+});
+
+const NotificationBuzzerCheckbox        = document.querySelector('input[name="notification.buzzerActive"]');
+const NotificationBuzzerTonePin         = document.querySelector('input[name="notification.buzzerPinTone"]');
+const NotificationBuzzerVccPin          = document.querySelector('input[name="notification.buzzerPinVcc"]');
+const NotificationBuzzerBootUpBeep      = document.querySelector('input[name="notification.bootUpBeep"]');
+const NotificationBuzzerTxBeep          = document.querySelector('input[name="notification.txBeep"]');
+const NotificationBuzzerMessageBeep     = document.querySelector('input[name="notification.messageRxBeep"]');
+const NotificationBuzzerStationBeep     = document.querySelector('input[name="notification.stationBeep"]');
+const NotificationBuzzerLowBatteryBeep  = document.querySelector('input[name="notification.lowBatteryBeep"]');
+const NotificationBuzzerShutDownBeep    = document.querySelector('input[name="notification.shutDownBeep"]');
+const NotificationBuzzerBellRings       = document.querySelector('input[name="notification.bellRings"]');
+NotificationBuzzerCheckbox.addEventListener("change", function () {
+    NotificationBuzzerTonePin.disabled          = !this.checked;
+    NotificationBuzzerVccPin.disabled           = !this.checked;
+    NotificationBuzzerBootUpBeep.disabled       = !this.checked;
+    NotificationBuzzerTxBeep.disabled           = !this.checked;
+    NotificationBuzzerMessageBeep.disabled      = !this.checked;
+    NotificationBuzzerStationBeep.disabled      = !this.checked;
+    NotificationBuzzerLowBatteryBeep.disabled   = !this.checked;
+    NotificationBuzzerShutDownBeep.disabled     = !this.checked;
+    NotificationBuzzerBellRings.disabled        = !this.checked;
+});
+
+const NotificationLedFlashlightCheckbox = document.querySelector('input[name="notification.ledFlashlight"]');
+const NotificationLedFlashlightPin      = document.querySelector('input[name="notification.ledFlashlightPin"]');
+NotificationLedFlashlightCheckbox.addEventListener("change", function () {
+    NotificationLedFlashlightPin.disabled  = !this.checked;
+});
+
+// PTT Switches
+const pttTriggerCheckbox    = document.querySelector('input[name="ptt.active"]');
+const pttReverseCheckbox    = document.querySelector('input[name="ptt.reverse"]');
+const pttPreDelayInput      = document.querySelector('input[name="ptt.preDelay"]');
+const pttPostDelayInput     = document.querySelector('input[name="ptt.postDelay"]');
+const pttPinInput           = document.querySelector('input[name="ptt.io_pin"]');
+pttTriggerCheckbox.addEventListener("change", function () {
+    pttReverseCheckbox.disabled = !this.checked;
+    pttPreDelayInput.disabled   = !this.checked;
+    pttPostDelayInput.disabled  = !this.checked;
+    pttPinInput.disabled        = !this.checked;
+});
+
+
+
+
+const form = document.querySelector("form");
+
+const saveModal = new bootstrap.Modal(document.getElementById("saveModal"), {
+    backdrop: "static",
+    keyboard: false,
+});
+
+const savedModal = new bootstrap.Modal(
+    document.getElementById("savedModal"),
+    {}
+);
+
+function checkConnection() {
+    const controller = new AbortController();
+
+    setTimeout(() => controller.abort(), 2000);
+
+    fetch("/status?_t=" + Date.now(), { signal: controller.signal })
+        .then(() => {
+            saveModal.hide();
+
+            savedModal.show();
+
+            setTimeout(function () {
+                savedModal.hide();
+            }, 3000);
+
+            fetchSettings();
+        })
+        .catch((err) => {
+            setTimeout(checkConnection, 0);
+        });
+}
+
+
+// ---- GPS receiver section ----
+const GPS_GNSS_BITS = [["gps.useGps", 1], ["gps.useGalileo", 2], ["gps.useBeidou", 4], ["gps.useGlonass", 8], ["gps.useQzss", 16], ["gps.useSbas", 32]];
+let gpsModuleKind = -1;   // -1 unknown, 0 no answer, 1 u-blox, 2 NMEA without UBX (L76K?), 3 board does not configure the receiver
+
+// Returns the message for an invalid constellation combination ("" when valid)
+function gpsGnssProblem() {
+    const on = {};
+    GPS_GNSS_BITS.forEach(([id, bit]) => { on[bit] = document.getElementById(id).checked; });
+    if (gpsModuleKind === 2) {      // L76K: cualquier combinacion de GPS / BeiDou / GLONASS
+        return (on[1] || on[4] || on[8]) ? "" : "Enable at least one of GPS, BeiDou or GLONASS.";
+    }
+    if ((on[16] || on[32]) && !on[1]) return "SBAS and QZSS need GPS enabled.";
+    if (on[4] && on[8]) return "BeiDou and GLONASS cannot be used together.";
+    if (!(on[1] || on[2] || on[4] || on[8])) return "Enable at least one of GPS, Galileo, BeiDou or GLONASS.";
+    return "";
+}
+
+function gpsCheckGnss() {
+    const el = document.getElementById("gps-gnss-warning");
+    if (el) el.textContent = gpsGnssProblem();
+}
+
+function fetchGpsInfo() {
+    fetch("/gpsinfo?_t=" + Date.now())
+        .then(r => r.json())
+        .then(info => applyGpsModule(info))
+        .catch(() => applyGpsModule(null));
+}
+
+function applyGpsModule(info) {
+    const el = document.getElementById("gps-module-info");
+    const panel = document.getElementById("gps-panel");
+    const l76k = document.getElementById("gps-l76k");
+    const rate = document.getElementById("gps.rateMs");
+    const mark = (id, on) => { const e = document.getElementById(id); const box = e && e.closest(".form-check, .form-floating"); if (box) box.classList.toggle("opt-na", on); };
+    const setBox = (id, checked, disabled) => { const e = document.getElementById(id); e.checked = checked; e.disabled = disabled; };
+    const rateOptions = (isL76k) => {       // L76K: 200 ms - 1 s (max 5 Hz); u-blox M10: 500 ms - 10 s
+        [...rate.options].forEach(o => { const v = parseInt(o.value, 10); o.disabled = isL76k ? v > 1000 : v < 500; });
+        if (rate.selectedOptions[0] && rate.selectedOptions[0].disabled) rate.value = isL76k ? "1000" : "500";
+    };
+    panel.classList.remove("opt-na");
+    l76k.hidden = true;
+    panel.querySelectorAll(".m10-only").forEach(b => b.classList.remove("opt-na"));
+    ["gps.useGalileo", "gps.useQzss", "gps.useSbas", "gps.dynModel", "gps.minElev"].forEach(id => mark(id, false));
+    GPS_GNSS_BITS.forEach(([id]) => { document.getElementById(id).disabled = false; });
+    const cfg = (currentSettings && currentSettings.gps) || {};
+    if (!info) {
+        gpsModuleKind = -1;
+        rateOptions(false);
+        el.innerHTML = '<span class="badge text-bg-secondary">Receiver unknown</span> <span class="text-muted">The tracker did not answer, so all options are shown.</span>';
+    } else if (!info.configurable) {
+        gpsModuleKind = 3;
+        panel.classList.add("opt-na");
+        el.innerHTML = '<span class="badge text-bg-secondary">Not configurable</span> <span class="text-muted">This board does not configure the GNSS receiver. The values are saved but not applied.</span>';
+    } else if (info.module === 1) {
+        gpsModuleKind = 1;
+        rateOptions(false);
+        el.innerHTML = '<span class="badge text-bg-success">u-blox M10</span> <span class="text-muted">Answered the UBX configuration at start-up: all options apply.</span>';
+    } else if (info.module === 2) {
+        gpsModuleKind = 2;
+        const mask = (cfg.cnMask ?? 5) & 13;
+        setBox("gps.useGps", (mask & 1) !== 0, false);
+        setBox("gps.useBeidou", (mask & 4) !== 0, false);
+        setBox("gps.useGlonass", (mask & 8) !== 0, false);
+        setBox("gps.useGalileo", false, true);      // the L76K has no Galileo
+        setBox("gps.useSbas", false, true);         // ... and no SBAS
+        setBox("gps.useQzss", true, true);          // QZSS is always on
+        panel.querySelectorAll(".m10-only").forEach(b => b.classList.add("opt-na"));
+        ["gps.useGalileo", "gps.useQzss", "gps.useSbas", "gps.dynModel", "gps.minElev"].forEach(id => mark(id, true));
+        document.getElementById("gps.nmeaLean").checked = cfg.nmeaLean ?? true;
+        rateOptions(true);
+        l76k.hidden = false;
+        el.innerHTML = '<span class="badge text-bg-info">Quectel L76K (CASIC)</span> <span class="text-muted">It answers NMEA but not UBX, so the CASIC $PCAS commands are used: GPS / BeiDou / GLONASS in any combination, 1-5 Hz, reduced NMEA output and antenna status (not yet tested on hardware).</span>';
+        const ant = document.getElementById("gps-antenna");
+        const names = { 1: ['success', 'Antenna OK'], 2: ['warning', 'Antenna OPEN: no antenna detected'], 3: ['danger', 'Antenna SHORT circuit: check the antenna cable'] };
+        const n = names[info.antenna];
+        ant.innerHTML = n ? '<span class="badge text-bg-' + n[0] + '">' + n[1] + '</span>' : '<span class="text-muted">Antenna status: no report yet (the receiver sends it once the GPS has started).</span>';
+    } else {
+        gpsModuleKind = 0;
+        rateOptions(false);
+        el.innerHTML = '<span class="badge text-bg-secondary">No answer</span> <span class="text-muted">The receiver did not answer at start-up (or GPS is disabled). All options are shown.</span>';
+    }
+    gpsCheckGnss();
+}
+
+GPS_GNSS_BITS.forEach(([id]) => document.getElementById(id).addEventListener("change", gpsCheckGnss));
+
+form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const gpsProblem = gpsGnssProblem();
+    if (gpsProblem) { showToast(gpsProblem); document.querySelector('[data-target="sec-gps"]').click(); return; }
+
+    fetch(form.action, {
+        method: form.method,
+        body: new FormData(form),
+    });
+    saveModal.show();
+    setTimeout(checkConnection, 2000);
+});
+
+let invalidFieldReported = false;
+
+form.addEventListener("invalid", function (event) {
+    const el = event.target;
+
+    if (!invalidFieldReported) {          // only the first one: the rest would pile up toasts
+        invalidFieldReported = true;
+        setTimeout(() => { invalidFieldReported = false; }, 500);
+
+        const section = el.closest(".panel-section");
+        if (section) {
+            const link = document.querySelector('.side-link[data-target="' + section.id + '"]');
+            if (link) link.click();       // reuses the sidebar switcher
+        }
+
+        showToast("<b>" + (el.name || el.id) + "</b>: " + (el.validationMessage || "invalid value"));
+
+        setTimeout(() => {
+            el.focus();
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+        }, 0);
+    }
+}, true);
+
+fetchSettings();

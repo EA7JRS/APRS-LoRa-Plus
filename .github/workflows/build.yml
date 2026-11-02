@@ -1,0 +1,241 @@
+name: Build Release
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                target:
+                    - name: ttgo-t-beam-v1
+                      chip: esp32
+                    - name: ttgo-t-beam-v1_915
+                      chip: esp32
+                    - name: ttgo-t-beam-v1_SX1268
+                      chip: esp32
+                    - name: ttgo-t-beam-v1_SX1262
+                      chip: esp32
+                    - name: ttgo-t-beam-v1_2
+                      chip: esp32
+                    - name: ttgo-t-beam-v1_2_915
+                      chip: esp32
+                    - name: ttgo-t-beam-v1_2_SX1262
+                      chip: esp32
+                    - name: ttgo_t_beam_s3_SUPREME_v3
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: ttgo-t-beam-1W
+                      chip: esp32s3
+                      flash_size: 16MB
+                      flash_mode: dio
+                      spiffs_offset: "0xc90000"
+                    - name: ttgo_t_deck_GPS
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: ttgo_t_deck_plus
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: ttgo-t-beam-v0_7
+                      chip: esp32
+                    - name: heltec_wireless_tracker
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: heltec_wifi_lora_32_V3_GPS
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: heltec_wifi_lora_32_V3_TNC
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: heltec_wifi_lora_32_V3_2_GPS
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: heltec_wifi_lora_32_V3_2_TNC
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: heltec_wireless_stick_lite_v3_display_GPS
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: heltec_wireless_stick_lite_v3_TNC
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: heltec-lora32-v2_GPS
+                      chip: esp32
+                    - name: heltec-lora32-v2_915_GPS
+                      chip: esp32
+                    - name: ttgo-lora32-v21_GPS
+                      chip: esp32
+                    - name: ttgo-lora32-v21_915_GPS
+                      chip: esp32
+                    - name: ttgo-lora32-v21_TNC
+                      chip: esp32
+                    - name: ttgo-lora32-v21_915_TNC
+                      chip: esp32
+                    - name: ttgo_lora32_t3s3_v1_2_GPS
+                      chip: esp32s3
+                      flash_size: 4MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: ESP32_DIY_LoRa_SX1278_GPS
+                      chip: esp32
+                    - name: ESP32_DIY_LoRa_915_SX1276_GPS
+                      chip: esp32
+                    - name: ESP32S3_DIY_LoRa_SX1278_GPS
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: ESP32S3_DIY_LoRa_915_SX1276_GPS
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: ESP32_DIY_1W_LoRa_E22_400M30S_GPS
+                      chip: esp32
+                    - name: ESP32_DIY_1W_LoRa_915_E22_900M30S_GPS
+                      chip: esp32
+                    - name: ESP32_DIY_1W_LoRa_E220_400M30S_GPS
+                      chip: esp32
+                    - name: OE5HWN_MeshCom
+                      chip: esp32
+                    - name: WEMOS_ESP32_Bat_DIY_LoRa_SX1278_GPS
+                      chip: esp32
+                    - name: ESP32C3_SuperMini_DIY_LoRa_SX1278_GPS
+                      chip: esp32c3
+                    - name: ESP32C3_SuperMini_DIY_LoRa_915_SX1276_GPS
+                      chip: esp32c3
+                    - name: heltec_ht-ct62_GPS
+                      chip: esp32c3
+                    - name: QRPLabs_LightTracker_Plus_1_0
+                      chip: esp32s3
+                      flash_size: 8MB
+                      flash_mode: dio
+                      spiffs_offset: "0x310000"
+                    - name: TROY_LoRa_APRS
+                      chip: esp32
+                    - name: F4GOH_1W_LoRa_Tracker_E22_400M30S
+                      chip: esp32
+                    - name: F4GOH_1W_LoRa_Tracker_E220_400M30S
+                      chip: esp32
+                    - name: Hydra_1W_LoRa_E22_400M30S_GPS
+                      chip: esp32
+                    - name: RPC_Electronics_1W_LoRa_GPS
+                      chip: esp32
+                    - name: RPC_MicroTracker
+                      chip: esp32
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: actions/setup-python@v7
+              with:
+                  python-version: "3.13"
+
+            - name: Install esptool
+              run: pip install "esptool>=5,<6"
+
+            - name: Install PlatformIO Core
+              run: pip install --upgrade platformio
+
+            - name: Build target
+              run: |
+                  pio run -e ${{ matrix.target.name }}
+
+            - name: Build FS
+              run: |
+                  pio run --target buildfs -e ${{ matrix.target.name }}
+
+            - name: Move Files
+              run: |
+                  mkdir -p installer/firmware
+                  cp .pio/build/${{ matrix.target.name }}/firmware.bin installer/ota_update.bin
+                  cp .pio/build/${{ matrix.target.name }}/firmware.bin installer/firmware/
+                  cp .pio/build/${{ matrix.target.name }}/bootloader.bin installer/firmware/
+                  cp .pio/build/${{ matrix.target.name }}/partitions.bin installer/firmware/
+                  cp .pio/build/${{ matrix.target.name }}/spiffs.bin installer/firmware/
+                  cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin installer/firmware/
+
+            - name: Merge for web flashing
+              run: |
+                  if [ "${{ matrix.target.chip }}" == "esp32" ]; then
+                    esptool --chip esp32 merge-bin \
+                      -o installer/web_factory.bin \
+                      --flash-mode dio \
+                      --flash-freq 40m \
+                      --flash-size 4MB \
+                      0x1000 installer/firmware/bootloader.bin \
+                      0x8000 installer/firmware/partitions.bin \
+                      0xe000 installer/firmware/boot_app0.bin \
+                      0x10000 installer/firmware/firmware.bin \
+                      0x310000 installer/firmware/spiffs.bin
+                  elif [ "${{ matrix.target.chip }}" == "esp32s2" ]; then
+                    esptool --chip esp32s2 merge-bin \
+                      -o installer/web_factory.bin \
+                      --flash-mode dio \
+                      --flash-freq 40m \
+                      --flash-size 4MB \
+                      0x1000 installer/firmware/bootloader.bin \
+                      0x8000 installer/firmware/partitions.bin \
+                      0xe000 installer/firmware/boot_app0.bin \
+                      0x10000 installer/firmware/firmware.bin \
+                      0x310000 installer/firmware/spiffs.bin
+                  elif [ "${{ matrix.target.chip }}" == "esp32s3" ]; then
+                      esptool --chip esp32s3 merge-bin \
+                        -o installer/web_factory.bin \
+                        --flash-mode ${{ matrix.target.flash_mode }} \
+                        --flash-size ${{ matrix.target.flash_size }} \
+                        0x0000   installer/firmware/bootloader.bin \
+                        0x8000   installer/firmware/partitions.bin \
+                        0xe000   installer/firmware/boot_app0.bin \
+                        0x10000  installer/firmware/firmware.bin \
+                        ${{ matrix.target.spiffs_offset }} installer/firmware/spiffs.bin
+                  elif [ "${{ matrix.target.chip }}" == "esp32c3" ]; then
+                    esptool --chip esp32c3 merge-bin \
+                      -o installer/web_factory.bin \
+                      --flash-mode dio \
+                      --flash-freq 40m \
+                      --flash-size 4MB \
+                      0x1000 installer/firmware/bootloader.bin \
+                      0x8000 installer/firmware/partitions.bin \
+                      0xe000 installer/firmware/boot_app0.bin \
+                      0x10000 installer/firmware/firmware.bin \
+                      0x310000 installer/firmware/spiffs.bin
+                  fi
+
+            - name: Install Zip
+              run: sudo apt-get install zip
+
+            - name: Archive Files
+              run: zip -r installer.zip installer/
+
+            - name: Rename zip for upload
+              run: mv installer.zip ${{ matrix.target.name }}.zip
+
+            - name: Upload Release Asset
+              uses: softprops/action-gh-release@v3
+              with:
+                  files: ${{ matrix.target.name }}.zip
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

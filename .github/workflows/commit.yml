@@ -1,0 +1,34 @@
+name: Commit Test Build
+
+on:
+    push:
+        branches:
+            - '*'
+    pull_request:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+              target:
+                - name: ttgo-t-beam-v1_2
+                  chip: esp32
+                - name: ttgo_t_beam_s3_SUPREME_v3
+                  chip: esp32s3
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: actions/setup-python@v7
+              with:
+                  python-version: "3.13"
+
+            - name: Install PlatformIO Core
+              run: pip install --upgrade platformio
+
+            - name: Build target
+              run: pio run -e ${{ matrix.target.name }}
+
+            - name: Build FS
+              run: pio run --target buildfs -e ${{ matrix.target.name }}
