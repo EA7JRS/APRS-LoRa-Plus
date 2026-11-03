@@ -1,0 +1,6 @@
+# Name,   Type, SubType, Offset,   Size,     Flags
+# ESP32 clasicas con 4 MB de flash y sin OTA: aplicacion de 3,75 MiB (la huge_app.csv de Arduino solo da 3 MiB y el firmware ya no cabe)
+nvs,      data, nvs,     0x9000,   0x5000,
+otadata,  data, ota,     0xe000,   0x2000,
+app0,     app,  ota_0,   0x10000,  0x3C0000,
+spiffs,   data, spiffs,  0x3D0000, 0x30000,
