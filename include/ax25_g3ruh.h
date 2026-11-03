@@ -42,7 +42,7 @@ namespace AX25G3 {
     public:
         Hdlc() { reset(); }
         void reset();
-        void bit(uint8_t b, FrameCallback cb, void* ctx);
+        void pushBit(uint8_t b, FrameCallback cb, void* ctx);
     private:
         uint8_t  ones;
         bool     synced;

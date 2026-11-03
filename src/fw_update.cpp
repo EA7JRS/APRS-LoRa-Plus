@@ -316,7 +316,7 @@ namespace FW_Update {
 
     // ---- upload from the browser -------------------------------------------------------------------------------------
 
-    struct Upload {
+    struct UploadState {
         bool                    started;
         bool                    failed;
         bool                    done;
@@ -331,7 +331,7 @@ namespace FW_Update {
         char                    id[56];
         size_t                  idLen;
     };
-    static Upload up;
+    static UploadState up;
 
     static void uploadFail(const char* msg) {
         if (up.failed) return;

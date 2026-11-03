@@ -233,7 +233,7 @@ namespace AX25G3 {
 
     void Hdlc::reset() { ones = 0; synced = false; nbits = 0; }
 
-    void Hdlc::bit(uint8_t bit, FrameCallback cb, void* ctx) {
+    void Hdlc::pushBit(uint8_t bit, FrameCallback cb, void* ctx) {
         if (bit) {
             if (ones < 255) ones++;
             if (ones >= 7) { synced = false; nbits = 0; return; }                          // abort sequence
@@ -295,7 +295,7 @@ namespace AX25G3 {
             fx25Blocks++;
             fxHdlc.reset();
             for (int i = 0; i < k; i++)
-                for (int b = 0; b < 8; b++) fxHdlc.bit((uint8_t)((fxBuf[i] >> b) & 1), onFx, this);
+                for (int b = 0; b < 8; b++) fxHdlc.pushBit((uint8_t)((fxBuf[i] >> b) & 1), onFx, this);
         }
         fxState = 0; tagReg = 0;
     }
@@ -362,7 +362,7 @@ namespace AX25G3 {
                 prevLevel = d;
                 ilBit(d);
                 fxBit(bit);
-                hdlc.bit(bit, onHdlc, this);
+                hdlc.pushBit(bit, onHdlc, this);
             }
         }
     }
