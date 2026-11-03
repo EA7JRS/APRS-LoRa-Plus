@@ -830,6 +830,14 @@ function loadSettings(settings) {
     // WiFi AP
     document.getElementById("wifiAP.password").value                    = settings.wifiAP.password;
 
+    // FIRMWARE UPDATE
+    if (settings.fwUpdate) {
+        document.getElementById("fwUpdate.ssid").value                  = settings.fwUpdate.ssid;
+        document.getElementById("fwUpdate.password").value              = settings.fwUpdate.password;
+        document.getElementById("fwUpdate.autoCheck").checked           = settings.fwUpdate.autoCheck;
+        document.getElementById("fwUpdate.autoInstall").checked         = settings.fwUpdate.autoInstall;
+    }
+
     // NOTIFICATION
     document.getElementById("notification.ledTx").checked               = settings.notification.ledTx;
     document.getElementById("notification.ledTxPin").value              = settings.notification.ledTxPin;
@@ -925,6 +933,87 @@ document.getElementById('reboot').addEventListener('click', function (e) {
     showToast("Your device will be rebooted in a while");
 });
 
+
+
+// ---- Firmware update (board information, upload, on-line check / install) ----
+function fwEsc(t) { return String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
+
+function fwLoadInfo() {
+    fetch("/api/info?_t=" + Date.now())
+        .then(r => r.json())
+        .then(i => {
+            document.getElementById("fw-info").innerHTML = "Board: <strong>" + fwEsc(i.board) + "</strong> &middot; version <strong>" + fwEsc(i.version)
+                + "</strong> &middot; " + fwEsc(i.chip) + " &middot; flash " + Math.round(i.flashSize / 1048576) + " MB";
+            document.getElementById("fw-ota-box").style.display  = i.ota ? "" : "none";
+            document.getElementById("fw-usb-note").style.display = i.ota ? "none" : "";
+        })
+        .catch(() => { document.getElementById("fw-info").textContent = "Board information not available."; });
+}
+
+let fwPollTimer = null;
+function fwShowStatus(st) {
+    const el = document.getElementById("fw-status");
+    let text = st.message || "";
+    if (st.state === "uptodate") text = "Firmware " + st.current + " is the newest version.";
+    if (st.state === "available") text = "New version " + st.latest + " available (installed " + st.current + ").";
+    if (st.state === "working" && st.progress > 0) text += " " + st.progress + " %";
+    el.textContent = text;
+    document.getElementById("fw-install").style.display = st.state === "available" ? "" : "none";
+    const busy = st.state === "working";
+    document.getElementById("fw-check").disabled   = busy;
+    document.getElementById("fw-install").disabled = busy;
+}
+
+function fwPoll() {
+    fetch("/api/update/status?_t=" + Date.now())
+        .then(r => r.json())
+        .then(st => {
+            fwShowStatus(st);
+            if (st.state === "working") fwPollTimer = setTimeout(fwPoll, 1000);
+            else if (st.state === "done") showToast("New firmware installed. The tracker is restarting.");
+        })
+        .catch(() => {
+            // the access point drops for a moment while the tracker joins the other network: keep trying
+            fwPollTimer = setTimeout(fwPoll, 2000);
+        });
+}
+
+function fwStartJob(path) {
+    document.getElementById("fw-status").textContent = "Starting...";
+    fetch(path, { method: "POST" })
+        .then(r => r.json())
+        .then(r => { if (r.started) { clearTimeout(fwPollTimer); fwPollTimer = setTimeout(fwPoll, 1500); }
+                     else document.getElementById("fw-status").textContent = "Another update is already running."; })
+        .catch(() => { clearTimeout(fwPollTimer); fwPollTimer = setTimeout(fwPoll, 2000); });
+}
+
+document.getElementById("fw-check").addEventListener("click", () => fwStartJob("/api/update/check"));
+document.getElementById("fw-install").addEventListener("click", () => {
+    if (confirm("Install the new firmware now? The tracker will restart.")) fwStartJob("/api/update/install");
+});
+
+document.getElementById("fw-upload").addEventListener("click", () => {
+    const f = document.getElementById("fw-file").files[0];
+    if (!f) { showToast("Choose the .bin file first"); return; }
+    if (!confirm("Install " + f.name + " now? The tracker will restart.")) return;
+    const wrap = document.getElementById("fw-progress-wrap"), bar = document.getElementById("fw-progress");
+    wrap.style.display = "";
+    const xhr = new XMLHttpRequest();
+    const fd = new FormData();
+    fd.append("firmware", f, f.name);
+    xhr.open("POST", "/api/update");
+    xhr.upload.onprogress = e => { if (e.lengthComputable) { const p = Math.round(100 * e.loaded / e.total); bar.style.width = p + "%"; bar.textContent = p + " %"; } };
+    xhr.onload = () => {
+        let r = {};
+        try { r = JSON.parse(xhr.responseText); } catch (e) {}
+        if (r.ok) showToast("Firmware installed. The tracker is restarting.");
+        else showToast("Update failed: " + fwEsc(r.error || xhr.status));
+    };
+    xhr.onerror = () => showToast("Connection lost during the upload. If the tracker restarts, check the version.");
+    xhr.send(fd);
+});
+
+fwLoadInfo();
 
 // Display Switches
 const DisplayEcoModeCheckbox    = document.querySelector('input[name="display.ecoMode"]');

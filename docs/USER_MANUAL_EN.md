@@ -633,6 +633,17 @@ Everything new in 5.2.11 and 5.2.12 is part of the common firmware and is built 
 
 Coverage study of every mode: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: planned for 5.4.
 
+## 30. Installing and updating the firmware (5.3.1)
+
+**Over USB (all boards).** Open the project page (`https://ea7jrs.github.io/APRS-LoRa-Plus/`) in Chrome or Edge, connect the board, press *Detect board* (reads board and installed version) and then *Install*. Your configuration is kept. If the board does not show up, hold BOOT while plugging it in.
+
+**From the WebUI (only boards with two firmware copies: T-Beam S3 Supreme and T-Beam 1W).** Administration > *Firmware update*: it shows board, version and whether web update is supported.
+- *File*: pick the `.bin` for your board and press *Upload and install*. A file for another board is rejected.
+- *Internet*: enter your WiFi name and password, save, press *Check for updates* and then *Install new version*. The board joins your WiFi for a few seconds (the configuration access point may drop for a moment).
+- *Automatic*: enable "Look for a new version at every start" (and, if you want, "Install it automatically"). At power-up, before the radio starts, the board looks for a newer version on your WiFi; with no network it carries on with the normal start (waits up to 10 s). An automatic install downloads ~1.5–2 MB and restarts.
+
+Classic ESP32, ESP32-C3, Heltec S3 and T3S3 boards have no room for two copies: update them over USB. If an update ever leaves the board unable to start, reinstall over USB.
+
 ## Appendix A — Button map per page
 
 | Page | LP opens | Options |

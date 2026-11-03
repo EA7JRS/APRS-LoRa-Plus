@@ -24,6 +24,7 @@
 #include "web_utils.h"
 #include "display.h"
 #include "utils.h"
+#include "fw_update.h"
 
 extern Configuration               Config;
 extern String                      versionNumber;
@@ -419,6 +420,12 @@ namespace WEB_Utils {
         Config.wifiAP.password                  = getParamStringSafe("wifiAP.password", Config.wifiAP.password);
         Config.wifiAP.active                    = false; // when Configuration is finished Tracker returns to normal mode.
 
+        //  Firmware update (5.3.1)
+        Config.fwUpdate.ssid                    = getParamStringSafe("fwUpdate.ssid", Config.fwUpdate.ssid);
+        Config.fwUpdate.password                = getParamStringSafe("fwUpdate.password", Config.fwUpdate.password);
+        Config.fwUpdate.autoCheck               = request->hasParam("fwUpdate.autoCheck", true);
+        Config.fwUpdate.autoInstall             = Config.fwUpdate.autoCheck && request->hasParam("fwUpdate.autoInstall", true);
+
         //  Notification
         Config.notification.ledTx               = request->hasParam("notification.ledTx", true);
         if (Config.notification.ledTx) Config.notification.ledTxPin = getParamIntSafe("notification.ledTxPin", Config.notification.ledTxPin);
@@ -527,6 +534,8 @@ namespace WEB_Utils {
         server.on("/bootstrap.css", HTTP_GET, handleBootstrapStyle);
         server.on("/bootstrap.js", HTTP_GET, handleBootstrapScript);
         server.on("/favicon.png", HTTP_GET, handleFavicon);
+
+        FW_Update::registerRoutes(server);
 
         server.onNotFound(handleNotFound);
 

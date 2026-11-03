@@ -225,6 +225,22 @@ jobs:
                       0x310000 installer/firmware/spiffs.bin
                   fi
 
+            - name: Web installer files (images, manifest, update info)
+              run: |
+                  python3 tools/make_web_assets.py board \
+                    --board ${{ matrix.target.name }} \
+                    --chip ${{ matrix.target.chip }} \
+                    --build-dir .pio/build/${{ matrix.target.name }} \
+                    --boot-app0 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+                    --out web_site
+
+            - name: Upload web files
+              uses: actions/upload-artifact@v7
+              with:
+                  name: web-${{ matrix.target.name }}
+                  path: web_site
+                  retention-days: 7
+
             - name: Install Zip
               run: sudo apt-get install zip
 
@@ -249,3 +265,40 @@ jobs:
                   files: ${{ matrix.target.name }}.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Web installer + update information (GitHub Pages). Only for a published (non pre-release) release:
+    # the trackers that have automatic update enabled read this site, so a test build must never reach it.
+    pages:
+        if: github.event_name == 'release' && !github.event.release.prerelease
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        concurrency:
+            group: pages
+            cancel-in-progress: false
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: actions/download-artifact@v8
+              with:
+                  pattern: web-*
+                  merge-multiple: true
+                  path: site
+
+            - name: Build site
+              run: python3 tools/make_web_assets.py site --root site --page web/index.html
+
+            - uses: actions/configure-pages@v6
+
+            - uses: actions/upload-pages-artifact@v5
+              with:
+                  path: site
+
+            - name: Deploy
+              id: deployment
+              uses: actions/deploy-pages@v5

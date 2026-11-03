@@ -44,6 +44,11 @@ bool Configuration::writeFile() {
         data["wifiAP"]["active"]                    = wifiAP.active;
         data["wifiAP"]["password"]                  = wifiAP.password;
 
+        data["fwUpdate"]["ssid"]                    = fwUpdate.ssid;
+        data["fwUpdate"]["password"]                = fwUpdate.password;
+        data["fwUpdate"]["autoCheck"]               = fwUpdate.autoCheck;
+        data["fwUpdate"]["autoInstall"]             = fwUpdate.autoInstall;
+
         for (int i = 0; i < beacons.size(); i++) {
             beacons[i].callsign.trim();
             beacons[i].callsign.toUpperCase();
@@ -272,6 +277,12 @@ bool Configuration::readFile() {
             data["wifiAP"]["password"].isNull()) needsRewrite = true;
         wifiAP.active               = data["wifiAP"]["active"] | true;
         wifiAP.password             = data["wifiAP"]["password"] | "1234567890";
+
+        if (data["fwUpdate"]["autoCheck"].isNull()) needsRewrite = true;
+        fwUpdate.ssid               = data["fwUpdate"]["ssid"] | "";
+        fwUpdate.password           = data["fwUpdate"]["password"] | "";
+        fwUpdate.autoCheck          = data["fwUpdate"]["autoCheck"] | false;
+        fwUpdate.autoInstall        = data["fwUpdate"]["autoInstall"] | false;
 
         JsonArray BeaconsArray = data["beacons"];
         for (int i = 0; i < BeaconsArray.size(); i++) {
@@ -815,6 +826,11 @@ void Configuration::setCwDefaults() {
 void Configuration::setDefaultValues() {
     wifiAP.active                   = true;
     wifiAP.password                 = "1234567890";
+
+    fwUpdate.ssid                   = "";
+    fwUpdate.password               = "";
+    fwUpdate.autoCheck              = false;
+    fwUpdate.autoInstall            = false;
 
     for (int i = 0; i < 3; i++) {
         Beacon beacon;

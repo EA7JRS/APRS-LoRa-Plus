@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS LoRa+ · Instalador / Installer</title>
+<!-- Copyright (C) 2026 Manuel - EA7JRS. GPL-3.0. Web installer for APRS LoRa+ (uses ESP Web Tools, Apache-2.0) -->
+<style>
+    :root { --bg:#f6f7f9; --fg:#1b1f24; --muted:#5b6670; --card:#ffffff; --line:#d8dde3; --accent:#0b6bcb; --ok:#1a7f37; --warn:#9a6700; --bad:#cf222e; }
+    @media (prefers-color-scheme: dark) {
+        :root { --bg:#12161b; --fg:#e6e9ed; --muted:#9aa5b1; --card:#1b2128; --line:#2f3842; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    h2 { font-size: 1.1rem; margin: 0 0 8px; }
+    p { margin: 0 0 10px; }
+    .sub { color: var(--muted); margin-bottom: 20px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    label { display:block; font-weight:600; margin-bottom:6px; }
+    select, button.btn { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); }
+    select { width: 100%; }
+    button.btn { cursor: pointer; border-color: var(--accent); color: var(--accent); }
+    button.btn:disabled { opacity: .5; cursor: default; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .status { margin-top: 10px; min-height: 1.5em; }
+    .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+    small, .muted { color: var(--muted); }
+    #lang { float:right; }
+    esp-web-install-button button { font: inherit; padding: 12px 18px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; font-weight: 600; }
+    ul { margin: 6px 0 0 18px; padding: 0; }
+</style>
+</head>
+<body>
+<main>
+    <button class="btn" id="lang" type="button">English</button>
+    <h1>APRS LoRa+</h1>
+    <p class="sub" data-i="sub"></p>
+
+    <div class="card" id="unsupported" hidden>
+        <p class="bad" data-i="nobrowser"></p>
+    </div>
+
+    <div class="card">
+        <h2 data-i="s1"></h2>
+        <p class="muted" data-i="s1help"></p>
+        <div class="row"><button class="btn" id="detect" type="button" data-i="detect"></button></div>
+        <div class="status" id="detectStatus"></div>
+    </div>
+
+    <div class="card">
+        <h2 data-i="s2"></h2>
+        <label for="board" data-i="board"></label>
+        <select id="board"></select>
+        <div class="status" id="avail"></div>
+    </div>
+
+    <div class="card">
+        <h2 data-i="s3"></h2>
+        <p class="muted" data-i="s3help"></p>
+        <esp-web-install-button id="install"></esp-web-install-button>
+        <ul class="muted">
+            <li data-i="n1"></li>
+            <li data-i="n2"></li>
+            <li data-i="n3"></li>
+        </ul>
+    </div>
+
+    <p><small><span data-i="foot"></span> <a href="https://github.com/EA7JRS/APRS-LoRa-Plus">github.com/EA7JRS/APRS-LoRa-Plus</a></small></p>
+</main>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10.1.0/dist/web/install-button.js?module"></script>
+<script>
+(function () {
+    "use strict";
+    const T = {
+        es: {
+            sub: "Instala o actualiza el firmware conectando la placa por USB. Funciona en Chrome o Edge (ordenador o Android).",
+            nobrowser: "Este navegador no puede hablar con el puerto USB (Web Serial). Usa Chrome o Edge en un ordenador, o Chrome en Android con cable OTG.",
+            s1: "1. Reconocer la placa conectada", s1help: "Conecta la placa por USB y pulsa el botón: se lee la placa y la versión instalada.",
+            detect: "Detectar placa", s2: "2. Versión disponible", board: "Placa", s3: "3. Instalar / actualizar",
+            s3help: "Se conserva tu configuración (indicativo, balizas, WiFi…). Cierra otros programas que usen el puerto serie.",
+            n1: "Si la placa no aparece en la lista de puertos, mantén pulsado BOOT mientras la conectas.",
+            n2: "Las placas con dos copias de firmware (p. ej. T-Beam S3 Supreme) también se pueden actualizar desde la web de configuración de la propia placa.",
+            n3: "Una instalación por USB repone la tabla de particiones; el primer arranque puede tardar unos segundos.",
+            foot: "Proyecto de código abierto (GPL-3.0). Instalador basado en ESP Web Tools.",
+            reading: "Leyendo la placa…", noanswer: "La placa no ha respondido. Tiene que ser un firmware APRS LoRa+ 5.3.1 o posterior; si es otro, elige la placa a mano abajo.",
+            found: "Placa detectada: ", installed: "versión instalada ", newer: "Hay una versión más nueva: ", uptodate: "Ya tienes la última versión (", unknownBoard: "Esa placa no está en la lista de esta versión.",
+            avail: "Versión disponible: ", loading: "Cargando lista de placas…", loadfail: "No se pudo cargar la lista de placas.", otaYes: "actualización web desde la propia placa: sí", otaNo: "esta placa solo se actualiza por USB",
+            pick: "— elige tu placa —", noport: "No se ha elegido ningún puerto.", err: "Error: "
+        },
+        en: {
+            sub: "Install or update the firmware by connecting the board over USB. Works in Chrome or Edge (computer or Android).",
+            nobrowser: "This browser cannot talk to the USB port (Web Serial). Use Chrome or Edge on a computer, or Chrome on Android with an OTG cable.",
+            s1: "1. Recognise the connected board", s1help: "Connect the board over USB and press the button: the board and the installed version are read.",
+            detect: "Detect board", s2: "2. Available version", board: "Board", s3: "3. Install / update",
+            s3help: "Your configuration (callsign, beacons, WiFi…) is kept. Close other programs that use the serial port.",
+            n1: "If the board does not show in the port list, hold BOOT while plugging it in.",
+            n2: "Boards with two firmware copies (e.g. T-Beam S3 Supreme) can also be updated from the board's own configuration web page.",
+            n3: "A USB install rewrites the partition table; the first boot may take a few seconds.",
+            foot: "Open source project (GPL-3.0). Installer based on ESP Web Tools.",
+            reading: "Reading the board…", noanswer: "The board did not answer. It must run APRS LoRa+ 5.3.1 or later; otherwise pick the board by hand below.",
+            found: "Board detected: ", installed: "installed version ", newer: "A newer version is available: ", uptodate: "You already have the latest version (", unknownBoard: "That board is not in this release.",
+            avail: "Available version: ", loading: "Loading board list…", loadfail: "Could not load the board list.", otaYes: "update from the board's own web page: yes", otaNo: "this board is updated over USB only",
+            pick: "— choose your board —", noport: "No port selected.", err: "Error: "
+        }
+    };
+    let lang = (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en";
+    let latest = null, detected = null;
+    const $ = id => document.getElementById(id);
+    const t = k => T[lang][k];
+
+    function cmp(a, b) {
+        const pa = String(a).split(/[.\-]/).map(n => parseInt(n, 10) || 0), pb = String(b).split(/[.\-]/).map(n => parseInt(n, 10) || 0);
+        for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); }
+        return 0;
+    }
+    function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
+
+    function render() {
+        document.documentElement.lang = lang;
+        document.querySelectorAll("[data-i]").forEach(e => { e.textContent = t(e.dataset.i); });
+        $("lang").textContent = lang === "es" ? "English" : "Español";
+        fillBoards();
+        showAvail();
+    }
+
+    function fillBoards() {
+        const sel = $("board"), keep = sel.value;
+        sel.innerHTML = "";
+        const first = document.createElement("option");
+        first.value = ""; first.textContent = latest ? t("pick") : t("loading");
+        sel.appendChild(first);
+        if (latest) {
+            Object.keys(latest.boards).sort().forEach(name => {
+                const o = document.createElement("option");
+                o.value = name; o.textContent = name;
+                sel.appendChild(o);
+            });
+            sel.value = keep;
+        }
+    }
+
+    function showAvail() {
+        const name = $("board").value, box = $("avail"), inst = $("install");
+        box.className = "status";
+        if (!latest || !name) { box.textContent = ""; inst.removeAttribute("manifest"); inst.style.display = "none"; return; }
+        const b = latest.boards[name];
+        let html = esc(t("avail")) + "<strong>" + esc(b.version) + "</strong> · " + esc(b.ota ? t("otaYes") : t("otaNo"));
+        if (detected && detected.board === name) {
+            const d = cmp(b.version, detected.version);
+            if (d > 0) html += '<br><span class="warn">' + esc(t("newer") + b.version + " (" + t("installed") + detected.version + ")") + "</span>";
+            else html += '<br><span class="ok">' + esc(t("uptodate") + detected.version + ")") + "</span>";
+        }
+        box.innerHTML = html;
+        inst.setAttribute("manifest", "manifests/" + name + ".json");
+        inst.style.display = "";
+    }
+
+    async function detect() {
+        const st = $("detectStatus");
+        st.className = "status"; st.textContent = t("reading");
+        let port;
+        try { port = await navigator.serial.requestPort(); }
+        catch (e) { st.textContent = t("noport"); return; }
+        let info = null;
+        try {
+            await port.open({ baudRate: 115200 });
+            const writer = port.writable.getWriter();
+            const dec = new TextDecoder();
+            const reader = port.readable.getReader();
+            const enc = new TextEncoder();
+            let buf = "";
+            const t0 = Date.now();
+            let lastAsk = 0;
+            while (Date.now() - t0 < 7000 && !info) {
+                if (Date.now() - lastAsk > 1500) { lastAsk = Date.now(); try { await writer.write(enc.encode("\nAPRS-INFO?\n")); } catch (e) {} }
+                const r = await Promise.race([reader.read(), new Promise(res => setTimeout(() => res(null), 600))]);
+                if (r && r.value) buf += dec.decode(r.value, { stream: true });
+                const m = /APRS-LoRa-Plus: board=(\S+) version=(\S+) chip=(\S+) ota=(\d)/.exec(buf);
+                if (m) info = { board: m[1], version: m[2], chip: m[3], ota: m[4] === "1" };
+                if (r && r.done) break;
+            }
+            try { await reader.cancel(); } catch (e) {}
+            reader.releaseLock();
+            writer.releaseLock();
+        } catch (e) {
+            st.className = "status bad"; st.textContent = t("err") + e.message;
+        }
+        try { await port.close(); } catch (e) {}
+        if (!info) { if (!st.textContent.startsWith(t("err"))) { st.className = "status warn"; st.textContent = t("noanswer"); } return; }
+        detected = info;
+        st.className = "status ok";
+        st.textContent = t("found") + info.board + " · " + t("installed") + info.version + " · " + info.chip;
+        if (latest && latest.boards[info.board]) $("board").value = info.board;
+        else if (latest) { st.className = "status warn"; st.textContent += " — " + t("unknownBoard"); }
+        showAvail();
+    }
+
+    $("lang").addEventListener("click", () => { lang = lang === "es" ? "en" : "es"; render(); });
+    $("board").addEventListener("change", showAvail);
+    $("detect").addEventListener("click", detect);
+
+    if (!("serial" in navigator)) { $("unsupported").hidden = false; $("detect").disabled = true; }
+    render();
+    fetch("latest.json?_t=" + Date.now()).then(r => r.json()).then(j => { latest = j; render(); })
+        .catch(() => { $("avail").className = "status bad"; $("avail").textContent = t("loadfail"); });
+})();
+</script>
+</body>
+</html>

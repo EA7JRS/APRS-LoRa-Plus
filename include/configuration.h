@@ -30,6 +30,15 @@ public:
     String  password;
 };
 
+// Actualizacion del firmware (5.3.1): WiFi de casa para buscar versiones nuevas y opciones automaticas
+class FwUpdate {
+public:
+    String  ssid;                       // red WiFi (cliente) con internet; vacio = sin comprobacion en linea
+    String  password;
+    bool    autoCheck;                  // al arrancar, buscar una version nueva (retrasa el arranque unos segundos solo si hay red)
+    bool    autoInstall;                // y, si hay una nueva, instalarla sin preguntar (solo placas con dos ranuras de firmware)
+};
+
 class Beacon {
 public:
     String  callsign;
@@ -256,6 +265,7 @@ class Configuration {
 public:
 
     WiFiAP                  wifiAP;
+    FwUpdate                fwUpdate;
     std::vector<Beacon>     beacons;
     Display                 display;
     Battery                 battery;

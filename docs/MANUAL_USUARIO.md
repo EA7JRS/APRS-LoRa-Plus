@@ -627,6 +627,17 @@ Todo lo nuevo de 5.2.11 y 5.2.12 es parte del firmware común y se compila para 
 
 Estudio de cobertura de todos los modos: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: previsto para 5.4.
 
+## 30. Instalar y actualizar el firmware (5.3.1)
+
+**Por USB (todas las placas).** Abre la página del proyecto (`https://ea7jrs.github.io/APRS-LoRa-Plus/`) en Chrome o Edge, conecta la placa, pulsa *Detectar placa* (lee placa y versión instalada) y después *Instalar*. La configuración se conserva. Si la placa no aparece, mantén BOOT al conectarla.
+
+**Desde la WebUI (solo placas con dos copias de firmware: T-Beam S3 Supreme y T-Beam 1W).** Administración > *Firmware update*: arriba verás placa, versión y si admite actualización web.
+- *Archivo*: elige el `.bin` de tu placa y pulsa *Upload and install*. Si es de otra placa, se rechaza.
+- *Internet*: escribe tu red WiFi y contraseña, guarda, pulsa *Check for updates* y después *Install new version*. La placa se conecta a tu WiFi unos segundos (el punto de acceso de configuración puede cortarse un momento).
+- *Automática*: activa «Look for a new version at every start» (y, si quieres, «Install it automatically»). Al encender, antes de arrancar la radio, la placa busca una versión más nueva en tu WiFi; si no hay red, sigue con el arranque normal (espera hasta 10 s). Una instalación automática descarga ~1,5–2 MB y reinicia.
+
+Las placas ESP32 clásicas, ESP32-C3, Heltec S3 y T3S3 no tienen sitio para dos copias: se actualizan por USB. Si una actualización dejase la placa sin arrancar, reinstala por USB.
+
 ## Apéndice A — Mapa de pulsaciones por página
 
 | Página | LP abre | Opciones |

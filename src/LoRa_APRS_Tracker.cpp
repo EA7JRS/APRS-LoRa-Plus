@@ -73,6 +73,7 @@ ____________________________________________________________________*/
 #include "display.h"
 #include "utils.h"
 #include "notification_utils.h"
+#include "fw_update.h"
 #ifdef HAS_TOUCHSCREEN
 #include "touch_utils.h"
 #endif
@@ -140,6 +141,7 @@ extern bool gpsIsActive;
 void setup() {
     Serial.begin(115200);
     Serial.println("\n=== LoRa APRS Tracker 5.3.0 | build: ft8-ft4 (2026-11-03) ===");   // si no ves esta linea, no se ha grabado este firmware
+    FW_Update::printBanner();                                      // placa + version para el instalador web USB
     Config.init();                                                 // antes estaba en el constructor global (provocaba el bucle de arranque)
     myBeaconsSize     = Config.beacons.size();
     currentBeacon     = &Config.beacons[myBeaconsIndex];
@@ -169,6 +171,7 @@ void setup() {
         PAGES_Utils::selectMode();      // APRS LoRa / APRS FSK / MORSE: debe decidirse antes de arrancar la radio
     #endif
 
+    FW_Update::autoUpdateAtBoot();                                 // si esta activado: busca (e instala) una version nueva por tu WiFi
     WIFI_Utils::checkIfWiFiAP();
 
     MSG_Utils::loadNumMessages();
@@ -232,6 +235,7 @@ void setup() {
 }
 
 void loop() {
+    FW_Update::serialPoll();                                       // "APRS-INFO?" por USB -> placa y version
     NOTIFICATION_Utils::update();                                  // campanas APRS del zumbador (sin bloqueos)
     currentBeacon = &Config.beacons[myBeaconsIndex];
     if (statusUpdate) {
