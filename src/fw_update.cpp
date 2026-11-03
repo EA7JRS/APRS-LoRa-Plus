@@ -66,7 +66,7 @@ namespace FW_Update {
 
     // ---- version helpers ---------------------------------------------------------------------------------------------
 
-    // "5.3.0" / "5.3.0-beta" -> 5003001 ; 0 if it cannot be read
+    // "5.3.1" / "5.3.1-beta" -> 5003001 ; 0 if it cannot be read
     static long versionNumberOf(const String& v) {
         int part[3] = { 0, 0, 0 }, n = 0;
         long cur = -1;

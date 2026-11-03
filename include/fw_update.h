@@ -1,5 +1,5 @@
 /* Copyright (C) 2026 Manuel - EA7JRS
- * Firmware information and updates (5.3.0):
+ * Firmware information and updates (5.3.1):
  *   - identity of the board and the firmware (/api/info, boot banner line, serial command) for the USB web installer,
  *   - update from a .bin file uploaded to the WebUI (browser on a PC, tablet or phone),
  *   - on-line check / install against the release site (the board joins the user's WiFi), also automatic at boot if enabled.

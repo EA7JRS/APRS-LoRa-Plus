@@ -19,7 +19,7 @@ Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KI
 | **FSK** | Región/canal/frecuencia/potencia propios y filtro gaussiano GFSK/GMSK por perfil. |
 | **GPS** | Constelaciones, SBAS, AssistNow y PPS; u-blox M10 y Quectel L76K (este último con 1–5 Hz). |
 | **WebUI** | Reorganizada por secciones, con un grupo de ajustes por modo y cabecera «APRS LoRa+ / Tracker versión». |
-| **Instalar y actualizar** *(5.3.0, sin probar)* | Instalador web por USB que reconoce la placa y la versión instalada, actualización desde la WebUI (archivo o internet) en placas con dos copias de firmware y actualización automática opcional. Ver el manual, apartado 30. |
+| **Instalar y actualizar** *(5.3.1, sin probar)* | Instalador web por USB que reconoce la placa y la versión instalada, actualización desde la WebUI (archivo o internet) en placas con dos copias de firmware y actualización automática opcional. Ver el manual, apartado 30. |
 | **Identificación de equipos** | Lista oficial aprs-deviceid (tocalls y sufijos Mic-E). |
 
 Detalle completo en [`CHANGELOG.md`](CHANGELOG.md) y en las notas de cada versión ([`docs/releases/`](docs/releases)).

@@ -387,7 +387,7 @@ Las balizas se convierten a tramas **AX.25 UI** (PID 0xF0) con FCS CRC-16, HDLC 
 ### 20.2 Compatibilidad
 Lo oyen receptores de packet 9600 baudios G3RUH (TNC y radios con puerto de datos 9600). **No** lo oyen los equipos APRS analógicos de 1200 baudios (AFSK).
 
-### 20.2b FX.25 e IL2P (5.3.0)
+### 20.2b FX.25 e IL2P (5.3.1)
 El selector **Packet protocol (TX)** de cada perfil FSK elige cómo se emite la trama: **AX.25** (normal), **FX.25** (la misma trama dentro de un bloque con corrección de errores Reed-Solomon, con 16, 32 o 64 bytes de control; las estaciones que no lo conocen siguen leyendo la trama) o **IL2P** (compacto, con corrección de errores, pero solo lo oyen estaciones IL2P como Dire Wolf 1.7). La recepción entiende los tres formatos a la vez. FX.25 es la opción recomendada; las tramas que no caben en 255 bytes se emiten como AX.25 normal. Detalles y límites en `docs/FSK_G3RUH.md`. Sin probar todavía en radio.
 
 ### 20.3 Parámetros (WebUI, por perfil)
@@ -627,7 +627,7 @@ Todo lo nuevo de 5.2.11 y 5.2.12 es parte del firmware común y se compila para 
 
 Estudio de cobertura de todos los modos: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: previsto para 5.4.
 
-## 30. Instalar y actualizar el firmware (5.3.0)
+## 30. Instalar y actualizar el firmware (5.3.1)
 
 **Por USB (todas las placas).** Abre la página del proyecto (`https://ea7jrs.github.io/APRS-LoRa-Plus/`) en Chrome o Edge, conecta la placa, pulsa *Detectar placa* (lee placa y versión instalada) y después *Instalar*. La configuración se conserva. Si la placa no aparece, mantén BOOT al conectarla.
 

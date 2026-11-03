@@ -420,7 +420,7 @@ namespace WEB_Utils {
         Config.wifiAP.password                  = getParamStringSafe("wifiAP.password", Config.wifiAP.password);
         Config.wifiAP.active                    = false; // when Configuration is finished Tracker returns to normal mode.
 
-        //  Firmware update (5.3.0)
+        //  Firmware update (5.3.1)
         Config.fwUpdate.ssid                    = getParamStringSafe("fwUpdate.ssid", Config.fwUpdate.ssid);
         Config.fwUpdate.password                = getParamStringSafe("fwUpdate.password", Config.fwUpdate.password);
         Config.fwUpdate.autoCheck               = request->hasParam("fwUpdate.autoCheck", true);
