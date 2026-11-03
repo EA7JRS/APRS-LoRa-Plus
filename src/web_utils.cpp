@@ -270,6 +270,32 @@ namespace WEB_Utils {
             Config.wspr.ppCorrHz[i]      = constrain(getParamIntSafe("wspr.ppCorrHz" + String(i), Config.wspr.ppCorrHz[i]), -5000, 5000);
             Config.wspr.ppDriftTenths[i] = constrain(getParamIntSafe("wspr.ppDriftTenths" + String(i), Config.wspr.ppDriftTenths[i]), -200, 200);
         }
+        {   // balizas FT8 y FT4: frecuencias de dial en MHz en la WebUI, en Hz en la configuracion
+            if (request->hasParam("ft.ft8FreqMHz", true)) {
+                const double mhz = request->getParam("ft.ft8FreqMHz", true)->value().toDouble();
+                if (mhz > 0.0) Config.ft.ft8FreqHz = constrain((int)lround(mhz * 1e6), 400000000, 480000000);
+            }
+            if (request->hasParam("ft.ft4FreqMHz", true)) {
+                const double mhz = request->getParam("ft.ft4FreqMHz", true)->value().toDouble();
+                Config.ft.ft4FreqHz = mhz > 0.0 ? constrain((int)lround(mhz * 1e6), 400000000, 480000000) : 0;      // vacio = sin definir
+            }
+            Config.ft.ft8Region   = constrain(getParamIntSafe("ft.ft8Region", Config.ft.ft8Region), 1, 3);
+            Config.ft.ft4Region   = constrain(getParamIntSafe("ft.ft4Region", Config.ft.ft4Region), 1, 3);
+            Config.ft.corrHz      = constrain(getParamIntSafe("ft.corrHz", Config.ft.corrHz), -5000, 5000);
+            Config.ft.powerDbm    = constrain(getParamIntSafe("ft.powerDbm", Config.ft.powerDbm), 0, 22);
+            Config.ft.everyCycles = constrain(getParamIntSafe("ft.everyCycles", Config.ft.everyCycles), 2, 240);
+            String ftLoc = getParamStringSafe("ft.locator", Config.ft.locator);
+            ftLoc.trim();
+            ftLoc.toUpperCase();
+            if (ftLoc.length() != 4) ftLoc = "";
+            Config.ft.locator = ftLoc;
+            String ftText = getParamStringSafe("ft.text", Config.ft.text);
+            ftText.trim();
+            ftText.toUpperCase();
+            if (ftText.length() > 35) ftText = ftText.substring(0, 35);
+            Config.ft.text = ftText;
+            Config.ft.screenOff = request->hasParam("ft.screenOff", true);
+        }
         // GPS (u-blox M10 / L76K): se aplica al arrancar. Las combinaciones no validas en el M10 se rechazan y se conserva la mascara anterior
         if (request->hasParam("gps.present", true)) {
             int mask = (request->hasParam("gps.useGps", true) ? 1 : 0) | (request->hasParam("gps.useGalileo", true) ? 2 : 0) | (request->hasParam("gps.useBeidou", true) ? 4 : 0) |

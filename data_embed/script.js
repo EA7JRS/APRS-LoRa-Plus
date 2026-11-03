@@ -506,6 +506,28 @@ function loadSettings(settings) {
         });
         document.getElementById("cw.beaconText").value = cw.beaconText ?? "DE {CALL}/B {LOC} V{VBAT}";
         const wspr = settings.wspr || {};
+        const ft = settings.ft || {};
+        document.getElementById("ft.ft8Region").value = String(ft.ft8Region ?? 1);
+        document.getElementById("ft.ft4Region").value = String(ft.ft4Region ?? 1);
+        document.getElementById("ft.ft8FreqMHz").value = ((ft.ft8FreqHz ?? 432174000) / 1e6).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+        document.getElementById("ft.ft4FreqMHz").value = (ft.ft4FreqHz > 0) ? (ft.ft4FreqHz / 1e6).toFixed(6).replace(/0+$/, "").replace(/\.$/, "") : "";
+        document.getElementById("ft.powerDbm").value = ft.powerDbm ?? 17;
+        document.getElementById("ft.everyCycles").value = ft.everyCycles ?? 4;
+        document.getElementById("ft.corrHz").value = ft.corrHz ?? 0;
+        document.getElementById("ft.locator").value = ft.locator ?? "";
+        document.getElementById("ft.text").value = ft.text ?? "";
+        document.getElementById("ft.screenOff").checked = ft.screenOff ?? true;
+        ftWire();
+        const lr = settings.lrfhss || {};
+        document.getElementById("lrfhss.enabled").checked = lr.enabled ?? false;
+        document.getElementById("lrfhss.freqHz").value = lr.freqHz ?? 434000000;
+        document.getElementById("lrfhss.bwIdx").value = String(lr.bwIdx ?? 0);
+        document.getElementById("lrfhss.crIdx").value = String(lr.crIdx ?? 3);
+        document.getElementById("lrfhss.narrowGrid").checked = lr.narrowGrid ?? true;
+        document.getElementById("lrfhss.powerDbm").value = lr.powerDbm ?? 10;
+        document.getElementById("lrfhss.intervalMin").value = String(lr.intervalMin ?? 10);
+        document.getElementById("lrfhss.locator").value = lr.locator ?? "";
+        lrfhssWire();
         document.getElementById("wspr.freqHz").value = 432301500;      // fixed: not editable
         document.getElementById("wspr.corrHz").value = wspr.corrHz ?? 0;
         document.getElementById("wspr.useGlobalPpm").checked = wspr.useGlobalPpm ?? false;
@@ -1148,3 +1170,64 @@ form.addEventListener("invalid", function (event) {
 }, true);
 
 fetchSettings();
+
+// ---- FT8 / FT4 beacon: segment note for the entered dial frequency (signal sits 1.5 kHz above the dial; FT8 50 Hz, FT4 83 Hz wide) ----
+function ftSegmentNote(region, dialMHz) {
+    if (!(dialMHz > 0)) return "";
+    const f = dialMHz + 0.0015;
+    const ok = iaruCheckFrequency(region, dialMHz * 1e6);
+    if (!ok) return "OUTSIDE the amateur allocation of this IARU region.";
+    if (region === 1) {
+        if (f >= 432.000 && f < 432.400) return "R1 432.000-432.400: all modes, weak-signal segment (2700 Hz). Suitable.";
+        if (f >= 432.400 && f < 432.490) return "R1 432.400-432.490: beacons only. Do not use for FT8/FT4.";
+        if (f >= 432.490 && f < 432.510) return "R1: 432.491-432.493 EMGM and 432.500 APRS. Avoid.";
+        if (f >= 433.400 && f < 433.600) return "R1 433.400-433.575: FM / digital voice. Avoid.";
+        if (f >= 433.600 && f < 434.000) return "R1 433.600-434.000: all modes, digital channels 433.625-433.775. Check the national plan.";
+        if (f >= 434.600 && f < 434.980) return "R1 434.600-434.975: repeater outputs. Do not use.";
+        return "Check the IARU R1 and the national band plan for this segment.";
+    }
+    if (region === 2) {
+        if (f >= 432.100 && f < 432.300) return "R2 432.100-432.300: weak signal. Suitable.";
+        if (f >= 432.025 && f < 432.100) return "R2 432.025-432.100: CW / EME. Avoid.";
+        if (f >= 432.300 && f < 432.420) return "R2 432.300-432.420: beacons. Do not use.";
+        if (f >= 433.100 && f <= 435.000) return "R2 433.100-435.000: local option. Check the national plan.";
+        return "Check the IARU R2 and the national band plan for this segment.";
+    }
+    if (f >= 431.900 && f < 432.240) return "R3 431.9-432.24: EME / weak signal (2700 Hz). Suitable.";
+    if (f >= 432.240 && f <= 435.000) return "R3 432.24-435.0: all modes, max 25 kHz. Check the national plan.";
+    return "Check the IARU R3 and the national band plan for this segment.";
+}
+function ftWire() {
+    const upd = (p) => {
+        const reg = parseInt(document.getElementById("ft." + p + "Region").value, 10) || 1;
+        const raw = document.getElementById("ft." + p + "FreqMHz").value;
+        const info = document.getElementById("ft." + p + "Info");
+        const note = raw === "" ? (p === "ft4" ? "FT4 has no standard 70 cm dial frequency: it will not transmit until one is entered." : "") : ftSegmentNote(reg, parseFloat(raw));
+        info.textContent = note;
+        info.className = /OUTSIDE|Do not use|Avoid|only\./.test(note) ? "text-danger fw-semibold" : "text-muted";
+    };
+    ["ft8", "ft4"].forEach(p => {
+        document.getElementById("ft." + p + "Region").addEventListener("change", () => upd(p));
+        document.getElementById("ft." + p + "FreqMHz").addEventListener("input", () => upd(p));
+        upd(p);
+    });
+}
+
+// ---- LR-FHSS: same frequency rule as LRFHSS::freqCheck() in the firmware (occupied width = grid + 2 kHz per side) ----
+function lrfhssWire() {
+    const BW = [39.06, 85.94, 136.72, 183.59, 335.94, 386.72, 722.66, 773.44, 1523.4, 1574.2];
+    const f = document.getElementById("lrfhss.freqHz"), b = document.getElementById("lrfhss.bwIdx"), info = document.getElementById("lrfhss.info");
+    const upd = () => {
+        const hz = parseFloat(f.value), bw = BW[parseInt(b.value, 10)] || BW[0];
+        const half = (bw / 2 + 2) * 1000, lo = hz - half, hi = hz + half;
+        let t = "Occupies " + (lo / 1e6).toFixed(4) + " - " + (hi / 1e6).toFixed(4) + " MHz.", bad = true;
+        if (!(hz > 0) || lo < 430e6 || hi > 440e6) t += " OUTSIDE 430-440 MHz: the firmware will refuse to transmit.";
+        else if (hi > 432e6 && lo < 432.5e6) t += " Overlaps 432.000-432.500 MHz (weak signal / beacons): refused.";
+        else if (hi > 435e6 && lo < 438e6) t += " Overlaps 435-438 MHz (satellite service): refused.";
+        else if (bw > 125) t += " Wider than 125 kHz: the IARU R1 note (p) for LoRa-like data does not cover it.";
+        else { t += " Within the 125 kHz data-like-LoRa limit (IARU R1, centre 434.000 MHz)."; bad = false; }
+        info.textContent = t;
+        info.className = bad ? "text-danger fw-semibold" : "text-muted";
+    };
+    f.addEventListener("input", upd); b.addEventListener("change", upd); upd();
+}

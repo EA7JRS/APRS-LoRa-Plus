@@ -616,6 +616,14 @@ Todo lo nuevo de 5.2.11 y 5.2.12 es parte del firmware común y se compila para 
 - **Memoria:** DAPNET añade unos 3 KB de RAM estática (decodificador 220 B + 10 mensajes) y el código nuevo unas decenas de KB de flash; todas las placas usan `huge_app.csv`. Al compilar, comprueba el uso de flash de las placas con menos memoria.
 - **Sin compilar ni probar en placa:** he revisado el código con `-Wall` en PC (SX1262, SX1278, SX1276 y LLCC68) y con pruebas unitarias del decodificador POCSAG, pero no con PlatformIO ni en ninguna placa real.
 
+## 29. FT8 / FT4 beacon y LR-FHSS activable (5.3.0)
+
+**FT8 beacon / FT4 beacon.** Se eligen en SELECT MODE (solo SX1262/SX1268) y, como WSPR, no se guardan. Solo transmiten; su única pantalla es la de la baliza (cuenta atrás, hora UTC, satélites). Mensaje «CQ INDICATIVO LOCATOR» o texto libre de hasta 35 caracteres. La ranura sale de la hora GPS (FT8 15 s, FT4 7,5 s) y la emisión dura 12,64 s (FT8) o 5,04 s (FT4). La frecuencia es la de **dial**: el tono 0 sale 1500 Hz por encima. FT8 trae 432,174 MHz (lista de WSJT-X); **FT4 no tiene frecuencia por defecto y no emite hasta que se escribe una**. Elige siempre un canal que permita el plan IARU de tu región y la norma nacional: la WebUI avisa si el segmento es de balizas, repetidores o voz digital. La pantalla no se redibuja durante la emisión; el botón la aborta. Configuración: WebUI → tarjeta «FT8 / FT4 Beacon». Sin pruebas en placa.
+
+**LR-FHSS beacon.** Se activa con el interruptor de su tarjeta en la WebUI (apagado por defecto); entonces aparece en SELECT MODE. Ver `LRFHSS_BALIZA.md`. Experimental; el titular responde de la autorización que exijan las normas nacionales.
+
+Estudio de cobertura de todos los modos: `ESTUDIO_COBERTURA.pdf`. FST4W y D-Star/DPRS: previstos para 5.4.
+
 ## Apéndice A — Mapa de pulsaciones por página
 
 | Página | LP abre | Opciones |
@@ -632,6 +640,7 @@ Todo lo nuevo de 5.2.11 y 5.2.12 es parte del firmware común y se compila para 
 | LORA | submenú | Next profile, Power, Reset counters, Heard list, Back |
 | SYSTEM | — | (solo lectura) |
 | WSPR (solo modo WSPR) | submenú | Beacon ON/OFF, Tune carrier, Change mode, Back |
+| FT8 / FT4 (solo esos modos) | submenú | Beacon ON/OFF, Change mode, Back |
 | MORSE (solo modo MORSE) | submenú | 1–5 (macros), Listen CW (RF), Trainer: listen, Trainer: keying, CW beacon ON/OFF, Clear text, Change mode, Back |
 | CW BEACON (solo modo MORSE) | submenú | Beacon ON/OFF, Send now, Tune carrier, Change mode, Back |
 | DAPNET (solo modo DAPNET) | submenú | Older message, Newer message, Clear list, Monitor all ON/OFF, Change mode, Back |
@@ -639,6 +648,7 @@ Todo lo nuevo de 5.2.11 y 5.2.12 es parte del firmware común y se compila para 
 ## Apéndice B — Archivos nuevos y modificados
 
 **Nuevos (5.1.0):** `include/ax25_g3ruh.h`, `src/ax25_g3ruh.cpp`, `include/cw_morse.h`, `src/cw_morse.cpp`, `docs/MODOS.md`, `docs/FSK_G3RUH.md`, `docs/CW_MORSE.md`.
+**Nuevos (5.3.0):** `include/ft_beacon.h`, `src/ft_beacon.cpp`, `lib/ft8lib/`, `docs/ESTUDIO_COBERTURA.md/.pdf`; modificados `configuration`, `web_utils`, `sleep_utils`, `pages_utils`, WebUI.
 **Modificados (5.2.12):** `configuration`, `lora_utils`, `web_utils`, `LoRa_APRS_Tracker.cpp` y la WebUI (GFSK/GMSK, bloque L76K, cabecera y About).
 **Nuevos (5.2.11, DAPNET):** `include/pocsag.h`, `include/dapnet_utils.h`, `src/dapnet_utils.cpp`, `tools/test_pocsag.cpp`; modificados `configuration`, `lora_utils`, `pages_utils`, `web_utils` y la WebUI.
 **Nuevos (5.2.11):** `tools/test_lrfhss.cpp`, `include/lrfhss.h`, `src/lrfhss.cpp`, `docs/LRFHSS_BALIZA.md` (restaurados); modificados `configuration`, `gps_utils`, `lora_utils`, `pages_utils`, `web_utils`, `LoRa_APRS_Tracker.cpp` y la WebUI.

@@ -131,7 +131,7 @@ public:
 };
 
 // Modo de funcionamiento, elegido al arrancar tras el mensaje de bienvenida
-enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5 };
+enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7 };
 
 // Baliza WSPR (modo WSPR): mensaje tipo 1 con el indicativo del perfil de baliza (sin SSID), locator de 4 caracteres y potencia
 class WSPRConfig {
@@ -185,6 +185,21 @@ public:
     bool    monitorAll;                         // mostrar todos los mensajes que se reciban, sean para ti o no
     bool    timeSync;                           // poner el reloj con la hora UTC que difunde DAPNET cuando no hay hora GPS
     int     charset;                            // 0 = ASCII, 1 = aleman ISO 646 (DIN 66003)
+};
+
+// Balizas FT8 y FT4 (modos FT8 y FT4; solo emision, SX1262/SX1268): mensaje estandar con el indicativo del perfil de baliza, ranuras de 15 s (FT8) o 7,5 s (FT4) sincronizadas con el GPS
+class FTConfig {
+public:
+    int     ft8FreqHz;                          // frecuencia de DIAL de FT8 (Hz); el tono 0 sale a dial + 1500 Hz. 70 cm: 432,174 MHz (WSJT-X)
+    int     ft4FreqHz;                          // frecuencia de DIAL de FT4 (Hz); 0 = sin definir (el plan IARU no fija canal): no emite hasta que se rellene
+    int     ft8Region;                          // region IARU (1, 2, 3) del perfil FT8 (aviso de segmento en la WebUI)
+    int     ft4Region;                          // region IARU del perfil FT4
+    int     corrHz;                             // desplazamiento adicional (Hz) sobre la correccion global en ppm
+    int     powerDbm;                           // potencia de salida (dBm), 0..22
+    int     everyCycles;                        // una emision cada N ciclos (15 s en FT8, 7,5 s en FT4), 2..240
+    String  locator;                            // locator fijo de 4 caracteres; vacio = el del GPS
+    String  text;                               // mensaje libre (hasta 35 caracteres); vacio = "CQ indicativo locator"
+    bool    screenOff;                          // pantalla apagada durante la emision (la actualizacion de la pantalla interrumpiria el PLL)
 };
 
 class LRFHSSConfig {
@@ -247,11 +262,12 @@ public:
     BLUETOOTH               bluetooth;
     CWConfig                cw;
     WSPRConfig              wspr;
+    FTConfig                ft;
     LRFHSSConfig            lrfhss;
     DAPNETConfig            dapnet;
     GPSConfig               gps;
     int                     radioPpm1000;       // correccion del oscilador en milesimas de ppm (-50000..50000), global: TX y RX de todos los modos
-    int                     operatingMode;      // modo en curso: MODE_APRS_LORA / MODE_APRS_FSK / MODE_MORSE / MODE_WSPR / MODE_LRFHSS (MORSE, WSPR y LRFHSS solo si se elige a mano en el arranque)
+    int                     operatingMode;      // modo en curso: MODE_APRS_LORA / MODE_APRS_FSK / MODE_MORSE / MODE_WSPR / MODE_LRFHSS / MODE_DAPNET / MODE_FT8 / MODE_FT4 (MORSE, WSPR, LRFHSS, FT8 y FT4 solo si se elige a mano en el arranque)
     int                     savedMode;          // ultimo modo APRS elegido (LoRa o FSK): es el que arranca solo si no se pulsa nada; MORSE nunca se guarda
 
     bool    simplifiedTrackerMode;
@@ -272,6 +288,7 @@ public:
     void setWsprDefaults();
     void setGpsDefaults();
     void setLrfhssDefaults();
+    void setFtDefaults();
     void setDapnetDefaults();
     void enforceAisBeacon(Beacon& beacon);              // SSID, simbolo, SmartBeacon y datos AIS coherentes con el tipo de embarcacion
     bool ensureAisProfiles();                           // anade el perfil nautico y el perfil LoRa AIS si faltan (true si cambio algo)

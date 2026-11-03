@@ -79,7 +79,7 @@ ____________________________________________________________________*/
 
 
 String      versionDate             = "2026-11-01";
-String      versionNumber           = "5.2.12";
+String      versionNumber           = "5.3.0";
 Configuration                       Config;
 HardwareSerial                      gpsSerial(1);
 TinyGPSPlus                         gps;
@@ -139,7 +139,7 @@ extern bool gpsIsActive;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n=== LoRa APRS Tracker 5.2.12 | build: gmsk-dapnet (2026-11-01) ===");   // si no ves esta linea, no se ha grabado este firmware
+    Serial.println("\n=== LoRa APRS Tracker 5.3.0 | build: ft8-ft4 (2026-11-03) ===");   // si no ves esta linea, no se ha grabado este firmware
     Config.init();                                                 // antes estaba en el constructor global (provocaba el bucle de arranque)
     myBeaconsSize     = Config.beacons.size();
     currentBeacon     = &Config.beacons[myBeaconsIndex];

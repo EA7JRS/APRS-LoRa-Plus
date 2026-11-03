@@ -1,5 +1,8 @@
 # Changelog
 
+## 5.3.0 — 2026-11-03
+Nuevos modos **FT8 beacon** y **FT4 beacon** (solo transmisión, SX1262/SX1268, ranura sincronizada por GPS, GFSK generado por software; codificador de ft8_lib, MIT). Tarjeta propia en la WebUI con región IARU y aviso de segmento; enlace de GitHub de APRS LoRa+ visible en About; estudio de cobertura de todos los modos (`docs/ESTUDIO_COBERTURA.pdf`). LR-FHSS se puede activar desde la WebUI (apagado por defecto). FST4W y D-Star/DPRS quedan para 5.4. Sin compilar ni probar en placa. Ver `docs/releases/RELEASE_5.3.0.md`.
+
 ## 5.2.12 — 2026-11-01
 Selector GFSK/GMSK (filtro gaussiano del emisor) por perfil FSK; el bloque del L76K pasa al final de la sección GPS de la WebUI; cabecera «APRS LoRa+ / Tracker versión» y línea «APRS LoRa+ - by Manuel EA7JRS» añadida en About (la información original se conserva; la versión de la cabecera se lee del firmware). Incluye todo lo de 5.2.11 (modo DAPNET, calibración ppm, pantalla CW BEACON, campanas, modo estricto). Ver `docs/releases/RELEASE_5.2.12.md`.
 

@@ -63,7 +63,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
         <input type="file" accept="text/json,.json" style="display: none" />
         <form autocomplete="off" action="/configuration.json" method="POST">
 <div class="app-topbar d-flex align-items-center px-3 sticky-top">
-  <span class="brand"><span class="brand-name">APRS LoRa+</span><small class="brand-sub" id="brandSub">Tracker <span class="ver">5.2.12</span></small></span>
+  <span class="brand"><span class="brand-name">APRS LoRa+</span><small class="brand-sub" id="brandSub">Tracker <span class="ver">5.3.0</span></small></span>
   <div class="ms-auto d-flex align-items-center gap-2">
     <button class="btn btn-sm btn-icon" type="button" id="themeToggle" title="Toggle light/dark"></button>
     <button class="btn btn-sm btn-save" type="submit">Save</button>
@@ -828,21 +828,108 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
+                        <div class="row my-5 d-flex align-items-top" id="grp-ft">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>FT8 / FT4 Beacon</h5>
+                                <small>Selected at boot (SELECT MODE &rarr; FT8 beacon / FT4 beacon). Transmit only, standard message "CQ CALL LOCATOR" or your own text. The slot is taken from the GPS time (FT8 15 s, FT4 7.5 s). The frequency is the DIAL frequency: tone 0 is sent 1500 Hz above it, as with a USB transceiver in WSJT-X. Always 70 cm; choose the channel that your IARU region and national band plan allow.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="ft.ft8Region" id="ft.ft8Region"><option value="1">Region 1</option><option value="2">Region 2</option><option value="3">Region 3</option></select>
+                                        <label for="ft.ft8Region">FT8 IARU region</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" step="0.000001" class="form-control form-control-sm" name="ft.ft8FreqMHz" id="ft.ft8FreqMHz" value="432.174" />
+                                        <label for="ft.ft8FreqMHz">FT8 dial frequency (MHz)</label>
+                                    </div>
+                                    <div class="col-12 px-1 mb-2"><small id="ft.ft8Info" class="text-muted"></small></div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="ft.ft4Region" id="ft.ft4Region"><option value="1">Region 1</option><option value="2">Region 2</option><option value="3">Region 3</option></select>
+                                        <label for="ft.ft4Region">FT4 IARU region</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" step="0.000001" class="form-control form-control-sm" name="ft.ft4FreqMHz" id="ft.ft4FreqMHz" placeholder="not set" />
+                                        <label for="ft.ft4FreqMHz">FT4 dial frequency (MHz, empty = not set)</label>
+                                    </div>
+                                    <div class="col-12 px-1 mb-2"><small id="ft.ft4Info" class="text-muted"></small></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ft.powerDbm" id="ft.powerDbm" min="0" max="22" value="17" />
+                                        <label for="ft.powerDbm">Power (dBm)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ft.everyCycles" id="ft.everyCycles" min="2" max="240" value="4" />
+                                        <label for="ft.everyCycles">Transmit every N cycles</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ft.corrHz" id="ft.corrHz" min="-5000" max="5000" value="0" />
+                                        <label for="ft.corrHz">Extra offset (Hz)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" name="ft.locator" id="ft.locator" maxlength="4" placeholder="AA00" />
+                                        <label for="ft.locator">Fixed locator (4 chars, empty = GPS)</label>
+                                    </div>
+                                    <div class="form-floating col-12 px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" name="ft.text" id="ft.text" maxlength="35" placeholder="CQ EA7JRS IM77" />
+                                        <label for="ft.text">Message (empty = CQ + callsign + locator; 35 chars max, uppercase)</label>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" name="ft.screenOff" id="ft.screenOff" class="form-check-input" />
+                                    <label for="ft.screenOff" class="form-label">Screen off while transmitting</label>
+                                </div>
+                                <div class="small text-muted mb-2">The global frequency correction (ppm) is applied on top of the extra offset. WSJT-X lists 432.174 MHz for FT8 on 70 cm; no default exists for FT4, so FT4 does not transmit until a dial frequency is entered. The 8-GFSK / 4-GFSK shaping is generated in software; no hardware tests have been made yet. See docs/ESTUDIO_COBERTURA.pdf for the expected range.</div>
+                            </div>
+                        </div>
+
                         <div class="row my-5 d-flex align-items-top" id="grp-lrfhss">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-broadcast" viewBox="0 0 16 16" > <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707m2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708m5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708m2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0" /> </svg>
                                     LR-FHSS Beacon <span class="badge text-bg-warning align-middle ms-1" style="font-size:.6rem">experimental</span>
                                 </h5>
-                                <small>Experimental mode, reserved. The transmitter is in the firmware but stays switched off until its use is authorised.</small>
+                                <small>Experimental, transmit only (SX1262/SX1268). Off until you tick the switch; then it appears in SELECT MODE at boot. Sends "PB1 CALL LOCATOR6 dBm" every N minutes (even minutes, second 114, after the WSPR slot). You are responsible for holding the authorisation that your national rules require.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
-                                <div class="alert alert-secondary small mb-0">
-                                    LR-FHSS Beacon is an experimental, transmit-only mode (SX1262/SX1268). Its code is in the firmware but <strong>deactivated</strong>: it cannot be switched on from here until its use is authorised. This group is reserved for its settings.
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="lrfhss.enabled" id="lrfhss.enabled" class="form-check-input" />
+                                    <label for="lrfhss.enabled" class="form-label">Enable the LR-FHSS beacon (adds it to SELECT MODE)</label>
                                 </div>
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="lrfhss.freqHz" id="lrfhss.freqHz" min="400000000" max="480000000" value="434000000" />
+                                        <label for="lrfhss.freqHz">Centre frequency (Hz)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="lrfhss.bwIdx" id="lrfhss.bwIdx"><option value="0">39.06 kHz</option><option value="1">85.94 kHz</option><option value="2">136.72 kHz</option><option value="3">183.59 kHz</option><option value="4">335.94 kHz</option><option value="5">386.72 kHz</option><option value="6">722.66 kHz</option><option value="7">773.44 kHz</option><option value="8">1523.4 kHz</option><option value="9">1574.2 kHz</option></select>
+                                        <label for="lrfhss.bwIdx">Grid width</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="lrfhss.crIdx" id="lrfhss.crIdx"><option value="0">5/6</option><option value="1">2/3</option><option value="2">1/2</option><option value="3">1/3</option></select>
+                                        <label for="lrfhss.crIdx">Code rate</label>
+                                    </div>
+                                    <div class="col-12 px-1 mb-2"><small id="lrfhss.info" class="text-muted"></small></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="lrfhss.powerDbm" id="lrfhss.powerDbm" min="-9" max="22" value="10" />
+                                        <label for="lrfhss.powerDbm">Power (dBm)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="lrfhss.intervalMin" id="lrfhss.intervalMin"><option value="2">2 min</option><option value="4">4 min</option><option value="6">6 min</option><option value="8">8 min</option><option value="10">10 min</option><option value="12">12 min</option><option value="20">20 min</option><option value="30">30 min</option><option value="60">60 min</option></select>
+                                        <label for="lrfhss.intervalMin">Transmit every</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" name="lrfhss.locator" id="lrfhss.locator" maxlength="6" placeholder="IM77AB" />
+                                        <label for="lrfhss.locator">Fixed locator (6 chars, empty = GPS)</label>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" name="lrfhss.narrowGrid" id="lrfhss.narrowGrid" class="form-check-input" />
+                                    <label for="lrfhss.narrowGrid" class="form-label">Narrow grid (3.9 kHz instead of 25.4 kHz)</label>
+                                </div>
+                                <div class="small text-muted mb-2">The default (434.000 MHz, 39 kHz grid, rate 1/3) fits inside the 125 kHz data-like-LoRa note of the IARU R1 plan. Frequencies overlapping 432.000-432.500 MHz or 435-438 MHz are refused by the firmware. LR-FHSS is experimental and has not been verified over the air.</div>
                             </div>
                         </div>
-</section>
+                        </section>
 <section class="panel-section" id="sec-connectivity">
                         <div class="row my-5 d-flex align-items-top">   
                             <div class="col-lg-3 col-sm-12">
@@ -1749,6 +1836,11 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             href="https://github.com/richonguzman/LoRa_APRS_Tracker"
                             >LoRa APRS Tracker Firmware</a
                         >.
+                    </p>
+                    <p class="mb-2 small">
+                        <b>APRS LoRa+</b> &mdash; EA7JRS:
+                        <a href="https://github.com/EA7JRS/APRS-LoRa-Plus" target="_blank" rel="noopener">github.com/EA7JRS/APRS-LoRa-Plus</a>
+                        (source code, releases, manuals and coverage study).
                     </p>
                     <p class="mb-3 small">
                         Based on CA2RXU LoRa APRS Tracker, which is in turn based on the work of

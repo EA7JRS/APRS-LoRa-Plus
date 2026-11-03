@@ -8,7 +8,7 @@ Modo de transmisión **propio, independiente del WSPR** y **desactivado por defe
 
 ## 1. Qué hace
 
-- **Estado actual:** el código está en el firmware pero **desactivado**; el grupo «LR-FHSS Beacon» de la WebUI está reservado y no tiene controles hasta que se autorice su uso. Cuando se active (*Enable the LR-FHSS mode*) aparecerá **LR-FHSS beacon** en SELECT MODE al arrancar (pulsación larga para aceptarlo, como MORSE y WSPR; no se guarda como modo predeterminado). Necesita hora GPS válida. Su submenú tiene su propio *Beacon ON/OFF*.
+- **Estado actual (5.3.0):** el modo se activa desde la WebUI, tarjeta «LR-FHSS Beacon», con el interruptor *Enable the LR-FHSS beacon* (apagado por defecto). Al activarlo aparece **LR-FHSS beacon** en SELECT MODE al arrancar (pulsación larga para aceptarlo, como MORSE y WSPR; no se guarda como modo predeterminado). Necesita hora GPS válida. Su submenú tiene su propio *Beacon ON/OFF*. El titular responde de la autorización que exijan las normas nacionales.
 - Envía el texto ASCII `PB1 <indicativo> <locator de 6> <dBm>`, p. ej. `PB1 EA7JRS IM67NG 14` (unos 20 bytes, ≈ 2,2 s en el aire con CR 1/3).
 - **Ranura:** segundo **114** de un minuto par, cada 2–60 min (por defecto 10), con un desplazamiento que depende del indicativo. Al ser un modo aparte no se solapa con ninguna emisión WSPR.
 - **Placas:** solo SX1262/SX1268 (T-Beam S3 Supreme). El SX1278 (T-Beam 1.2) no tiene LR-FHSS.

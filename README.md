@@ -12,7 +12,7 @@ Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KI
 
 | Área | Qué aporta |
 |---|---|
-| **Modos de funcionamiento** | Selector al arrancar: *APRS LoRa*, *APRS FSK 9600* (G3RUH, AX.25), *MORSE / CW*, *WSPR beacon* y *DAPNET pager* (receptor POCSAG, solo recepción). *LR-FHSS* está incluido pero **desactivado**. |
+| **Modos de funcionamiento** | Selector al arrancar: *APRS LoRa*, *APRS FSK 9600* (G3RUH, AX.25), *MORSE / CW*, *WSPR beacon*, *FT8 beacon*, *FT4 beacon* y *DAPNET pager* (receptor POCSAG, solo recepción). *LR-FHSS* (experimental) se activa desde la WebUI; viene apagado. |
 | **Interfaz** | 11 pantallas APRS navegables con un botón (principal, última estación, mensajes, GPS, telemetría, brújula, altímetro, reloj, SOS…), pantalla de bienvenida APRS LoRa+, alarmas y baliza SOS. |
 | **Mensajería** | Lectura de mensajes recibidos y respuesta con mensajes rápidos predefinidos, sin teclado. |
 | **Calibración** | Corrección global del oscilador en ppm (tres decimales) para TX y RX, portadora de prueba CW para medir con un SDR y calibración WSPR por offset y por potencia. |
@@ -45,7 +45,7 @@ No todos los modos están disponibles en todos los chips:
 |---|:-:|:-:|:-:|
 | APRS LoRa | ✔ | ✔ | ✔ |
 | APRS FSK 9600 | ✔ | ✔ | ✘ |
-| CW / WSPR / DAPNET | ✔ | ✘ | ✘ |
+| CW / WSPR / FT8 / FT4 / DAPNET | ✔ | ✘ | ✘ |
 
 Las placas sin botón (ESP32-C3 SuperMini DIY, Heltec HT-CT62) no tienen selector de arranque y las placas TNC sin pantalla no muestran páginas. Ver el capítulo «Compatibilidad por placa» del manual.
 

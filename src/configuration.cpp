@@ -127,6 +127,16 @@ bool Configuration::writeFile() {
         data["dapnet"]["monitorAll"]                = dapnet.monitorAll;
         data["dapnet"]["timeSync"]                  = dapnet.timeSync;
         data["dapnet"]["charset"]                   = dapnet.charset;
+        data["ft"]["ft8FreqHz"]                     = ft.ft8FreqHz;
+        data["ft"]["ft4FreqHz"]                     = ft.ft4FreqHz;
+        data["ft"]["ft8Region"]                     = ft.ft8Region;
+        data["ft"]["ft4Region"]                     = ft.ft4Region;
+        data["ft"]["corrHz"]                        = ft.corrHz;
+        data["ft"]["powerDbm"]                      = ft.powerDbm;
+        data["ft"]["everyCycles"]                   = ft.everyCycles;
+        data["ft"]["locator"]                       = ft.locator;
+        data["ft"]["text"]                          = ft.text;
+        data["ft"]["screenOff"]                     = ft.screenOff;
         data["lrfhss"]["enabled"]                   = lrfhss.enabled;
         data["lrfhss"]["freqHz"]                    = lrfhss.freqHz;
         data["lrfhss"]["bwIdx"]                     = lrfhss.bwIdx;
@@ -372,6 +382,19 @@ bool Configuration::readFile() {
         dapnet.monitorAll    = data["dapnet"]["monitorAll"] | dapnet.monitorAll;
         dapnet.timeSync      = data["dapnet"]["timeSync"] | dapnet.timeSync;
         dapnet.charset       = constrain((int)(data["dapnet"]["charset"] | dapnet.charset), 0, 1);
+        if (data["ft"]["ft8FreqHz"].isNull()) needsRewrite = true;
+        setFtDefaults();
+        ft.ft8FreqHz     = constrain((int)(data["ft"]["ft8FreqHz"] | ft.ft8FreqHz), 400000000, 480000000);
+        ft.ft4FreqHz     = (int)(data["ft"]["ft4FreqHz"] | ft.ft4FreqHz);
+        if (ft.ft4FreqHz != 0) ft.ft4FreqHz = constrain(ft.ft4FreqHz, 400000000, 480000000);
+        ft.ft8Region     = constrain((int)(data["ft"]["ft8Region"] | ft.ft8Region), 1, 3);
+        ft.ft4Region     = constrain((int)(data["ft"]["ft4Region"] | ft.ft4Region), 1, 3);
+        ft.corrHz        = constrain((int)(data["ft"]["corrHz"] | ft.corrHz), -5000, 5000);
+        ft.powerDbm      = constrain((int)(data["ft"]["powerDbm"] | ft.powerDbm), 0, 22);
+        ft.everyCycles   = constrain((int)(data["ft"]["everyCycles"] | ft.everyCycles), 2, 240);
+        ft.locator       = data["ft"]["locator"] | "";
+        ft.text          = data["ft"]["text"] | "";
+        ft.screenOff     = data["ft"]["screenOff"] | ft.screenOff;
         if (data["lrfhss"]["freqHz"].isNull()) needsRewrite = true;
         setLrfhssDefaults();
         lrfhss.enabled     = data["lrfhss"]["enabled"] | lrfhss.enabled;
@@ -666,6 +689,19 @@ void Configuration::setDapnetDefaults() {
     dapnet.charset       = 1;                   // la red es alemana: ISO 646 aleman por defecto (los demas caracteres son ASCII)
 }
 
+void Configuration::setFtDefaults() {
+    ft.ft8FreqHz   = 432174000;             // dial FT8 en 70 cm segun la lista de frecuencias de WSJT-X (valido en las tres regiones IARU)
+    ft.ft4FreqHz   = 0;                     // ni WSJT-X ni los planes IARU fijan un canal de FT4 en 70 cm: se rellena a mano
+    ft.ft8Region   = 1;
+    ft.ft4Region   = 1;
+    ft.corrHz      = 0;
+    ft.powerDbm    = 17;
+    ft.everyCycles = 4;                     // una emision por minuto en FT8 (4 ciclos de 15 s)
+    ft.locator     = "";
+    ft.text        = "";
+    ft.screenOff   = true;
+}
+
 void Configuration::setLrfhssDefaults() {
     lrfhss.enabled     = false;                 // desactivada por defecto: puede requerir autorizacion especial (Orden IET/1311/2013, art. 17.2)
     lrfhss.freqHz      = 434000000;             // IARU R1 (v10.02): centro de experimentos digitales, nota (p): datos tipo LoRa hasta 125 kHz
@@ -788,6 +824,7 @@ void Configuration::setDefaultValues() {
     setCwDefaults();
     setWsprDefaults();
     setLrfhssDefaults();
+    setFtDefaults();
     setDapnetDefaults();
     setGpsDefaults();
     radioPpm1000                    = 0;
