@@ -1,0 +1,38 @@
+name: Size report
+
+on:
+    workflow_dispatch:
+
+jobs:
+    size:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+              target:
+                - name: ttgo-t-beam-v1_2
+                  tool: xtensa-esp32-elf
+                - name: ttgo-t-beam-v1_2_SX1262
+                  tool: xtensa-esp32-elf
+        steps:
+            - uses: actions/checkout@v7
+            - uses: actions/setup-python@v7
+              with:
+                  python-version: "3.13"
+            - name: Install PlatformIO Core
+              run: pip install --upgrade platformio
+            - name: Build target
+              run: pio run -e ${{ matrix.target.name }}
+              continue-on-error: true
+            - name: Report
+              run: |
+                  B=.pio/build/${{ matrix.target.name }}
+                  ls -l $B/firmware.bin $B/firmware.elf || true
+                  T=$(ls -d ~/.platformio/packages/toolchain-xtensa-esp32*/bin | head -1)
+                  $T/${{ matrix.target.tool }}-size -A $B/firmware.elf | head -40
+                  echo "=== top symbols"
+                  $T/${{ matrix.target.tool }}-nm --size-sort -S -C $B/firmware.elf | tail -70
+                  echo "=== per library archive (bytes of .text+.rodata)"
+                  for a in $(find $B -name '*.a'); do echo "$($T/${{ matrix.target.tool }}-size -t $a | tail -1 | awk '{print $1+0}') $a"; done | sort -rn | head -25
+                  echo "=== project objects"
+                  for o in $(find $B/src -name '*.o'); do echo "$($T/${{ matrix.target.tool }}-size $o | tail -1 | awk '{print $1}') $o"; done | sort -rn | head -15
