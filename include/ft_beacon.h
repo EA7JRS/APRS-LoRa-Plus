@@ -17,27 +17,31 @@
  */
 
 #pragma once
-// FT8 y FT4 (WSJT-X), solo transmision. El empaquetado del mensaje y el codificador (CRC-14, LDPC 174,91, sincronismo y mapa Gray) son
+// FT8, FT4 y FST4W-120/-300 (WSJT-X), solo transmision. El empaquetado del mensaje y el codificador (CRC-14, LDPC 174,91, sincronismo y mapa Gray) son
 // los de ft8_lib (Karlis Goba, YL3JG; MIT) en lib/ft8lib; aqui van los parametros de cada modo, el calendario de ranuras (GPS) y el
 // suavizado gaussiano de la frecuencia (GFSK) convertido en palabras del PLL del SX126x. Sin hardware: se prueba en PC.
 #include <stdint.h>
 #include <stddef.h>
 
 namespace FTX {
-    enum Proto : uint8_t { PROTO_FT8 = 0, PROTO_FT4 = 1 };
+    enum Proto : uint8_t { PROTO_FT8 = 0, PROTO_FT4 = 1, PROTO_FST4W_120 = 2, PROTO_FST4W_300 = 3 };
 
-    constexpr uint8_t MAX_SYMBOLS   = 105;          // FT4 (103 + 2 de rampa); FT8 usa 79
-    constexpr uint8_t MAX_STEPS     = 64;           // escrituras del PLL por simbolo: FT8 64 (cada 2,5 ms), FT4 20 (cada 2,4 ms)
+    constexpr uint8_t MAX_SYMBOLS   = 160;          // FST4W; FT4 usa 105 (103 + 2 de rampa) y FT8 79
+    constexpr uint8_t MAX_STEPS     = 128;          // escrituras del PLL por simbolo: FT8 64 (cada 2,5 ms), FT4 20 (2,4 ms), FST4W-120 128 (5,3 ms), FST4W-300 128 (14 ms)
     constexpr double  AUDIO_TONE0   = 1500.0;       // frecuencia de audio del tono 0 respecto al dial (Hz), como en WSJT-X por defecto
     constexpr size_t  MAX_TEXT      = 40;           // mensaje de texto (hasta 35 caracteres + terminador)
 
     const char* name(Proto p);                      // "FT8" / "FT4"
     uint8_t     symbols(Proto p);                   // 79 / 105
-    uint32_t    symbolUs(Proto p);                  // 160000 / 48000 microsegundos
-    uint32_t    slotMs(Proto p);                    // 15000 / 7500 ms: periodo T/R
-    uint32_t    startDelayMs(Proto p);              // 500 / 300 ms tras el inicio de la ranura (los de WSJT-X)
-    uint8_t     stepsPerSymbol(Proto p);            // 64 / 20
-    double      toneSpacingHz(Proto p);             // 6,25 / 20,8333 Hz (1 / duracion del simbolo)
+    uint32_t    symbolUs(Proto p);                  // 160000 / 48000 / 683333 / 1792000 microsegundos (redondeado)
+    uint32_t    symbolStartUs(Proto p, uint8_t i);  // inicio del simbolo i desde el comienzo de la emision (sin acumular el redondeo)
+    uint32_t    stepStartUs(Proto p, uint8_t i, uint8_t j);   // inicio de la escritura j del simbolo i
+    uint32_t    slotMs(Proto p);                    // 15000 / 7500 / 120000 / 300000 ms: periodo T/R
+    uint32_t    startDelayMs(Proto p);              // 500 / 300 / 1000 / 1000 ms tras el inicio de la ranura (los de WSJT-X)
+    uint8_t     stepsPerSymbol(Proto p);            // 64 / 20 / 128 / 128
+    double      toneSpacingHz(Proto p);             // 6,25 / 20,8333 / 1,4634 / 0,5580 Hz (12000 / nsps)
+    double      tone0AudioHz(Proto p);              // audio del tono 0: 1500 Hz en FT8 y FT4; en FST4W el centro de los 4 tonos va en 1500 Hz
+    bool        isFst4w(Proto p);
 
     // Mensaje: el texto libre de la WebUI si no esta vacio; si lo esta, "CQ <indicativo> <locator4>"
     size_t buildText(const char* custom, const char* call, const char* grid, char* out, size_t cap);
@@ -61,6 +65,9 @@ namespace FTX {
         void   begin(Proto p, const uint8_t* tones, double tone0Hz);
         double hz(uint8_t sym, uint8_t step) const;             // frecuencia ideal en el paso "step" (0..stepsPerSymbol-1) del simbolo "sym"
         uint32_t word(uint8_t sym, uint8_t step) const { return pllWord(hz(sym, step)); }
+        // Palabra del PLL con realimentacion del error (cuantizador de primer orden): la frecuencia media sigue a la ideal aunque el paso del PLL (0,954 Hz)
+        // sea mayor que la separacion de tonos. Debe llamarse una vez por escritura y en orden.
+        uint32_t nextWord(uint8_t sym, uint8_t step);
         uint8_t  steps() const { return n_; }
     private:
         const uint8_t* tones_ = nullptr;
@@ -68,6 +75,7 @@ namespace FTX {
         uint8_t  n_ = 0;
         double   tone0_ = 0.0;
         double   spacing_ = 0.0;
+        double   err_ = 0.0;
         float    pulse_[3 * MAX_STEPS];
     };
 }

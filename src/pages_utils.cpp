@@ -44,6 +44,7 @@
 #include "cw_morse.h"
 #include "wspr.h"
 #include "ft_beacon.h"
+#include "fst4w.h"
 #include "lrfhss.h"
 #include "aprs_icons.h"
 #include <logger.h>
@@ -96,8 +97,8 @@ namespace {
 
     enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_COUNT };
 
-    // FT8 y FT4 comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
-    bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4; }
+    // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
+    bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
 
     // El modo MORSE tiene una unica pagina (MORSE); los modos APRS tienen las demas y no la de MORSE
     bool pageVisible(uint8_t p) {
@@ -2593,12 +2594,22 @@ namespace PAGES_Utils {
         displayTime = millis();
     }
 
-    // ======================= FT8 / FT4 =======================
+    // ======================= FT8 / FT4 / FST4W =======================
+    // Solo en placas con SX1262/SX1268 (los modos no se ofrecen con otros chips): en las demas no se enlaza el codificador ni la modulacion
+    #if defined(HAS_SX1262) || defined(HAS_SX1268)
     // Comparten con WSPR la pagina, el menu y las variables de estado (wspr*): solo hay un modo activo a la vez
-    FTX::Proto ftProto() { return Config.operatingMode == MODE_FT4 ? FTX::PROTO_FT4 : FTX::PROTO_FT8; }
+    FTX::Proto ftProto() {
+        if (Config.operatingMode == MODE_FT4) return FTX::PROTO_FT4;
+        if (Config.operatingMode == MODE_FST4W) return Config.ft.fstSeconds == 300 ? FTX::PROTO_FST4W_300 : FTX::PROTO_FST4W_120;
+        return FTX::PROTO_FT8;
+    }
 
     // Frecuencia de DIAL del modo en curso (Hz); 0 = sin definir
-    long ftDialHz() { return Config.operatingMode == MODE_FT4 ? (long)Config.ft.ft4FreqHz : (long)Config.ft.ft8FreqHz; }
+    long ftDialHz() {
+        if (Config.operatingMode == MODE_FT4) return (long)Config.ft.ft4FreqHz;
+        if (Config.operatingMode == MODE_FST4W) return (long)Config.ft.fstFreqHz;
+        return (long)Config.ft.ft8FreqHz;
+    }
 
     // Correccion total (Hz) a la frecuencia de la senal: la global del oscilador en ppm mas el desplazamiento propio
     double ftCorrHz() { return LoRa_Utils::ppmCorrectionHzExact(ftDialHz()) + (double)Config.ft.corrHz; }
@@ -2620,7 +2631,7 @@ namespace PAGES_Utils {
         char call[8], grid[5] = "----";
         wsprCall(call);
         ftGrid(grid);
-        row(0, "%s %s %ddBm", call, grid, Config.ft.powerDbm);
+        row(0, "%s %s %ddBm", call, grid, FTX::isFst4w(proto) ? FST4W::nearestValidDbm(Config.ft.powerDbm) : Config.ft.powerDbm);
         row(1, "%.4fMHz %+dHz", ftDialHz() / 1e6, (int)lround(ftCorrHz()));
         uint32_t msDay = 0xFFFFFFFFUL;
         if (wsprMsOfDay(msDay)) { uint32_t s = msDay / 1000UL; row(2, "UTC %02u:%02u:%02u  %uSAT", (unsigned)(s / 3600), (unsigned)(s / 60 % 60), (unsigned)(s % 60), (unsigned)gps.satellites.value()); }
@@ -2635,7 +2646,7 @@ namespace PAGES_Utils {
                 if (left < 0) left = 0;
                 row(3, "Next TX %02d:%02d", (int)(left / 60), (int)(left % 60));
             } else row(3, msDay == 0xFFFFFFFFUL ? "Waiting for GPS time" : "Waiting for slot");
-            row(4, "Every %u   Sent %u", (unsigned)Config.ft.everyCycles, (unsigned)wsprTxCount);
+            row(4, "Every %u   Sent %u", (unsigned)(FTX::isFst4w(proto) ? Config.ft.fstEvery : Config.ft.everyCycles), (unsigned)wsprTxCount);
         }
         row(5, wsprProgress >= 0 ? "Button: abort" : "Hold: menu");
     }
@@ -2647,22 +2658,27 @@ namespace PAGES_Utils {
         char call[8], grid[5], text[FTX::MAX_TEXT + 4];
         wsprCall(call);
         if (!ftGrid(grid)) return;
-        FTX::buildText(Config.ft.text.c_str(), call, grid, text, sizeof(text));
         uint8_t tones[FTX::MAX_SYMBOLS];
-        if (!FTX::encode(proto, text, tones)) { snprintf(wsprStatus, sizeof(wsprStatus), "Msg not %s", FTX::name(proto)); wsprOn = false; return; }
-        const int dbm = Config.ft.powerDbm < 0 ? 0 : (Config.ft.powerDbm > 22 ? 22 : Config.ft.powerDbm);
+        int dbm = Config.ft.powerDbm < 0 ? 0 : (Config.ft.powerDbm > 22 ? 22 : Config.ft.powerDbm);
+        if (FTX::isFst4w(proto)) {
+            dbm = FST4W::nearestValidDbm(dbm);                  // el mensaje solo admite 0, 3, 7, 10, 13, 17, 20 ... dBm
+            snprintf(text, sizeof(text), "%s %s %d", call, grid, dbm);
+            if (!FST4W::encode(call, grid, dbm, tones)) { snprintf(wsprStatus, sizeof(wsprStatus), "Msg not %s", FTX::name(proto)); wsprOn = false; return; }
+        } else {
+            FTX::buildText(Config.ft.text.c_str(), call, grid, text, sizeof(text));
+            if (!FTX::encode(proto, text, tones)) { snprintf(wsprStatus, sizeof(wsprStatus), "Msg not %s", FTX::name(proto)); wsprOn = false; return; }
+        }
         FTX::Shaper shaper;
-        shaper.begin(proto, tones, (double)ftDialHz() + FTX::AUDIO_TONE0 + ftCorrHz());
+        shaper.begin(proto, tones, (double)ftDialHz() + FTX::tone0AudioHz(proto) + ftCorrHz());
         const uint8_t nsym = FTX::symbols(proto);
         const uint8_t nstep = shaper.steps();
-        const uint32_t symUs = FTX::symbolUs(proto);
-        const uint32_t stepUs = symUs / nstep;
+        const uint32_t stepUs = FTX::symbolUs(proto) / nstep;
         const bool dark = Config.ft.screenOff;
         displayToggle(true);
         displayState = true;
         wsprStatus[0] = '\0';
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "FTx", "Tx %s '%s' %ddBm in %lu ms", FTX::name(proto), text, dbm, (unsigned long)msToStart);
-        if (!LoRa_Utils::wsprBegin(shaper.word(0, 0), dbm)) { snprintf(wsprStatus, sizeof(wsprStatus), "Radio error"); wsprOn = false; return; }
+        if (!LoRa_Utils::wsprBegin(FTX::pllWord((double)ftDialHz() + FTX::tone0AudioHz(proto) + ftCorrHz()), dbm)) { snprintf(wsprStatus, sizeof(wsprStatus), "Radio error"); wsprOn = false; return; }
         const uint32_t t0 = micros() + msToStart * 1000UL;
         bool armed = !cwButtonDown(), aborted = false, started = false;
         auto poll = [&]() {                                   // vacia la UART del GPS y lee el boton (debe verse suelto antes de contar como pulsacion)
@@ -2682,7 +2698,7 @@ namespace PAGES_Utils {
         uint32_t writes = 0;
         for (uint8_t i = 0; i < nsym && !aborted; i++) {
             for (uint8_t j = 0; j < nstep && !aborted; j++) {
-                const uint32_t at = t0 + (uint32_t)i * symUs + (uint32_t)j * stepUs;
+                const uint32_t at = t0 + FTX::stepStartUs(proto, i, j);
                 while ((int32_t)(micros() - at) < 0) {
                     if (aborted) break;
                     uint32_t now = micros();
@@ -2690,7 +2706,7 @@ namespace PAGES_Utils {
                     yield();
                 }
                 if (aborted) break;
-                const uint32_t w = shaper.word(i, j);
+                const uint32_t w = shaper.nextWord(i, j);
                 if (!started) { started = true; LoRa_Utils::wsprStart(w); }
                 else LoRa_Utils::wsprTone(w);
                 writes++;
@@ -2721,11 +2737,17 @@ namespace PAGES_Utils {
         if (strlen(call) < 3) { snprintf(wsprStatus, sizeof(wsprStatus), "Callsign not valid"); wsprNextAt = 0; return; }
         if (!ftGrid(grid)) { snprintf(wsprStatus, sizeof(wsprStatus), "WAIT GPS POSITION"); wsprNextAt = 0; return; }
         if (wsprStatus[0] && strncmp(wsprStatus, "Sent", 4) != 0 && strncmp(wsprStatus, "Aborted", 7) != 0) wsprStatus[0] = '\0';
-        uint16_t every = (uint16_t)(Config.ft.everyCycles < 2 ? 2 : (Config.ft.everyCycles > 240 ? 240 : Config.ft.everyCycles));
+        const int cfgEvery = FTX::isFst4w(ftProto()) ? Config.ft.fstEvery : Config.ft.everyCycles;
+        uint16_t every = (uint16_t)(cfgEvery < 2 ? 2 : (cfgEvery > 240 ? 240 : cfgEvery));
         const uint32_t until = FTX::msUntilSlot(ftProto(), msDay, every, FTX::slotOffset(call, every));
         wsprNextAt = millis() + until;
         if (until <= 3000UL) ftTransmit(until);
     }
+
+    #else
+    void drawFtPage() {}
+    void ftPoll() {}
+    #endif
 
     // ---- Modo LR-FHSS (independiente del WSPR): mensaje "PB1 indicativo locator6 dBm" en el segundo 114 de un minuto par, tras acabar el WSPR ----
     void lrfhssSet(const char* text, uint32_t holdMs) {
@@ -3193,7 +3215,7 @@ namespace PAGES_Utils {
     uint8_t selectMode() {
         #ifdef BUTTON_PIN
             struct Option { uint8_t mode; const char* label; };
-            Option options[8];
+            Option options[10];
             uint8_t n = 0;
             options[n++] = Option{ MODE_APRS_LORA, "APRS LoRa" };
             if (LoRa_Utils::fskAvailable()) options[n++] = Option{ MODE_APRS_FSK, "APRS FSK 9600" };
@@ -3201,6 +3223,7 @@ namespace PAGES_Utils {
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_WSPR, "WSPR beacon" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FT8, "FT8 beacon" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FT4, "FT4 beacon" };
+            if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FST4W, "FST4W beacon" };
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) options[n++] = Option{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) options[n++] = Option{ MODE_DAPNET, "DAPNET pager" };
             uint8_t sel = 0;
@@ -3256,18 +3279,18 @@ namespace PAGES_Utils {
             // MORSE solo se activa si se acepta a mano (pulsacion larga) y no se guarda; sin pulsar nada se arranca el ultimo modo APRS
             uint8_t mode = chosen ? options[sel].mode : (uint8_t)Config.savedMode;
             Config.operatingMode = mode;
-            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_FT8 && mode != MODE_FT4 && mode != Config.savedMode) {
+            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
                 Config.savedMode = mode;
                 Config.writeFile();                                                        // el ultimo modo APRS elegido pasa a ser el predeterminado
             }
         #endif
-        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_APRS_FSK) Config.operatingMode = MODE_APRS_LORA;
+        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK) Config.operatingMode = MODE_APRS_LORA;
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
-                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : "APRS LoRa")));
+                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : "APRS LoRa")));
         return (uint8_t)Config.operatingMode;
     }
 
@@ -3704,7 +3727,7 @@ namespace PAGES_Utils {
                 wsprOn = !wsprOn;
                 wsprNextAt = 0;
                 wsprStatus[0] = '\0';
-                showToast(ftMode() ? (wsprOn ? "FT beacon ON" : "FT beacon OFF") : (wsprOn ? "WSPR beacon ON" : "WSPR beacon OFF"));
+                showToast(ftMode() ? (wsprOn ? "Beacon ON" : "Beacon OFF") : (wsprOn ? "WSPR beacon ON" : "WSPR beacon OFF"));
                 break;
             case C_LRF_TOGGLE:
                 lrfhssOn = !lrfhssOn;

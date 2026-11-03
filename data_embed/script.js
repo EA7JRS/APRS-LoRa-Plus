@@ -511,6 +511,10 @@ function loadSettings(settings) {
         document.getElementById("ft.ft4Region").value = String(ft.ft4Region ?? 1);
         document.getElementById("ft.ft8FreqMHz").value = ((ft.ft8FreqHz ?? 432174000) / 1e6).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
         document.getElementById("ft.ft4FreqMHz").value = (ft.ft4FreqHz > 0) ? (ft.ft4FreqHz / 1e6).toFixed(6).replace(/0+$/, "").replace(/\.$/, "") : "";
+        document.getElementById("ft.fstRegion").value = String(ft.fstRegion ?? 1);
+        document.getElementById("ft.fstFreqMHz").value = (ft.fstFreqHz > 0) ? (ft.fstFreqHz / 1e6).toFixed(6).replace(/0+$/, "").replace(/\.$/, "") : "";
+        document.getElementById("ft.fstSeconds").value = String(ft.fstSeconds ?? 120);
+        document.getElementById("ft.fstEvery").value = ft.fstEvery ?? 4;
         document.getElementById("ft.powerDbm").value = ft.powerDbm ?? 17;
         document.getElementById("ft.everyCycles").value = ft.everyCycles ?? 4;
         document.getElementById("ft.corrHz").value = ft.corrHz ?? 0;
@@ -1202,11 +1206,11 @@ function ftWire() {
         const reg = parseInt(document.getElementById("ft." + p + "Region").value, 10) || 1;
         const raw = document.getElementById("ft." + p + "FreqMHz").value;
         const info = document.getElementById("ft." + p + "Info");
-        const note = raw === "" ? (p === "ft4" ? "FT4 has no standard 70 cm dial frequency: it will not transmit until one is entered." : "") : ftSegmentNote(reg, parseFloat(raw));
+        const note = raw === "" ? (p === "ft4" ? "FT4 has no standard 70 cm dial frequency: it will not transmit until one is entered." : (p === "fst" ? "FST4W has no standard 70 cm dial frequency: it will not transmit until one is entered. Use a weak-signal segment (WSPR neighbours), never a beacon segment." : "")) : ftSegmentNote(reg, parseFloat(raw));
         info.textContent = note;
         info.className = /OUTSIDE|Do not use|Avoid|only\./.test(note) ? "text-danger fw-semibold" : "text-muted";
     };
-    ["ft8", "ft4"].forEach(p => {
+    ["ft8", "ft4", "fst"].forEach(p => {
         document.getElementById("ft." + p + "Region").addEventListener("change", () => upd(p));
         document.getElementById("ft." + p + "FreqMHz").addEventListener("input", () => upd(p));
         upd(p);

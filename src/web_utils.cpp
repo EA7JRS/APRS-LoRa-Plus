@@ -279,6 +279,13 @@ namespace WEB_Utils {
                 const double mhz = request->getParam("ft.ft4FreqMHz", true)->value().toDouble();
                 Config.ft.ft4FreqHz = mhz > 0.0 ? constrain((int)lround(mhz * 1e6), 400000000, 480000000) : 0;      // vacio = sin definir
             }
+            if (request->hasParam("ft.fstFreqMHz", true)) {
+                const double mhz = request->getParam("ft.fstFreqMHz", true)->value().toDouble();
+                Config.ft.fstFreqHz = mhz > 0.0 ? constrain((int)lround(mhz * 1e6), 400000000, 480000000) : 0;
+            }
+            Config.ft.fstRegion   = constrain(getParamIntSafe("ft.fstRegion", Config.ft.fstRegion), 1, 3);
+            Config.ft.fstSeconds  = getParamIntSafe("ft.fstSeconds", Config.ft.fstSeconds) == 300 ? 300 : 120;
+            Config.ft.fstEvery    = constrain(getParamIntSafe("ft.fstEvery", Config.ft.fstEvery), 2, 240);
             Config.ft.ft8Region   = constrain(getParamIntSafe("ft.ft8Region", Config.ft.ft8Region), 1, 3);
             Config.ft.ft4Region   = constrain(getParamIntSafe("ft.ft4Region", Config.ft.ft4Region), 1, 3);
             Config.ft.corrHz      = constrain(getParamIntSafe("ft.corrHz", Config.ft.corrHz), -5000, 5000);

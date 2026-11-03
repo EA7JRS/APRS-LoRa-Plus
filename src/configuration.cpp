@@ -131,6 +131,10 @@ bool Configuration::writeFile() {
         data["ft"]["ft4FreqHz"]                     = ft.ft4FreqHz;
         data["ft"]["ft8Region"]                     = ft.ft8Region;
         data["ft"]["ft4Region"]                     = ft.ft4Region;
+        data["ft"]["fstFreqHz"]                     = ft.fstFreqHz;
+        data["ft"]["fstRegion"]                     = ft.fstRegion;
+        data["ft"]["fstSeconds"]                    = ft.fstSeconds;
+        data["ft"]["fstEvery"]                      = ft.fstEvery;
         data["ft"]["corrHz"]                        = ft.corrHz;
         data["ft"]["powerDbm"]                      = ft.powerDbm;
         data["ft"]["everyCycles"]                   = ft.everyCycles;
@@ -389,6 +393,11 @@ bool Configuration::readFile() {
         if (ft.ft4FreqHz != 0) ft.ft4FreqHz = constrain(ft.ft4FreqHz, 400000000, 480000000);
         ft.ft8Region     = constrain((int)(data["ft"]["ft8Region"] | ft.ft8Region), 1, 3);
         ft.ft4Region     = constrain((int)(data["ft"]["ft4Region"] | ft.ft4Region), 1, 3);
+        ft.fstFreqHz     = (int)(data["ft"]["fstFreqHz"] | ft.fstFreqHz);
+        if (ft.fstFreqHz != 0) ft.fstFreqHz = constrain(ft.fstFreqHz, 400000000, 480000000);
+        ft.fstRegion     = constrain((int)(data["ft"]["fstRegion"] | ft.fstRegion), 1, 3);
+        ft.fstSeconds    = ((int)(data["ft"]["fstSeconds"] | ft.fstSeconds) == 300) ? 300 : 120;
+        ft.fstEvery      = constrain((int)(data["ft"]["fstEvery"] | ft.fstEvery), 2, 240);
         ft.corrHz        = constrain((int)(data["ft"]["corrHz"] | ft.corrHz), -5000, 5000);
         ft.powerDbm      = constrain((int)(data["ft"]["powerDbm"] | ft.powerDbm), 0, 22);
         ft.everyCycles   = constrain((int)(data["ft"]["everyCycles"] | ft.everyCycles), 2, 240);
@@ -694,6 +703,10 @@ void Configuration::setFtDefaults() {
     ft.ft4FreqHz   = 0;                     // ni WSJT-X ni los planes IARU fijan un canal de FT4 en 70 cm: se rellena a mano
     ft.ft8Region   = 1;
     ft.ft4Region   = 1;
+    ft.fstFreqHz   = 0;                     // FST4W: tampoco hay canal definido en 70 cm
+    ft.fstRegion   = 1;
+    ft.fstSeconds  = 120;
+    ft.fstEvery    = 4;                     // una emision cada 4 periodos (8 minutos con FST4W-120)
     ft.corrHz      = 0;
     ft.powerDbm    = 17;
     ft.everyCycles = 4;                     // una emision por minuto en FT8 (4 ciclos de 15 s)
