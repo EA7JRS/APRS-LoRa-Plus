@@ -21,6 +21,7 @@ Colaboraciones de placas y funciones citadas por la base: S54B (Tilen), OE1JLN (
 - **Modelo magnético**: coeficientes WMM de NOAA / BGS (`tools/wmm_cof_to_header.py`).
 - **Bibliotecas** (descargadas por PlatformIO, cada una con su licencia): RadioLib, TinyGPSPlus, ArduinoJson, NimBLE-Arduino, ESPAsyncWebServer/AsyncTCP, Adafruit (BusIO, Unified Sensor, BME280/BMP280/BME680), Time y APRSPacketLib.
 - **WebUI**: Bootstrap (licencia MIT).
+- **WSJT-X** (Joe Taylor K1JT y colaboradores; GPL-3.0): la matriz generadora del LDPC(240,74) de FST4W (`include/fst4w_table.h`, generada con `tools/gen_fst4w_table.py` a partir de `lib/fst4/ldpc_240_74_generator.f90` 3.3.0) y el formato de FST4W (CRC24, sincronismos, mapa Gray) se siguen de su código fuente.
 - **ft8_lib** (Karlis Goba, YL3JG; licencia MIT): codificador de FT8/FT4 en `lib/ft8lib`, sin modificar (véase `lib/ft8lib/LICENSE`).
 - `src/utils.cpp` incluye código de Mateusz Salwach (licencia MIT).
 

@@ -1,6 +1,6 @@
 # Estudio de cobertura y plan de bandas IARU — APRS LoRa+
 
-*APRS LoRa+ v5.3.0 — Manuel - EA7JRS — noviembre de 2026*
+*APRS LoRa+ v5.3.0 (FST4W-300, añadido después: ≈4 dB más sensible que el -120 por la duración de símbolo 2,6 veces mayor, estimación no medida) — Manuel - EA7JRS — noviembre de 2026*
 
 > **Naturaleza del documento.** Es un **estudio teórico** (presupuesto de enlace y modelos de propagación estándar), no una medida de campo. Todas las cifras de alcance dependen de los supuestos de la sección 4 y deben validarse con pruebas reales. No se ha compilado ni modificado el firmware para elaborarlo.
 
@@ -27,7 +27,7 @@
 | LR-FHSS | existente, desactivado por defecto | TX | 39 kHz | SX1262/68 |
 | FT8 | nuevo, estudiado | TX | 50 Hz | SX1262/68 |
 | FT4 | nuevo, estudiado | TX | 83 Hz | SX1262/68 |
-| FST4W-120 | nuevo, estudiado | TX | 5,9 Hz | SX1262/68 |
+| FST4W-120 | nuevo en 5.3.0 | TX | 5,9 Hz | SX1262/68 |
 | D-Star / DPRS | nuevo, estudiado | RX primero, TX después | ≈6,25 kHz (GMSK 4800 bps) | SX126x (por validar) |
 
 No se consideran DMR, Fusion, P25, NXDN ni M17: usan 4-FSK y el chip solo demodula 2 niveles. LR-FHSS se calcula con la sensibilidad publicada por Semtech; su cobertura útil depende de una pasarela con SX1302/SX1303, que no existe en la red de aficionados (el chip del tracker modula LR-FHSS pero no lo demodula).
