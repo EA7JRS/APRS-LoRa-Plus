@@ -45,3 +45,7 @@ La tarjeta «LR-FHSS Beacon» deja de ser un marcador: interruptor de activació
 Compilado por el CI de GitHub; codificadores y modulación probados en PC (véase arriba). **Sin probar en placa.**
 
 El código de FT8, FT4 y FST4W solo se enlaza en placas SX1262/SX1268; en las SX127x (p. ej. T-Beam v1.2 SX1278) no cabe en el mapa de 3 MB y esos modos no se ofrecen.
+
+## Añadido antes de publicar
+- APRS FSK 9600: FX.25 e IL2P (TX seleccionable por perfil; RX automático). Ver `docs/FSK_G3RUH.md`.
+- Instalador web USB, identificación de placa y versión, actualización desde la WebUI (placas con dos copias de firmware) y actualización automática opcional. Ver el manual, apartado 30.

@@ -15,7 +15,7 @@ Cada perfil LoRa puede trabajar en **LoRa** (por defecto) o en **FSK 9600 AX.25 
 - El SX1262 de la T‑Beam S3 Supreme es el objetivo; LLCC68 no tiene FSK.
 - Los q‑constructs (`qAR`…) y minúsculas en indicativos no existen en AX.25 y se transmiten en mayúsculas.
 
-## FX.25 e IL2P (versión 5.3.1)
+## FX.25 e IL2P (versión 5.3.0)
 Cada perfil FSK tiene el selector **Packet protocol (TX)**:
 
 | Opción | Qué se emite | Quién lo oye |

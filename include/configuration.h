@@ -30,7 +30,7 @@ public:
     String  password;
 };
 
-// Actualizacion del firmware (5.3.1): WiFi de casa para buscar versiones nuevas y opciones automaticas
+// Actualizacion del firmware (5.3.0): WiFi de casa para buscar versiones nuevas y opciones automaticas
 class FwUpdate {
 public:
     String  ssid;                       // red WiFi (cliente) con internet; vacio = sin comprobacion en linea
