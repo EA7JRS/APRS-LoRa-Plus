@@ -26,6 +26,14 @@ Incluye todo lo de 5.2.12 y 5.2.11 más lo siguiente.
 ## LR-FHSS activable desde la WebUI
 La tarjeta «LR-FHSS Beacon» deja de ser un marcador: interruptor de activación, frecuencia central, anchura de rejilla, velocidad de código, rejilla estrecha, potencia, intervalo y locator, con el ancho ocupado y el aviso de segmento calculados en la página (la misma regla que `LRFHSS::freqCheck()`). Sigue **apagada por defecto** (`lrfhss.enabled=false`): al marcar el interruptor aparece «LR-FHSS beacon» en SELECT MODE. El firmware ya lo admitía; solo faltaba el formulario. El titular de la estación es responsable de la autorización que exijan las normas nacionales. Sin verificar en el aire.
 
+## Plataforma y compilación
+- **NimBLE-Arduino 2.5.1 → 2.5.2** (correcciones: caché de RPA, lecturas remotas fragmentadas, temporizador del host, `ble_gap_rx_rd_rem_ver_info_complete`).
+- **ESP32 clásicas (T-Beam v0.7/v1.x, TTGO LoRa32, Heltec V2, DIY…)**: el `firmware.bin` medía 3,07 MiB y la partición `huge_app.csv` de Arduino da 3 MiB (PlatformIO solo contaba una parte de la imagen y daba el 99 % como válido). Nueva tabla `partitions_esp32_4mb.csv`: aplicación de 3,75 MiB y SPIFFS de 192 KiB en 4 MB de flash; el `web_factory.bin` ya la usa (SPIFFS en 0x3D0000). Hace falta un volcado completo (no OTA) para cambiar la tabla.
+- Avisos de librerías de terceros que dejan de ser error: `int-in-bool-context` (NimBLE con GCC 8, T-Deck) y `misleading-indentation` (TFT_eSPI, Heltec Wireless Tracker).
+- El código de FT8, FT4 y FST4W solo se enlaza en placas SX1262/SX1268.
+- Workflow `Build Release` ejecutable a mano (guarda los binarios como artefactos) y `Size report` (tamaño por símbolo y biblioteca).
+- Pruebas en PC en `tools/ft/` (codificador FST4W contra la matriz de WSJT-X, simulación de la ruta de emisión, demodulador).
+
 ## Estudio de cobertura
 `docs/ESTUDIO_COBERTURA.md` y `.pdf`: todos los modos del proyecto (APRS LoRa en SF7 y SF9 CR4/5 BW125, FSK 9600, CW, WSPR, LR-FHSS, DAPNET, FT8, FT4) y los candidatos FST4W y D-Star/DPRS, con el plan de bandas IARU de las tres regiones. Los supuestos del modelo están indicados en el documento; los umbrales de FSK, POCSAG y D-Star son estimaciones.
 
