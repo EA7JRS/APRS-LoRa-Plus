@@ -12,8 +12,6 @@ jobs:
               target:
                 - name: ttgo-t-beam-v1_2
                   tool: xtensa-esp32-elf
-                - name: ttgo-t-beam-v1_2_SX1262
-                  tool: xtensa-esp32-elf
         steps:
             - uses: actions/checkout@v7
             - uses: actions/setup-python@v7
@@ -28,7 +26,8 @@ jobs:
               run: |
                   B=.pio/build/${{ matrix.target.name }}
                   ls -l $B/firmware.bin $B/firmware.elf || true
-                  T=$(ls -d ~/.platformio/packages/toolchain-xtensa-esp32*/bin | head -1)
+                  T=$(dirname $(find ~/.platformio/packages -name 'xtensa-esp32-elf-nm' | head -1))
+                  echo "toolchain: $T"
                   $T/${{ matrix.target.tool }}-size -A $B/firmware.elf | head -40
                   echo "=== top symbols"
                   $T/${{ matrix.target.tool }}-nm --size-sort -S -C $B/firmware.elf | tail -70
