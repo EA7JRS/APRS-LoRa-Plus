@@ -668,7 +668,14 @@ namespace LoRa_Utils {
             // TNC2 -> trama AX.25 UI -> flujo G3RUH (banderas + HDLC + FCS, NRZI, scrambler). La cabecera LoRa APRS no se envia
             uint8_t frame[AX25G3::MAX_FRAME], air[256];
             size_t  fl = AX25G3::tnc2ToFrame(newPacket.c_str(), frame, sizeof(frame));
-            fskBytes   = fl ? AX25G3::g3ruhEncode(frame, fl, air, sizeof(air), G3RUH_LEAD_FLAGS) : 0;
+            fskBytes   = 0;
+            if (fl) {
+                // protocolo elegido en el perfil; si la trama no cabe en un bloque de 255 bytes se emite como AX.25 normal
+                const int fec = currentLoRaType->fskFec;
+                if (fec >= 1 && fec <= 3) fskBytes = AX25G3::g3ruhEncodeFx25(frame, fl, air, sizeof(air), G3RUH_LEAD_FLAGS, 16 << (fec - 1));
+                if (fec == 4)             fskBytes = AX25G3::g3ruhEncodeIl2p(frame, fl, air, sizeof(air), G3RUH_LEAD_FLAGS);
+                if (fskBytes == 0)        fskBytes = AX25G3::g3ruhEncode(frame, fl, air, sizeof(air), G3RUH_LEAD_FLAGS);
+            }
             if (fskBytes == 0) {
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "FSK Tx", "Packet not valid for AX.25 or too long: %s", newPacket.c_str());
                 state = RADIOLIB_ERR_PACKET_TOO_LONG;

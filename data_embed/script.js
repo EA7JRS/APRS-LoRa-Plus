@@ -732,11 +732,23 @@ function loadSettings(settings) {
                 </select>
                 <label for="lora.${index}.fskShaping">Modulation / Gaussian filter (TX)</label>
             </div>
+            <div class="form-floating col-12 col-md-5 px-1 mb-2">
+                <select class="form-select form-select-sm" name="lora.${index}.fskFec" id="lora.${index}.fskFec" title="Error correction added to the transmitted packet. FX.25 is still plain AX.25 for stations that do not know it. The receiver always understands AX.25 and FX.25.">
+                    <option value="0">AX.25 (no error correction)</option>
+                    <option value="1">FX.25, 16 check bytes (corrects 8)</option>
+                    <option value="2">FX.25, 32 check bytes (corrects 16)</option>
+                    <option value="3">FX.25, 64 check bytes (corrects 32)</option>
+                    <option value="4">IL2P (only IL2P stations hear it)</option>
+                </select>
+                <label for="lora.${index}.fskFec">Packet protocol (TX)</label>
+            </div>
+            <div class="col-12 col-md-7 px-1 mb-2 d-flex align-items-center"><small class="text-muted">FX.25 adds Reed-Solomon error correction and any AX.25 station can still read the packet; frames longer than about 120 bytes are sent as plain AX.25. IL2P is more compact but not compatible with AX.25: use it only with IL2P receivers (Dire Wolf 1.7 or later).</small></div>
             <div class="col-12 col-md-7 px-1 mb-2 d-flex align-items-center"><small class="text-muted">GMSK = minimum shift keying with a Gaussian filter: set the deviation to bit rate / 4 (2.4 kHz at 9.6 kbps). The receiver does not depend on this setting. SX127x radios have no BT 0.7 (BT 0.5 is used instead); LLCC68 boards have no FSK.</small></div>
             `;
             fskContainer.appendChild(fskElement);
             iaruProfileWire(fskElement, { kind: "fsk", regionName: `lora.${index}.fskIaruRegion`, freqName: `lora.${index}.fskFrequency`, powerName: `lora.${index}.fskPower` });
             fskElement.querySelector('[id="lora.' + index + '.fskShaping"]').value = String(lora.fskShaping ?? 1);
+            fskElement.querySelector('[id="lora.' + index + '.fskFec"]').value = String(lora.fskFec ?? 0);
         }
 
         if (!lora.ais) {

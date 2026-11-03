@@ -1,5 +1,8 @@
 # Changelog
 
+## 5.3.1 — en desarrollo (sin compilar ni publicar)
+APRS FSK 9600: nuevo selector **Packet protocol (TX)** por perfil FSK: **AX.25** (como hasta ahora), **FX.25** (corrección de errores Reed-Solomon con 16, 32 o 64 bytes de control; sigue siendo AX.25 para las estaciones que no lo conocen) o **IL2P** (cabecera compacta + Reed-Solomon; solo la oyen estaciones IL2P). La recepción entiende AX.25, FX.25 e IL2P a la vez, sin ajustes. Codificadores y decodificadores escritos desde las especificaciones y verificados en PC contra Dire Wolf (GPL-2.0 o posterior): los 11 formatos FX.25 en los dos sentidos y 12 tramas IL2P idénticas byte a byte. Sin probar en placa. Las tramas que no caben en un bloque de 255 bytes se emiten como AX.25 normal. Ver `docs/FSK_G3RUH.md`.
+
 ## 5.3.0 — 2026-11-03
 Nuevos modos **FT8 beacon**, **FT4 beacon** y **FST4W beacon** (120 y 300 s; solo transmisión, SX1262/SX1268, ranura sincronizada por GPS, GFSK generado por software; codificador de ft8_lib, MIT). Tarjeta propia en la WebUI con región IARU y aviso de segmento; enlace de GitHub de APRS LoRa+ visible en About; estudio de cobertura de todos los modos (`docs/ESTUDIO_COBERTURA.pdf`). LR-FHSS se puede activar desde la WebUI (apagado por defecto). D-Star/DPRS queda para 5.4. El código FT/FST4W solo se enlaza en placas SX1262/SX1268. Codificadores verificados en PC; sin probar en placa. NimBLE 2.5.2 y partición de 3,75 MiB en las ESP32 clásicas. Ver `docs/releases/RELEASE_5.3.0.md`.
 

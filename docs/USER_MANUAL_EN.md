@@ -391,6 +391,9 @@ Beacons are converted to **AX.25 UI** frames (PID 0xF0) with CRC-16 FCS, HDLC wi
 ### 20.2 Compatibility
 It is heard by 9600 baud G3RUH packet receivers (TNCs and radios with a 9600 data port). It is **not** heard by analogue 1200 baud APRS (AFSK) equipment.
 
+### 20.2b FX.25 and IL2P (5.3.1)
+The **Packet protocol (TX)** selector of each FSK profile chooses how the frame is sent: **AX.25** (plain), **FX.25** (the same frame inside a Reed-Solomon error-correcting block with 16, 32 or 64 check bytes; stations that do not know FX.25 still read the frame) or **IL2P** (compact, with error correction, but only heard by IL2P stations such as Dire Wolf 1.7). Reception understands all three formats at once. FX.25 is the recommended option; frames that do not fit in 255 bytes are sent as plain AX.25. Details and limits in `docs/FSK_G3RUH.md` (Spanish). Not yet tested on air.
+
 ### 20.3 Parameters (WebUI, per profile)
 Bit rate (9.6 kbps), deviation (3.0 kHz) and receive bandwidth (39 kHz). SF, CR and BW only apply to LoRa.
 

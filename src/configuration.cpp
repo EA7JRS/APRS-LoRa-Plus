@@ -178,6 +178,7 @@ bool Configuration::writeFile() {
             data["lora"][i]["fskFrequency"]             = loraTypes[i].fskFrequency;
             data["lora"][i]["fskPower"]                 = loraTypes[i].fskPower;
             data["lora"][i]["fskShaping"]               = loraTypes[i].fskShaping;
+            data["lora"][i]["fskFec"]                   = loraTypes[i].fskFec;
             data["lora"][i]["fskIaruRegion"]            = loraTypes[i].fskIaruRegion;
         }
 
@@ -456,6 +457,7 @@ bool Configuration::readFile() {
             loraType.fskFrequency       = LoraTypesArray[j]["fskFrequency"] | 0L;
             loraType.fskPower           = LoraTypesArray[j]["fskPower"] | 0;
             loraType.fskShaping         = constrain((int)(LoraTypesArray[j]["fskShaping"] | 1), 0, 4);
+            loraType.fskFec             = constrain((int)(LoraTypesArray[j]["fskFec"] | 0), 0, 4);
             loraType.fskIaruRegion      = LoraTypesArray[j]["fskIaruRegion"] | loraType.iaruRegion;
             if (loraType.fskIaruRegion < 1 || loraType.fskIaruRegion > 3) loraType.fskIaruRegion = 1;
             if (loraType.fskFrequency <= 0) loraType.fskFrequency = loraType.frequency;     // configuraciones anteriores: el FSK parte del perfil LoRa

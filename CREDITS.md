@@ -23,6 +23,7 @@ Colaboraciones de placas y funciones citadas por la base: S54B (Tilen), OE1JLN (
 - **WebUI**: Bootstrap (licencia MIT).
 - **WSJT-X** (Joe Taylor K1JT y colaboradores; GPL-3.0): la matriz generadora del LDPC(240,74) de FST4W (`include/fst4w_table.h`, generada con `tools/gen_fst4w_table.py` a partir de `lib/fst4/ldpc_240_74_generator.f90` 3.3.0) y el formato de FST4W (CRC24, sincronismos, mapa Gray) se siguen de su código fuente.
 - **ft8_lib** (Karlis Goba, YL3JG; licencia MIT): codificador de FT8/FT4 en `lib/ft8lib`, sin modificar (véase `lib/ft8lib/LICENSE`).
+- **Dire Wolf** (John Langner WB2OSZ; GPL-2.0 o posterior): referencia de **FX.25** (`include/fx25.h`, `src/fx25.cpp`) e **IL2P** (`include/il2p.h`, `src/il2p.cpp`): etiquetas de correlación, parámetros Reed-Solomon, esquema del scrambler IL2P y disposición de bloques. Los codificadores están escritos para este proyecto y se verifican en PC (`tools/fx25`, `tools/il2p`) contra los ficheros y funciones de Dire Wolf. Especificaciones: FX.25 (Stuart Longland VK4MSL) e IL2P (Nino Carrillo KK4HEJ, tarpn.net).
 - `src/utils.cpp` incluye código de Mateusz Salwach (licencia MIT).
 
 ## Licencia

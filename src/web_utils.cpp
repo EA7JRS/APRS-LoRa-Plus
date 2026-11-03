@@ -383,6 +383,7 @@ namespace WEB_Utils {
                 Config.loraTypes[i].fskPower       = LoRa_Utils::validPower(getParamIntSafe(lp + ".fskPower", Config.loraTypes[i].fskPower));
                 Config.loraTypes[i].fskIaruRegion  = constrain(getParamIntSafe(lp + ".fskIaruRegion", Config.loraTypes[i].fskIaruRegion), 1, 3);
                 Config.loraTypes[i].fskShaping     = constrain(getParamIntSafe(lp + ".fskShaping", Config.loraTypes[i].fskShaping), 0, 4);
+                Config.loraTypes[i].fskFec         = constrain(getParamIntSafe(lp + ".fskFec", Config.loraTypes[i].fskFec), 0, 4);
             }
             Config.loraTypes[i].iaruRegion      = constrain(getParamIntSafe("lora." + String(i) + ".iaruRegion", Config.loraTypes[i].iaruRegion), 1, 3);
             Config.loraTypes[i].power           = LoRa_Utils::validPower(getParamIntSafe("lora." + String(i) + ".power", Config.loraTypes[i].power));  // saved as the power the radio chip really uses

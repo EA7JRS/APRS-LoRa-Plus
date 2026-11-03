@@ -119,6 +119,7 @@ public:
     int     fskPower        = 0;            // APRS FSK: potencia propia del perfil (dBm); 0 = la del perfil LoRa
     int     fskIaruRegion   = 1;            // region IARU del perfil FSK (plan de bandas de la WebUI)
     int     fskShaping      = 1;            // filtro gaussiano del transmisor FSK: 0 sin filtro (FSK), 1 BT 0,5 (GFSK, G3RUH), 2 BT 0,3 (GMSK), 3 BT 0,7, 4 BT 1,0
+    int     fskFec          = 0;            // protocolo de emision FSK: 0 AX.25, 1 FX.25 (16 bytes de control), 2 FX.25 (32), 3 FX.25 (64), 4 IL2P. La recepcion entiende AX.25 y FX.25 siempre
 };
 
 class PTT {
