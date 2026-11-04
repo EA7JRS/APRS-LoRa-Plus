@@ -645,6 +645,12 @@ Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apag
 **Vigilancia de grupo (estilo ARTS del FT-270E).** Escribe hasta 5 indicativos (sin SSID vale cualquier SSID). La página **GROUP** muestra cada estación con *IN* (oída hace menos de *OUT after* minutos y, si lo has puesto, a menos de *Max km*) u *OUT*, y su distancia o el tiempo desde que se oyó. Al entrar o salir de alcance aparece «IN RNG / OUT RNG indicativo» y suena el zumbador. Tras el arranque se espera ese tiempo antes de dar a nadie por perdido.
 - **Sondeo opcional:** con *Poll* ≥ 60 s se envía un mensaje «ping» a quien no se ha oído en ese tiempo; un tracker con este firmware responde «pong» y cuenta como oído. Usa intervalos largos (el canal es compartido y en FSK no hay escucha previa).
 
+**Manejo de la página GROUP (estilo Group Monitor «GM» del FT5DE).** Pulsación larga abre el submenú:
+- **Browse**: un cursor recorre los miembros (1P siguiente, 2P salir). Abajo se ve el rumbo, el punto cardinal y la distancia del marcado. Pulsación larga: **GO TO** (abre la brújula apuntando a esa estación), **Quick msg** (respuesta rápida solo a ese miembro) o **Ping**.
+- **Radar**: vista tipo APL con tu posición en el centro, norte arriba y cada miembro numerado según su rumbo y distancia (círculo relleno = IN, hueco = OUT o fuera de escala). La escala es automática (se ve «A») o fija de 1 a 500 km: 1P la cambia; *Auto scale* la restablece.
+- **Quick msg: all** envía la respuesta rápida (QSL, 73, TNX…) a todos los miembros que están IN, como «SEND to ALL» de Yaesu; **Ping all** pregunta a todos.
+- Los miembros aparecen en el radar y en GO TO cuando se ha recibido su posición. Sin probar en placa.
+
 **Emergencia remota (estilo EAI).** Indica quién puede activarla y un código de 4–12 caracteres. Desde un cliente APRS, enviando un mensaje al tracker: `EAI <código>` inicia la baliza SOS (la misma de la emergencia local, cada 30 s, con posición GPS) durante *Duration* minutos, con alarma sonora y sin cuenta atrás; `EAI STOP <código>` la termina. El tracker contesta «EAI ON n min» o «EAI OFF». Un remitente no autorizado o un código erróneo se ignoran sin respuesta. El gesto del botón la cancela.
 - El código viaja sin cifrar: evita errores, no es seguridad. Cada usuario debe asegurarse de que el control remoto está permitido por su normativa.
 - Sin probar en placa.
@@ -663,6 +669,7 @@ Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apag
 | TELEMETRY | — | (solo lectura) |
 | CLOCK | submenú | Zone, Format, Sync from GPS, Back |
 | LORA | submenú | Next profile, Power, Reset counters, Heard list, Back |
+| GROUP | submenú | Browse, Radar, Quick msg: all, Ping all, Back (con cursor: GO TO, Quick msg, Ping, Back) |
 | SYSTEM | — | (solo lectura) |
 | WSPR (solo modo WSPR) | submenú | Beacon ON/OFF, Tune carrier, Change mode, Back |
 | FT8 / FT4 / FST4W (solo esos modos) | submenú | Beacon ON/OFF, Change mode, Back |

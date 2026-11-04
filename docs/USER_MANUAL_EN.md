@@ -651,6 +651,12 @@ APRS LoRa and APRS FSK 9600 modes only. Both are off by default (WebUI → Stati
 **Group watch (like ARTS on the FT-270E).** Enter up to 5 callsigns (without SSID any SSID matches). The **GROUP** page shows each station as *IN* (heard less than *OUT after* minutes ago and, if set, closer than *Max km*) or *OUT*, with its distance or time since last heard. Entering or leaving range shows "IN RNG / OUT RNG callsign" and beeps. After power-up it waits that time before declaring anybody lost.
 - **Optional poll:** with *Poll* ≥ 60 s a "ping" message is sent to a station not heard for that long; a tracker with this firmware answers "pong", which counts as heard. Use long intervals (the channel is shared and FSK has no listen-before-talk).
 
+**Using the GROUP page (like the FT5DE "GM" Group Monitor).** Long press opens the submenu:
+- **Browse**: a cursor walks through the members (1P next, 2P exit). The bottom line shows bearing, compass point and distance of the selected one. Long press: **GO TO** (opens the compass pointing at that station), **Quick msg** (quick reply to that member only) or **Ping**.
+- **Radar**: APL-style view with your position in the centre, north up and each member numbered by bearing and distance (filled circle = IN, hollow = OUT or beyond the scale). The scale is automatic (shown as "A") or fixed from 1 to 500 km: 1P changes it; *Auto scale* resets it.
+- **Quick msg: all** sends the quick reply (QSL, 73, TNX…) to every member that is IN, like Yaesu's "SEND to ALL"; **Ping all** pings everybody.
+- Members show on the radar and in GO TO once their position has been received. Untested on a board.
+
 **Remote emergency (like EAI).** Set who may start it and a 4–12 character code. From any APRS client, send a message to the tracker: `EAI <code>` starts the SOS beacon (the same as the local emergency, every 30 s with GPS position) for *Duration* minutes, with an audible alarm and no countdown; `EAI STOP <code>` ends it. The tracker replies "EAI ON n min" or "EAI OFF". An unauthorised sender or a wrong code is ignored without reply. The button gesture cancels it.
 - The code travels unencrypted: it prevents mistakes, it is not security. Each user must make sure remote control is allowed by their regulations.
 - Untested on a board.
@@ -669,6 +675,7 @@ APRS LoRa and APRS FSK 9600 modes only. Both are off by default (WebUI → Stati
 | TELEMETRY | — | (read only) |
 | CLOCK | submenu | Zone, Format, Sync from GPS, Back |
 | LORA | submenu | Next profile, Power, Reset counters, Heard list, Back |
+| GROUP | submenu | Browse, Radar, Quick msg: all, Ping all, Back (with cursor: GO TO, Quick msg, Ping, Back) |
 | SYSTEM | — | (read only) |
 | WSPR (WSPR mode only) | submenu | Beacon ON/OFF, Tune carrier, Change mode, Back |
 | FT8 / FT4 / FST4W (those modes only) | submenu | Beacon ON/OFF, Change mode, Back |

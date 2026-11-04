@@ -4,6 +4,7 @@
 - Aviso de actualización de firmware en ventana emergente pequeña (título, dos líneas y barra de progreso) en lugar de texto desbordado en las OLED de 128x64.
 - **Teclado Yaesu FH-2** (escalera de resistencias) en un pin ADC: las teclas 1–5 envían los mensajes CW 1–5 con la página MORSE abierta. Se calibra desde la WebUI (LoRa → CW / Morse → *FH-2 keypad*: pulsar la tecla y *Read*). Ver `docs/CW_MORSE.md`. Sin probar con el teclado real.
 - **Vigilancia de grupo** (estilo ARTS de Yaesu) en los modos APRS LoRa y APRS FSK: lista de hasta 5 indicativos; página nueva **GROUP** con IN / OUT, distancia y tiempo; aviso en pantalla y zumbador al entrar o salir de alcance (por tiempo sin oírla y, opcional, por distancia máxima); sondeo opcional con un mensaje «ping» (mínimo 60 s). Apagada por defecto.
+- **Página GROUP al estilo del Group Monitor (GM) del FT5DE:** cursor sobre los miembros con rumbo, punto cardinal y distancia; **GO TO** a la brújula; vista **Radar** tipo APL (propia posición en el centro, norte arriba, miembros numerados, IN relleno / OUT hueco, escala automática o de 1 a 500 km); mensaje rápido a un miembro o a todos los que están IN, y *ping* a uno o a todos. Sin probar en placa.
 - **Emergencia remota** (estilo EAI de Yaesu): un mensaje APRS `EAI <código>` desde un indicativo autorizado inicia la baliza SOS durante 1–50 minutos (sin cuenta atrás); `EAI STOP <código>` la termina; el botón la cancela. Responde `EAI ON/OFF`. Apagada por defecto. Ver el manual, apartado 31. Sin probar en placa.
 
 ## 5.3.1 — 2026-11-03

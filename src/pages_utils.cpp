@@ -125,7 +125,8 @@ namespace {
         C_SOS_SEND, C_SOS_CANCEL, C_LORA_PROFILE, C_LORA_POWER, C_LORA_RESET, C_LORA_HEARD, C_PW_SHOW, C_PW_UP, C_PW_DN,
         C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
         C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON,
-        C_MODE_CHANGE
+        C_MODE_CHANGE,
+        C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO
     };
     struct Item { const char* label; Command cmd; };
 
@@ -156,6 +157,14 @@ namespace {
     const Item ITEMS_LORA[]    = { {"Next profile", C_LORA_PROFILE}, {"Power", C_LORA_POWER}, {"Reset counters", C_LORA_RESET}, {"Heard list", C_LORA_HEARD}, {"Back", C_BACK} };
     const Item ITEMS_POWER[]   = { {"Power", C_PW_SHOW}, {"+1 dBm", C_PW_UP}, {"-1 dBm", C_PW_DN}, {"Back", C_BACK} };
     const Item ITEMS_BACK[]    = { {"Back", C_BACK} };
+    // GROUP (estilo Group Monitor de Yaesu): lista, cursor sobre un miembro, o radar tipo APL
+    const Item ITEMS_TEAM[]       = { {"Browse", C_TEAM_BROWSE}, {"Radar", C_TEAM_RADAR}, {"Quick msg: all", C_TEAM_QUICK}, {"Ping all", C_TEAM_PING}, {"Back", C_BACK} };
+    const Item ITEMS_TEAM_PICK[]  = { {"GO TO", C_TEAM_GOTO}, {"Quick msg", C_TEAM_QUICK}, {"Ping", C_TEAM_PING}, {"Back", C_BACK} };
+    const Item ITEMS_TEAM_RADAR[] = { {"Auto scale", C_TEAM_AUTO}, {"List", C_TEAM_LIST}, {"Back", C_BACK} };
+    enum TeamMode : uint8_t { TMODE_LIST, TMODE_BROWSE, TMODE_RADAR };
+    uint8_t         teamMode            = TMODE_LIST;
+    uint8_t         teamCursor          = 0;
+    uint8_t         teamScale           = 0;        // 0 = automatica; 1.. = indice en TEAM_SCALES_KM
 
     bool            listBrowse          = false;    // STATIONS: cursor activo
     uint8_t         listCursor          = 0;        // posicion en la vista ordenada y filtrada
@@ -361,6 +370,10 @@ namespace {
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:    PAGES_ITEMS(ITEMS_CLOCK);
             case PAGE_LINK:     PAGES_ITEMS(ITEMS_LORA);
+            case PAGE_TEAM:
+                if (teamMode == TMODE_BROWSE) { PAGES_ITEMS(ITEMS_TEAM_PICK); }
+                if (teamMode == TMODE_RADAR)  { PAGES_ITEMS(ITEMS_TEAM_RADAR); }
+                PAGES_ITEMS(ITEMS_TEAM);
             default:            PAGES_ITEMS(ITEMS_BACK);
         }
         #undef PAGES_ITEMS
@@ -2010,6 +2023,7 @@ namespace PAGES_Utils {
     enum : uint8_t { TS_UNKNOWN, TS_IN, TS_OUT };
     struct TeamSlot {
         char        call[11];
+        char        last[11];       // indicativo completo (con SSID) con el que se oyo por ultima vez
         bool        full;           // el indicativo lleva SSID: solo coincide ese; sin SSID coincide cualquiera
         bool        seen;
         bool        hasPos;
@@ -2081,6 +2095,7 @@ namespace PAGES_Utils {
             if (!teamCallMatches(teamSlots[i].call, teamSlots[i].full, packet.sender)) continue;
             teamSlots[i].seen   = true;
             teamSlots[i].seenMs = now ? now : 1;
+            snprintf(teamSlots[i].last, sizeof(teamSlots[i].last), "%s", packet.sender.c_str());
             if (hasPos) { teamSlots[i].hasPos = true; teamSlots[i].lat = packet.latitude; teamSlots[i].lon = packet.longitude; }
         }
     }
@@ -2181,8 +2196,69 @@ namespace PAGES_Utils {
         MSG_Utils::addToOutputBuffer(0, packet.sender, String("EAI ON ") + String(minutes) + "min");
     }
 
+    // Radar tipo APL de Yaesu: posiciones de los miembros respecto a la propia, norte arriba, con escala automatica o fija
+    const uint16_t TEAM_SCALES_KM[]   = { 1, 2, 5, 10, 20, 50, 100, 250, 500 };
+    const uint8_t  TEAM_SCALE_COUNT   = sizeof(TEAM_SCALES_KM) / sizeof(TEAM_SCALES_KM[0]);
+
+    void drawTeamRadar() {
+        const int cx = 106, cy = 37, radius = 18;
+        double myLat = 0, myLon = 0;
+        const bool haveMe = ownPosition(myLat, myLon);
+        // escala: la menor que contiene a todos los miembros con posicion (con un 10 % de margen)
+        double farKm = 0;
+        for (uint8_t i = 0; i < teamCount; i++) {
+            const TeamSlot& slot = teamSlots[i];
+            if (!(slot.seen && slot.hasPos && haveMe)) continue;
+            const double km = distanceKm(myLat, myLon, slot.lat, slot.lon);
+            if (km > farKm) farKm = km;
+        }
+        double scaleKm = TEAM_SCALES_KM[TEAM_SCALE_COUNT - 1];
+        if (teamScale > 0 && teamScale <= TEAM_SCALE_COUNT) {
+            scaleKm = TEAM_SCALES_KM[teamScale - 1];
+        } else {
+            for (uint8_t i = 0; i < TEAM_SCALE_COUNT; i++) if (TEAM_SCALES_KM[i] >= farKm * 1.1) { scaleKm = TEAM_SCALES_KM[i]; break; }
+        }
+        char scaleText[12], right[16];
+        fmtDist(scaleKm, scaleText, sizeof(scaleText));
+        snprintf(right, sizeof(right), "%s%s", teamScale == 0 ? "A " : "", scaleText);
+        header("RADAR", right);
+
+        pagesDrawCircle(cx, cy, radius, true);
+        pagesDrawLine(cx - 2, cy, cx + 2, cy, true);                // la propia estacion, en el centro
+        pagesDrawLine(cx, cy - 2, cx, cy + 2, true);
+        text(cx - 2, cy - radius + 2, "N");
+
+        const uint32_t now = millis();
+        for (uint8_t i = 0; i < teamCount; i++) {
+            const TeamSlot& slot = teamSlots[i];
+            char distance[12] = "--";
+            if (slot.seen && slot.hasPos && haveMe) {
+                const double km  = distanceKm(myLat, myLon, slot.lat, slot.lon);
+                const double brg = bearingDeg(myLat, myLon, slot.lat, slot.lon);
+                const double frac = km / scaleKm;
+                const bool outside = frac > 1.0;
+                int x, y;
+                polar(cx, cy, (float)((outside ? 1.0 : frac) * (radius - 2)), (float)brg, x, y);
+                if (slot.state == TS_IN && !outside) pagesFillCircle(x, y, 2, true);          // en rango: relleno
+                else                                  pagesDrawCircle(x, y, 2, true);         // fuera de rango o de escala: hueco
+                char tag[2] = { (char)('1' + i), '\0' };
+                text(x > cx + 8 ? x - 9 : x + 4, y - 3, tag);
+                fmtDist(km, distance, sizeof(distance));
+            } else if (slot.seen) {
+                formatAge(now - slot.seenMs, distance, sizeof(distance));
+            }
+            char line[24];
+            snprintf(line, sizeof(line), "%u%.6s %s", (unsigned)(i + 1), slot.call, distance);
+            text(2, 11 + 9 * i, line);
+        }
+        if (!haveMe) text(2, 56, "No own position");
+        else         text(2, 56, "1P zoom LP menu");
+    }
+
     void drawTeamPage() {
         teamEnsureParsed();
+        if (teamCount == 0) teamMode = TMODE_LIST;
+        if (teamMode == TMODE_RADAR) { drawTeamRadar(); return; }
         uint8_t inRange = 0;
         for (uint8_t i = 0; i < teamCount; i++) if (teamSlots[i].state == TS_IN) inRange++;
         char right[10];
@@ -2194,16 +2270,42 @@ namespace PAGES_Utils {
             row(3, "Group watch");
             return;
         }
+        if (teamCursor >= teamCount) teamCursor = 0;
         double myLat = 0, myLon = 0;
         const bool haveMe = ownPosition(myLat, myLon);
         const uint32_t now = millis();
+        const bool browse = teamMode == TMODE_BROWSE;
         for (uint8_t i = 0; i < teamCount; i++) {
             const TeamSlot& slot = teamSlots[i];
             char extra[12];
             if (slot.seen && slot.hasPos && haveMe) fmtDist(distanceKm(myLat, myLon, slot.lat, slot.lon), extra, sizeof(extra));
             else if (slot.seen)                      formatAge(now - slot.seenMs, extra, sizeof(extra));
             else                                     snprintf(extra, sizeof(extra), "--");
-            row(i, "%-9.9s %-3s %s", slot.call, slot.state == TS_IN ? "IN" : (slot.state == TS_OUT ? "OUT" : ".."), extra);
+            const char* state = slot.state == TS_IN ? "IN" : (slot.state == TS_OUT ? "OUT" : "..");
+            if (browse) {                                           // el miembro marcado va en video inverso (como en STATIONS)
+                char line[28];
+                snprintf(line, sizeof(line), "%-9.9s %-3s%6s", slot.call, state, extra);
+                const int y = ROW_Y0 + i * ROW_PITCH;
+                const bool selected = (i == teamCursor);
+                if (selected) pagesFillRect(0, y - 1, 128, 9, true);
+                pagesText(0, y, line, 1, selected);
+            } else {
+                row(i, "%-9.9s %-3s %s", slot.call, state, extra);
+            }
+        }
+        if (browse) {                                               // rumbo y distancia del miembro marcado, como la pantalla GM de Yaesu
+            const TeamSlot& slot = teamSlots[teamCursor];
+            char line[28];
+            if (slot.seen && slot.hasPos && haveMe) {
+                char distance[12];
+                const double brg = bearingDeg(myLat, myLon, slot.lat, slot.lon);
+                fmtDist(distanceKm(myLat, myLon, slot.lat, slot.lon), distance, sizeof(distance));
+                snprintf(line, sizeof(line), "B%03d %s %s", (int)lround(brg) % 360, cardinal16(brg), distance);
+            } else {
+                snprintf(line, sizeof(line), "%s", slot.seen ? "No position yet" : "Not heard yet");
+            }
+            text(2, 56, line);
+            return;
         }
         if (Config.team.pollSec >= 60) row(5, "OUT %um  poll %us", (unsigned)Config.team.timeoutMin, (unsigned)Config.team.pollSec);
         else                           row(5, "OUT after %u min", (unsigned)Config.team.timeoutMin);
@@ -3573,6 +3675,7 @@ namespace PAGES_Utils {
         lastView = 0;
         lastCall[0] = '\0';
         listBrowse = false;
+        teamMode = TMODE_LIST;
         msgMode = MM_LIST;
         msgCursor = 0;
         barUntil = millis() + BAR_VISIBLE_MS;
@@ -3585,6 +3688,18 @@ namespace PAGES_Utils {
         uint8_t view[HeardList::CAPACITY];
         uint8_t n = stationView(view);
         if (n > 0) setListCursor(view, n, (uint8_t)((listCursor + n + direction) % n));
+        return true;
+    }
+
+    // GROUP: en la lista con cursor las pulsaciones mueven el cursor; en el radar cambian la escala (0 = automatica)
+    static bool moveTeamCursor(int direction) {
+        if (page != PAGE_TEAM || teamMode == TMODE_LIST) return false;
+        if (teamMode == TMODE_BROWSE) {
+            if (teamCount > 0) teamCursor = (uint8_t)((teamCursor + teamCount + direction) % teamCount);
+        } else {
+            const uint8_t steps = TEAM_SCALE_COUNT + 1;
+            teamScale = (uint8_t)((teamScale + steps + direction) % steps);
+        }
         return true;
     }
 
@@ -3611,7 +3726,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(+1) || moveListCursor(+1)) return;
+        if (moveMessageCursor(+1) || moveListCursor(+1) || moveTeamCursor(+1)) return;
         do { page = (page + 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
@@ -3626,7 +3741,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(-1) || moveListCursor(-1)) return;
+        if (moveMessageCursor(-1) || moveListCursor(-1) || moveTeamCursor(-1)) return;
         do { page = (page + PAGE_COUNT - 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
@@ -3645,6 +3760,10 @@ namespace PAGES_Utils {
         }
         if (page == PAGE_LIST && listBrowse) {
             listBrowse = false;
+            return true;
+        }
+        if (page == PAGE_TEAM && teamMode != TMODE_LIST) {     // cursor o radar -> lista
+            teamMode = TMODE_LIST;
             return true;
         }
         if (page == PAGE_MSG && msgMode != MM_LIST) {          // detalle -> explorar -> lista
@@ -3783,6 +3902,47 @@ namespace PAGES_Utils {
         changedPage();
     }
 
+    // ---- GROUP: acciones sobre el miembro marcado o sobre todos los que estan en rango (Copyright (C) 2026 Manuel - EA7JRS) ----
+    static const char* teamAddress(const TeamSlot& slot) {
+        return slot.last[0] ? slot.last : slot.call;                // con el SSID con el que se oyo; si no, el indicativo configurado
+    }
+
+    static void teamGoTo() {
+        if (teamCursor >= teamCount) return;
+        const TeamSlot& slot = teamSlots[teamCursor];
+        if (!slot.seen || !slot.hasPos) { showToast("No position yet"); return; }
+        const int index = heard.indexOf(slot.last);
+        goToStation(index >= 0 ? heard.byRecent((uint8_t)index) : nullptr);
+    }
+
+    // Una vez enviado a los miembros indicados, avisa de cuantos mensajes se han puesto en cola
+    static void teamSendTo(const char* body, bool one) {
+        uint8_t queued = 0;
+        for (uint8_t i = 0; i < teamCount; i++) {
+            const TeamSlot& slot = teamSlots[i];
+            if (one ? (i != teamCursor) : (slot.state != TS_IN)) continue;         // a todos: solo a los que estan en rango (como "SEND to ALL" de Yaesu)
+            const int ackId = MSG_Utils::addToOutputBuffer(1, String(teamAddress(slot)), String(body));
+            if (ackId > 0) { onMessageSent(teamAddress(slot), body, (uint16_t)ackId); queued++; }
+        }
+        char toast[26];
+        if (queued == 0) snprintf(toast, sizeof(toast), "%s", one ? "Already queued" : "None in range");
+        else             snprintf(toast, sizeof(toast), "Queued x%u: %.10s", (unsigned)queued, body);
+        showToast(toast);
+    }
+
+    static void teamPing() {
+        uint8_t queued = 0;
+        const bool one = teamMode == TMODE_BROWSE;
+        for (uint8_t i = 0; i < teamCount; i++) {
+            if (one && i != teamCursor) continue;
+            MSG_Utils::addToOutputBuffer(0, String(teamAddress(teamSlots[i])), "ping");
+            queued++;
+        }
+        char toast[26];
+        snprintf(toast, sizeof(toast), "Ping x%u", (unsigned)queued);
+        showToast(toast);
+    }
+
     int longPress() {
         if (sosState == SOS_COUNTDOWN) { sosCancel(); return PAGES_CMD_NONE; }
         if (alarmShown) {                            // LP: silencia y va hacia la estacion (COMPASS con objetivo)
@@ -3877,7 +4037,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return PAGES_CMD_NONE;
         }
-        if (command == C_MSG_QUICK) {                            // segundo nivel: respuestas rapidas
+        if (command == C_MSG_QUICK || command == C_TEAM_QUICK) { // segundo nivel: respuestas rapidas
             submenuId = SM_QUICK;
             submenuSel = 0;
             submenuMs = millis();
@@ -3886,7 +4046,8 @@ namespace PAGES_Utils {
         submenuOpen = false;
         submenuId = SM_PAGE;
         if (command >= C_QUICK0 && command <= C_QUICK7) {
-            sendQuickReply((uint8_t)(command - C_QUICK0));
+            if (page == PAGE_TEAM) teamSendTo(QUICK_TEXT[command - C_QUICK0], teamMode == TMODE_BROWSE);
+            else                   sendQuickReply((uint8_t)(command - C_QUICK0));
             return PAGES_CMD_NONE;
         }
         if (command >= C_CW0 && command <= C_CW4) {
@@ -3957,6 +4118,28 @@ namespace PAGES_Utils {
                 break;
             case C_LIST_FILTER:
                 listFilter = (listFilter + 1) % FILTER_COUNT;
+                break;
+            case C_TEAM_BROWSE:
+                if (teamCount == 0) { showToast("No callsigns set"); break; }
+                teamMode = TMODE_BROWSE;
+                teamCursor = 0;
+                break;
+            case C_TEAM_RADAR:
+                if (teamCount == 0) { showToast("No callsigns set"); break; }
+                teamMode = TMODE_RADAR;
+                teamScale = 0;
+                break;
+            case C_TEAM_LIST:
+                teamMode = TMODE_LIST;
+                break;
+            case C_TEAM_AUTO:
+                teamScale = 0;
+                break;
+            case C_TEAM_GOTO:
+                teamGoTo();
+                break;
+            case C_TEAM_PING:
+                teamPing();
                 break;
             case C_SOS_SEND:
                 sosStart();
