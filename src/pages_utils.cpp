@@ -54,6 +54,7 @@
 #include "station_utils.h"
 #include "sleep_utils.h"
 #include "keypad_fh2.h"
+#include "kiss_net.h"
 
 #ifndef PAGES_GYRO_SIGN
     #define PAGES_GYRO_SIGN     -1      // sentido inicial del giroscopio (se corrige solo al girar con la brujula valida)
@@ -126,7 +127,8 @@ namespace {
         C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
         C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON,
         C_MODE_CHANGE,
-        C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO
+        C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
+        C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI
     };
     struct Item { const char* label; Command cmd; };
 
@@ -165,6 +167,11 @@ namespace {
     uint8_t         teamMode            = TMODE_LIST;
     uint8_t         teamCursor          = 0;
     uint8_t         teamScale           = 0;        // 0 = automatica; 1.. = indice en TEAM_SCALES_KM
+    uint8_t         boardView           = 0;        // SYSTEM: 0 = sistema, 1 = vista LINK (conexiones activas; no es una pagina aparte)
+    Item            sysItems[4];                    // submenu de SYSTEM
+    char            sysBtLabel[24];
+    char            sysProtoLabel[24];
+    char            sysKissLabel[24];
 
     bool            listBrowse          = false;    // STATIONS: cursor activo
     uint8_t         listCursor          = 0;        // posicion en la vista ordenada y filtrada
@@ -370,6 +377,20 @@ namespace {
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:    PAGES_ITEMS(ITEMS_CLOCK);
             case PAGE_LINK:     PAGES_ITEMS(ITEMS_LORA);
+            case PAGE_BOARD: {                                        // Bluetooth, protocolo Bluetooth y KISS por WiFi
+                uint8_t n = 0;
+                snprintf(sysBtLabel, sizeof(sysBtLabel), "Bluetooth: %s", bluetoothActive ? "ON" : "OFF");
+                sysItems[n++] = Item{sysBtLabel, C_SYS_BT};
+                snprintf(sysProtoLabel, sizeof(sysProtoLabel), "BT data: %s", Config.bluetooth.useKISS ? "KISS" : "TNC2");
+                sysItems[n++] = Item{sysProtoLabel, C_SYS_BTPROTO};
+                #if KISS_NET_SUPPORTED
+                    snprintf(sysKissLabel, sizeof(sysKissLabel), "WiFi KISS: %s", Config.kissNet.enabled ? "ON" : "OFF");
+                    sysItems[n++] = Item{sysKissLabel, C_SYS_KISSWIFI};
+                #endif
+                sysItems[n++] = Item{"Back", C_BACK};
+                count = n;
+                return sysItems;
+            }
             case PAGE_TEAM:
                 if (teamMode == TMODE_BROWSE) { PAGES_ITEMS(ITEMS_TEAM_PICK); }
                 if (teamMode == TMODE_RADAR)  { PAGES_ITEMS(ITEMS_TEAM_RADAR); }
@@ -1838,8 +1859,42 @@ namespace {
         text(100, y, value);
     }
 
+    // Hay algo que mostrar en la vista LINK: Bluetooth encendido, WiFi KISS activo o punto de acceso de configuracion
+    bool linkAvailable() {
+        return bluetoothActive || KISS_NET::state() != 0 || (WiFi.getMode() & WIFI_MODE_AP);
+    }
+
+    // Vista LINK dentro de SYSTEM: conexiones activas (Bluetooth y WiFi) con la IP del enlace
+    void drawBoardLink() {
+        header("LINK", "SYSTEM");
+        if (bluetoothActive) {
+            row(0, "BT %s %s  %s", Config.bluetooth.useBLE ? "BLE" : "Classic", Config.bluetooth.useKISS ? "KISS" : "TNC2", bluetoothConnected ? "CON" : "wait");
+            row(1, "  %.19s", Config.bluetooth.deviceName.c_str());
+        } else {
+            row(0, "BT: off");
+        }
+        const uint8_t kiss = KISS_NET::state();
+        if (WiFi.getMode() & WIFI_MODE_AP) {
+            row(2, "WiFi AP");
+            row(3, "IP %s", WiFi.softAPIP().toString().c_str());
+        } else if (kiss == 2) {
+            row(2, "WiFi %.15s", WiFi.SSID().c_str());
+            row(3, "IP %s", KISS_NET::localIp().c_str());
+            row(4, "KISS TCP %d  Cli %u", Config.kissNet.tcpPort, (unsigned)KISS_NET::clientCount());
+            if (Config.kissNet.udpPort > 0) row(5, "UDP %d  %d dBm", Config.kissNet.udpPort, (int)WiFi.RSSI());
+            else                            row(5, "RSSI %d dBm", (int)WiFi.RSSI());
+        } else if (kiss == 1) {
+            row(2, "WiFi %.15s", Config.fwUpdate.ssid.c_str());
+            row(3, "Joining...");
+        } else {
+            row(2, "WiFi: off");
+        }
+    }
+
     void drawBoard() {
-        header(PAGE_TITLES[PAGE_BOARD]);
+        if (boardView == 1 && !linkAvailable()) boardView = 0;
+        if (boardView == 1) { drawBoardLink(); return; }
+        header(PAGE_TITLES[PAGE_BOARD], linkAvailable() ? "1P LINK" : nullptr);
         uint32_t heapTotal = ESP.getHeapSize();
         int heapUsed = heapTotal > 0 ? (int)(100UL * (heapTotal - ESP.getFreeHeap()) / heapTotal) : -1;
         meter(13, "Heap", heapUsed);
@@ -1860,7 +1915,8 @@ namespace {
         text(2, 47, line);
 
         const char* bt = !bluetoothActive ? "off" : (bluetoothConnected ? "CON" : "on");
-        const char* wifi = (WiFi.getMode() & WIFI_MODE_AP) ? "AP" : "off";
+        const uint8_t kiss = KISS_NET::state();
+        const char* wifi = (WiFi.getMode() & WIFI_MODE_AP) ? "AP" : (kiss == 2 ? "CON" : (kiss == 1 ? ".." : "off"));
         snprintf(line, sizeof(line), "BT:%s  WiFi:%s", bt, wifi);
         text(2, 56, line);
     }
@@ -3682,6 +3738,7 @@ namespace PAGES_Utils {
         lastCall[0] = '\0';
         listBrowse = false;
         teamMode = TMODE_LIST;
+        boardView = 0;
         msgMode = MM_LIST;
         msgCursor = 0;
         barUntil = millis() + BAR_VISIBLE_MS;
@@ -3709,6 +3766,14 @@ namespace PAGES_Utils {
         return true;
     }
 
+    // SYSTEM: con conexiones activas, 1P alterna a la vista LINK (y de ahi sigue a la pagina siguiente); en retroceso vuelve a SYSTEM
+    static bool moveBoardView(int direction) {
+        if (page != PAGE_BOARD) return false;
+        if (direction > 0 && boardView == 0 && linkAvailable()) { boardView = 1; return true; }
+        if (direction < 0 && boardView == 1) { boardView = 0; return true; }
+        return false;
+    }
+
     static bool moveMessageCursor(int direction) {
         if (page != PAGE_MSG || msgMode == MM_LIST) return false;
         uint8_t total = msgLog.count();
@@ -3732,7 +3797,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(+1) || moveListCursor(+1) || moveTeamCursor(+1)) return;
+        if (moveMessageCursor(+1) || moveListCursor(+1) || moveTeamCursor(+1) || moveBoardView(+1)) return;
         do { page = (page + 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
@@ -3747,7 +3812,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(-1) || moveListCursor(-1) || moveTeamCursor(-1)) return;
+        if (moveMessageCursor(-1) || moveListCursor(-1) || moveTeamCursor(-1) || moveBoardView(-1)) return;
         do { page = (page + PAGE_COUNT - 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
@@ -3770,6 +3835,10 @@ namespace PAGES_Utils {
         }
         if (page == PAGE_TEAM && teamMode != TMODE_LIST) {     // cursor o radar -> lista
             teamMode = TMODE_LIST;
+            return true;
+        }
+        if (page == PAGE_BOARD && boardView == 1) {            // vista LINK -> SYSTEM
+            boardView = 0;
             return true;
         }
         if (page == PAGE_MSG && msgMode != MM_LIST) {          // detalle -> explorar -> lista
@@ -4124,6 +4193,35 @@ namespace PAGES_Utils {
                 break;
             case C_LIST_FILTER:
                 listFilter = (listFilter + 1) % FILTER_COUNT;
+                break;
+            case C_SYS_BT:
+            case C_SYS_BTPROTO:
+                if (command == C_SYS_BT) Config.bluetooth.active = !bluetoothActive;
+                else                     Config.bluetooth.useKISS = !Config.bluetooth.useKISS;
+                Config.writeFile();                              // el cambio de Bluetooth necesita reiniciar la pila: se guarda y se reinicia
+                showToast("Restarting...");
+                show();
+                delay(600);
+                ESP.restart();
+                break;
+            case C_SYS_KISSWIFI:
+                #if KISS_NET_SUPPORTED
+                    if (!aprsMode()) { showToast("APRS modes only"); break; }
+                    Config.kissNet.enabled = !Config.kissNet.enabled;
+                    if (Config.kissNet.enabled) {
+                        KISS_NET::setup();
+                        if (KISS_NET::state() == 0) {            // sin red WiFi configurada: no queda activado
+                            Config.kissNet.enabled = false;
+                            showToast("Set WiFi in WebUI");
+                        } else {
+                            showToast("WiFi KISS ON");
+                        }
+                    } else {
+                        KISS_NET::stop();
+                        showToast("WiFi KISS OFF");
+                    }
+                    Config.writeFile();
+                #endif
                 break;
             case C_TEAM_BROWSE:
                 if (teamCount == 0) { showToast("No callsigns set"); break; }

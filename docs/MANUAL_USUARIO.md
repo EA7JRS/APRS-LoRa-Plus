@@ -273,7 +273,10 @@ La cabecera muestra la **región/perfil** (EU/WORLD, POLAND, UK, US, CUSTOM o **
 
 ## 14. SYSTEM — estado del equipo
 
-Medidores de **Heap**, **PSRAM** y **Flash** (porcentaje de uso del firmware en su partición), batería y **tiempo encendido** (`Bat 4.05V  Up 3h36m`; si la placa no tiene PSRAM activada, la fila PSRAM muestra `n/a` en lugar del porcentaje; `USB` si no hay batería) y el estado de **Bluetooth y WiFi** (`BT:on  WiFi:AP`; `CON` = móvil conectado).
+Medidores de **Heap**, **PSRAM** y **Flash** (porcentaje de uso del firmware en su partición), batería y **tiempo encendido** (`Bat 4.05V  Up 3h36m`; si la placa no tiene PSRAM activada, la fila PSRAM muestra `n/a` en lugar del porcentaje; `USB` si no hay batería) y el estado de **Bluetooth y WiFi** (`BT:on  WiFi:CON`; en BT, `CON` = móvil conectado; en WiFi, `CON` = unido a tu red con el KISS por WiFi activo, `..` = uniéndose, `AP` = punto de acceso de configuración).
+
+- **1P** (con Bluetooth o WiFi activos) alterna a la **vista LINK**, que no es una página aparte: muestra el Bluetooth (tipo, protocolo KISS/TNC2, nombre y si hay móvil conectado) y la WiFi (red, **IP**, puertos KISS, clientes conectados y señal). Otra pulsación sigue a la página siguiente; **2P** vuelve a SYSTEM.
+- **LP** abre el submenú: **Bluetooth: ON/OFF** y **BT data: KISS/TNC2** (se guardan y la placa se reinicia) y **WiFi KISS: ON/OFF** (se aplica al momento; la red WiFi se escribe en la WebUI).
 
 ---
 
@@ -657,7 +660,7 @@ Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apag
 
 ## 32. KISS por WiFi (5.3.2)
 
-La placa puede ser un **TNC KISS por WiFi** para programas como **APRSDroid** (TNC → *TCP KISS TNC*), Xastir o YAAC. Solo en **APRS LoRa** y **APRS FSK 9600**, y en placas **ESP32-S3 / C3** (T-Beam S3 Supreme, etc.); las ESP32 clásicas y la T-Deck no lo incluyen.
+La placa puede ser un **TNC KISS por WiFi** para programas como **APRSdroid** (probado en Android: en *Connection protocol* elige la opción de TNC por TCP/IP), Xastir o YAAC. Solo en **APRS LoRa** y **APRS FSK 9600**, y en placas **ESP32-S3 / C3** (T-Beam S3 Supreme, etc.); las ESP32 clásicas y la T-Deck no lo incluyen.
 
 1. En la WebUI, Administración → *Firmware update*, escribe la **WiFi** (SSID y contraseña) de tu casa o del **punto de acceso del móvil**; es la misma que usa la actualización por internet.
 2. Connectivity → **KISS over WiFi**: activa el interruptor (apagado por defecto), elige el **puerto TCP** (8001 por defecto) y, si quieres, un **puerto UDP** (0 = sin UDP). *Allowed addresses* limita quién puede conectar: direcciones separadas por comas, o un prefijo acabado en punto (`192.168.1.` = toda esa red); vacío = cualquiera de la red.
@@ -667,7 +670,7 @@ La placa puede ser un **TNC KISS por WiFi** para programas como **APRSDroid** (T
 - Hasta 3 clientes TCP a la vez. Reciben las tramas oídas por radio y las balizas que emite el propio tracker; lo que envían se transmite por LoRa (los comandos de ajuste KISS se aceptan y se ignoran). UDP: cada datagrama lleva tramas KISS completas y la placa responde a la última dirección que le escribió.
 - **Consumo:** la WiFi queda encendida y la placa no entra en sueño profundo.
 - **Seguridad:** KISS no tiene contraseña; cualquiera permitido puede transmitir con tu indicativo. Úsalo en redes de confianza y con la lista de direcciones.
-- Con el punto de acceso del móvil, la IP puede cambiar entre sesiones: mira la pantalla o usa `aprs-lora-plus.local` si tu aplicación lo resuelve. Sin probar en placa.
+- Con el punto de acceso del móvil, la IP puede cambiar entre sesiones: mira la pantalla o usa `aprs-lora-plus.local` si tu aplicación lo resuelve. Probado con APRSdroid en Android por TCP en LoRa; UDP y FSK sin probar.
 
 ## Apéndice A — Mapa de pulsaciones por página
 
@@ -684,7 +687,7 @@ La placa puede ser un **TNC KISS por WiFi** para programas como **APRSDroid** (T
 | CLOCK | submenú | Zone, Format, Sync from GPS, Back |
 | LORA | submenú | Next profile, Power, Reset counters, Heard list, Back |
 | GROUP | submenú | Browse, Radar, Quick msg: all, Ping all, Back (con cursor: GO TO, Quick msg, Ping, Back) |
-| SYSTEM | — | (solo lectura) |
+| SYSTEM | submenú | Bluetooth: ON/OFF, BT data: KISS/TNC2, WiFi KISS: ON/OFF, Back (1P alterna a la vista LINK si hay conexiones activas) |
 | WSPR (solo modo WSPR) | submenú | Beacon ON/OFF, Tune carrier, Change mode, Back |
 | FT8 / FT4 / FST4W (solo esos modos) | submenú | Beacon ON/OFF, Change mode, Back |
 | MORSE (solo modo MORSE) | submenú | 1–5 (macros), Listen CW (RF), Trainer: listen, Trainer: keying, CW beacon ON/OFF, Clear text, Change mode, Back |

@@ -23,7 +23,11 @@ namespace KISS_NET {
     void poll();                                    // every pass of the main loop: reconnects, accepts clients, forwards their frames to the radio
     void onRx(const String& tnc2Frame);             // a frame heard on the air (TNC2 text, without the LoRa header) -> every client
     void onTx(const String& tnc2Frame);             // a frame the tracker has just transmitted (beacons) -> every client, like BLE does
-    bool active();                                  // running (enabled, supported board, APRS LoRa mode)
+    bool active();                                  // running (enabled, supported board, APRS LoRa / FSK mode)
+    void stop();                                    // leaves the WiFi network and closes every socket (live switch from the SYSTEM page)
+    uint8_t state();                                // 0 = off, 1 = joining the WiFi, 2 = connected (sockets open)
+    String  localIp();                              // address of the tracker in that network ("" if not connected)
+    uint8_t clientCount();                          // TCP clients connected now
 
 }
 

@@ -214,6 +214,31 @@ namespace KISS_NET {
         readUdp(budget);
     }
 
+    void stop() {
+        if (!running) return;
+        stopSockets();
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+        running = false;
+        linkUp  = false;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "KISS WiFi", "Stopped");
+    }
+
+    uint8_t state() {
+        if (!running) return 0;
+        return linkUp ? 2 : 1;
+    }
+
+    String localIp() {
+        return linkUp ? WiFi.localIP().toString() : String("");
+    }
+
+    uint8_t clientCount() {
+        uint8_t n = 0;
+        for (uint8_t i = 0; i < MAX_CLIENTS; i++) if (clients[i].socket && clients[i].socket.connected()) n++;
+        return n;
+    }
+
     void onRx(const String& tnc2Frame) {
         if (!running || !linkUp || tnc2Frame.isEmpty()) return;
         sendFrame(KISS_Utils::encodeKISS(tnc2Frame));
@@ -233,6 +258,10 @@ namespace KISS_NET {
     void onRx(const String&) {}
     void onTx(const String&) {}
     bool active() { return false; }
+    void stop() {}
+    uint8_t state() { return 0; }
+    String localIp() { return String(""); }
+    uint8_t clientCount() { return 0; }
 }
 
 #endif
