@@ -405,6 +405,81 @@ void displayShow(const String& header, const String& line1, const String& line2,
     #endif
 }
 
+// Ventana emergente pequena (titulo + 2 lineas + barra de progreso opcional) centrada en la pantalla. Cada texto se recorta a lo que cabe.
+// Copyright (C) 2026 Manuel - EA7JRS
+void displayPopup(const String& title, const String& line1, const String& line2, int percent, int wait) {
+    #ifndef HELTEC_WSL_V3_TNC
+        #if defined(HAS_TFT) && (defined(TTGO_T_DECK_GPS) || defined(TTGO_T_DECK_PLUS))
+            const int sz = 2;
+        #else
+            const int sz = 1;
+        #endif
+        const int cw = 6 * sz;                                    // ancho de un caracter
+        const int lineH = 8 * sz + 3;
+        const bool bar = percent >= 0;
+        #ifdef HAS_TFT
+            const int W = sprite.width(), H = sprite.height();
+        #else
+            const int W = display.width(), H = display.height();
+        #endif
+        const int boxW = W - 16;
+        const int boxH = (lineH + 2) + 2 * lineH + (bar ? 12 : 4) + 2;
+        const int x0 = (W - boxW) / 2, y0 = (H - boxH) / 2;
+        const unsigned maxChars = (unsigned)((boxW - 8) / cw);
+        const String texts[3] = { title.substring(0, maxChars), line1.substring(0, maxChars), line2.substring(0, maxChars) };
+        const int pct = percent < 0 ? 0 : (percent > 100 ? 100 : percent);
+        const int barY = y0 + (lineH + 2) + 2 * lineH + 2;
+        #ifdef HAS_TFT
+            sprite.fillSprite(TFT_BLACK);
+            sprite.setTextFont(0);
+            sprite.setTextSize(sz);
+            sprite.drawRoundRect(x0, y0, boxW, boxH, 3, TFT_YELLOW);
+            sprite.fillRect(x0, y0, boxW, lineH + 2, TFT_YELLOW);
+            sprite.setTextColor(TFT_BLACK, TFT_YELLOW);
+            sprite.drawString(texts[0], x0 + (boxW - (int)texts[0].length() * cw) / 2, y0 + 3);
+            sprite.setTextColor(TFT_WHITE, TFT_BLACK);
+            for (int i = 1; i < 3; i++) sprite.drawString(texts[i], x0 + (boxW - (int)texts[i].length() * cw) / 2, y0 + (lineH + 2) + (i - 1) * lineH + 3);
+            if (bar) {
+                sprite.drawRect(x0 + 6, barY, boxW - 12, 8, TFT_WHITE);
+                sprite.fillRect(x0 + 8, barY + 2, ((boxW - 16) * pct) / 100, 4, TFT_WHITE);
+            }
+            sprite.pushSprite(0, 0);
+        #else
+            #ifdef ssd1306
+                const uint16_t cWhite = WHITE, cBlack = BLACK;
+            #else
+                const uint16_t cWhite = SH110X_WHITE, cBlack = SH110X_BLACK;
+            #endif
+            display.clearDisplay();
+            display.setTextSize(1);
+            display.drawRoundRect(x0, y0, boxW, boxH, 3, cWhite);
+            display.fillRect(x0, y0, boxW, lineH + 2, cWhite);
+            display.setTextColor(cBlack);
+            display.setCursor(x0 + (boxW - (int)texts[0].length() * cw) / 2, y0 + 3);
+            display.print(texts[0]);
+            display.setTextColor(cWhite);
+            for (int i = 1; i < 3; i++) {
+                display.setCursor(x0 + (boxW - (int)texts[i].length() * cw) / 2, y0 + (lineH + 2) + (i - 1) * lineH + 3);
+                display.print(texts[i]);
+            }
+            if (bar) {
+                display.drawRect(x0 + 6, barY, boxW - 12, 8, cWhite);
+                display.fillRect(x0 + 8, barY + 2, ((boxW - 16) * pct) / 100, 4, cWhite);
+            }
+            #ifdef ssd1306
+                display.ssd1306_command(SSD1306_SETCONTRAST);
+                display.ssd1306_command(screenBrightness);
+            #else
+                display.setContrast(screenBrightness);
+            #endif
+            display.display();
+        #endif
+        delay(wait);
+    #else
+        (void)title; (void)line1; (void)line2; (void)percent; (void)wait;
+    #endif
+}
+
 #ifndef HELTEC_WSL_V3_TNC
 void drawSymbol(int symbolIndex, bool bluetoothActive) {
     const uint8_t *bitMap = symbolsAPRS[symbolIndex];

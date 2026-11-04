@@ -446,14 +446,14 @@ namespace FW_Update {
         static int last = -10;
         if (pct < last + 10 && pct != 100) return;
         last = pct;
-        displayShow("FIRMWARE UPDATE", "Downloading", String(pct) + " %", "", "Do not switch off", "");
+        displayPopup("Firmware update", "Downloading " + String(pct) + "%", "Do not power off", pct);
     }
 
     void autoUpdateAtBoot() {
         if (!Config.fwUpdate.autoCheck || Config.fwUpdate.ssid.isEmpty()) return;
         if (Config.wifiAP.active) return;                           // the user is about to configure the tracker: do not delay that
         if (!stMutex) stMutex = xSemaphoreCreateMutex();
-        displayShow("FIRMWARE UPDATE", "Looking for a", "new version...", 0);
+        displayPopup("Firmware update", "Checking WiFi and", "new version...", -1, 600);
         if (!connectSta(10000)) {
             leaveSta();
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Update", "WiFi not reachable, no update check");
@@ -463,15 +463,15 @@ namespace FW_Update {
         if (checkLatest() && stState == ST_AVAILABLE) {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Update", "New version %s available (installed %s)", stLatest, versionNumber.c_str());
             if (Config.fwUpdate.autoInstall && slotAvailable()) {
-                displayShow("FIRMWARE UPDATE", String("Version ") + stLatest, "found", 0);
+                displayPopup("Firmware update", String("Version ") + stLatest, "found", 0, 800);
                 installed = installLatest(showProgress);
             } else {
-                displayShow("FIRMWARE UPDATE", String("Version ") + stLatest, "available", "(WebUI > Administration)", "", "", 2500);
+                displayPopup("Firmware update", String("Version ") + stLatest, "ready: see WebUI", -1, 2500);
             }
         }
         leaveSta();
         if (installed) {
-            displayShow("FIRMWARE UPDATE", "Done. Restarting", "", 2500);
+            displayPopup("Firmware update", "Installed", "Restarting...", 100, 1500);
             ESP.restart();
         }
     }

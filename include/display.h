@@ -35,6 +35,9 @@ void displayToggle(bool toggle);
 void displayShow(const String& header, const String& line1, const String& line2, int wait = 0);
 void displayShow(const String& header, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5, int wait = 0);
 
+// Aviso en ventana emergente pequena: titulo, 2 lineas y barra de progreso (percent < 0 = sin barra)
+void displayPopup(const String& title, const String& line1, const String& line2, int percent = -1, int wait = 0);
+
 #ifdef HAS_APRS_PAGES
     // Lienzo logico monocromo de 128x64 para las pantallas APRS. Cada placa lo lleva a su pantalla:
     // OLED 128x64 tal cual; Heltec Wireless Tracker (160x80) centrado; T-Deck (320x240) ampliado x2.
