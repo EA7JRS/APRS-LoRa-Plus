@@ -663,12 +663,13 @@ APRS LoRa and APRS FSK 9600 modes only. Both are off by default (WebUI → Stati
 
 ## 32. KISS over WiFi (5.3.2)
 
-The board can be a **KISS TNC over WiFi** for programs such as **APRSDroid** (TNC → *TCP KISS TNC*), Xastir or YAAC. APRS LoRa mode only, on **ESP32-S3 / C3** boards (T-Beam S3 Supreme, etc.); classic ESP32 boards and the T-Deck do not include it.
+The board can be a **KISS TNC over WiFi** for programs such as **APRSDroid** (TNC → *TCP KISS TNC*), Xastir or YAAC. **APRS LoRa** and **APRS FSK 9600** modes only, on **ESP32-S3 / C3** boards (T-Beam S3 Supreme, etc.); classic ESP32 boards and the T-Deck do not include it.
 
 1. In the WebUI, Administration → *Firmware update*, enter the **WiFi** (SSID and password) of your home network or your **phone's hotspot**; it is the same one used for the on-line update.
 2. Connectivity → **KISS over WiFi**: turn the switch on (off by default), choose the **TCP port** (8001 by default) and, if you want, a **UDP port** (0 = no UDP). *Allowed addresses* limits who may connect: addresses separated by commas, or a prefix ending in a dot (`192.168.1.` = that whole network); empty = anyone on the network.
 3. Save and restart. When it joins the WiFi the screen shows the **IP** and ports for a few seconds; it also answers as `aprs-lora-plus.local`. Type that IP and the port in APRSDroid.
 
+- On FSK the frames a client sends must be valid AX.25 and fit in the FSK packet (otherwise they are dropped and logged); what is heard on FSK is delivered the same way as on LoRa.
 - Up to 3 TCP clients at once. They receive the frames heard on the air and the beacons the tracker itself sends; what they send is transmitted over LoRa (KISS setting commands are accepted and ignored). UDP: each datagram carries whole KISS frames and the board answers the last address that wrote to it.
 - **Power:** the WiFi stays on and the board does not enter deep sleep.
 - **Security:** KISS has no password; anyone allowed can transmit with your callsign. Use it on trusted networks and with the address list.

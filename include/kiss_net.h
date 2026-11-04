@@ -1,7 +1,7 @@
 /* Copyright (C) 2026 Manuel - EA7JRS
  * KISS TNC over WiFi (5.3.2): TCP server (port 8001 by default, like Dire Wolf) and optional UDP, so that APRSDroid ("TCP KISS TNC"),
  * Xastir, YAAC and similar programs can use the tracker's LoRa radio through the WiFi network it has joined
- * (home network or the phone's hotspot; the same network as the firmware update). APRS LoRa mode only.
+ * (home network or the phone's hotspot; the same network as the firmware update). APRS LoRa and APRS FSK modes.
  * Part of AIS/LoRa APRS Tracker - Manuel Canca EA7JRS (based on LoRa APRS Tracker by Ricardo Guzman CA2RXU, GPL-3.0)
  */
 #ifndef KISS_NET_H_

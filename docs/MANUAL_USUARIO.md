@@ -657,12 +657,13 @@ Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apag
 
 ## 32. KISS por WiFi (5.3.2)
 
-La placa puede ser un **TNC KISS por WiFi** para programas como **APRSDroid** (TNC → *TCP KISS TNC*), Xastir o YAAC. Solo en **APRS LoRa** y en placas **ESP32-S3 / C3** (T-Beam S3 Supreme, etc.); las ESP32 clásicas y la T-Deck no lo incluyen.
+La placa puede ser un **TNC KISS por WiFi** para programas como **APRSDroid** (TNC → *TCP KISS TNC*), Xastir o YAAC. Solo en **APRS LoRa** y **APRS FSK 9600**, y en placas **ESP32-S3 / C3** (T-Beam S3 Supreme, etc.); las ESP32 clásicas y la T-Deck no lo incluyen.
 
 1. En la WebUI, Administración → *Firmware update*, escribe la **WiFi** (SSID y contraseña) de tu casa o del **punto de acceso del móvil**; es la misma que usa la actualización por internet.
 2. Connectivity → **KISS over WiFi**: activa el interruptor (apagado por defecto), elige el **puerto TCP** (8001 por defecto) y, si quieres, un **puerto UDP** (0 = sin UDP). *Allowed addresses* limita quién puede conectar: direcciones separadas por comas, o un prefijo acabado en punto (`192.168.1.` = toda esa red); vacío = cualquiera de la red.
 3. Guarda y reinicia. Al unirse a la WiFi la pantalla muestra durante unos segundos la **IP** y los puertos; también responde como `aprs-lora-plus.local`. En APRSDroid escribe esa IP y el puerto.
 
+- En FSK las tramas que envía el cliente deben ser AX.25 válidas y de un tamaño que quepa en el paquete FSK (si no, se descartan y queda anotado en el registro); lo que se oye por FSK se entrega igual que por LoRa.
 - Hasta 3 clientes TCP a la vez. Reciben las tramas oídas por radio y las balizas que emite el propio tracker; lo que envían se transmite por LoRa (los comandos de ajuste KISS se aceptan y se ignoran). UDP: cada datagrama lleva tramas KISS completas y la placa responde a la última dirección que le escribió.
 - **Consumo:** la WiFi queda encendida y la placa no entra en sueño profundo.
 - **Seguridad:** KISS no tiene contraseña; cualquiera permitido puede transmitir con tu indicativo. Úsalo en redes de confianza y con la lista de direcciones.

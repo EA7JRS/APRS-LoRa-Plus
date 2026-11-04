@@ -56,7 +56,7 @@ namespace {
     uint32_t        lastRetryMs     = 0;
 
     bool modeOk() {
-        return Config.operatingMode == MODE_APRS_LORA && !Config.wifiAP.active;
+        return (Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK) && !Config.wifiAP.active;      // FSK: la misma cabecera y el mismo envio que LoRa (lora_utils)
     }
 
     // KISS data frame received from a client -> radio
