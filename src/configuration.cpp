@@ -48,6 +48,10 @@ bool Configuration::writeFile() {
         data["fwUpdate"]["password"]                = fwUpdate.password;
         data["fwUpdate"]["autoCheck"]               = fwUpdate.autoCheck;
         data["fwUpdate"]["autoInstall"]             = fwUpdate.autoInstall;
+        data["kissNet"]["enabled"]                  = kissNet.enabled;
+        data["kissNet"]["tcpPort"]                  = kissNet.tcpPort;
+        data["kissNet"]["udpPort"]                  = kissNet.udpPort;
+        data["kissNet"]["allowed"]                  = kissNet.allowed;
         data["team"]["watchActive"]                 = team.watchActive;
         data["team"]["watchCalls"]                  = team.watchCalls;
         data["team"]["timeoutMin"]                  = team.timeoutMin;
@@ -296,6 +300,11 @@ bool Configuration::readFile() {
         fwUpdate.autoCheck          = data["fwUpdate"]["autoCheck"] | false;
         fwUpdate.autoInstall        = data["fwUpdate"]["autoInstall"] | false;
 
+        if (data["kissNet"]["tcpPort"].isNull()) needsRewrite = true;
+        kissNet.enabled             = data["kissNet"]["enabled"] | false;
+        kissNet.tcpPort             = constrain((int)(data["kissNet"]["tcpPort"] | 8001), 1, 65535);
+        kissNet.udpPort             = constrain((int)(data["kissNet"]["udpPort"] | 0), 0, 65535);
+        kissNet.allowed             = data["kissNet"]["allowed"] | "";
         if (data["team"]["watchActive"].isNull()) needsRewrite = true;
         team.watchActive            = data["team"]["watchActive"] | false;
         team.watchCalls             = data["team"]["watchCalls"] | "";
@@ -863,6 +872,10 @@ void Configuration::setDefaultValues() {
     fwUpdate.autoCheck              = false;
     fwUpdate.autoInstall            = false;
 
+    kissNet.enabled                 = false;
+    kissNet.tcpPort                 = 8001;
+    kissNet.udpPort                 = 0;
+    kissNet.allowed                 = "";
     team.watchActive                = false;
     team.watchCalls                 = "";
     team.timeoutMin                 = 10;

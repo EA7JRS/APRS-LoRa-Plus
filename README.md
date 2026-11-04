@@ -19,6 +19,7 @@ Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KI
 | **FSK** | Región/canal/frecuencia/potencia propios y filtro gaussiano GFSK/GMSK por perfil. |
 | **GPS** | Constelaciones, SBAS, AssistNow y PPS; u-blox M10 y Quectel L76K (este último con 1–5 Hz). |
 | **WebUI** | Reorganizada por secciones, con un grupo de ajustes por modo y cabecera «APRS LoRa+ / Tracker versión». |
+| **KISS por WiFi** *(5.3.2, sin probar)* | TNC KISS por TCP (8001) y UDP opcional para APRSDroid, Xastir o YAAC a través de tu WiFi o del punto de acceso del móvil. Interruptor en la WebUI. Solo APRS LoRa en ESP32-S3 / C3. Ver el manual, apartado 32. |
 | **Instalar y actualizar** *(5.3.1, sin probar)* | Instalador web por USB que reconoce la placa y la versión instalada, actualización desde la WebUI (archivo o internet) en placas con dos copias de firmware y actualización automática opcional. Ver el manual, apartado 30. |
 | **Identificación de equipos** | Lista oficial aprs-deviceid (tocalls y sufijos Mic-E). |
 

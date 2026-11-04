@@ -31,6 +31,15 @@ public:
 };
 
 // Actualizacion del firmware (5.3.1): WiFi de casa para buscar versiones nuevas y opciones automaticas
+// KISS por WiFi (5.3.2): servidor TCP (y UDP opcional) en la red WiFi a la que se une el tracker (la misma de la actualizacion de firmware)
+class KissNetConfig {
+public:
+    bool    enabled;            // apagado por defecto (la WiFi consume y impide el sueno profundo)
+    int     tcpPort;            // puerto TCP KISS (8001 por defecto, como Dire Wolf)
+    int     udpPort;            // puerto UDP; 0 = sin UDP
+    String  allowed;            // direcciones IP permitidas (o prefijos acabados en punto); vacio = cualquiera de la red
+};
+
 // Vigilancia de grupo (estilo ARTS) y emergencia remota (estilo EAI)
 class TeamConfig {
 public:
@@ -284,6 +293,7 @@ public:
     WiFiAP                  wifiAP;
     FwUpdate                fwUpdate;
     TeamConfig              team;
+    KissNetConfig           kissNet;
     std::vector<Beacon>     beacons;
     Display                 display;
     Battery                 battery;

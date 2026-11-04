@@ -833,6 +833,15 @@ function loadSettings(settings) {
     // WiFi AP
     document.getElementById("wifiAP.password").value                    = settings.wifiAP.password;
 
+    // KISS OVER WIFI
+    if (settings.kissNet) {
+        document.getElementById("kissNet.enabled").checked              = settings.kissNet.enabled;
+        document.getElementById("kissNet.tcpPort").value                = settings.kissNet.tcpPort;
+        document.getElementById("kissNet.udpPort").value                = settings.kissNet.udpPort;
+        document.getElementById("kissNet.allowed").value                = settings.kissNet.allowed;
+        kissNetUpdate();
+    }
+
     // GROUP WATCH / REMOTE EMERGENCY
     if (settings.team) {
         document.getElementById("team.watchActive").checked             = settings.team.watchActive;
@@ -1059,6 +1068,13 @@ DisplayEcoModeCheckbox.addEventListener("change", function () {
 });
 
 // Bluetooth Switches
+// KISS over WiFi: like Bluetooth, the switch enables or disables its fields
+function kissNetUpdate() {
+    const on = document.getElementById("kissNet.enabled").checked;
+    ["kissNet.tcpPort", "kissNet.udpPort", "kissNet.allowed"].forEach((id) => { document.getElementById(id).disabled = !on; });
+}
+document.getElementById("kissNet.enabled").addEventListener("change", kissNetUpdate);
+
 const BluetoothActiveCheckbox   = document.querySelector('input[name="bluetooth.active"]');
 const BluetoothDeviceName       = document.querySelector('input[name="bluetooth.deviceName"]');
 const BluetoothUseBle           = document.querySelector('select[name="bluetooth.useBLE"]');

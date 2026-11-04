@@ -29,6 +29,7 @@
 #include "sleep_utils.h"
 #include "lora_utils.h"
 #include "ble_utils.h"
+#include "kiss_net.h"
 #include "wx_utils.h"
 #include "display.h"
 #include "ais_vessel.h"
@@ -300,7 +301,8 @@ namespace STATION_Utils {
         displayShow("<<< TX >>>", "", packet, 100);
         LoRa_Utils::sendNewPacket(packet);
 
-        if (Config.bluetooth.useBLE) BLE_Utils::sendToPhone(packet);   // send Tx packets to Phone too
+        if (Config.bluetooth.useBLE) BLE_Utils::sendToPhone(packet);
+        KISS_NET::onTx(packet);   // send Tx packets to Phone too
 
         if (shouldSleepLowVoltage) POWER_Utils::shutdown();
 
@@ -340,6 +342,7 @@ namespace STATION_Utils {
         displayShow("<<< SOS >>>", "", packet, 100);
         LoRa_Utils::sendNewPacket(packet);
         if (Config.bluetooth.useBLE) BLE_Utils::sendToPhone(packet);
+        KISS_NET::onTx(packet);
 
         delay(1500);                                        // un respiro entre los dos paquetes para el receptor
         packet = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, "APLRT1", path, currentBeacon->overlay,
@@ -348,6 +351,7 @@ namespace STATION_Utils {
         displayShow("<<< SOS >>>", "", packet, 100);
         LoRa_Utils::sendNewPacket(packet);
         if (Config.bluetooth.useBLE) BLE_Utils::sendToPhone(packet);
+        KISS_NET::onTx(packet);
         return true;
     }
 

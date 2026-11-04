@@ -644,7 +644,7 @@ Coverage study of every mode: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: planned for 
 
 Classic ESP32, ESP32-C3, Heltec S3 and T3S3 boards have no room for two copies: update them over USB. If an update ever leaves the board unable to start, reinstall over USB.
 
-## 31. Group watch and remote emergency (next version)
+## 31. Group watch and remote emergency (5.3.2)
 
 APRS LoRa and APRS FSK 9600 modes only. Both are off by default (WebUI → Station → *Group watch & remote emergency*).
 
@@ -660,6 +660,19 @@ APRS LoRa and APRS FSK 9600 modes only. Both are off by default (WebUI → Stati
 **Remote emergency (like EAI).** Set who may start it and a 4–12 character code. From any APRS client, send a message to the tracker: `EAI <code>` starts the SOS beacon (the same as the local emergency, every 30 s with GPS position) for *Duration* minutes, with an audible alarm and no countdown; `EAI STOP <code>` ends it. The tracker replies "EAI ON n min" or "EAI OFF". An unauthorised sender or a wrong code is ignored without reply. The button gesture cancels it.
 - The code travels unencrypted: it prevents mistakes, it is not security. Each user must make sure remote control is allowed by their regulations.
 - Untested on a board.
+
+## 32. KISS over WiFi (5.3.2)
+
+The board can be a **KISS TNC over WiFi** for programs such as **APRSDroid** (TNC → *TCP KISS TNC*), Xastir or YAAC. APRS LoRa mode only, on **ESP32-S3 / C3** boards (T-Beam S3 Supreme, etc.); classic ESP32 boards and the T-Deck do not include it.
+
+1. In the WebUI, Administration → *Firmware update*, enter the **WiFi** (SSID and password) of your home network or your **phone's hotspot**; it is the same one used for the on-line update.
+2. Connectivity → **KISS over WiFi**: turn the switch on (off by default), choose the **TCP port** (8001 by default) and, if you want, a **UDP port** (0 = no UDP). *Allowed addresses* limits who may connect: addresses separated by commas, or a prefix ending in a dot (`192.168.1.` = that whole network); empty = anyone on the network.
+3. Save and restart. When it joins the WiFi the screen shows the **IP** and ports for a few seconds; it also answers as `aprs-lora-plus.local`. Type that IP and the port in APRSDroid.
+
+- Up to 3 TCP clients at once. They receive the frames heard on the air and the beacons the tracker itself sends; what they send is transmitted over LoRa (KISS setting commands are accepted and ignored). UDP: each datagram carries whole KISS frames and the board answers the last address that wrote to it.
+- **Power:** the WiFi stays on and the board does not enter deep sleep.
+- **Security:** KISS has no password; anyone allowed can transmit with your callsign. Use it on trusted networks and with the address list.
+- With a phone hotspot the IP may change between sessions: read the screen, or use `aprs-lora-plus.local` if your application resolves it. Untested on a board.
 
 ## Appendix A — Button map per page
 

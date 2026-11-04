@@ -74,13 +74,14 @@ ____________________________________________________________________*/
 #include "utils.h"
 #include "notification_utils.h"
 #include "fw_update.h"
+#include "kiss_net.h"
 #ifdef HAS_TOUCHSCREEN
 #include "touch_utils.h"
 #endif
 
 
 String      versionDate             = "2026-11-01";
-String      versionNumber           = "5.3.1";
+String      versionNumber           = "5.3.2";
 Configuration                       Config;
 HardwareSerial                      gpsSerial(1);
 TinyGPSPlus                         gps;
@@ -140,7 +141,7 @@ extern bool gpsIsActive;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n=== LoRa APRS Tracker 5.3.1 | build: fx25-il2p-update (2026-11-03) ===");   // si no ves esta linea, no se ha grabado este firmware
+    Serial.println("\n=== LoRa APRS Tracker 5.3.2 | build: group-kiss-wifi (2026-11-04) ===");   // si no ves esta linea, no se ha grabado este firmware
     FW_Update::printBanner();                                      // placa + version para el instalador web USB
     Config.init();                                                 // antes estaba en el constructor global (provocaba el bucle de arranque)
     myBeaconsSize     = Config.beacons.size();
@@ -194,6 +195,7 @@ void setup() {
 
     // NMEA_Link despues de WiFi.mode(WIFI_OFF) por si NMEA_TCP esta activo y debe levantar red
     NMEA_Link::setup();
+    KISS_NET::setup();                                             // KISS por WiFi (si esta activado): se une a la WiFi sin bloquear el arranque
 
     if (bluetoothActive) {
         if (Config.bluetooth.useBLE) {
@@ -274,6 +276,9 @@ void loop() {
     MSG_Utils::checkReceivedMessage(packet);
     MSG_Utils::processOutputBuffer();
     MSG_Utils::clean15SegBuffer();
+
+    if (packet.text.length() > 3) KISS_NET::onRx(packet.text.substring(3));
+    KISS_NET::poll();
 
     if (bluetoothActive && bluetoothConnected) {
         if (Config.bluetooth.useBLE) {

@@ -445,6 +445,11 @@ namespace WEB_Utils {
         Config.fwUpdate.autoInstall             = Config.fwUpdate.autoCheck && request->hasParam("fwUpdate.autoInstall", true);
 
         //  Group watch and remote emergency
+        Config.kissNet.enabled                  = request->hasParam("kissNet.enabled", true);          // con el interruptor apagado los campos van desactivados (no se envian): se conservan los guardados
+        Config.kissNet.tcpPort                  = constrain(getParamIntSafe("kissNet.tcpPort", Config.kissNet.tcpPort), 1, 65535);
+        Config.kissNet.udpPort                  = constrain(getParamIntSafe("kissNet.udpPort", Config.kissNet.udpPort), 0, 65535);
+        Config.kissNet.allowed                  = getParamStringSafe("kissNet.allowed", Config.kissNet.allowed);
+        Config.kissNet.allowed.trim();
         Config.team.watchActive                 = request->hasParam("team.watchActive", true);
         Config.team.watchCalls                  = getParamStringSafe("team.watchCalls", Config.team.watchCalls);
         Config.team.timeoutMin                  = constrain(getParamIntSafe("team.timeoutMin", Config.team.timeoutMin), 1, 120);

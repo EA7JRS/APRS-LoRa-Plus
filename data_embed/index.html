@@ -63,7 +63,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
         <input type="file" accept="text/json,.json" style="display: none" />
         <form autocomplete="off" action="/configuration.json" method="POST">
 <div class="app-topbar d-flex align-items-center px-3 sticky-top">
-  <span class="brand"><span class="brand-name">APRS LoRa+</span><small class="brand-sub" id="brandSub">Tracker <span class="ver">5.3.1</span></small></span>
+  <span class="brand"><span class="brand-name">APRS LoRa+</span><small class="brand-sub" id="brandSub">Tracker <span class="ver">5.3.2</span></small></span>
   <div class="ms-auto d-flex align-items-center gap-2">
     <button class="btn btn-sm btn-icon" type="button" id="themeToggle" title="Toggle light/dark"></button>
     <button class="btn btn-sm btn-save" type="submit">Save</button>
@@ -1103,6 +1103,34 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         </select>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="row my-5 d-flex align-items-top" id="grp-kissnet">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>KISS over WiFi</h5>
+                                <small>A KISS TNC for APRSDroid, Xastir, YAAC&hellip; over your WiFi network (APRS LoRa mode; ESP32-S3 / C3 boards).</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="kissNet.enabled" name="kissNet.enabled">
+                                    <label class="form-check-label" for="kissNet.enabled">Enable KISS over WiFi (off by default)</label>
+                                </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="kissNet.tcpPort">TCP port</label>
+                                        <input type="number" class="form-control" id="kissNet.tcpPort" name="kissNet.tcpPort" min="1" max="65535" value="8001">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="kissNet.udpPort">UDP port (0 = off)</label>
+                                        <input type="number" class="form-control" id="kissNet.udpPort" name="kissNet.udpPort" min="0" max="65535" value="0">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="kissNet.allowed">Allowed addresses (empty = any)</label>
+                                        <input type="text" class="form-control" id="kissNet.allowed" name="kissNet.allowed" maxlength="80" placeholder="192.168.1. , 10.0.0.5">
+                                    </div>
+                                </div>
+                                <small>The tracker joins the WiFi network set in Administration &gt; Firmware update (your home network or your phone's hotspot) and keeps it on, so it uses more battery and never sleeps deeply. Its address is shown on the screen when it connects, and it answers to <code>aprs-lora-plus.local</code>. KISS has no password: anyone allowed here can transmit with your callsign. An entry ending in a dot (<code>192.168.1.</code>) allows that whole network.</small>
                             </div>
                         </div>
 

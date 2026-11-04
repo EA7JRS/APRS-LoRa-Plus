@@ -638,7 +638,7 @@ Estudio de cobertura de todos los modos: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: p
 
 Las placas ESP32 clásicas, ESP32-C3, Heltec S3 y T3S3 no tienen sitio para dos copias: se actualizan por USB. Si una actualización dejase la placa sin arrancar, reinstala por USB.
 
-## 31. Vigilancia de grupo y emergencia remota (próxima versión)
+## 31. Vigilancia de grupo y emergencia remota (5.3.2)
 
 Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apagadas por defecto (WebUI → Station → *Group watch & remote emergency*).
 
@@ -654,6 +654,19 @@ Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apag
 **Emergencia remota (estilo EAI).** Indica quién puede activarla y un código de 4–12 caracteres. Desde un cliente APRS, enviando un mensaje al tracker: `EAI <código>` inicia la baliza SOS (la misma de la emergencia local, cada 30 s, con posición GPS) durante *Duration* minutos, con alarma sonora y sin cuenta atrás; `EAI STOP <código>` la termina. El tracker contesta «EAI ON n min» o «EAI OFF». Un remitente no autorizado o un código erróneo se ignoran sin respuesta. El gesto del botón la cancela.
 - El código viaja sin cifrar: evita errores, no es seguridad. Cada usuario debe asegurarse de que el control remoto está permitido por su normativa.
 - Sin probar en placa.
+
+## 32. KISS por WiFi (5.3.2)
+
+La placa puede ser un **TNC KISS por WiFi** para programas como **APRSDroid** (TNC → *TCP KISS TNC*), Xastir o YAAC. Solo en **APRS LoRa** y en placas **ESP32-S3 / C3** (T-Beam S3 Supreme, etc.); las ESP32 clásicas y la T-Deck no lo incluyen.
+
+1. En la WebUI, Administración → *Firmware update*, escribe la **WiFi** (SSID y contraseña) de tu casa o del **punto de acceso del móvil**; es la misma que usa la actualización por internet.
+2. Connectivity → **KISS over WiFi**: activa el interruptor (apagado por defecto), elige el **puerto TCP** (8001 por defecto) y, si quieres, un **puerto UDP** (0 = sin UDP). *Allowed addresses* limita quién puede conectar: direcciones separadas por comas, o un prefijo acabado en punto (`192.168.1.` = toda esa red); vacío = cualquiera de la red.
+3. Guarda y reinicia. Al unirse a la WiFi la pantalla muestra durante unos segundos la **IP** y los puertos; también responde como `aprs-lora-plus.local`. En APRSDroid escribe esa IP y el puerto.
+
+- Hasta 3 clientes TCP a la vez. Reciben las tramas oídas por radio y las balizas que emite el propio tracker; lo que envían se transmite por LoRa (los comandos de ajuste KISS se aceptan y se ignoran). UDP: cada datagrama lleva tramas KISS completas y la placa responde a la última dirección que le escribió.
+- **Consumo:** la WiFi queda encendida y la placa no entra en sueño profundo.
+- **Seguridad:** KISS no tiene contraseña; cualquiera permitido puede transmitir con tu indicativo. Úsalo en redes de confianza y con la lista de direcciones.
+- Con el punto de acceso del móvil, la IP puede cambiar entre sesiones: mira la pantalla o usa `aprs-lora-plus.local` si tu aplicación lo resuelve. Sin probar en placa.
 
 ## Apéndice A — Mapa de pulsaciones por página
 
