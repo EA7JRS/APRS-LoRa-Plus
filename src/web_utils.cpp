@@ -440,6 +440,18 @@ namespace WEB_Utils {
         Config.fwUpdate.autoCheck               = request->hasParam("fwUpdate.autoCheck", true);
         Config.fwUpdate.autoInstall             = Config.fwUpdate.autoCheck && request->hasParam("fwUpdate.autoInstall", true);
 
+        //  Group watch and remote emergency
+        Config.team.watchActive                 = request->hasParam("team.watchActive", true);
+        Config.team.watchCalls                  = getParamStringSafe("team.watchCalls", Config.team.watchCalls);
+        Config.team.timeoutMin                  = constrain(getParamIntSafe("team.timeoutMin", Config.team.timeoutMin), 1, 120);
+        Config.team.maxKm                       = constrain(getParamIntSafe("team.maxKm", Config.team.maxKm), 0, 500);
+        Config.team.pollSec                     = getParamIntSafe("team.pollSec", Config.team.pollSec);
+        if (Config.team.pollSec != 0) Config.team.pollSec = constrain(Config.team.pollSec, 60, 3600);
+        Config.team.eaiActive                   = request->hasParam("team.eaiActive", true);
+        Config.team.eaiCalls                    = getParamStringSafe("team.eaiCalls", Config.team.eaiCalls);
+        Config.team.eaiCode                     = getParamStringSafe("team.eaiCode", Config.team.eaiCode);
+        Config.team.eaiMinutes                  = constrain(getParamIntSafe("team.eaiMinutes", Config.team.eaiMinutes), 1, 50);
+
         //  Notification
         Config.notification.ledTx               = request->hasParam("notification.ledTx", true);
         if (Config.notification.ledTx) Config.notification.ledTxPin = getParamIntSafe("notification.ledTxPin", Config.notification.ledTxPin);

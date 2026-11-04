@@ -96,7 +96,7 @@ using namespace PAGES_Core;
 
 namespace {
 
-    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_COUNT };
+    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_COUNT };
 
     // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
     bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
@@ -107,12 +107,12 @@ namespace {
         if (Config.operatingMode == MODE_WSPR || ftMode()) return p == PAGE_WSPR;
         if (Config.operatingMode == MODE_LRFHSS) return p == PAGE_LRF;
         if (Config.operatingMode == MODE_DAPNET) return p == PAGE_DAP;
-        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP;
+        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && (p != PAGE_TEAM || Config.team.watchActive);
     }
     bool aprsMode() { return Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && !ftMode(); }
 
     const char* const PAGE_TITLES[PAGE_COUNT] = {
-        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM"
+        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP"
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
@@ -194,6 +194,8 @@ namespace {
     uint32_t        sosNextMs           = 0;
     uint8_t         sosLastTick         = 0;
     uint16_t        sosSent             = 0;
+    uint32_t        sosEndMs            = 0;            // emergencia remota (EAI): instante en que termina
+    bool            sosTimed            = false;
     Item            mainItems[10];
     uint8_t         mainItemCount       = 0;
 
@@ -596,6 +598,10 @@ namespace {
                 pagesDrawRect(x + 2, y + 1, 5, 6, on);
                 pagesDrawLine(x, y + 2, x + 1, y + 2, on); pagesDrawLine(x, y + 5, x + 1, y + 5, on);
                 pagesDrawLine(x + 7, y + 2, x + 8, y + 2, on); pagesDrawLine(x + 7, y + 5, x + 8, y + 5, on);
+                break;
+            case PAGE_TEAM:     // dos personas
+                pagesDrawCircle(x + 2, y + 3, 2, on); pagesDrawCircle(x + 6, y + 3, 2, on);
+                pagesDrawLine(x, y + 7, x + 8, y + 7, on);
                 break;
             default: break;
         }
@@ -1190,12 +1196,14 @@ namespace {
     void sosCancel() {
         bool was = sosState != SOS_IDLE;
         sosState = SOS_IDLE;
+        sosTimed = false;
         if (was) showToast("SOS cancelled");
     }
 
     void sosStart() {
         if (!aprsMode()) { showToast("SOS: APRS modes only"); return; }     // MORSE, WSPR y LR-FHSS no emiten paquetes APRS
         sosState = SOS_COUNTDOWN;
+        sosTimed = false;
         sosStartMs = millis();
         sosLastTick = 0;
         sosSent = 0;
@@ -1934,6 +1942,9 @@ namespace PAGES_Utils {
         submenuId = SM_PAGE;
     }
 
+    void teamOnPacket(const APRSPacket& packet, bool hasPos, uint32_t now);      // definidas mas abajo (vigilancia de grupo y EAI)
+    void teamOnMessage(const APRSPacket& packet, uint32_t now);
+
     void onAprsPacket(const APRSPacket& packet, uint32_t nowMs) {
         bool hasPosition = (packet.type == 0 || packet.type == 4 || packet.type == 5) && (packet.latitude != 0.0f || packet.longitude != 0.0f);
         char symbol = (packet.symbol.length() > 0) ? packet.symbol[0] : ' ';
@@ -1951,6 +1962,8 @@ namespace PAGES_Utils {
                      packet.altitude, packet.speed, packet.course, packet.rssi, packet.snr, nowMs,
                      packet.tocall.c_str(), packet.path.c_str(), (packet.type == 1 || packet.type == 3 || packet.type == 6) ? nullptr : info,
                      packet.type == 4 ? miceStatusName(packet.miceType.c_str()) : nullptr, table);
+        teamOnPacket(packet, hasPosition, nowMs);
+        if (packet.type == 1) teamOnMessage(packet, nowMs);
         {   // alarmas: estado Mic-E Emergency o palabras SOS / EMERGENCY / MOB en el mensaje o comentario
             const char* body = (packet.type == 1 || packet.type == 0 || packet.type == 2 || packet.type == 4 || packet.type == 5) ? packet.payload.c_str() : "";
             AlarmKind kind = alarmFromText(body);
@@ -1991,6 +2004,211 @@ namespace PAGES_Utils {
 
     static void changedPage();
 
+    // ---------- Vigilancia de grupo (estilo ARTS) y emergencia remota (estilo EAI) ----------
+    // Copyright (C) 2026 Manuel - EA7JRS
+    const uint8_t TEAM_MAX = 5;
+    enum : uint8_t { TS_UNKNOWN, TS_IN, TS_OUT };
+    struct TeamSlot {
+        char        call[11];
+        bool        full;           // el indicativo lleva SSID: solo coincide ese; sin SSID coincide cualquiera
+        bool        seen;
+        bool        hasPos;
+        float       lat, lon;
+        uint32_t    seenMs;
+        uint8_t     state;
+    };
+    TeamSlot    teamSlots[TEAM_MAX];
+    uint8_t     teamCount       = 0;
+    String      teamParsed;
+    bool        teamParsedOnce  = false;
+    uint32_t    teamStartMs     = 0;
+    uint32_t    teamTickMs      = 0;
+    uint32_t    teamPollMs      = 0;
+
+    // "EA7AAA-7, ea7bbb" -> indicativos en mayusculas (3-9 caracteres A-Z 0-9 -); devuelve cuantos
+    uint8_t teamParseCalls(const String& list, char (*out)[11], bool* full, uint8_t maxCount) {
+        uint8_t n = 0;
+        char token[11];
+        uint8_t len = 0;
+        bool bad = false;
+        for (size_t i = 0; i <= list.length(); i++) {
+            const char c = (i < list.length()) ? (char)toupper((unsigned char)list[i]) : ' ';
+            if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+                if (len < 10) token[len++] = c; else bad = true;
+            } else {                                                // separador (coma, espacio, punto y coma...)
+                if (len >= 3 && !bad && n < maxCount) {
+                    token[len] = '\0';
+                    memcpy(out[n], token, len + 1);
+                    full[n] = strchr(token, '-') != nullptr;
+                    n++;
+                }
+                len = 0;
+                bad = false;
+            }
+        }
+        return n;
+    }
+
+    bool teamCallMatches(const char* pattern, bool full, const String& sender) {
+        String up = sender;
+        up.toUpperCase();
+        if (full) return up.equals(pattern);
+        int dash = up.indexOf('-');
+        if (dash > 0) up = up.substring(0, dash);
+        return up.equals(pattern);
+    }
+
+    void teamEnsureParsed() {
+        if (teamParsedOnce && teamParsed == Config.team.watchCalls) return;
+        char calls[TEAM_MAX][11];
+        bool full[TEAM_MAX];
+        teamParsed      = Config.team.watchCalls;
+        teamParsedOnce  = true;
+        teamCount       = teamParseCalls(teamParsed, calls, full, TEAM_MAX);
+        for (uint8_t i = 0; i < teamCount; i++) {
+            memset(&teamSlots[i], 0, sizeof(TeamSlot));
+            memcpy(teamSlots[i].call, calls[i], sizeof(teamSlots[i].call));
+            teamSlots[i].full  = full[i];
+            teamSlots[i].state = TS_UNKNOWN;
+        }
+        teamStartMs = 0;
+    }
+
+    void teamOnPacket(const APRSPacket& packet, bool hasPos, uint32_t now) {
+        if (!Config.team.watchActive) return;
+        teamEnsureParsed();
+        for (uint8_t i = 0; i < teamCount; i++) {
+            if (!teamCallMatches(teamSlots[i].call, teamSlots[i].full, packet.sender)) continue;
+            teamSlots[i].seen   = true;
+            teamSlots[i].seenMs = now ? now : 1;
+            if (hasPos) { teamSlots[i].hasPos = true; teamSlots[i].lat = packet.latitude; teamSlots[i].lon = packet.longitude; }
+        }
+    }
+
+    void teamAlert(const TeamSlot& slot) {
+        char message[28];
+        snprintf(message, sizeof(message), "%s %.9s", slot.state == TS_IN ? "IN RNG" : "OUT RNG", slot.call);
+        showToast(message);
+        displayToggle(true);
+        displayTime = millis();
+        if (Config.notification.buzzerActive) {
+            if (slot.state == TS_IN) NOTIFICATION_Utils::messageBeep();
+            else                     NOTIFICATION_Utils::countdownBeep();
+        }
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Group", "%s", message);
+    }
+
+    // Una vez por segundo: pasa cada estacion a IN / OUT segun el tiempo sin oirla y la distancia; avisa en cada cambio; sondeo opcional
+    void teamPoll(uint32_t now) {
+        if (!Config.team.watchActive || !aprsMode()) return;
+        if (now - teamTickMs < 1000UL) return;
+        teamTickMs = now;
+        teamEnsureParsed();
+        if (teamCount == 0) return;
+        if (teamStartMs == 0) { teamStartMs = now ? now : 1; teamPollMs = now; }
+        const uint32_t timeoutMs = (uint32_t)constrain(Config.team.timeoutMin, 1, 120) * 60000UL;
+        double myLat = 0, myLon = 0;
+        const bool haveMe = ownPosition(myLat, myLon);
+        for (uint8_t i = 0; i < teamCount; i++) {
+            TeamSlot& slot = teamSlots[i];
+            uint8_t next;
+            if (!slot.seen) {
+                next = (now - teamStartMs > timeoutMs) ? TS_OUT : TS_UNKNOWN;       // tras el arranque se espera un tiempo antes de dar a nadie por perdido
+            } else {
+                const bool fresh = (now - slot.seenMs) <= timeoutMs;
+                const bool far   = Config.team.maxKm > 0 && slot.hasPos && haveMe && distanceKm(myLat, myLon, slot.lat, slot.lon) > Config.team.maxKm;
+                next = (fresh && !far) ? TS_IN : TS_OUT;
+            }
+            if (next != slot.state) {
+                slot.state = next;
+                if (next != TS_UNKNOWN) teamAlert(slot);
+            }
+        }
+        // sondeo: "ping" a quien lleva demasiado tiempo sin oirse (los trackers con este firmware responden "pong")
+        if (Config.team.pollSec >= 60 && sosState == SOS_IDLE && (now - teamPollMs) >= (uint32_t)Config.team.pollSec * 1000UL) {
+            teamPollMs = now;
+            for (uint8_t i = 0; i < teamCount; i++) {
+                const TeamSlot& slot = teamSlots[i];
+                if (slot.seen && (now - slot.seenMs) < (uint32_t)Config.team.pollSec * 1000UL) continue;
+                MSG_Utils::addToOutputBuffer(0, String(slot.call), "ping");
+            }
+        }
+    }
+
+    // Mensaje dirigido a este equipo: "EAI <codigo>" inicia la emergencia, "EAI STOP <codigo>" la termina (solo desde indicativos autorizados y con el codigo)
+    void teamOnMessage(const APRSPacket& packet, uint32_t now) {
+        if (!Config.team.eaiActive || Config.team.eaiCode.length() < 4 || !aprsMode()) return;
+        if (!(packet.addressee == currentBeacon->callsign)) return;
+        String body = packet.payload;
+        body.trim();
+        body.toUpperCase();
+        if (!body.startsWith("EAI ")) return;
+        char calls[TEAM_MAX][11];
+        bool full[TEAM_MAX];
+        const uint8_t n = teamParseCalls(Config.team.eaiCalls, calls, full, TEAM_MAX);
+        bool authorised = false;
+        for (uint8_t i = 0; i < n; i++) if (teamCallMatches(calls[i], full[i], packet.sender)) authorised = true;
+        if (!authorised) return;                                    // sin respuesta: no se delata la funcion
+        String rest = body.substring(4);
+        rest.trim();
+        bool stop = false;
+        if (rest.startsWith("STOP ")) { stop = true; rest = rest.substring(5); rest.trim(); }
+        String code = Config.team.eaiCode;
+        code.trim();
+        code.toUpperCase();
+        if (rest != code) return;                                   // codigo incorrecto: se ignora
+        displayToggle(true);
+        displayTime = now;
+        if (stop) {
+            if (sosState != SOS_IDLE) sosCancel();
+            MSG_Utils::addToOutputBuffer(0, packet.sender, "EAI OFF");
+            return;
+        }
+        const int minutes = constrain(Config.team.eaiMinutes, 1, 50);
+        if (sosState != SOS_ACTIVE) {
+            sosState    = SOS_ACTIVE;
+            sosNextMs   = now;
+            sosSent     = 0;
+            sosLastTick = 0;
+            if (Config.notification.buzzerActive) NOTIFICATION_Utils::alarmBeep();
+        }
+        sosTimed = true;
+        sosEndMs = now + (uint32_t)minutes * 60000UL;
+        char message[28];
+        snprintf(message, sizeof(message), "EAI by %.9s", packet.sender.c_str());
+        showToast(message);
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "EAI", "Remote emergency started by %s (%d min)", packet.sender.c_str(), minutes);
+        MSG_Utils::addToOutputBuffer(0, packet.sender, String("EAI ON ") + String(minutes) + "min");
+    }
+
+    void drawTeamPage() {
+        teamEnsureParsed();
+        uint8_t inRange = 0;
+        for (uint8_t i = 0; i < teamCount; i++) if (teamSlots[i].state == TS_IN) inRange++;
+        char right[10];
+        snprintf(right, sizeof(right), "%u/%u", (unsigned)inRange, (unsigned)teamCount);
+        header(PAGE_TITLES[PAGE_TEAM], right);
+        if (teamCount == 0) {
+            row(1, "No callsigns set");
+            row(2, "WebUI > Station >");
+            row(3, "Group watch");
+            return;
+        }
+        double myLat = 0, myLon = 0;
+        const bool haveMe = ownPosition(myLat, myLon);
+        const uint32_t now = millis();
+        for (uint8_t i = 0; i < teamCount; i++) {
+            const TeamSlot& slot = teamSlots[i];
+            char extra[12];
+            if (slot.seen && slot.hasPos && haveMe) fmtDist(distanceKm(myLat, myLon, slot.lat, slot.lon), extra, sizeof(extra));
+            else if (slot.seen)                      formatAge(now - slot.seenMs, extra, sizeof(extra));
+            else                                     snprintf(extra, sizeof(extra), "--");
+            row(i, "%-9.9s %-3s %s", slot.call, slot.state == TS_IN ? "IN" : (slot.state == TS_OUT ? "OUT" : ".."), extra);
+        }
+        if (Config.team.pollSec >= 60) row(5, "OUT %um  poll %us", (unsigned)Config.team.timeoutMin, (unsigned)Config.team.pollSec);
+        else                           row(5, "OUT after %u min", (unsigned)Config.team.timeoutMin);
+    }
+
     // Gesto del boton: arranca la cuenta atras; repetirlo mientras cuenta o durante la emergencia la cancela
     void onEmergencyGesture() {
         if (!aprsMode() && sosState == SOS_IDLE) {                      // cada modo emite solo lo suyo
@@ -2029,6 +2247,7 @@ namespace PAGES_Utils {
         uint32_t nowMs = millis();
         cwKeyPoll();
         cwKeypadPoll();
+        teamPoll(nowMs);
         cwBeaconPoll();
         wsprPoll();
         ftPoll();
@@ -2048,6 +2267,10 @@ namespace PAGES_Utils {
                     if (Config.notification.buzzerActive) NOTIFICATION_Utils::countdownBeep();
                 }
             }
+        }
+        if (sosState == SOS_ACTIVE && sosTimed && (int32_t)(nowMs - sosEndMs) >= 0) {
+            sosCancel();
+            showToast("EAI ended");
         }
         if (sosState == SOS_ACTIVE) {
             if (!gpsIsActive) SLEEP_Utils::gpsWakeUp();
@@ -3231,6 +3454,7 @@ namespace PAGES_Utils {
             case PAGE_CLOCK:   drawClock();     break;
             case PAGE_LINK:    drawLink();      break;
             case PAGE_BOARD:   drawBoard();     break;
+            case PAGE_TEAM:    drawTeamPage();  break;
             default: break;
         }
         if (submenuOpen && millis() - submenuMs > SUBMENU_TIMEOUT_MS) submenuOpen = false;

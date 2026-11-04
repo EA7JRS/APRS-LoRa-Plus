@@ -638,6 +638,17 @@ Estudio de cobertura de todos los modos: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: p
 
 Las placas ESP32 clásicas, ESP32-C3, Heltec S3 y T3S3 no tienen sitio para dos copias: se actualizan por USB. Si una actualización dejase la placa sin arrancar, reinstala por USB.
 
+## 31. Vigilancia de grupo y emergencia remota (próxima versión)
+
+Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apagadas por defecto (WebUI → Station → *Group watch & remote emergency*).
+
+**Vigilancia de grupo (estilo ARTS del FT-270E).** Escribe hasta 5 indicativos (sin SSID vale cualquier SSID). La página **GROUP** muestra cada estación con *IN* (oída hace menos de *OUT after* minutos y, si lo has puesto, a menos de *Max km*) u *OUT*, y su distancia o el tiempo desde que se oyó. Al entrar o salir de alcance aparece «IN RNG / OUT RNG indicativo» y suena el zumbador. Tras el arranque se espera ese tiempo antes de dar a nadie por perdido.
+- **Sondeo opcional:** con *Poll* ≥ 60 s se envía un mensaje «ping» a quien no se ha oído en ese tiempo; un tracker con este firmware responde «pong» y cuenta como oído. Usa intervalos largos (el canal es compartido y en FSK no hay escucha previa).
+
+**Emergencia remota (estilo EAI).** Indica quién puede activarla y un código de 4–12 caracteres. Desde un cliente APRS, enviando un mensaje al tracker: `EAI <código>` inicia la baliza SOS (la misma de la emergencia local, cada 30 s, con posición GPS) durante *Duration* minutos, con alarma sonora y sin cuenta atrás; `EAI STOP <código>` la termina. El tracker contesta «EAI ON n min» o «EAI OFF». Un remitente no autorizado o un código erróneo se ignoran sin respuesta. El gesto del botón la cancela.
+- El código viaja sin cifrar: evita errores, no es seguridad. Cada usuario debe asegurarse de que el control remoto está permitido por su normativa.
+- Sin probar en placa.
+
 ## Apéndice A — Mapa de pulsaciones por página
 
 | Página | LP abre | Opciones |

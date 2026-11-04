@@ -369,6 +369,56 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 </div>
                             </div>
                         </div>
+<div class="row my-5 d-flex align-items-top">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>Group watch &amp; remote emergency</h5>
+                                <small>Watch the stations of your group (IN / OUT of range, distance) and allow an authorised station to start an emergency by APRS message. APRS LoRa and APRS FSK modes. Both are off by default.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="team.watchActive" name="team.watchActive">
+                                    <label class="form-check-label" for="team.watchActive">Group watch (page GROUP)</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-12 col-md-6 px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" id="team.watchCalls" name="team.watchCalls" maxlength="60" placeholder="EA7AAA-7 EA7BBB" />
+                                        <label for="team.watchCalls">Callsigns to watch (max 5, e.g. EA7AAA-7 EA7BBB)</label>
+                                    </div>
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" id="team.timeoutMin" name="team.timeoutMin" min="1" max="120" value="10" />
+                                        <label for="team.timeoutMin">OUT after (min)</label>
+                                    </div>
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" id="team.maxKm" name="team.maxKm" min="0" max="500" value="0" />
+                                        <label for="team.maxKm">Max km (0 = off)</label>
+                                    </div>
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" id="team.pollSec" name="team.pollSec" min="0" max="3600" value="0" />
+                                        <label for="team.pollSec">Poll (s, 0 = off)</label>
+                                    </div>
+                                </div>
+                                <small class="d-block mb-3">Poll sends a short "ping" message (minimum 60 s) to a station that has not been heard for that time; trackers with this firmware answer. Use long intervals: the channel is shared.</small>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="team.eaiActive" name="team.eaiActive">
+                                    <label class="form-check-label" for="team.eaiActive">Remote emergency (EAI): start the SOS beacon on request</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-12 col-md-5 px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" id="team.eaiCalls" name="team.eaiCalls" maxlength="60" placeholder="EA7AAA-7" />
+                                        <label for="team.eaiCalls">Who can start it (max 5 callsigns)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" id="team.eaiCode" name="team.eaiCode" maxlength="12" />
+                                        <label for="team.eaiCode">Code (4-12 characters)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" id="team.eaiMinutes" name="team.eaiMinutes" min="1" max="50" value="30" />
+                                        <label for="team.eaiMinutes">Duration (min)</label>
+                                    </div>
+                                </div>
+                                <small class="d-block">Send the message <code>EAI &lt;code&gt;</code> to this tracker (from an authorised callsign) to start it; <code>EAI STOP &lt;code&gt;</code> ends it. The code travels unencrypted over the air: it prevents mistakes, it is not security. Press the button gesture on the tracker to cancel. You are responsible for remote control being allowed by your regulations.</small>
+                            </div>
+                        </div>
 </section>
 <section class="panel-section" id="sec-gps">
                         <div class="row my-5 d-flex align-items-top">

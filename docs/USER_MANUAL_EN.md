@@ -644,6 +644,17 @@ Coverage study of every mode: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: planned for 
 
 Classic ESP32, ESP32-C3, Heltec S3 and T3S3 boards have no room for two copies: update them over USB. If an update ever leaves the board unable to start, reinstall over USB.
 
+## 31. Group watch and remote emergency (next version)
+
+APRS LoRa and APRS FSK 9600 modes only. Both are off by default (WebUI → Station → *Group watch & remote emergency*).
+
+**Group watch (like ARTS on the FT-270E).** Enter up to 5 callsigns (without SSID any SSID matches). The **GROUP** page shows each station as *IN* (heard less than *OUT after* minutes ago and, if set, closer than *Max km*) or *OUT*, with its distance or time since last heard. Entering or leaving range shows "IN RNG / OUT RNG callsign" and beeps. After power-up it waits that time before declaring anybody lost.
+- **Optional poll:** with *Poll* ≥ 60 s a "ping" message is sent to a station not heard for that long; a tracker with this firmware answers "pong", which counts as heard. Use long intervals (the channel is shared and FSK has no listen-before-talk).
+
+**Remote emergency (like EAI).** Set who may start it and a 4–12 character code. From any APRS client, send a message to the tracker: `EAI <code>` starts the SOS beacon (the same as the local emergency, every 30 s with GPS position) for *Duration* minutes, with an audible alarm and no countdown; `EAI STOP <code>` ends it. The tracker replies "EAI ON n min" or "EAI OFF". An unauthorised sender or a wrong code is ignored without reply. The button gesture cancels it.
+- The code travels unencrypted: it prevents mistakes, it is not security. Each user must make sure remote control is allowed by their regulations.
+- Untested on a board.
+
 ## Appendix A — Button map per page
 
 | Page | LP opens | Options |

@@ -48,6 +48,15 @@ bool Configuration::writeFile() {
         data["fwUpdate"]["password"]                = fwUpdate.password;
         data["fwUpdate"]["autoCheck"]               = fwUpdate.autoCheck;
         data["fwUpdate"]["autoInstall"]             = fwUpdate.autoInstall;
+        data["team"]["watchActive"]                 = team.watchActive;
+        data["team"]["watchCalls"]                  = team.watchCalls;
+        data["team"]["timeoutMin"]                  = team.timeoutMin;
+        data["team"]["maxKm"]                       = team.maxKm;
+        data["team"]["pollSec"]                     = team.pollSec;
+        data["team"]["eaiActive"]                   = team.eaiActive;
+        data["team"]["eaiCalls"]                    = team.eaiCalls;
+        data["team"]["eaiCode"]                     = team.eaiCode;
+        data["team"]["eaiMinutes"]                  = team.eaiMinutes;
 
         for (int i = 0; i < beacons.size(); i++) {
             beacons[i].callsign.trim();
@@ -285,6 +294,18 @@ bool Configuration::readFile() {
         fwUpdate.password           = data["fwUpdate"]["password"] | "";
         fwUpdate.autoCheck          = data["fwUpdate"]["autoCheck"] | false;
         fwUpdate.autoInstall        = data["fwUpdate"]["autoInstall"] | false;
+
+        if (data["team"]["watchActive"].isNull()) needsRewrite = true;
+        team.watchActive            = data["team"]["watchActive"] | false;
+        team.watchCalls             = data["team"]["watchCalls"] | "";
+        team.timeoutMin             = constrain((int)(data["team"]["timeoutMin"] | 10), 1, 120);
+        team.maxKm                  = constrain((int)(data["team"]["maxKm"] | 0), 0, 500);
+        team.pollSec                = (int)(data["team"]["pollSec"] | 0);
+        if (team.pollSec != 0) team.pollSec = constrain(team.pollSec, 60, 3600);
+        team.eaiActive              = data["team"]["eaiActive"] | false;
+        team.eaiCalls               = data["team"]["eaiCalls"] | "";
+        team.eaiCode                = data["team"]["eaiCode"] | "";
+        team.eaiMinutes             = constrain((int)(data["team"]["eaiMinutes"] | 30), 1, 50);
 
         JsonArray BeaconsArray = data["beacons"];
         for (int i = 0; i < BeaconsArray.size(); i++) {
@@ -837,6 +858,16 @@ void Configuration::setDefaultValues() {
     fwUpdate.password               = "";
     fwUpdate.autoCheck              = false;
     fwUpdate.autoInstall            = false;
+
+    team.watchActive                = false;
+    team.watchCalls                 = "";
+    team.timeoutMin                 = 10;
+    team.maxKm                      = 0;
+    team.pollSec                    = 0;
+    team.eaiActive                  = false;
+    team.eaiCalls                   = "";
+    team.eaiCode                    = "";
+    team.eaiMinutes                 = 30;
 
     for (int i = 0; i < 3; i++) {
         Beacon beacon;

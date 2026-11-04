@@ -832,6 +832,19 @@ function loadSettings(settings) {
     // WiFi AP
     document.getElementById("wifiAP.password").value                    = settings.wifiAP.password;
 
+    // GROUP WATCH / REMOTE EMERGENCY
+    if (settings.team) {
+        document.getElementById("team.watchActive").checked             = settings.team.watchActive;
+        document.getElementById("team.watchCalls").value                = settings.team.watchCalls;
+        document.getElementById("team.timeoutMin").value                = settings.team.timeoutMin;
+        document.getElementById("team.maxKm").value                     = settings.team.maxKm;
+        document.getElementById("team.pollSec").value                   = settings.team.pollSec;
+        document.getElementById("team.eaiActive").checked               = settings.team.eaiActive;
+        document.getElementById("team.eaiCalls").value                  = settings.team.eaiCalls;
+        document.getElementById("team.eaiCode").value                   = settings.team.eaiCode;
+        document.getElementById("team.eaiMinutes").value                = settings.team.eaiMinutes;
+    }
+
     // FIRMWARE UPDATE
     if (settings.fwUpdate) {
         document.getElementById("fwUpdate.ssid").value                  = settings.fwUpdate.ssid;

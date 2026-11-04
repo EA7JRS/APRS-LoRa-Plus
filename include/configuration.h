@@ -31,6 +31,20 @@ public:
 };
 
 // Actualizacion del firmware (5.3.1): WiFi de casa para buscar versiones nuevas y opciones automaticas
+// Vigilancia de grupo (estilo ARTS) y emergencia remota (estilo EAI)
+class TeamConfig {
+public:
+    bool    watchActive;        // vigila a las estaciones de la lista y avisa al entrar/salir de alcance
+    String  watchCalls;         // indicativos separados por comas o espacios (maximo 5); sin SSID = cualquier SSID
+    int     timeoutMin;         // minutos sin oirla para darla por fuera de alcance
+    int     maxKm;              // distancia maxima en km (0 = sin limite)
+    int     pollSec;            // 0 = solo escucha; >= 60: envia "ping" a quien no se oye desde hace ese tiempo
+    bool    eaiActive;          // permite la emergencia remota por mensaje APRS
+    String  eaiCalls;           // quien puede activarla (maximo 5 indicativos)
+    String  eaiCode;            // codigo (4-12 caracteres) que debe llevar el mensaje "EAI <codigo>"
+    int     eaiMinutes;         // duracion de la emergencia remota (1-50 min)
+};
+
 class FwUpdate {
 public:
     String  ssid;                       // red WiFi (cliente) con internet; vacio = sin comprobacion en linea
@@ -268,6 +282,7 @@ public:
 
     WiFiAP                  wifiAP;
     FwUpdate                fwUpdate;
+    TeamConfig              team;
     std::vector<Beacon>     beacons;
     Display                 display;
     Battery                 battery;
