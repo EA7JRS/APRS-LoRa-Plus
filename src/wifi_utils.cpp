@@ -21,6 +21,7 @@
 #include "configuration.h"
 #include "web_utils.h"
 #include "display.h"
+#include "pages_utils.h"
 
 extern      Configuration       Config;
 extern      logging::Logger     logger;
@@ -41,11 +42,24 @@ namespace WIFI_Utils {
 
     void checkIfWiFiAP() {
         if (Config.wifiAP.active || Config.beacons[0].callsign == "NOCALL-7"){
-            displayShow(" LoRa APRS", "    ** WEB-CONF **","", "WiFiAP:LoRaTracker-AP", "IP    :   192.168.4.1","");
+            #ifdef HAS_APRS_PAGES
+                PAGES_Utils::showWifiAp("LoRaTracker-AP", Config.wifiAP.password.c_str(), "192.168.4.1", 0, 120);
+            #else
+                displayShow(" LoRa APRS", "    ** WEB-CONF **","", "WiFiAP:LoRaTracker-AP", "IP    :   192.168.4.1","");
+            #endif
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration Started!");
             startAutoAP();
             WEB_Utils::setup();
             while (true) {
+                #ifdef HAS_APRS_PAGES
+                    static uint32_t lastDraw = 0;
+                    if (millis() - lastDraw >= 1000) {
+                        lastDraw = millis();
+                        const int cli = WiFi.softAPgetStationNum();
+                        const int left = (noClientsTime == 0) ? 120 : (int)(120 - (millis() - noClientsTime) / 1000);
+                        PAGES_Utils::showWifiAp("LoRaTracker-AP", Config.wifiAP.password.c_str(), WiFi.softAPIP().toString().c_str(), cli, left < 0 ? 0 : left);
+                    }
+                #endif
                 if (WiFi.softAPgetStationNum() > 0) {
                     noClientsTime = 0;
                 } else {
@@ -53,7 +67,11 @@ namespace WIFI_Utils {
                         noClientsTime = millis();
                     } else if ((millis() - noClientsTime) > 2 * 60 * 1000) {
                         logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration Stopped!");
-                        displayShow("", "", "  STOPPING WiFi AP", 2000);
+                        #ifdef HAS_APRS_PAGES
+                            displayPopup("APRS LoRa+", "Stopping WiFi AP", "Restarting...", -1, 2000);
+                        #else
+                            displayShow("", "", "  STOPPING WiFi AP", 2000);
+                        #endif
                         #ifdef RPC_MicroTracker
                             digitalWrite(15, HIGH);    // Led WiFI
                         #endif

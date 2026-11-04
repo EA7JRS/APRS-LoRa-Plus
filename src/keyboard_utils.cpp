@@ -588,14 +588,20 @@ namespace KEYBOARD_Utils {
         }
 
         else if (menuDisplay == 9000) {
-            #if defined(HAS_AXP192) || defined(HAS_AXP2101)
+            #ifdef HAS_APRS_PAGES
+                displayPopup("APRS LoRa+", "Power off", "Bye!", -1, 2000);
+            #elif defined(HAS_AXP192) || defined(HAS_AXP2101)
                 displayShow("", "", "    POWER OFF ...", 2000);
             #else
                 displayShow("", "", "  starting DEEP SLEEP", 2000);
             #endif
             POWER_Utils::shutdown();
         } else if (menuDisplay == 9001) {
-            displayShow("", "", "  STARTING WiFi AP", 2000);
+            #ifdef HAS_APRS_PAGES
+                displayPopup("APRS LoRa+", "Starting WiFi AP", "Restarting...", -1, 2000);
+            #else
+                displayShow("", "", "  STARTING WiFi AP", 2000);
+            #endif
             Config.wifiAP.active = true;
             Config.writeFile();
             ESP.restart();

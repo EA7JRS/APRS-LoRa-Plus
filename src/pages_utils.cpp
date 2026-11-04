@@ -3732,6 +3732,21 @@ namespace PAGES_Utils {
         pagesFlush();
     }
 
+    // Pantalla del punto de acceso WiFi de configuracion (WEB-CONF), con el formato de las paginas APRS (EA7JRS)
+    void showWifiAp(const char* ssid, const char* password, const char* ip, int clients, int idleSecsLeft) {
+        pagesBegin();
+        rowLimit = 21;
+        header("WIFI AP", "WEB-CONF");
+        row(0, "Web configuration");
+        row(1, "SSID %.15s", ssid);
+        row(2, "Pass %.15s", password);
+        row(3, "IP   %s", ip);
+        row(4, "Clients: %d", clients);
+        if (clients > 0 || idleSecsLeft < 0) row(5, "In use");
+        else                                 row(5, "Closes in %d:%02d", idleSecsLeft / 60, idleSecsLeft % 60);
+        pagesFlush();
+    }
+
     static void changedPage() {
         lastIndex = 0;
         lastView = 0;

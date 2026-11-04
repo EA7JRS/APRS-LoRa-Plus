@@ -48,6 +48,7 @@ namespace PAGES_Utils {
     void    update();                   // cada vuelta del bucle: muestreo de altitud, presion y rumbo
     void    show();                     // dibuja la pagina actual (pantalla principal, menuDisplay 0)
     void    showSplash(const String& version, const String& callsign);   // pantalla de bienvenida
+    void    showWifiAp(const char* ssid, const char* password, const char* ip, int clients, int idleSecsLeft);   // punto de acceso WEB-CONF (idleSecsLeft < 0: sin cuenta atras)
     uint8_t selectMode();                // tras la bienvenida: APRS LoRa / APRS FSK / MORSE (pulsacion corta = siguiente, larga = aceptar)
     void    next();                     // pulsacion corta
     void    previous();
