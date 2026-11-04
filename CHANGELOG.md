@@ -1,5 +1,9 @@
 # Changelog
 
+## Próxima versión — en desarrollo (aún sin publicar)
+- Aviso de actualización de firmware en ventana emergente pequeña (título, dos líneas y barra de progreso) en lugar de texto desbordado en las OLED de 128x64.
+- **Teclado Yaesu FH-2** (escalera de resistencias) en un pin ADC: las teclas 1–5 envían los mensajes CW 1–5 con la página MORSE abierta. Se calibra desde la WebUI (LoRa → CW / Morse → *FH-2 keypad*: pulsar la tecla y *Read*). Ver `docs/CW_MORSE.md`. Sin probar con el teclado real.
+
 ## 5.3.1 — 2026-11-03
 APRS FSK 9600: nuevo selector **Packet protocol (TX)** por perfil FSK: **AX.25** (como hasta ahora), **FX.25** (corrección de errores Reed-Solomon con 16, 32 o 64 bytes de control; sigue siendo AX.25 para las estaciones que no lo conocen) o **IL2P** (cabecera compacta + Reed-Solomon; solo la oyen estaciones IL2P). La recepción entiende AX.25, FX.25 e IL2P a la vez, sin ajustes. Codificadores y decodificadores escritos desde las especificaciones y verificados en PC contra Dire Wolf (GPL-2.0 o posterior): los 11 formatos FX.25 en los dos sentidos y 12 tramas IL2P idénticas byte a byte. Sin probar en placa. Las tramas que no caben en un bloque de 255 bytes se emiten como AX.25 normal. Ver `docs/FSK_G3RUH.md`.
 

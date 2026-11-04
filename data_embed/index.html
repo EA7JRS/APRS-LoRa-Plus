@@ -602,6 +602,21 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     </div>
                                 </div>
                                 <div class="row">
+                                    <div class="col-12 px-1 mb-1"><small>Yaesu FH-2 keypad (keys 1-5 send CW messages 1-5): wire the keypad between an ADC pin and GND, with a 10 k&Omega; resistor from that pin to 3V3. Choose the pin, save, then press each key and click its Read button.</small></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="cw.keypadPin" id="cw.keypadPin" min="-1" max="48" value="-1" required />
+                                        <label for="cw.keypadPin">FH-2 keypad ADC GPIO (-1 = none)</label>
+                                    </div>
+                                    <div class="col-6 col-md-9 px-1 mb-2 d-flex align-items-center"><small id="kp-live">Live: -</small></div>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="cw.keypadMv0" id="cw.keypadMv0" min="0" max="3300" value="0" /><label for="cw.keypadMv0">Key 1 (mV)</label><button type="button" class="btn btn-sm btn-outline-secondary w-100 kp-read" data-k="0">Read</button></div>
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="cw.keypadMv1" id="cw.keypadMv1" min="0" max="3300" value="0" /><label for="cw.keypadMv1">Key 2 (mV)</label><button type="button" class="btn btn-sm btn-outline-secondary w-100 kp-read" data-k="1">Read</button></div>
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="cw.keypadMv2" id="cw.keypadMv2" min="0" max="3300" value="0" /><label for="cw.keypadMv2">Key 3 (mV)</label><button type="button" class="btn btn-sm btn-outline-secondary w-100 kp-read" data-k="2">Read</button></div>
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="cw.keypadMv3" id="cw.keypadMv3" min="0" max="3300" value="0" /><label for="cw.keypadMv3">Key 4 (mV)</label><button type="button" class="btn btn-sm btn-outline-secondary w-100 kp-read" data-k="3">Read</button></div>
+                                    <div class="form-floating col-4 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="cw.keypadMv4" id="cw.keypadMv4" min="0" max="3300" value="0" /><label for="cw.keypadMv4">Key 5 (mV)</label><button type="button" class="btn btn-sm btn-outline-secondary w-100 kp-read" data-k="4">Read</button></div>
+                                </div>
+                                <div class="row">
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2">
                                         <input type="number" class="form-control form-control-sm" name="cw.trainerLevel" id="cw.trainerLevel" min="2" max="41" value="4" required />
                                         <label for="cw.trainerLevel">Trainer level (Koch, 2-41)</label>

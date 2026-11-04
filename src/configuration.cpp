@@ -92,6 +92,8 @@ bool Configuration::writeFile() {
         data["cw"]["keyPin"]                        = cw.keyPin;
         data["cw"]["dahPin"]                        = cw.dahPin;
         data["cw"]["swapPaddles"]                   = cw.swapPaddles;
+        data["cw"]["keypadPin"]                     = cw.keypadPin;
+        for (int i = 0; i < CW_MESSAGE_COUNT; i++) data["cw"]["keypadMv"][i] = cw.keypadMv[i];
         data["cw"]["keyTx"]                         = cw.keyTx;
         data["cw"]["sidetone"]                      = cw.sidetone;
         data["cw"]["trainerLevel"]                  = cw.trainerLevel;
@@ -337,6 +339,8 @@ bool Configuration::readFile() {
         cw.keyPin       = data["cw"]["keyPin"] | cw.keyPin;
         cw.dahPin       = data["cw"]["dahPin"] | cw.dahPin;
         cw.swapPaddles  = data["cw"]["swapPaddles"] | cw.swapPaddles;
+        cw.keypadPin    = data["cw"]["keypadPin"] | cw.keypadPin;
+        for (int i = 0; i < CW_MESSAGE_COUNT; i++) cw.keypadMv[i] = data["cw"]["keypadMv"][i] | cw.keypadMv[i];
         cw.keyTx        = data["cw"]["keyTx"] | cw.keyTx;
         cw.sidetone     = data["cw"]["sidetone"] | cw.sidetone;
         if (data["cw"]["trainerLevel"].isNull()) needsRewrite = true;
@@ -808,6 +812,8 @@ void Configuration::setCwDefaults() {
     cw.keyPin = -1;
     cw.dahPin = -1;
     cw.swapPaddles = false;
+    cw.keypadPin = -1;
+    for (int i = 0; i < CW_MESSAGE_COUNT; i++) cw.keypadMv[i] = 0;
     cw.keyTx = true;
     cw.sidetone = true;
     cw.trainerLevel = 4;

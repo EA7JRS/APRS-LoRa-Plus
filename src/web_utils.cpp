@@ -25,6 +25,7 @@
 #include "display.h"
 #include "utils.h"
 #include "fw_update.h"
+#include "keypad_fh2.h"
 
 extern Configuration               Config;
 extern String                      versionNumber;
@@ -84,6 +85,17 @@ namespace WEB_Utils {
         json += String((int)GPS_Utils::antennaStatus());              // L76K: 0 desconocido, 1 OK, 2 abierta, 3 cortocircuito
         json += "}";
         request->send(200, "application/json", json);
+    }
+
+    // Lectura del pin ADC del teclado FH-2 (calibracion desde la WebUI)
+    void handleKeypad(AsyncWebServerRequest *request) {
+        const int pin = request->hasParam("pin") ? request->getParam("pin")->value().toInt() : -1;
+        String json;
+        if (FH2::adcPinOk(pin)) json = "{\"ok\":true,\"mv\":" + String(FH2::readMv(pin)) + "}";
+        else                    json = "{\"ok\":false}";
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", json);
+        response->addHeader("Cache-Control", "no-store");
+        request->send(response);
     }
 
     void handleHome(AsyncWebServerRequest *request) {
@@ -220,6 +232,8 @@ namespace WEB_Utils {
         Config.cw.keyPin      = constrain(getParamIntSafe("cw.keyPin", Config.cw.keyPin), -1, 48);
         Config.cw.dahPin      = constrain(getParamIntSafe("cw.dahPin", Config.cw.dahPin), -1, 48);
         Config.cw.swapPaddles = request->hasParam("cw.swapPaddles", true);
+        Config.cw.keypadPin   = constrain(getParamIntSafe("cw.keypadPin", Config.cw.keypadPin), -1, 48);
+        for (int i = 0; i < CW_MESSAGE_COUNT; i++) Config.cw.keypadMv[i] = constrain(getParamIntSafe("cw.keypadMv" + String(i), Config.cw.keypadMv[i]), 0, 3300);
         Config.cw.keyTx       = request->hasParam("cw.keyTx", true);
         Config.cw.sidetone    = request->hasParam("cw.sidetone", true);
         Config.cw.trainerLevel  = constrain(getParamIntSafe("cw.trainerLevel", Config.cw.trainerLevel), 2, 41);
@@ -525,6 +539,7 @@ namespace WEB_Utils {
         server.on("/status", HTTP_GET, handleStatus);
         server.on("/version", HTTP_GET, handleVersion);
         server.on("/gpsinfo", HTTP_GET, handleGpsInfo);
+        server.on("/api/keypad", HTTP_GET, handleKeypad);
         //server.on("/received-packets.json", HTTP_GET, handleReceivedPackets);
         server.on("/configuration.json", HTTP_GET, handleReadConfiguration);
         server.on("/configuration.json", HTTP_POST, handleWriteConfiguration);

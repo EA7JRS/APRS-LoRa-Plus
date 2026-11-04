@@ -53,6 +53,7 @@
 #include "dapnet_utils.h"
 #include "station_utils.h"
 #include "sleep_utils.h"
+#include "keypad_fh2.h"
 
 #ifndef PAGES_GYRO_SIGN
     #define PAGES_GYRO_SIGN     -1      // sentido inicial del giroscopio (se corrige solo al girar con la brujula valida)
@@ -2022,10 +2023,12 @@ namespace PAGES_Utils {
     void lrfhssPoll();                      // idem (modo LR-FHSS)
     void dapnetPoll();                      // idem (modo DAPNET)
     void cwBeaconPoll();                    // idem
+    void cwKeypadPoll();                    // idem (teclado Yaesu FH-2)
 
     void update() {
         uint32_t nowMs = millis();
         cwKeyPoll();
+        cwKeypadPoll();
         cwBeaconPoll();
         wsprPoll();
         ftPoll();
@@ -3161,6 +3164,32 @@ namespace PAGES_Utils {
         char message[24];
         snprintf(message, sizeof(message), "Score %u/%u", (unsigned)ok, (unsigned)total);
         showToast(message);
+    }
+
+    // Teclado Yaesu FH-2 en un pin ADC: las teclas 1-5 emiten los mensajes CW 1-5 (una vez por pulsacion; hay que soltar para repetir)
+    void cwKeypadPoll() {
+        static int     lastPin = -2;
+        static int     cand    = -1;
+        static uint8_t stable  = 0;
+        static bool    latched = false;
+        static uint32_t lastMs = 0;
+        const int pin = Config.cw.keypadPin;
+        if (page != PAGE_CW || submenuOpen || pin < 0 || !FH2::adcPinOk(pin) || sosState != SOS_IDLE || alarmShown) return;
+        const uint32_t t = millis();
+        if (t - lastMs < 15) return;
+        lastMs = t;
+        if (pin != lastPin) { pinMode(pin, INPUT); lastPin = pin; }
+        const int mv = analogReadMilliVolts(pin);
+        const int k = FH2::classify(mv, Config.cw.keypadMv, CW_MESSAGE_COUNT);
+        if (k < 0) {
+            cand = -1; stable = 0;
+            if (mv >= FH2::IDLE_MV) latched = false;                // tecla soltada
+            return;
+        }
+        if (latched) return;
+        if (k == cand) {
+            if (++stable >= 3) { latched = true; sendCw((uint8_t)k); displayTime = millis(); }
+        } else { cand = k; stable = 1; }
     }
 
     void cwKeyPoll() {

@@ -236,6 +236,8 @@ public:
     int     keyPin;                             // GPIO del jack (punta): manipulador vertical / punto; -1 = sin manipulador
     int     dahPin;                             // GPIO del jack (anillo): raya; -1 = sin
     bool    swapPaddles;                        // intercambia punto y raya (zurdos)
+    int     keypadPin;                          // GPIO con ADC del teclado Yaesu FH-2 (escalera de resistencias + pull-up a 3V3); -1 = sin teclado
+    int     keypadMv[CW_MESSAGE_COUNT];         // milivoltios medidos al pulsar las teclas 1-5 (calibracion); 0 = sin calibrar
     bool    keyTx;                              // el manipulador tambien emite la portadora RF
     bool    sidetone;                           // tono local en el zumbador al manipular
     int     trainerLevel;                       // nivel Koch del trainer (cuantos caracteres, 2-41)

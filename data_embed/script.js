@@ -568,6 +568,8 @@ function loadSettings(settings) {
         document.getElementById("cw.keyMode").value = String(cw.keyMode ?? 0);
         document.getElementById("cw.keyPin").value = cw.keyPin ?? -1;
         document.getElementById("cw.dahPin").value = cw.dahPin ?? -1;
+        document.getElementById("cw.keypadPin").value = cw.keypadPin ?? -1;
+        for (let k = 0; k < 5; k++) document.getElementById("cw.keypadMv" + k).value = (cw.keypadMv && cw.keypadMv[k]) || 0;
         document.getElementById("cw.keyTx").checked = cw.keyTx ?? true;
         document.getElementById("cw.sidetone").checked = cw.sidetone ?? true;
         document.getElementById("cw.swapPaddles").checked = cw.swapPaddles ?? false;
@@ -1014,6 +1016,26 @@ document.getElementById("fw-upload").addEventListener("click", () => {
 });
 
 fwLoadInfo();
+
+// ---- Yaesu FH-2 keypad: read the ADC pin to calibrate keys 1-5 ----
+function kpRead(cb) {
+    fetch("/api/keypad?pin=" + encodeURIComponent(document.getElementById("cw.keypadPin").value) + "&_t=" + Date.now())
+        .then(r => r.json())
+        .then(j => cb(j))
+        .catch(() => cb(null));
+}
+document.querySelectorAll(".kp-read").forEach(btn => btn.addEventListener("click", () => {
+    kpRead(j => {
+        if (!j || !j.ok) { showToast("Choose a valid ADC GPIO first"); return; }
+        if (j.mv > 3000) { showToast("No key pressed (" + j.mv + " mV). Hold the key while clicking Read."); return; }
+        document.getElementById("cw.keypadMv" + btn.dataset.k).value = j.mv;
+        showToast("Key " + (Number(btn.dataset.k) + 1) + ": " + j.mv + " mV. Save the configuration to keep it.");
+    });
+}));
+setInterval(() => {
+    if (document.getElementById("cw.keypadPin").value < 0 || document.hidden) { document.getElementById("kp-live").textContent = "Live: -"; return; }
+    kpRead(j => { document.getElementById("kp-live").textContent = (j && j.ok) ? "Live: " + j.mv + " mV" : "Live: -"; });
+}, 1500);
 
 // Display Switches
 const DisplayEcoModeCheckbox    = document.querySelector('input[name="display.ecoMode"]');
