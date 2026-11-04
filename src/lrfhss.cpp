@@ -71,9 +71,13 @@ namespace LRFHSS {
     }
 
     bool gridValid(const char* g) {
-        if (!g || strlen(g) != 6) return false;
-        return g[0] >= 'A' && g[0] <= 'R' && g[1] >= 'A' && g[1] <= 'R' && g[2] >= '0' && g[2] <= '9' && g[3] >= '0' && g[3] <= '9' &&
-               g[4] >= 'A' && g[4] <= 'X' && g[5] >= 'A' && g[5] <= 'X';
+        if (!g) return false;
+        const size_t n = strlen(g);
+        if (n != 4 && n != 6 && n != 8) return false;
+        if (!(g[0] >= 'A' && g[0] <= 'R' && g[1] >= 'A' && g[1] <= 'R' && g[2] >= '0' && g[2] <= '9' && g[3] >= '0' && g[3] <= '9')) return false;
+        if (n >= 6 && !(g[4] >= 'A' && g[4] <= 'X' && g[5] >= 'A' && g[5] <= 'X')) return false;
+        if (n == 8 && !(g[6] >= '0' && g[6] <= '9' && g[7] >= '0' && g[7] <= '9')) return false;
+        return true;
     }
 
     size_t beaconEncode(const char* call, const char* grid, int dbm, char* out, size_t cap) {
@@ -86,7 +90,7 @@ namespace LRFHSS {
     }
 
     bool beaconParse(const char* msg, char* call, size_t callCap, char* grid, size_t gridCap, int* dbm) {
-        if (!msg || strncmp(msg, "PB1 ", 4) != 0 || callCap < 11 || gridCap < 7) return false;
+        if (!msg || strncmp(msg, "PB1 ", 4) != 0 || callCap < 11 || gridCap < 9) return false;
         char c[16], g[16];
         int p = 0;
         if (sscanf(msg + 4, "%15s %15s %d", c, g, &p) != 3) return false;

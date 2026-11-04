@@ -9,7 +9,7 @@ Modo de transmisión **propio, independiente del WSPR** y **desactivado por defe
 ## 1. Qué hace
 
 - **Estado actual (5.3.0):** el modo se activa desde la WebUI, tarjeta «LR-FHSS Beacon», con el interruptor *Enable the LR-FHSS beacon* (apagado por defecto). Al activarlo aparece **LR-FHSS beacon** en SELECT MODE al arrancar (pulsación larga para aceptarlo, como MORSE y WSPR; no se guarda como modo predeterminado). Necesita hora GPS válida. Su submenú tiene su propio *Beacon ON/OFF*. El titular responde de la autorización que exijan las normas nacionales.
-- Envía el texto ASCII `PB1 <indicativo> <locator de 6> <dBm>`, p. ej. `PB1 EA7JRS IM67NG 14` (unos 20 bytes, ≈ 2,2 s en el aire con CR 1/3).
+- Envía el texto ASCII `PB1 <indicativo> <locator> <dBm>`, p. ej. `PB1 EA7JRS IM67NG 14` (20 bytes, ≈ 1,9 s en el aire con CR 1/3 según la estimación del firmware). El locator puede ser de **4, 6 u 8 caracteres** (ver abajo); el formato sigue siendo `PB1` porque la longitud los distingue.
 - **Ranura:** segundo **114** de un minuto par, cada 2–60 min (por defecto 10), con un desplazamiento que depende del indicativo. Al ser un modo aparte no se solapa con ninguna emisión WSPR.
 - **Placas:** solo SX1262/SX1268 (T-Beam S3 Supreme). El SX1278 (T-Beam 1.2) no tiene LR-FHSS.
 - La pantalla del modo LR-FHSS muestra indicativo, locator, potencia, frecuencia, ancho, hora UTC, cuenta atrás (`Next TX mm:ss`), intervalo y balizas enviadas, o el aviso correspondiente. El modo WSPR no tiene nada de LR-FHSS.
@@ -24,8 +24,19 @@ Modo de transmisión **propio, independiente del WSPR** y **desactivado por defe
 | Coding rate | 5/6, 2/3, 1/2 o 1/3 (por defecto 1/3, el más robusto) |
 | Power (dBm) | −9 a 22; es la que se anuncia en el mensaje |
 | Transmit | Una baliza cada 2, 4, 6, 8, 10, 12, 20, 30 o 60 min |
-| Fixed locator | 6 caracteres; vacío = el de la posición GPS |
+| Fixed locator | 4, 6 u 8 caracteres; vacío = el de la posición GPS. Si es más largo que la precisión elegida se recorta; si es más corto se emite tal cual |
+| Locator precision | 4, 6 (por defecto) u 8 caracteres |
 | Narrow hopping grid | Rejilla de saltos de 3,9 kHz (activada) o 25,4 kHz |
+
+**Precisión del locator** (a unos 37° N; tiempo en el aire estimado con CR 1/3):
+
+| Caracteres | Casilla | Mensaje de ejemplo | Aire |
+|---|---|---|---|
+| 4 (`IM67`) | ≈ 177 × 111 km | `PB1 EA7JRS IM67 14` (18 B) | ≈ 1,8 s |
+| 6 (`IM67NG`) | ≈ 7,4 × 4,6 km | `PB1 EA7JRS IM67NG 14` (20 B) | ≈ 1,9 s |
+| 8 (`IM67NG45`) | ≈ 740 × 460 m | `PB1 EA7JRS IM67NG45 14` (22 B) | ≈ 2,0 s |
+
+Con 4 caracteres el error de la distancia calculada puede pasar de 100 km, demasiado para estudiar propagación en 70 cm. 6 es el equilibrio recomendado. **8 caracteres revelan tu posición con precisión de calle**: úsalos solo si es lo que quieres emitir. Cada byte añade unos 50 ms con CR 1/3 (casi nada con CR 5/6). Un decodificador futuro debe aceptar las tres longitudes.
 
 ## 3. Protecciones de frecuencia del firmware
 

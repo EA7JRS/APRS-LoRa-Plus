@@ -2824,11 +2824,11 @@ namespace PAGES_Utils {
 
     uint16_t lrfhssInterval();
     void lrfhssCall(char out[11]);
-    bool lrfhssGrid(char out[7]);
+    bool lrfhssGrid(char out[9]);
 
     void drawLrfPage() {
         header(PAGE_TITLES[PAGE_LRF], lrfhssOn ? "ON" : "OFF");
-        char call[11], grid[7] = "------";
+        char call[11], grid[9] = "------";
         lrfhssCall(call);
         lrfhssGrid(grid);
         row(0, "%s %s %ddBm", call, grid, Config.lrfhss.powerDbm);
@@ -3101,20 +3101,26 @@ namespace PAGES_Utils {
         snprintf(out, 11, "%s", bare.c_str());
     }
 
-    // Locator de 6 caracteres: el fijo de la WebUI o el del GPS
-    bool lrfhssGrid(char out[7]) {
+    // Locator de 4, 6 u 8 caracteres (Config.lrfhss.locatorLen): el fijo de la WebUI (recortado a esa precision) o el del GPS
+    bool lrfhssGrid(char out[9]) {
+        const size_t want = (Config.lrfhss.locatorLen == 4 || Config.lrfhss.locatorLen == 8) ? (size_t)Config.lrfhss.locatorLen : 6;
         String fixed = Config.lrfhss.locator;
         fixed.trim();
         fixed.toUpperCase();
-        if (fixed.length() == 6 && LRFHSS::gridValid(fixed.c_str())) { snprintf(out, 7, "%s", fixed.c_str()); return true; }
+        if (LRFHSS::gridValid(fixed.c_str())) {                                    // un fijo mas corto que lo pedido se emite tal cual; uno mas largo se recorta
+            const size_t len = fixed.length() < want ? fixed.length() : want;
+            memcpy(out, fixed.c_str(), len);
+            out[len] = '\0';
+            return true;
+        }
         double lat, lon;
         if (!ownPosition(lat, lon)) return false;
-        const char* loc = Utils::getMaidenheadLocator(lat, lon, 6);
-        char g[7];
-        for (int i = 0; i < 6; i++) g[i] = (char)toupper(loc[i]);
-        g[6] = '\0';
+        const char* loc = Utils::getMaidenheadLocator(lat, lon, (uint8_t)want);
+        char g[9];
+        for (size_t i = 0; i < want; i++) g[i] = (char)toupper(loc[i]);
+        g[want] = '\0';
         if (!LRFHSS::gridValid(g)) return false;
-        memcpy(out, g, 7);
+        memcpy(out, g, want + 1);
         return true;
     }
 
@@ -3127,7 +3133,7 @@ namespace PAGES_Utils {
         if (fc < 0) { lrfhssSet(LRFHSS::freqCheckText(fc), 0); lrfhssNextAt = 0; return; }     // frecuencia no permitida: no se emite
         uint32_t msDay;
         if (!wsprMsOfDay(msDay)) { lrfhssNextAt = 0; return; }
-        char call[11], grid[7];
+        char call[11], grid[9];
         lrfhssCall(call);
         if (!LRFHSS::callValid(call)) { lrfhssSet("LRF: bad callsign", 0); lrfhssNextAt = 0; return; }
         if (!lrfhssGrid(grid)) { lrfhssSet("LRF: WAIT GPS POS", 0); lrfhssNextAt = 0; return; }

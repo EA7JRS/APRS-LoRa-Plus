@@ -40,9 +40,9 @@ namespace LRFHSS {
     int         freqCheck(uint32_t freqHz, uint8_t bwIdx);
     const char* freqCheckText(int code);   // texto corto para pantalla / log
 
-    // Baliza de propagacion: texto ASCII "PB1 <indicativo> <locator> <dBm>", p. ej. "PB1 EA7JRS IM67NG 14" (indicativo, locator de 6 caracteres y potencia)
+    // Baliza de propagacion: texto ASCII "PB1 <indicativo> <locator> <dBm>", p. ej. "PB1 EA7JRS IM67NG 14" (indicativo, locator de 4, 6 u 8 caracteres y potencia)
     bool        callValid(const char* call);        // 3 a 10 caracteres A-Z, 0-9 y '/', con al menos un digito
-    bool        gridValid(const char* grid);        // locator de 6 caracteres: AA00AA .. RR99XX (mayusculas)
+    bool        gridValid(const char* grid);        // locator de 4 (AA00), 6 (AA00AA) u 8 (AA00AA00) caracteres, en mayusculas; la longitud los distingue y el formato sigue siendo PB1
     // Escribe el mensaje en out (terminado en '\0'). Devuelve su longitud o 0 si los datos no son validos / no caben
     size_t      beaconEncode(const char* call, const char* grid, int dbm, char* out, size_t cap);
     bool        beaconParse(const char* msg, char* call, size_t callCap, char* grid, size_t gridCap, int* dbm);

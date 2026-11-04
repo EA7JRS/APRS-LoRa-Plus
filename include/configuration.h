@@ -239,7 +239,8 @@ public:
     bool    narrowGrid;                         // true: rejilla de 3,9 kHz; false: 25,4 kHz
     int     powerDbm;                           // potencia de salida (dBm); es la que se anuncia en el mensaje
     int     intervalMin;                        // una emision cada N minutos (par: 2, 4, 6, 8, 10, 12, 20, 30, 60)
-    String  locator;                            // locator fijo de 6 caracteres; vacio = el del GPS
+    String  locator;                            // locator fijo de 4, 6 u 8 caracteres; vacio = el del GPS
+    int     locatorLen;                         // precision del locator que se emite: 4, 6 (por defecto) u 8 caracteres (8 = unos 700 x 460 m: revela la posicion casi exacta)
 };
 
 #define CW_MESSAGE_COUNT    5

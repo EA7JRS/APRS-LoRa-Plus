@@ -531,6 +531,7 @@ function loadSettings(settings) {
         document.getElementById("lrfhss.powerDbm").value = lr.powerDbm ?? 10;
         document.getElementById("lrfhss.intervalMin").value = String(lr.intervalMin ?? 10);
         document.getElementById("lrfhss.locator").value = lr.locator ?? "";
+        document.getElementById("lrfhss.locatorLen").value = String(lr.locatorLen ?? 6);
         lrfhssWire();
         document.getElementById("wspr.freqHz").value = 432301500;      // fixed: not editable
         document.getElementById("wspr.corrHz").value = wspr.corrHz ?? 0;

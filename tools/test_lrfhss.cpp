@@ -26,12 +26,23 @@ int main() {
     char msg[40];
     CHECK(beaconEncode("EA7JRS", "IM67NG", 14, msg, sizeof(msg)) == strlen("PB1 EA7JRS IM67NG 14"));
     CHECK(strcmp(msg, "PB1 EA7JRS IM67NG 14") == 0);
-    CHECK(beaconEncode("EA7JRS", "IM67", 14, msg, sizeof(msg)) == 0);       // locator de 4: invalido
+    CHECK(beaconEncode("EA7JRS", "IM67", 14, msg, sizeof(msg)) == strlen("PB1 EA7JRS IM67 14") && strcmp(msg, "PB1 EA7JRS IM67 14") == 0);   // locator de 4
+    CHECK(beaconEncode("EA7JRS", "IM67NG45", 14, msg, sizeof(msg)) == strlen("PB1 EA7JRS IM67NG45 14") && strcmp(msg, "PB1 EA7JRS IM67NG45 14") == 0);   // locator de 8
+    CHECK(beaconEncode("EA7JRS", "IM6", 14, msg, sizeof(msg)) == 0);        // longitudes invalidas
+    CHECK(beaconEncode("EA7JRS", "IM67N", 14, msg, sizeof(msg)) == 0);
+    CHECK(beaconEncode("EA7JRS", "IM67NG4", 14, msg, sizeof(msg)) == 0);
+    CHECK(beaconEncode("EA7JRS", "IM67NG4X", 14, msg, sizeof(msg)) == 0);   // los dos ultimos deben ser digitos
+    CHECK(beaconEncode("EA7JRS", "IM67YY", 14, msg, sizeof(msg)) == 0);     // subcuadro fuera de A-X
+    CHECK(beaconEncode("EA7JRS", "SM67", 14, msg, sizeof(msg)) == 0);       // campo fuera de A-R
+    CHECK(beaconEncode("EA7JRS", "im67ng", 14, msg, sizeof(msg)) == 0);     // solo mayusculas
     CHECK(beaconEncode("EA7JRS", "IM67NG", 99, msg, sizeof(msg)) == 0);
     CHECK(beaconEncode("ABC", "IM67NG", 14, msg, sizeof(msg)) == 0);        // sin digito
-    char c[11], g[7]; int p;
+    char c[11], g[9]; int p;
     CHECK(beaconParse("PB1 EA7JRS IM67NG 14", c, sizeof(c), g, sizeof(g), &p) && !strcmp(c, "EA7JRS") && !strcmp(g, "IM67NG") && p == 14);
     CHECK(!beaconParse("XX1 EA7JRS IM67NG 14", c, sizeof(c), g, sizeof(g), &p));
+    CHECK(beaconParse("PB1 EA7JRS IM67 14", c, sizeof(c), g, sizeof(g), &p) && !strcmp(g, "IM67") && p == 14);
+    CHECK(beaconParse("PB1 EA7JRS IM67NG45 14", c, sizeof(c), g, sizeof(g), &p) && !strcmp(g, "IM67NG45") && p == 14);
+    CHECK(!beaconParse("PB1 EA7JRS IM67NG45 14", c, sizeof(c), g, 7, &p));  // buffer pequeno para 8 caracteres
     // duracion: el mensaje tipico dura unos 2 s y cabe en el hueco tras el WSPR
     CHECK(airtimeMs(20, 3) > 1500 && airtimeMs(26, 3) < 3200);
     // ranuras: segundo 114 del minuto par

@@ -358,8 +358,12 @@ namespace WEB_Utils {
                 String loc = getParamStringSafe("lrfhss.locator", Config.lrfhss.locator);
                 loc.trim();
                 loc.toUpperCase();
-                if (loc.length() != 6) loc = "";
+                if (loc.length() != 4 && loc.length() != 6 && loc.length() != 8) loc = "";
                 Config.lrfhss.locator = loc;
+            }
+            {
+                const int len = getParamIntSafe("lrfhss.locatorLen", Config.lrfhss.locatorLen);
+                Config.lrfhss.locatorLen = (len == 4 || len == 8) ? len : 6;
             }
         }
         Config.cw.beaconMin = constrain(getParamIntSafe("cw.beaconMin", Config.cw.beaconMin), 0, 240);

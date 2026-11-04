@@ -1000,8 +1000,12 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         <label for="lrfhss.intervalMin">Transmit every</label>
                                     </div>
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2">
-                                        <input type="text" class="form-control form-control-sm" name="lrfhss.locator" id="lrfhss.locator" maxlength="6" placeholder="IM77AB" />
-                                        <label for="lrfhss.locator">Fixed locator (6 chars, empty = GPS)</label>
+                                        <input type="text" class="form-control form-control-sm" name="lrfhss.locator" id="lrfhss.locator" maxlength="8" placeholder="IM77AB" />
+                                        <label for="lrfhss.locator">Fixed locator (4, 6 or 8 chars, empty = GPS)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="lrfhss.locatorLen" id="lrfhss.locatorLen"><option value="4">4 chars (about 177 x 111 km)</option><option value="6" selected>6 chars (about 7 x 5 km)</option><option value="8">8 chars (about 740 x 460 m - reveals your exact spot)</option></select>
+                                        <label for="lrfhss.locatorLen">Locator precision</label>
                                     </div>
                                 </div>
                                 <div class="form-check form-switch">

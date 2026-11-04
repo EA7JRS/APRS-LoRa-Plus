@@ -165,6 +165,7 @@ bool Configuration::writeFile() {
         data["lrfhss"]["powerDbm"]                  = lrfhss.powerDbm;
         data["lrfhss"]["intervalMin"]               = lrfhss.intervalMin;
         data["lrfhss"]["locator"]                   = lrfhss.locator;
+        data["lrfhss"]["locatorLen"]                = lrfhss.locatorLen;
         for (int i = 0; i < 7; i++) {
             data["wspr"]["ppCorrHz"][i]             = wspr.ppCorrHz[i];
             data["wspr"]["ppDriftTenths"][i]        = wspr.ppDriftTenths[i];
@@ -451,6 +452,8 @@ bool Configuration::readFile() {
         lrfhss.powerDbm    = constrain((int)(data["lrfhss"]["powerDbm"] | lrfhss.powerDbm), -9, 22);
         lrfhss.intervalMin = constrain((int)(data["lrfhss"]["intervalMin"] | lrfhss.intervalMin), 2, 60);
         lrfhss.locator     = data["lrfhss"]["locator"] | "";
+        lrfhss.locatorLen  = (int)(data["lrfhss"]["locatorLen"] | lrfhss.locatorLen);
+        if (lrfhss.locatorLen != 4 && lrfhss.locatorLen != 8) lrfhss.locatorLen = 6;
         if (data["cw"]["beaconMin"].isNull()) needsRewrite = true;
         cw.beaconMin    = constrain((int)(data["cw"]["beaconMin"] | cw.beaconMin), 0, 240);
         cw.beaconFreq   = data["cw"]["beaconFreq"] | 0L;                    // 0 = se completa con el perfil LoRa 1 al terminar de leer
@@ -762,6 +765,7 @@ void Configuration::setLrfhssDefaults() {
     lrfhss.powerDbm    = 10;
     lrfhss.intervalMin = 10;
     lrfhss.locator     = "";
+    lrfhss.locatorLen  = 6;
 }
 
 void Configuration::setGpsDefaults() {
