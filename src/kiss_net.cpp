@@ -179,8 +179,9 @@ namespace KISS_NET {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "KISS WiFi", "No WiFi network set (Administration > Firmware update)");
             return;
         }
+        WiFi.setHostname(KISS_HOST);    // antes de crear la interfaz STA (Arduino-ESP32 3.x); si no, el router ve "espressif" / "esp32s3-xxxx"
         WiFi.mode(WIFI_STA);
-        WiFi.setHostname(KISS_HOST);
+        WiFi.setHostname(KISS_HOST);    // por si la interfaz ya existia (cambio de modo)
         WiFi.setAutoReconnect(true);
         WiFi.begin(Config.fwUpdate.ssid.c_str(), Config.fwUpdate.password.c_str());
         running     = true;

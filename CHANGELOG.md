@@ -2,6 +2,8 @@
 
 ## Próxima versión — en desarrollo (aún sin publicar)
 - **SYSTEM:** el estado de WiFi ya se ve (antes siempre ponía `off`): `CON` si el KISS por WiFi está unido a tu red, `..` mientras se une, `AP` en el punto de acceso. Con Bluetooth o WiFi activos, **1P** alterna a una vista **LINK** (no es una página más) con los detalles de las conexiones: Bluetooth (tipo, protocolo, nombre, móvil conectado) y WiFi (red, **IP**, puertos KISS, clientes, señal). Nuevo submenú (LP): **Bluetooth ON/OFF**, **BT data KISS/TNC2** (guardan y reinician) y **WiFi KISS ON/OFF** (al momento). Sin probar en placa.
+- **KISS por WiFi:** probado con APRSdroid en Android por TCP en **LoRa y FSK**. El nombre de equipo (`aprs-lora-plus`) se fija antes de crear la interfaz WiFi, para que el router y mDNS lo vean en vez de «esp…» (muchas apps de Android no resuelven `.local`: usa la IP de la vista LINK).
+- **Menú de 3 clics:** el selector *Power off / WiFi AP* del firmware base pasa a una ventana emergente pequeña y centrada titulada **APRS LoRa+** (en placas con páginas APRS); la lógica no cambia. Sin probar en placa.
 
 ## 5.3.2 — 2026-11-04
 - **KISS por WiFi:** servidor TCP (puerto 8001 por defecto, como Dire Wolf) y UDP opcional para usar la radio LoRa desde APRSdroid (probado en Android), Xastir, YAAC y similares. La placa se une a tu WiFi de casa o al punto de acceso del móvil (la red que ya indicas en Administración > Firmware update) y responde también como `aprs-lora-plus.local`. Interruptor propio en la WebUI (Connectivity > KISS over WiFi), apagado por defecto, con lista opcional de direcciones permitidas. Solo APRS LoRa y APRS FSK, y placas ESP32-S3 / C3. Mantiene la WiFi encendida (más consumo, sin sueño profundo). Sin probar en placa. Ver el manual, apartado 32.

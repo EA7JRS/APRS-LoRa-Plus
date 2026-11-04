@@ -715,10 +715,18 @@ namespace MENU_Utils {
 
 //////////
             case 9000:  //  9. multiPress Menu ---> Turn ON WiFi AP
-                displayShow(" CONFIG>", "> Turn Tracker Off","  Config. WiFi AP",  "","",lastLine);
+                #ifdef HAS_APRS_PAGES
+                    displayPopup("APRS LoRa+", "> Power off", "  WiFi AP (config)");   // ventana pequena centrada (EA7JRS)
+                #else
+                    displayShow(" CONFIG>", "> Turn Tracker Off","  Config. WiFi AP",  "","",lastLine);
+                #endif
                 break;
             case 9001:  //  9. multiPress Menu
-                displayShow(" CONFIG>", "  Turn Tracker Off","> Config. WiFi AP",  "","",lastLine);
+                #ifdef HAS_APRS_PAGES
+                    displayPopup("APRS LoRa+", "  Power off", "> WiFi AP (config)");
+                #else
+                    displayShow(" CONFIG>", "  Turn Tracker Off","> Config. WiFi AP",  "","",lastLine);
+                #endif
                 break;
 
 

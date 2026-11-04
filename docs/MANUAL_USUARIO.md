@@ -670,7 +670,7 @@ La placa puede ser un **TNC KISS por WiFi** para programas como **APRSdroid** (p
 - Hasta 3 clientes TCP a la vez. Reciben las tramas oídas por radio y las balizas que emite el propio tracker; lo que envían se transmite por LoRa (los comandos de ajuste KISS se aceptan y se ignoran). UDP: cada datagrama lleva tramas KISS completas y la placa responde a la última dirección que le escribió.
 - **Consumo:** la WiFi queda encendida y la placa no entra en sueño profundo.
 - **Seguridad:** KISS no tiene contraseña; cualquiera permitido puede transmitir con tu indicativo. Úsalo en redes de confianza y con la lista de direcciones.
-- Con el punto de acceso del móvil, la IP puede cambiar entre sesiones: mira la pantalla o usa `aprs-lora-plus.local` si tu aplicación lo resuelve. Probado con APRSdroid en Android por TCP en LoRa; UDP y FSK sin probar.
+- Con el punto de acceso del móvil, la IP puede cambiar entre sesiones: mira la pantalla o usa `aprs-lora-plus.local` si tu aplicación lo resuelve. Probado con APRSdroid en Android por TCP en **LoRa y en FSK**; UDP sin probar. El nombre `.local` (mDNS) lo resuelven bien Windows, macOS y Linux, pero **muchas aplicaciones de Android no**: allí usa la IP que muestra la vista LINK de SYSTEM. El nombre de equipo en la red es `aprs-lora-plus` (se aplica al reiniciar).
 
 ## Apéndice A — Mapa de pulsaciones por página
 

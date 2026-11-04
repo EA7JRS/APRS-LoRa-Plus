@@ -676,7 +676,7 @@ The board can be a **KISS TNC over WiFi** for programs such as **APRSdroid** (te
 - Up to 3 TCP clients at once. They receive the frames heard on the air and the beacons the tracker itself sends; what they send is transmitted over LoRa (KISS setting commands are accepted and ignored). UDP: each datagram carries whole KISS frames and the board answers the last address that wrote to it.
 - **Power:** the WiFi stays on and the board does not enter deep sleep.
 - **Security:** KISS has no password; anyone allowed can transmit with your callsign. Use it on trusted networks and with the address list.
-- With a phone hotspot the IP may change between sessions: read the screen, or use `aprs-lora-plus.local` if your application resolves it. Tested with APRSdroid on Android over TCP in LoRa; UDP and FSK untested.
+- With a phone hotspot the IP may change between sessions: read the screen, or use `aprs-lora-plus.local` if your application resolves it. Tested with APRSdroid on Android over TCP in **LoRa and FSK**; UDP untested. The `.local` name (mDNS) works on Windows, macOS and Linux, but **many Android apps do not resolve it**: use the IP shown in the LINK view of SYSTEM. The network host name is `aprs-lora-plus` (applied after a restart).
 
 ## Appendix A — Button map per page
 
