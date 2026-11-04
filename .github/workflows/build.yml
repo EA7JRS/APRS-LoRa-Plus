@@ -270,14 +270,21 @@ jobs:
                   path: ${{ matrix.target.name }}.zip
                   retention-days: 30
 
+            # 45 jobs upload at the same time and GitHub sometimes answers with a transient HTTP error (that blocked the installer deployment
+            # in 5.3.2): retry with a random pause. If it still fails, warn but do not stop the web installer; the .zip stays as a workflow artifact.
             - name: Upload Release Asset
               if: github.event_name == 'release' || inputs.tag != ''
-              uses: softprops/action-gh-release@v3
-              with:
-                  tag_name: ${{ github.event.release.tag_name || inputs.tag }}
-                  files: ${{ matrix.target.name }}.zip
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+                  ASSET: ${{ matrix.target.name }}.zip
+              run: |
+                  for attempt in 1 2 3 4 5 6; do
+                      if gh release upload "$RELEASE_TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"; then exit 0; fi
+                      echo "Upload attempt $attempt failed; retrying"
+                      sleep $(( attempt * 10 + RANDOM % 25 ))
+                  done
+                  echo "::warning::$ASSET could not be attached to release $RELEASE_TAG (available as a workflow artifact)"
 
     # Web installer + update information (GitHub Pages). Only for a published (non pre-release) release:
     # the trackers that have automatic update enabled read this site, so a test build must never reach it.
