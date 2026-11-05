@@ -892,7 +892,9 @@ function loadSettings(settings) {
     document.getElementById("notification.ledMessagePin").value         = settings.notification.ledMessagePin;
     document.getElementById("notification.ledRxBeacon").checked         = !!settings.notification.ledRxBeacon;
     document.getElementById("notification.flashEmergency").checked      = !!settings.notification.flashEmergency;
-    document.getElementById("notification.ledCw").checked               = !!settings.notification.ledCw;
+    document.getElementById("notification.ledTxCw").checked             = !!settings.notification.ledTxCw;
+    document.getElementById("notification.ledRxCw").checked             = !!settings.notification.ledRxCw;
+    document.getElementById("notification.flashCw").checked             = !!settings.notification.flashCw;
     NotificationLedMessageCheckbox.checked  = settings.notification.ledMessage;
     ledMessagePinUpdate();
     
@@ -1150,9 +1152,10 @@ NotificationLedTxCheckbox.addEventListener("change", function () {
 const NotificationLedMessageCheckbox    = document.querySelector('input[name="notification.ledMessage"]');
 const NotificationLedMessagePin         = document.querySelector('input[name="notification.ledMessagePin"]');
 function ledMessagePinUpdate() {
-    NotificationLedMessagePin.disabled = !(NotificationLedMessageCheckbox.checked || document.getElementById("notification.ledRxBeacon").checked);
+    NotificationLedMessagePin.disabled = !(NotificationLedMessageCheckbox.checked || document.getElementById("notification.ledRxBeacon").checked || document.getElementById("notification.ledRxCw").checked);
 }
 document.getElementById("notification.ledRxBeacon").addEventListener("change", ledMessagePinUpdate);
+document.getElementById("notification.ledRxCw").addEventListener("change", ledMessagePinUpdate);
 NotificationLedMessageCheckbox.addEventListener("change", function () {
     ledMessagePinUpdate();
 });

@@ -1482,51 +1482,6 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 </h5>
                             </div>
                             <div class="col-lg-9 col-sm-12">
-                                <div class="row">
-                                    <div class="col-6">
-                                        <div class="form-check form-switch">
-                                            <input
-                                                type="checkbox"
-                                                name="notification.ledTx"
-                                                id="notification.ledTx"
-                                                class="form-check-input"
-                                            />
-                                            <label
-                                                for="notification.ledTx"
-                                                class="form-label"
-                                                >Tx Led Active</label
-                                            >
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch">
-                                            <input
-                                                type="checkbox"
-                                                name="notification.ledMessage"
-                                                id="notification.ledMessage"
-                                                class="form-check-input"
-                                            />
-                                            <label
-                                                for="notification.ledMessage"
-                                                class="form-label"
-                                                >Red LED: unread messages (blinks) and emergency alarm</label
-                                            >
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input
-                                                type="checkbox"
-                                                name="notification.ledRxBeacon"
-                                                id="notification.ledRxBeacon"
-                                                class="form-check-input"
-                                            />
-                                            <label
-                                                for="notification.ledRxBeacon"
-                                                class="form-label"
-                                                >Red LED: short flash for every beacon / packet heard</label
-                                            >
-                                        </div>
-                                    </div>
-                                </div>
                                 <div id="pin-guide" class="d-none mt-3">
                                     <details class="border rounded p-2">
                                         <summary><strong id="pin-guide-title">Board pins</strong> <small class="text-muted">(which GPIO is free, which is used by the board)</small></summary>
@@ -1541,165 +1496,109 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="pin-guide-suggest">Use the suggested pins (Tx 38, Message 21, Flash 46, Buzzer 39 / 48, Key 44 / 43, FH-2 on 2)</button></div>
                                     </details>
                                 </div>
-                                <div class="row mt-1">
-                                    <div class="col-6">
-                                        <label
-                                            for="notification.ledTxPin"
-                                            class="form-label"
-                                            >Pin used for Tx Led</label
-                                        >                                    
+                                <div class="border rounded p-2 mb-2">
+                                    <div class="fw-semibold mb-1">Green LED <small class="text-muted fw-normal">Tx</small></div>
+                                    <div class="row g-2">
+                                        <div class="col-md-8 col-12">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.ledTx" id="notification.ledTx" class="form-check-input" />
+                                            <label for="notification.ledTx" class="form-check-label">Lit while transmitting</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.ledTxCw" id="notification.ledTxCw" class="form-check-input" />
+                                            <label for="notification.ledTxCw" class="form-check-label">CW mode: lit with the carrier (key down, macros, CW beacon)</label>
+                                        </div>
+                                        </div>
+                                        <div class="col-md-4 col-12">
+                                        <label for="notification.ledTxPin" class="form-label">Tx LED pin</label>
                                         <div class="input-group">
-                                            <input
-                                                type="number"
-                                                name="notification.ledTxPin"
-                                                id="notification.ledTxPin"
-                                                class="form-control"
-                                                value="13"
-                                            />
-                                            <span class="input-group-text"
-                                                >Pin</span
-                                            >
+                                            <input type="number" name="notification.ledTxPin" id="notification.ledTxPin" class="form-control" value="13" />
+                                            <span class="input-group-text">Pin</span>
                                         </div>
                                         <div class="form-text pin-hint" id="pinhint-ledTxPin"></div>
-                                    </div>                                    
-                                    <div class="col-6">
-                                        <label
-                                            for="notification.ledMessagePin"
-                                            class="form-label"
-                                            >Pin used for Message Rx Led</label
-                                        >                                    
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="border rounded p-2 mb-2">
+                                    <div class="fw-semibold mb-1">Red LED <small class="text-muted fw-normal">Rx</small></div>
+                                    <div class="row g-2">
+                                        <div class="col-md-8 col-12">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.ledMessage" id="notification.ledMessage" class="form-check-input" />
+                                            <label for="notification.ledMessage" class="form-check-label">Unread messages: blinks until you read them (fast blink on an emergency alarm)</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.ledRxBeacon" id="notification.ledRxBeacon" class="form-check-input" />
+                                            <label for="notification.ledRxBeacon" class="form-check-label">Beacons: short flash for every beacon / packet heard from another station</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.ledRxCw" id="notification.ledRxCw" class="form-check-input" />
+                                            <label for="notification.ledRxCw" class="form-check-label">CW mode: lit while a CW signal is received</label>
+                                        </div>
+                                        </div>
+                                        <div class="col-md-4 col-12">
+                                        <label for="notification.ledMessagePin" class="form-label">Rx LED pin</label>
                                         <div class="input-group">
-                                            <input
-                                                type="number"
-                                                name="notification.ledMessagePin"
-                                                id="notification.ledMessagePin"
-                                                class="form-control"
-                                                value="2"
-                                            />
-                                            <span class="input-group-text"
-                                                >Pin</span
-                                            >
+                                            <input type="number" name="notification.ledMessagePin" id="notification.ledMessagePin" class="form-control" value="2" />
+                                            <span class="input-group-text">Pin</span>
                                         </div>
                                         <div class="form-text pin-hint" id="pinhint-ledMessagePin"></div>
-                                    </div>                                    
-                                </div>
-                                <div class="row mt-3">
-                                    <div class="col-6">
-                                        <div class="form-check form-switch">
-                                            <input
-                                                type="checkbox"
-                                                name="notification.buzzerActive"
-                                                id="notification.buzzerActive"
-                                                class="form-check-input"
-                                            />
-                                            <label
-                                                for="notification.buzzerActive"
-                                                class="form-label"
-                                                >Buzzer Active</label
-                                            >
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch">
-                                            <input
-                                                type="checkbox"
-                                                name="notification.ledFlashlight"
-                                                id="notification.ledFlashlight"
-                                                class="form-check-input"
-                                            />
-                                            <label
-                                                for="notification.ledFlashlight"
-                                                class="form-label"
-                                                >Flashlight Pin Active</label
-                                            >
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input
-                                                type="checkbox"
-                                                name="notification.flashEmergency"
-                                                id="notification.flashEmergency"
-                                                class="form-check-input"
-                                            />
-                                            <label
-                                                for="notification.flashEmergency"
-                                                class="form-label"
-                                                >White flash: on an emergency alarm or own SOS it flashes in step with the buzzer siren (without a buzzer: 200 ms per second, 5 min at most); needs the flash active</label
-                                            >
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input
-                                                type="checkbox"
-                                                name="notification.ledCw"
-                                                id="notification.ledCw"
-                                                class="form-check-input"
-                                            />
-                                            <label
-                                                for="notification.ledCw"
-                                                class="form-label"
-                                                >LEDs in CW mode: green = carrier on (key down), white = Morse lamp (follows the key), red = CW signal received</label
-                                            >
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row mt-1">                                    
-                                    <div class="col-6">
-                                        <label
-                                            for="notification.buzzerPinTone"
-                                            class="form-label"
-                                            >Buzzer Tone Pin</label
-                                        >                                    
-                                        <div class="input-group">
-                                            <input
-                                                type="number"
-                                                name="notification.buzzerPinTone"
-                                                id="notification.buzzerPinTone"
-                                                class="form-control"
-                                                value="33"
-                                            />
-                                            <span class="input-group-text"
-                                                >Pin</span
-                                            >
+                                <div class="border rounded p-2 mb-2">
+                                    <div class="fw-semibold mb-1">White flash <small class="text-muted fw-normal">flashlight and emergency</small></div>
+                                    <div class="row g-2">
+                                        <div class="col-md-8 col-12">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.ledFlashlight" id="notification.ledFlashlight" class="form-check-input" />
+                                            <label for="notification.ledFlashlight" class="form-check-label">Flash active (flashlight from the EXTRAS menu)</label>
                                         </div>
-                                        <div class="form-text pin-hint" id="pinhint-buzzerPinTone"></div>
-                                    </div>
-                                    <div class="col-6">
-                                        <label
-                                            for="notification.ledFlashlightPin"
-                                            class="form-label"
-                                            >Pin used for Flashlight Pin</label
-                                        >                                    
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.flashEmergency" id="notification.flashEmergency" class="form-check-input" />
+                                            <label for="notification.flashEmergency" class="form-check-label">Emergency: flashes in step with the buzzer siren (alarm received or own SOS); without a buzzer, 200 ms per second, 5 min at most</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.flashCw" id="notification.flashCw" class="form-check-input" />
+                                            <label for="notification.flashCw" class="form-check-label">CW mode: Morse lamp (follows the key and the trainer)</label>
+                                        </div>
+                                        </div>
+                                        <div class="col-md-4 col-12">
+                                        <label for="notification.ledFlashlightPin" class="form-label">Flash pin</label>
                                         <div class="input-group">
-                                            <input
-                                                type="number"
-                                                name="notification.ledFlashlightPin"
-                                                id="notification.ledFlashlightPin"
-                                                class="form-control"
-                                                value="14"
-                                            />
-                                            <span class="input-group-text"
-                                                >Pin</span
-                                            >
+                                            <input type="number" name="notification.ledFlashlightPin" id="notification.ledFlashlightPin" class="form-control" value="14" />
+                                            <span class="input-group-text">Pin</span>
                                         </div>
                                         <div class="form-text pin-hint" id="pinhint-ledFlashlightPin"></div>
+                                        </div>
                                     </div>
-                                    <div class="col-6">
-                                        <label 
-                                            for="notification.buzzerPinVcc" 
-                                            class="form-label"
-                                            >Buzzer Vcc Pin</label>
+                                </div>
+                                <div class="border rounded p-2 mb-2">
+                                    <div class="fw-semibold mb-1">Buzzer</div>
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="notification.buzzerActive" id="notification.buzzerActive" class="form-check-input" />
+                                            <label for="notification.buzzerActive" class="form-check-label">Buzzer active</label>
+                                        </div>
+                                        </div>
+                                        <div class="col-md-6 col-12">
+                                        <label for="notification.buzzerPinTone" class="form-label">Buzzer Tone Pin</label>
                                         <div class="input-group">
-                                            <input
-                                                type="number"
-                                                name="notification.buzzerPinVcc"
-                                                id="notification.buzzerPinVcc"
-                                                class="form-control"
-                                                value="25"
-                                            />
+                                            <input type="number" name="notification.buzzerPinTone" id="notification.buzzerPinTone" class="form-control" value="33" />
+                                            <span class="input-group-text">Pin</span>
+                                        </div>
+                                        <div class="form-text pin-hint" id="pinhint-buzzerPinTone"></div>
+                                        </div>
+                                        <div class="col-md-6 col-12">
+                                        <label for="notification.buzzerPinVcc" class="form-label">Buzzer Vcc Pin</label>
+                                        <div class="input-group">
+                                            <input type="number" name="notification.buzzerPinVcc" id="notification.buzzerPinVcc" class="form-control" value="25" />
                                             <span class="input-group-text">Pin</span>
                                         </div>
                                         <div class="form-text pin-hint" id="pinhint-buzzerPinVcc"></div>
+                                        </div>
                                     </div>
-                                    
                                 </div>
                                 <div class="row mt-3">
                                     <div class="col-12">

@@ -328,19 +328,21 @@ namespace POWER_Utils {
             pinMode(Config.notification.ledMessagePin, OUTPUT);
             digitalWrite(Config.notification.ledMessagePin, HIGH);
         #else
-            if ((Config.notification.ledMessage || Config.notification.ledRxBeacon) && Config.notification.ledMessagePin >= 0) {
+            if ((Config.notification.ledMessage || Config.notification.ledRxBeacon || Config.notification.ledRxCw) && Config.notification.ledMessagePin >= 0) {
                     if (pinNoOutput(Config.notification.ledMessagePin)) {
                         logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Message pin conflicts with a pin used by the board, disabled");
                         Config.notification.ledMessage = false;
                         Config.notification.ledRxBeacon = false;
+                        Config.notification.ledRxCw = false;
                     } else
                 {
                     pinMode(Config.notification.ledMessagePin, OUTPUT);
                 }
-            } else if ((Config.notification.ledMessage || Config.notification.ledRxBeacon) && Config.notification.ledMessagePin < 0) {
+            } else if ((Config.notification.ledMessage || Config.notification.ledRxBeacon || Config.notification.ledRxCw) && Config.notification.ledMessagePin < 0) {
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Message Pin not defined, disabled");
                 Config.notification.ledMessage = false;
                 Config.notification.ledRxBeacon = false;
+                Config.notification.ledRxCw = false;
             }
         #endif
 

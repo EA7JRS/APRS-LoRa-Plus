@@ -55,17 +55,17 @@ namespace NOTIFICATION_Utils {
     bool rxLedBusy() { return rxLedOwned; }
 
     void lightTx(bool on) {
-        if (!Config.notification.ledCw || !Config.notification.ledTx || Config.notification.ledTxPin < 0) return;
+        if (!Config.notification.ledTxCw || !Config.notification.ledTx || Config.notification.ledTxPin < 0) return;
         digitalWrite(Config.notification.ledTxPin, on ? HIGH : LOW);
     }
 
     void lightMorse(bool on) {
-        if (!Config.notification.ledCw) return;
+        if (!Config.notification.flashCw) return;
         lampSet(on);
     }
 
     void lightRx(bool on) {
-        if (!Config.notification.ledCw || !(Config.notification.ledMessage || Config.notification.ledRxBeacon) || Config.notification.ledMessagePin < 0) return;
+        if (!Config.notification.ledRxCw || !(Config.notification.ledMessage || Config.notification.ledRxBeacon || Config.notification.ledRxCw) || Config.notification.ledMessagePin < 0) return;
         rxLedOwned = on;
         digitalWrite(Config.notification.ledMessagePin, on ? HIGH : LOW);
     }

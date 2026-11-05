@@ -139,7 +139,9 @@ public:
     bool    ledMessage;                         // LED rojo: parpadea mientras haya mensajes sin leer (y alarma de emergencia)
     int     ledMessagePin;
     bool    ledRxBeacon;                        // LED rojo: destello corto por cada paquete recibido de otra estacion (balizas...)
-    bool    ledCw;                              // modo CW: verde = portadora (manipulacion), blanco = lampara Morse, rojo = senal CW recibida
+    bool    ledTxCw;                            // modo CW: LED verde = portadora emitida (tecla pulsada, macros, baliza CW)
+    bool    ledRxCw;                            // modo CW: LED rojo = senal CW recibida
+    bool    flashCw;                            // modo CW: flash blanco = lampara Morse (manipulador y entrenador)
     bool    flashEmergency;                     // flash blanco: estroboscopio con una alarma de emergencia o la baliza SOS propia (necesita el flash activo)
     bool    ledFlashlight;
     int     ledFlashlightPin;
