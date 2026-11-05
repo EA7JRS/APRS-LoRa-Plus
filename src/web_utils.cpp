@@ -450,6 +450,12 @@ namespace WEB_Utils {
         Config.kissNet.udpPort                  = constrain(getParamIntSafe("kissNet.udpPort", Config.kissNet.udpPort), 0, 65535);
         Config.kissNet.allowed                  = getParamStringSafe("kissNet.allowed", Config.kissNet.allowed);
         Config.kissNet.allowed.trim();
+        Config.cat.enabled                      = request->hasParam("cat.enabled", true);
+        Config.cat.port                         = constrain(getParamIntSafe("cat.port", Config.cat.port), 1, 65535);
+        Config.cat.allowed                      = getParamStringSafe("cat.allowed", Config.cat.allowed);
+        Config.cat.allowed.trim();
+        if (Config.cat.enabled) Config.cat.pttBeacon = request->hasParam("cat.pttBeacon", true);       // con el interruptor apagado los campos no se envian: se conservan
+        Config.cat.tuneKHz                      = constrain(getParamIntSafe("cat.tuneKHz", Config.cat.tuneKHz), 0, 500);
         Config.team.watchActive                 = request->hasParam("team.watchActive", true);
         Config.team.watchCalls                  = getParamStringSafe("team.watchCalls", Config.team.watchCalls);
         Config.team.timeoutMin                  = constrain(getParamIntSafe("team.timeoutMin", Config.team.timeoutMin), 1, 120);

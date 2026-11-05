@@ -17,6 +17,7 @@
  */
 
 #include "kiss_net.h"
+#include "cat_net.h"
 
 #if KISS_NET_SUPPORTED
 
@@ -55,6 +56,10 @@ namespace {
     bool            linkUp          = false;
     uint32_t        lastRetryMs     = 0;
 
+    bool wanted() {                                         // el enlace WiFi se mantiene si KISS o CAT estan activados
+        return Config.kissNet.enabled || Config.cat.enabled;
+    }
+
     bool modeOk() {
         return (Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK) && !Config.wifiAP.active;      // FSK: la misma cabecera y el mismo envio que LoRa (lora_utils)
     }
@@ -74,21 +79,28 @@ namespace {
 
     void startSockets() {
         if (server) { server->close(); delete server; server = nullptr; }
-        server = new WiFiServer((uint16_t)Config.kissNet.tcpPort);
-        server->begin();
-        server->setNoDelay(true);
-        if (Config.kissNet.udpPort > 0) udpOn = udp.begin((uint16_t)Config.kissNet.udpPort) != 0;
-        MDNS.end();
-        if (MDNS.begin(KISS_HOST)) MDNS.addService("kiss", "tcp", (uint16_t)Config.kissNet.tcpPort);
         const String ip = WiFi.localIP().toString();
-        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "KISS WiFi", "TCP %s:%d%s", ip.c_str(), Config.kissNet.tcpPort, udpOn ? " + UDP" : "");
-        displayShow("KISS WiFi", "", "IP " + ip, "TCP " + String(Config.kissNet.tcpPort) + (udpOn ? "  UDP " + String(Config.kissNet.udpPort) : String("")), "", KISS_HOST, 2500);
+        MDNS.end();
+        const bool mdns = MDNS.begin(KISS_HOST);
+        if (Config.kissNet.enabled) {
+            server = new WiFiServer((uint16_t)Config.kissNet.tcpPort);
+            server->begin();
+            server->setNoDelay(true);
+            if (Config.kissNet.udpPort > 0) udpOn = udp.begin((uint16_t)Config.kissNet.udpPort) != 0;
+            if (mdns) MDNS.addService("kiss", "tcp", (uint16_t)Config.kissNet.tcpPort);
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "KISS WiFi", "TCP %s:%d%s", ip.c_str(), Config.kissNet.tcpPort, udpOn ? " + UDP" : "");
+        }
+        if (Config.cat.enabled) CAT_NET::begin();           // CAT (Hamlib) comparte el enlace WiFi y el nombre mDNS
+        const String second = (Config.kissNet.enabled ? "KISS " + String(Config.kissNet.tcpPort) + (udpOn ? "  UDP " + String(Config.kissNet.udpPort) : String("")) : String(""))
+                            + (Config.kissNet.enabled && Config.cat.enabled ? "  " : "") + (Config.cat.enabled ? "CAT " + String(Config.cat.port) : String(""));
+        displayShow(Config.kissNet.enabled ? "KISS WiFi" : "CAT WiFi", "", "IP " + ip, second, "", KISS_HOST, 2500);
     }
 
     void stopSockets() {
         for (uint8_t i = 0; i < MAX_CLIENTS; i++) { clients[i].socket.stop(); clients[i].splitter.clear(); }
         if (server) { server->close(); delete server; server = nullptr; }
         if (udpOn) { udp.stop(); udpOn = false; }
+        CAT_NET::end();
         MDNS.end();
     }
 
@@ -174,7 +186,7 @@ namespace KISS_NET {
 
     void setup() {
         running = false;
-        if (!Config.kissNet.enabled || !modeOk()) return;
+        if (!wanted() || !modeOk()) return;
         if (Config.fwUpdate.ssid.isEmpty()) {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "KISS WiFi", "No WiFi network set (Administration > Firmware update)");
             return;
@@ -208,11 +220,18 @@ namespace KISS_NET {
             linkUp = true;
             startSockets();
         }
+        CAT_NET::poll();
         if (server == nullptr) return;
         acceptClients();
         uint8_t budget = MAX_FRAMES_PER_POLL;
         readClients(budget);
         readUdp(budget);
+    }
+
+    void refresh() {
+        if (!wanted()) { stop(); return; }
+        if (!running) { setup(); return; }
+        if (linkUp) { stopSockets(); startSockets(); }      // cambio de opciones con el enlace arriba: se reabren los sockets
     }
 
     void stop() {
@@ -260,6 +279,7 @@ namespace KISS_NET {
     void onTx(const String&) {}
     bool active() { return false; }
     void stop() {}
+    void refresh() {}
     uint8_t state() { return 0; }
     String localIp() { return String(""); }
     uint8_t clientCount() { return 0; }

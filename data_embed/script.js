@@ -842,6 +842,16 @@ function loadSettings(settings) {
         kissNetUpdate();
     }
 
+    // CAT OVER WIFI
+    if (settings.cat) {
+        document.getElementById("cat.enabled").checked                  = settings.cat.enabled;
+        document.getElementById("cat.port").value                       = settings.cat.port;
+        document.getElementById("cat.tuneKHz").value                    = settings.cat.tuneKHz;
+        document.getElementById("cat.allowed").value                    = settings.cat.allowed;
+        document.getElementById("cat.pttBeacon").checked                = settings.cat.pttBeacon;
+        catUpdate();
+    }
+
     // GROUP WATCH / REMOTE EMERGENCY
     if (settings.team) {
         document.getElementById("team.watchActive").checked             = settings.team.watchActive;
@@ -1074,6 +1084,13 @@ function kissNetUpdate() {
     ["kissNet.tcpPort", "kissNet.udpPort", "kissNet.allowed"].forEach((id) => { document.getElementById(id).disabled = !on; });
 }
 document.getElementById("kissNet.enabled").addEventListener("change", kissNetUpdate);
+
+// CAT over WiFi: same behaviour
+function catUpdate() {
+    const on = document.getElementById("cat.enabled").checked;
+    ["cat.port", "cat.tuneKHz", "cat.allowed", "cat.pttBeacon"].forEach((id) => { document.getElementById(id).disabled = !on; });
+}
+document.getElementById("cat.enabled").addEventListener("change", catUpdate);
 
 const BluetoothActiveCheckbox   = document.querySelector('input[name="bluetooth.active"]');
 const BluetoothDeviceName       = document.querySelector('input[name="bluetooth.deviceName"]');

@@ -53,6 +53,9 @@ namespace LoRa_Utils {
     int  powerMax();
     int  setProfilePower(int requested);   // aplica y guarda la potencia del perfil activo; devuelve la aplicada
     void changeFreq();
+    long profileFreqHz();               // frecuencia (Hz) del perfil activo, sin el ajuste de CAT
+    long liveFreqHz();                  // frecuencia (Hz) en uso ahora (la del perfil o la que ha pedido CAT)
+    bool setLiveFreqHz(long hz);        // CAT (Hamlib): cambia la frecuencia en caliente, solo en RAM; false si el perfil la tiene fija
     void syncAisProfile();      // aplica o retira el perfil LoRa AIS segun el perfil de baliza activo
     bool isAisActive();
     void setup();

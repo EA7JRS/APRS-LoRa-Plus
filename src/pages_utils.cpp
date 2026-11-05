@@ -55,6 +55,7 @@
 #include "sleep_utils.h"
 #include "keypad_fh2.h"
 #include "kiss_net.h"
+#include "cat_net.h"
 
 #ifndef PAGES_GYRO_SIGN
     #define PAGES_GYRO_SIGN     -1      // sentido inicial del giroscopio (se corrige solo al girar con la brujula valida)
@@ -128,7 +129,7 @@ namespace {
         C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON,
         C_MODE_CHANGE,
         C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
-        C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI
+        C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI
     };
     struct Item { const char* label; Command cmd; };
 
@@ -168,10 +169,11 @@ namespace {
     uint8_t         teamCursor          = 0;
     uint8_t         teamScale           = 0;        // 0 = automatica; 1.. = indice en TEAM_SCALES_KM
     uint8_t         boardView           = 0;        // SYSTEM: 0 = sistema, 1 = vista LINK (conexiones activas; no es una pagina aparte)
-    Item            sysItems[4];                    // submenu de SYSTEM
+    Item            sysItems[5];                    // submenu de SYSTEM
     char            sysBtLabel[24];
     char            sysProtoLabel[24];
     char            sysKissLabel[24];
+    char            sysCatLabel[24];
 
     bool            listBrowse          = false;    // STATIONS: cursor activo
     uint8_t         listCursor          = 0;        // posicion en la vista ordenada y filtrada
@@ -386,6 +388,8 @@ namespace {
                 #if KISS_NET_SUPPORTED
                     snprintf(sysKissLabel, sizeof(sysKissLabel), "WiFi KISS: %s", Config.kissNet.enabled ? "ON" : "OFF");
                     sysItems[n++] = Item{sysKissLabel, C_SYS_KISSWIFI};
+                    snprintf(sysCatLabel, sizeof(sysCatLabel), "WiFi CAT: %s", Config.cat.enabled ? "ON" : "OFF");
+                    sysItems[n++] = Item{sysCatLabel, C_SYS_CATWIFI};
                 #endif
                 sysItems[n++] = Item{"Back", C_BACK};
                 count = n;
@@ -1880,9 +1884,12 @@ namespace {
         } else if (kiss == 2) {
             row(2, "WiFi %.15s", WiFi.SSID().c_str());
             row(3, "IP %s", KISS_NET::localIp().c_str());
-            row(4, "KISS TCP %d  Cli %u", Config.kissNet.tcpPort, (unsigned)KISS_NET::clientCount());
-            if (Config.kissNet.udpPort > 0) row(5, "UDP %d  %d dBm", Config.kissNet.udpPort, (int)WiFi.RSSI());
-            else                            row(5, "RSSI %d dBm", (int)WiFi.RSSI());
+            if (Config.kissNet.enabled) row(4, "KISS TCP %d  Cli %u", Config.kissNet.tcpPort, (unsigned)KISS_NET::clientCount());
+            if (Config.cat.enabled)     row(Config.kissNet.enabled ? 5 : 4, "CAT TCP %d  Cli %u", Config.cat.port, (unsigned)CAT_NET::clientCount());
+            if (!(Config.kissNet.enabled && Config.cat.enabled)) {
+                if (Config.kissNet.enabled && Config.kissNet.udpPort > 0) row(5, "UDP %d  %d dBm", Config.kissNet.udpPort, (int)WiFi.RSSI());
+                else                                                      row(5, "RSSI %d dBm", (int)WiFi.RSSI());
+            }
         } else if (kiss == 1) {
             row(2, "WiFi %.15s", Config.fwUpdate.ssid.c_str());
             row(3, "Joining...");
@@ -4223,17 +4230,26 @@ namespace PAGES_Utils {
                 #if KISS_NET_SUPPORTED
                     if (!aprsMode()) { showToast("APRS modes only"); break; }
                     Config.kissNet.enabled = !Config.kissNet.enabled;
-                    if (Config.kissNet.enabled) {
-                        KISS_NET::setup();
-                        if (KISS_NET::state() == 0) {            // sin red WiFi configurada: no queda activado
-                            Config.kissNet.enabled = false;
-                            showToast("Set WiFi in WebUI");
-                        } else {
-                            showToast("WiFi KISS ON");
-                        }
+                    KISS_NET::refresh();                         // arranca, reabre o apaga el enlace segun lo que quede activo (KISS y CAT lo comparten)
+                    if (Config.kissNet.enabled && KISS_NET::state() == 0) {      // sin red WiFi configurada: no queda activado
+                        Config.kissNet.enabled = false;
+                        showToast("Set WiFi in WebUI");
                     } else {
-                        KISS_NET::stop();
-                        showToast("WiFi KISS OFF");
+                        showToast(Config.kissNet.enabled ? "WiFi KISS ON" : "WiFi KISS OFF");
+                    }
+                    Config.writeFile();
+                #endif
+                break;
+            case C_SYS_CATWIFI:
+                #if KISS_NET_SUPPORTED
+                    if (!aprsMode()) { showToast("APRS modes only"); break; }
+                    Config.cat.enabled = !Config.cat.enabled;
+                    KISS_NET::refresh();
+                    if (Config.cat.enabled && KISS_NET::state() == 0) {
+                        Config.cat.enabled = false;
+                        showToast("Set WiFi in WebUI");
+                    } else {
+                        showToast(Config.cat.enabled ? "WiFi CAT ON" : "WiFi CAT OFF");
                     }
                     Config.writeFile();
                 #endif

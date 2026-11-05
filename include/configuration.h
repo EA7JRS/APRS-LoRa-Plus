@@ -40,6 +40,16 @@ public:
     String  allowed;            // direcciones IP permitidas (o prefijos acabados en punto); vacio = cualquiera de la red
 };
 
+// CAT por WiFi (Hamlib/rigctld): servidor TCP compatible con el modelo "NET rigctl" de Hamlib, en la misma red WiFi que KISS
+class CatConfig {
+public:
+    bool    enabled;            // apagado por defecto
+    int     port;               // puerto TCP (4532 por defecto, como rigctld)
+    String  allowed;            // direcciones IP permitidas (o prefijos acabados en punto); vacio = cualquiera de la red
+    bool    pttBeacon;          // PTT 1 emite una baliza APRS (apagado por defecto)
+    int     tuneKHz;            // ventana de sintonia en kHz alrededor de la frecuencia del perfil (0 = el cliente no puede cambiar la frecuencia)
+};
+
 // Vigilancia de grupo (estilo ARTS) y emergencia remota (estilo EAI)
 class TeamConfig {
 public:
@@ -294,6 +304,7 @@ public:
     FwUpdate                fwUpdate;
     TeamConfig              team;
     KissNetConfig           kissNet;
+    CatConfig               cat;
     std::vector<Beacon>     beacons;
     Display                 display;
     Battery                 battery;

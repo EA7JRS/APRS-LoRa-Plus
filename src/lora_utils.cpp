@@ -151,7 +151,10 @@ namespace LoRa_Utils {
 
     // Frecuencia y potencia del modo en curso: APRS LoRa usa el perfil LoRa; APRS FSK, su perfil FSK propio (region IARU / canal);
     // MORSE, el perfil CW Beacon o el de Telegrafia. El perfil nautico AIS conserva siempre el suyo.
+    long catFreqOverrideHz = 0;         // CAT (Hamlib): frecuencia pedida por un programa, solo en RAM; 0 = la del perfil. Se descarta al cambiar de perfil
+
     long activeFreqHz() {
+        if (catFreqOverrideHz > 0 && !currentLoRaType->ais && (Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK)) return catFreqOverrideHz;
         if (Config.operatingMode == MODE_DAPNET) return Config.dapnet.freqHz;           // receptor de buscapersonas: frecuencia propia
         if (currentLoRaType->ais) return currentLoRaType->frequency;
         if (profileIsFsk()) return currentLoRaType->fskFrequency > 0 ? currentLoRaType->fskFrequency : currentLoRaType->frequency;
@@ -472,6 +475,29 @@ namespace LoRa_Utils {
                    currentLoRaType->frequency, currentLoRaType->spreadingFactor, currentLoRaType->codingRate4);
     }
 
+    // Frecuencia del perfil activo sin el ajuste de CAT (Hz)
+    long profileFreqHz() {
+        const long saved = catFreqOverrideHz;
+        catFreqOverrideHz = 0;
+        const long hz = activeFreqHz();
+        catFreqOverrideHz = saved;
+        return hz;
+    }
+
+    long liveFreqHz() {
+        return activeFreqHz();
+    }
+
+    // CAT: cambia la frecuencia en caliente (no se guarda). Devuelve false si el perfil no lo permite (AIS fijo) o el chip la rechaza
+    bool setLiveFreqHz(long hz) {
+        if (aisLoraActive || hz <= 0) return false;
+        catFreqOverrideHz = (hz == profileFreqHz()) ? 0 : hz;
+        applyCurrentType();
+        transmitFlag  = true;           // rearma la escucha en la nueva frecuencia
+        operationDone = true;
+        return true;
+    }
+
     void changeFreq() {
         if (aisLoraActive) {            // el perfil nautico AIS tiene la frecuencia fija
             displayShow("LORA FREQ>", "", "FIXED BY AIS", "NAUTICAL PROFILE", "", "", 2000);
@@ -483,6 +509,7 @@ namespace LoRa_Utils {
             loraIndex++;
         }
         currentLoRaType = &Config.loraTypes[loraIndex];
+        catFreqOverrideHz = 0;
         applyCurrentType();
         transmitFlag  = true;           // rearma la escucha en la nueva frecuencia
         operationDone = true;

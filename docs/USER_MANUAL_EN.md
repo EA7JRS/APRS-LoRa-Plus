@@ -277,7 +277,7 @@ The header shows the **region/profile** (EU/WORLD, POLAND, UK, US, CUSTOM or **A
 Gauges for **Heap**, **PSRAM** and **Flash** (percentage of the firmware partition used), battery and **uptime** (`Bat 4.05V  Up 3h36m`; if the board has no PSRAM enabled, the PSRAM row shows `n/a` instead of a percentage; `USB` if there is no battery) and **Bluetooth and WiFi** status (`BT:on  WiFi:CON`; for BT, `CON` = phone connected; for WiFi, `CON` = joined to your network with KISS over WiFi on, `..` = joining, `AP` = configuration access point).
 
 - **1P** (with Bluetooth or WiFi on) toggles to the **LINK view**, which is not a separate page: it shows Bluetooth (type, KISS/TNC2 protocol, name and whether a phone is connected) and WiFi (network, **IP**, KISS ports, connected clients and signal). Another press goes to the next page; **2P** returns to SYSTEM.
-- **LP** opens the submenu: **Bluetooth: ON/OFF** and **BT data: KISS/TNC2** (saved, and the board restarts) and **WiFi KISS: ON/OFF** (applied immediately; the WiFi network is entered in the WebUI).
+- **LP** opens the submenu: **Bluetooth: ON/OFF** and **BT data: KISS/TNC2** (saved, and the board restarts) **WiFi KISS: ON/OFF** and **WiFi CAT: ON/OFF** (applied immediately; the WiFi network is entered in the WebUI).
 
 ---
 
@@ -678,6 +678,20 @@ The board can be a **KISS TNC over WiFi** for programs such as **APRSdroid** (te
 - **Security:** KISS has no password; anyone allowed can transmit with your callsign. Use it on trusted networks and with the address list.
 - With a phone hotspot the IP may change between sessions: read the screen, or use `aprs-lora-plus.local` if your application resolves it. Tested with APRSdroid on Android over TCP in **LoRa and FSK**; UDP untested. The `.local` name (mDNS) works on Windows, macOS and Linux, but **many Android apps do not resolve it**: use the IP shown in the LINK view of SYSTEM. The network host name is `aprs-lora-plus` (applied after a restart).
 
+## 33. CAT over WiFi (Hamlib)
+
+The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), so programs such as GPredict, `rigctl` or Hamlib scripts see it as a radio: they read the **frequency**, the **mode** (APRS LoRa or APRS FSK 9600), the **RSSI** and the **power**. **It is not an audio radio**: WSJT-X and fldigi cannot decode or modulate through it; they can only follow the frequency or, with *PTT = beacon*, make the tracker send its APRS beacon. APRS LoRa and APRS FSK modes only, on ESP32-S3 / C3 boards.
+
+1. Enter your WiFi in Administration → *Firmware update* (the same one KISS over WiFi uses).
+2. Connectivity → **CAT (Hamlib) over WiFi**: turn the switch on (off by default), choose the **TCP port** (4532), the **tuning window** in kHz (0 = the program cannot change the frequency) and, if you want, the **allowed addresses**. *PTT sends an APRS beacon* makes a Hamlib PTT command send a beacon (off by default).
+3. Save and restart (or use **WiFi CAT: ON/OFF** in the SYSTEM submenu, applied immediately). KISS and CAT share the same WiFi link and can be active together.
+4. From a computer: `rigctl -m 2 -r aprs-lora-plus.local:4532 f` (model 2 = *NET rigctl*).
+
+- Up to 2 clients. No password: use trusted networks and the address list.
+- A frequency change requested over CAT lives in RAM only: it is not saved and is dropped when the profile changes. The AIS profile has a fixed frequency.
+- The mode does not change live (it is chosen at start-up).
+- Full protocol for anyone writing their own client or a Hamlib *backend*: `docs/CAT_HAMLIB.md`. Tested on a PC with `rigctl` 4.6.5; untested on the board.
+
 ## Appendix A — Button map per page
 
 | Page | LP opens | Options |
@@ -693,7 +707,7 @@ The board can be a **KISS TNC over WiFi** for programs such as **APRSdroid** (te
 | CLOCK | submenu | Zone, Format, Sync from GPS, Back |
 | LORA | submenu | Next profile, Power, Reset counters, Heard list, Back |
 | GROUP | submenu | Browse, Radar, Quick msg: all, Ping all, Back (with cursor: GO TO, Quick msg, Ping, Back) |
-| SYSTEM | submenu | Bluetooth: ON/OFF, BT data: KISS/TNC2, WiFi KISS: ON/OFF, Back (1P toggles the LINK view when connections are active) |
+| SYSTEM | submenu | Bluetooth: ON/OFF, BT data: KISS/TNC2, WiFi KISS: ON/OFF, WiFi CAT: ON/OFF, Back (1P toggles the LINK view when connections are active) |
 | WSPR (WSPR mode only) | submenu | Beacon ON/OFF, Tune carrier, Change mode, Back |
 | FT8 / FT4 / FST4W (those modes only) | submenu | Beacon ON/OFF, Change mode, Back |
 | MORSE (MORSE mode only) | submenu | 1–5 (macros), Listen CW (RF), Trainer: listen, Trainer: keying, CW beacon ON/OFF, Clear text, Change mode, Back |

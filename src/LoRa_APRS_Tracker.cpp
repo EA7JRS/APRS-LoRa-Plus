@@ -56,6 +56,7 @@ ____________________________________________________________________*/
 #include "mag_utils.h"
 #include "rtc_utils.h"
 #include "nmea_link.h"
+#include "cat_net.h"
 #include "thermal_utils.h"
 #include "board_pinout.h"
 #include "button_utils.h"
@@ -277,7 +278,7 @@ void loop() {
     MSG_Utils::processOutputBuffer();
     MSG_Utils::clean15SegBuffer();
 
-    if (packet.text.length() > 3) KISS_NET::onRx(packet.text.substring(3));
+    if (packet.text.length() > 3) { KISS_NET::onRx(packet.text.substring(3)); CAT_NET::onRx(packet.rssi); }
     KISS_NET::poll();
 
     if (bluetoothActive && bluetoothConnected) {

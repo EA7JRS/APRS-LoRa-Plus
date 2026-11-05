@@ -52,6 +52,11 @@ bool Configuration::writeFile() {
         data["kissNet"]["tcpPort"]                  = kissNet.tcpPort;
         data["kissNet"]["udpPort"]                  = kissNet.udpPort;
         data["kissNet"]["allowed"]                  = kissNet.allowed;
+        data["cat"]["enabled"]                      = cat.enabled;
+        data["cat"]["port"]                         = cat.port;
+        data["cat"]["allowed"]                      = cat.allowed;
+        data["cat"]["pttBeacon"]                    = cat.pttBeacon;
+        data["cat"]["tuneKHz"]                      = cat.tuneKHz;
         data["team"]["watchActive"]                 = team.watchActive;
         data["team"]["watchCalls"]                  = team.watchCalls;
         data["team"]["timeoutMin"]                  = team.timeoutMin;
@@ -305,6 +310,12 @@ bool Configuration::readFile() {
         kissNet.tcpPort             = constrain((int)(data["kissNet"]["tcpPort"] | 8001), 1, 65535);
         kissNet.udpPort             = constrain((int)(data["kissNet"]["udpPort"] | 0), 0, 65535);
         kissNet.allowed             = data["kissNet"]["allowed"] | "";
+        if (data["cat"]["port"].isNull()) needsRewrite = true;
+        cat.enabled                 = data["cat"]["enabled"] | false;
+        cat.port                    = constrain((int)(data["cat"]["port"] | 4532), 1, 65535);
+        cat.allowed                 = data["cat"]["allowed"] | "";
+        cat.pttBeacon               = data["cat"]["pttBeacon"] | false;
+        cat.tuneKHz                 = constrain((int)(data["cat"]["tuneKHz"] | 0), 0, 500);
         if (data["team"]["watchActive"].isNull()) needsRewrite = true;
         team.watchActive            = data["team"]["watchActive"] | false;
         team.watchCalls             = data["team"]["watchCalls"] | "";
@@ -876,6 +887,11 @@ void Configuration::setDefaultValues() {
     kissNet.tcpPort                 = 8001;
     kissNet.udpPort                 = 0;
     kissNet.allowed                 = "";
+    cat.enabled                     = false;
+    cat.port                        = 4532;
+    cat.allowed                     = "";
+    cat.pttBeacon                   = false;
+    cat.tuneKHz                     = 0;
     team.watchActive                = false;
     team.watchCalls                 = "";
     team.timeoutMin                 = 10;
