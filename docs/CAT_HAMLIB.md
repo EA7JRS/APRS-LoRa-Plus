@@ -85,4 +85,4 @@ rigctl -m 2 -r 127.0.0.1:4532 f  # real Hamlib client against it (CAT_TRACE=1 pr
 
 ## 8. Hamlib backend
 
-A native Hamlib backend (`rigs/aprslorap`, LGPL-2.1) that talks this protocol directly lives in `tools/hamlib_backend/` and is meant to be submitted upstream by the author. Until it is accepted, use model 2 (*NET rigctl*) as shown above.
+A native Hamlib backend (`aprslorap.c`, LGPL-2.1+, proposed model `RIG_MODEL_APRSLORAP`, family `dummy`) lives in `tools/hamlib_backend/` with a patch for Hamlib 4.7.2 and the submission steps; it is meant to be submitted upstream by the author. Until it is accepted, use model 2 (*NET rigctl*) as shown above.
