@@ -1512,14 +1512,15 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 </div>
                                 <div id="pin-guide" class="d-none mt-3">
                                     <details class="border rounded p-2">
-                                        <summary><strong>T-Beam S3 Supreme: expansion header pins</strong> <small class="text-muted">(which GPIO is free, which is used by the board)</small></summary>
-                                        <div class="table-responsive mt-2">
+                                        <summary><strong id="pin-guide-title">Board pins</strong> <small class="text-muted">(which GPIO is free, which is used by the board)</small></summary>
+                                        <div class="table-responsive mt-2" style="max-height:22rem;overflow-y:auto">
                                             <table class="table table-sm align-middle mb-2" id="pin-guide-table">
-                                                <thead><tr><th>GPIO</th><th>Header pin</th><th>State</th><th>Assigned to</th></tr></thead>
+                                                <thead><tr><th>GPIO</th><th class="pin-guide-supreme d-none">Header pin</th><th>State</th><th>Assigned to</th></tr></thead>
                                                 <tbody></tbody>
                                             </table>
                                         </div>
-                                        <small class="text-muted">R1&hellip;R13 = right row of the 2&times;13 expansion header counted from the SDA end (right row, next to the OLED: SDA, SCL, GND, A-LDO2, IO46, IO45, IO39, IO38, IO2, IO3, IO6, IO21, IO48; left row: VBAT, VBUS, GND, <strong>VSYS (5 V out)</strong>, GND, B-LDO2, DC4, GND, DC5, DC1, RST, RXD, TXD). LEDs and the buzzer work at 3.3 V from the GPIO with a resistor; the high-intensity flash needs a logic-level MOSFET and is powered from VSYS. Wiring diagram: <code>docs/HARDWARE_SUPREME_EXTRAS.md</code>.</small>
+                                        <small class="text-muted pin-guide-supreme d-none">R1&hellip;R13 = right row of the 2&times;13 expansion header counted from the SDA end (right row, next to the OLED: SDA, SCL, GND, A-LDO2, IO46, IO45, IO39, IO38, IO2, IO3, IO6, IO21, IO48; left row: VBAT, VBUS, GND, <strong>VSYS (5 V out)</strong>, GND, B-LDO2, DC4, GND, DC5, DC1, RST, RXD, TXD). LEDs and the buzzer work at 3.3 V from the GPIO with a resistor; the high-intensity flash needs a logic-level MOSFET and is powered from VSYS. Wiring diagram: <code>docs/HARDWARE_SUPREME_EXTRAS.md</code>.</small>
+                                        <small class="text-muted pin-guide-generic d-none">The list comes from the firmware of this board: <strong>used</strong> = taken by the radio, GPS, display, buttons, battery or the chip itself (flash, USB): the firmware switches the function off if you assign it; <strong>care</strong> = strapping or console pin, usable only as described; <strong>input</strong> = input only (fine for the FH-2 keypad, not for LEDs or the buzzer). Check that the free GPIO is brought out on your board's connector. LEDs and the buzzer work at 3.3 V from the GPIO with a resistor; a high-intensity flash needs a logic-level MOSFET. Wiring: <code>docs/HARDWARE_SUPREME_EXTRAS.md</code> (valid for any ESP32 board).</small>
                                         <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="pin-guide-suggest">Use the suggested pins (Tx 38, Message 21, Flash 46, Buzzer 39 / 48, Key 44 / 43, FH-2 on 2)</button></div>
                                     </details>
                                 </div>

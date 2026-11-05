@@ -19,6 +19,8 @@
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 #include "configuration.h"
+#include "board_pins.h"
+#include "power_utils.h"
 #include "board_pinout.h"
 #include "display.h"
 #include "ais_vessel.h"
@@ -50,6 +52,11 @@
     #define NOTIF_DEF_BUZZER_TONE   33
     #define NOTIF_DEF_BUZZER_VCC    25
 #endif
+
+// Pin por defecto de LEDs, flash y buzzer: -1 (sin asignar) si lo ocupa la propia placa o no sirve para una salida
+static int defaultPin(int pin) {
+    return (POWER_Utils::pinReserved(pin) || BOARD_PINS::inputOnly(pin)) ? -1 : pin;
+}
 
 extern logging::Logger logger;
 
@@ -640,12 +647,12 @@ bool Configuration::readFile() {
             data["notification"]["ledFlashlight"].isNull() ||
             data["notification"]["ledFlashlightPin"].isNull()) needsRewrite = true;
         notification.ledTx              = data["notification"]["ledTx"] | false;
-        notification.ledTxPin           = data["notification"]["ledTxPin"] | NOTIF_DEF_LED_TX;
+        notification.ledTxPin           = data["notification"]["ledTxPin"] | defaultPin(NOTIF_DEF_LED_TX);
         notification.ledMessage         = data["notification"]["ledMessage"] | false;
-        notification.ledMessagePin      = data["notification"]["ledMessagePin"] | NOTIF_DEF_LED_MESSAGE;
+        notification.ledMessagePin      = data["notification"]["ledMessagePin"] | defaultPin(NOTIF_DEF_LED_MESSAGE);
         notification.buzzerActive       = data["notification"]["buzzerActive"] | false;
-        notification.buzzerPinTone      = data["notification"]["buzzerPinTone"] | NOTIF_DEF_BUZZER_TONE;
-        notification.buzzerPinVcc       = data["notification"]["buzzerPinVcc"] | NOTIF_DEF_BUZZER_VCC;
+        notification.buzzerPinTone      = data["notification"]["buzzerPinTone"] | defaultPin(NOTIF_DEF_BUZZER_TONE);
+        notification.buzzerPinVcc       = data["notification"]["buzzerPinVcc"] | defaultPin(NOTIF_DEF_BUZZER_VCC);
         notification.bootUpBeep         = data["notification"]["bootUpBeep"] | false;
         notification.txBeep             = data["notification"]["txBeep"] | false;
         notification.messageRxBeep      = data["notification"]["messageRxBeep"] | false;
@@ -654,7 +661,7 @@ bool Configuration::readFile() {
         notification.shutDownBeep       = data["notification"]["shutDownBeep"] | false;
         notification.bellRings          = data["notification"]["bellRings"] | true;
         notification.ledFlashlight      = data["notification"]["ledFlashlight"] | false;
-        notification.ledFlashlightPin   = data["notification"]["ledFlashlightPin"] | NOTIF_DEF_FLASHLIGHT;
+        notification.ledFlashlightPin   = data["notification"]["ledFlashlightPin"] | defaultPin(NOTIF_DEF_FLASHLIGHT);
 
         if (data["pttTrigger"]["active"].isNull() ||
             data["pttTrigger"]["reverse"].isNull() ||
@@ -1019,12 +1026,12 @@ void Configuration::setDefaultValues() {
     winlink.password                = "NOPASS";
 
     notification.ledTx              = false;
-    notification.ledTxPin           = NOTIF_DEF_LED_TX;
+    notification.ledTxPin           = defaultPin(NOTIF_DEF_LED_TX);
     notification.ledMessage         = false;
-    notification.ledMessagePin      = NOTIF_DEF_LED_MESSAGE;
+    notification.ledMessagePin      = defaultPin(NOTIF_DEF_LED_MESSAGE);
     notification.buzzerActive       = false;
-    notification.buzzerPinTone      = NOTIF_DEF_BUZZER_TONE;
-    notification.buzzerPinVcc       = NOTIF_DEF_BUZZER_VCC;
+    notification.buzzerPinTone      = defaultPin(NOTIF_DEF_BUZZER_TONE);
+    notification.buzzerPinVcc       = defaultPin(NOTIF_DEF_BUZZER_VCC);
     notification.bootUpBeep         = false;
     notification.txBeep             = false;
     notification.messageRxBeep      = false;
@@ -1033,7 +1040,7 @@ void Configuration::setDefaultValues() {
     notification.shutDownBeep       = false;
     notification.bellRings          = true;
     notification.ledFlashlight      = false;
-    notification.ledFlashlightPin   = NOTIF_DEF_FLASHLIGHT;
+    notification.ledFlashlightPin   = defaultPin(NOTIF_DEF_FLASHLIGHT);
 
     ptt.active                      = false;
     ptt.reverse                     = false;

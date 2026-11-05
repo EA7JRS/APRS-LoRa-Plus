@@ -22,6 +22,7 @@
 #include "battery_utils.h"
 #include "board_pinout.h"
 #include "power_utils.h"
+#include "board_pins.h"
 #include "lora_utils.h"
 #include "ble_utils.h"
 #include "gps_utils.h"
@@ -85,15 +86,18 @@ namespace POWER_Utils {
         }
     #endif
 
-    // true si el GPIO esta ocupado por la propia placa (solo la T-Beam S3 Supreme lo sabe; en las demas siempre false)
+    // true si el GPIO esta ocupado por la propia placa o por el chip (radio, GPS, pantalla, botones, flash, USB...): Supreme con su
+    // tabla propia, el resto a partir de los #define de board_pinout.h (ver board_pins.cpp)
     bool pinReserved(int pin) {
         #ifdef TTGO_T_Beam_S3_SUPREME_V3
             return isReservedSupremePin(pin);
         #else
-            (void)pin;
-            return false;
+            return BOARD_PINS::reserved(pin);
         #endif
     }
+
+    // true si el GPIO no sirve para una salida (ESP32 clasico 34..39 son solo entrada) o lo ocupa la placa
+    static bool pinNoOutput(int pin) { return pinReserved(pin) || BOARD_PINS::inputOnly(pin); }
 
     #ifdef VEXT_CTRL
         void vext_ctrl_ON() {
@@ -286,12 +290,10 @@ namespace POWER_Utils {
 
     void externalPinSetup() {
         if (Config.notification.buzzerActive && Config.notification.buzzerPinTone >= 0 && Config.notification.buzzerPinVcc >= 0) {
-            #ifdef TTGO_T_Beam_S3_SUPREME_V3
-                if (isReservedSupremePin(Config.notification.buzzerPinTone) || isReservedSupremePin(Config.notification.buzzerPinVcc)) {
-                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Buzzer pin conflicts with Supreme internal bus, disabled");
+                if (pinNoOutput(Config.notification.buzzerPinTone) || pinNoOutput(Config.notification.buzzerPinVcc)) {
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Buzzer pin conflicts with a pin used by the board, disabled");
                     Config.notification.buzzerActive = false;
                 } else
-            #endif
             {
                 pinMode(Config.notification.buzzerPinTone, OUTPUT);
                 pinMode(Config.notification.buzzerPinVcc, OUTPUT);
@@ -308,12 +310,10 @@ namespace POWER_Utils {
             digitalWrite(Config.notification.ledTxPin, HIGH);
         #else
             if (Config.notification.ledTx && Config.notification.ledTxPin >= 0) {
-                #ifdef TTGO_T_Beam_S3_SUPREME_V3
-                    if (isReservedSupremePin(Config.notification.ledTxPin)) {
-                        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Tx pin conflicts with Supreme internal bus, disabled");
+                    if (pinNoOutput(Config.notification.ledTxPin)) {
+                        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Tx pin conflicts with a pin used by the board, disabled");
                         Config.notification.ledTx = false;
                     } else
-                #endif
                 {
                     pinMode(Config.notification.ledTxPin, OUTPUT);
                 }
@@ -329,12 +329,10 @@ namespace POWER_Utils {
             digitalWrite(Config.notification.ledMessagePin, HIGH);
         #else
             if (Config.notification.ledMessage && Config.notification.ledMessagePin >= 0) {
-                #ifdef TTGO_T_Beam_S3_SUPREME_V3
-                    if (isReservedSupremePin(Config.notification.ledMessagePin)) {
-                        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Message pin conflicts with Supreme internal bus, disabled");
+                    if (pinNoOutput(Config.notification.ledMessagePin)) {
+                        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Led Message pin conflicts with a pin used by the board, disabled");
                         Config.notification.ledMessage = false;
                     } else
-                #endif
                 {
                     pinMode(Config.notification.ledMessagePin, OUTPUT);
                 }
@@ -345,12 +343,10 @@ namespace POWER_Utils {
         #endif
 
         if (Config.notification.ledFlashlight && Config.notification.ledFlashlightPin >= 0) {
-            #ifdef TTGO_T_Beam_S3_SUPREME_V3
-                if (isReservedSupremePin(Config.notification.ledFlashlightPin)) {
-                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Flashlight pin conflicts with Supreme internal bus, disabled");
+                if (pinNoOutput(Config.notification.ledFlashlightPin)) {
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "Flashlight pin conflicts with a pin used by the board, disabled");
                     Config.notification.ledFlashlight = false;
                 } else
-            #endif
             {
                 pinMode(Config.notification.ledFlashlightPin, OUTPUT);
             }
@@ -360,12 +356,10 @@ namespace POWER_Utils {
         }
 
         if (Config.ptt.active && Config.ptt.io_pin >= 0) {
-            #ifdef TTGO_T_Beam_S3_SUPREME_V3
-                if (isReservedSupremePin(Config.ptt.io_pin)) {
-                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "PTT pin conflicts with Supreme internal bus, disabled");
+                if (pinNoOutput(Config.ptt.io_pin)) {
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "PINOUT", "PTT pin conflicts with a pin used by the board, disabled");
                     Config.ptt.active = false;
                 } else
-            #endif
             {
                 pinMode(Config.ptt.io_pin, OUTPUT);
                 digitalWrite(Config.ptt.io_pin, Config.ptt.reverse ? HIGH : LOW);

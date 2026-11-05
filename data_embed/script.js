@@ -858,7 +858,7 @@ function loadSettings(settings) {
         catUpdate();
     }
 
-    if (typeof supremePinRefresh === "function") supremePinRefresh();      // pin hints of the T-Beam S3 Supreme
+    if (typeof boardPinRefresh === "function") boardPinRefresh();      // pin hints of the board
 
     // GROUP WATCH / REMOTE EMERGENCY
     if (settings.team) {
@@ -1414,8 +1414,10 @@ function lrfhssWire() {
     f.addEventListener("input", upd); b.addEventListener("change", upd); upd();
 }
 
-// ---- T-Beam S3 Supreme: identify the expansion-header pins used by LEDs, flash and buzzer ----
-// state: ok = free, strap = strapping pin (usable with care), used = taken by the board (the firmware refuses it), nohdr = not on the header
+// ---- Pin guide for every board: which GPIO is free, which one the board uses, and a suggested assignment ----
+// state: ok = free, strap = usable with care (strapping, console UART, PSRAM), in = input only, used = taken by the board or the chip (the firmware refuses it), nohdr = not a GPIO of the chip
+// The T-Beam S3 Supreme has its own table (header labels of the expansion connector). Every other board gets its list from the firmware (/api/pins),
+// which builds it from the board's own pin definitions, so that every firmware shows the pins of the board it runs on.
 const SUPREME_PIN_INFO = {
     2:  { hdr: "IO2 · R9",   st: "ok",    txt: "Free (ADC1: the only free analog pin; use it for the FH-2 keypad)" },
     3:  { hdr: "IO3 · R10",  st: "strap", txt: "Strapping pin (JTAG select): avoid" },
@@ -1455,35 +1457,42 @@ const SUPREME_PIN_INFO = {
 for (let g = 26; g <= 32; g++) SUPREME_PIN_INFO[g] = { hdr: "-", st: "used", txt: "Flash / PSRAM" };
 SUPREME_PIN_INFO[19] = { hdr: "-", st: "used", txt: "USB D-" };
 SUPREME_PIN_INFO[20] = { hdr: "-", st: "used", txt: "USB D+" };
-const SUPREME_PIN_ROLES = [
-    ["notification.ledTxPin", "Tx LED"], ["notification.ledMessagePin", "Message LED"], ["notification.ledFlashlightPin", "Flash"],
-    ["notification.buzzerPinTone", "Buzzer tone"], ["notification.buzzerPinVcc", "Buzzer Vcc"],
-    ["cw.keyPin", "Key tip (dit)"], ["cw.dahPin", "Key ring (dah)"], ["cw.keypadPin", "FH-2 keypad"], ["nmeaUart.txPin", "NMEA TX"]
+
+// kind: out = output, in = input with pull-up (contact to GND), adc = analog input
+const PIN_ROLES_BASE = [
+    ["notification.ledTxPin", "Tx LED", "out"], ["notification.ledMessagePin", "Message LED", "out"], ["notification.ledFlashlightPin", "Flash", "out"],
+    ["notification.buzzerPinTone", "Buzzer tone", "out"], ["notification.buzzerPinVcc", "Buzzer Vcc", "out"],
+    ["cw.keyPin", "Key tip (dit)", "in"], ["cw.dahPin", "Key ring (dah)", "in"], ["cw.keypadPin", "FH-2 keypad", "adc"]
 ];
 const SUPREME_PIN_SUGGEST = { "notification.ledTxPin": 38, "notification.ledMessagePin": 21, "notification.ledFlashlightPin": 45, "notification.buzzerPinTone": 39, "notification.buzzerPinVcc": 48, "cw.keyPin": 44, "cw.dahPin": 46, "cw.keypadPin": 2, "nmeaUart.txPin": 43 };
-let supremeBoard = false;
+let PIN_ROLES = [], PIN_INFO = null, PIN_SUGGEST = {}, PIN_ROWS = [], PIN_ADC = [1, 10], PIN_NAME = "", PIN_SUPREME = false;
 
-function supremePinRefresh() {
-    if (!supremeBoard) return;
+function boardPinRefresh() {
+    if (!PIN_INFO) return;
     const roles = {};                       // gpio -> roles that use it
-    SUPREME_PIN_ROLES.forEach(([id, name]) => {
+    PIN_ROLES.forEach(([id, name]) => {
         const v = parseInt(document.getElementById(id).value, 10);
         if (!isNaN(v) && v >= 0) (roles[v] = roles[v] || []).push(name);
     });
-    SUPREME_PIN_ROLES.forEach(([id, name]) => {
+    PIN_ROLES.forEach(([id, name, kind]) => {
         const hint = document.getElementById("pinhint-" + id.replace("notification.", ""));
         if (!hint) return;
         const v = parseInt(document.getElementById(id).value, 10);
         let cls = "text-muted", msg;
         if (isNaN(v) || v < 0) { msg = "Not used"; }
         else {
-            const info = SUPREME_PIN_INFO[v];
+            const info = PIN_INFO[v];
             const dup = roles[v].length > 1 ? " &middot; also used by " + roles[v].filter(n => n !== name).join(", ") : "";
-            if (!info)                  { cls = "text-warning"; msg = "GPIO " + v + ": not on the Supreme header"; }
-            else if (info.st === "ok")  { cls = "text-success"; msg = "GPIO " + v + " &middot; header " + info.hdr + " &middot; " + info.txt; }
-            else if (info.st === "strap"){ cls = "text-warning"; msg = "GPIO " + v + " &middot; header " + info.hdr + " &middot; " + info.txt; }
+            const where = PIN_SUPREME && info ? " &middot; header " + info.hdr : "";
+            if (!info)                  { cls = "text-warning"; msg = "GPIO " + v + ": not a GPIO of " + (PIN_SUPREME ? "the Supreme header" : "this chip"); }
+            else if (info.st === "ok")  { cls = "text-success"; msg = "GPIO " + v + where + " &middot; " + info.txt; }
+            else if (info.st === "strap"){ cls = "text-warning"; msg = "GPIO " + v + where + " &middot; " + info.txt; }
+            else if (info.st === "in")  {
+                if (kind === "adc") { cls = "text-success"; msg = "GPIO " + v + " &middot; input only: fine for the analog keypad"; }
+                else                { cls = "text-danger";  msg = "GPIO " + v + " is input only: it cannot drive this function"; }
+            }
             else                        { cls = "text-danger";  msg = "GPIO " + v + " is used by the board (" + info.txt + "): the firmware will switch this function off"; }
-            if (id === "cw.keypadPin" && info && info.st !== "used" && !(v >= 1 && v <= 10)) { cls = "text-warning"; msg += " &middot; the keypad needs an ADC1 pin (GPIO 1-10)"; }
+            if (kind === "adc" && info && info.st !== "used" && !(v >= PIN_ADC[0] && v <= PIN_ADC[1])) { cls = "text-warning"; msg += " &middot; the keypad needs an ADC1 pin (GPIO " + PIN_ADC[0] + "-" + PIN_ADC[1] + ")"; }
             if (dup) cls = "text-danger";
             msg += dup;
         }
@@ -1491,33 +1500,89 @@ function supremePinRefresh() {
         hint.innerHTML = msg;
     });
     const tbody = document.querySelector("#pin-guide-table tbody");
-    const rows = [2, 3, 6, 21, 38, 39, 43, 44, 45, 46, 48, 17, 18];
     let html = "";
-    rows.forEach(g => {
-        const info = SUPREME_PIN_INFO[g];
-        const badge = info.st === "ok" ? "text-bg-success" : (info.st === "strap" ? "text-bg-warning" : "text-bg-danger");
-        const label = info.st === "ok" ? "free" : (info.st === "strap" ? "avoid" : "used");
-        html += "<tr><td class=\"text-nowrap\">" + g + "</td><td class=\"text-nowrap\">" + info.hdr + "</td><td><span class=\"badge " + badge + "\">" + label + "</span>" + (info.txt === "Free" ? "" : " <small>" + info.txt + "</small>")
+    PIN_ROWS.forEach(g => {
+        const info = PIN_INFO[g];
+        const badge = info.st === "ok" ? "text-bg-success" : (info.st === "strap" || info.st === "in" ? "text-bg-warning" : "text-bg-danger");
+        const label = info.st === "ok" ? "free" : (info.st === "strap" ? "care" : (info.st === "in" ? "input" : "used"));
+        html += "<tr><td class=\"text-nowrap\">" + g + "</td>" + (PIN_SUPREME ? "<td class=\"text-nowrap\">" + info.hdr + "</td>" : "")
+              + "<td><span class=\"badge " + badge + "\">" + label + "</span>" + (info.txt === "Free" ? "" : " <small>" + info.txt + "</small>")
               + "</td><td>" + (roles[g] ? "<strong>" + roles[g].join(", ") + "</strong>" : "") + "</td></tr>";
     });
     tbody.innerHTML = html;
 }
 
-function supremePinInit() {
+// Suggested assignment for the boards other than the Supreme: only free pins (never strapping ones); the keypad goes to an ADC1 pin
+// (input-only pins are fine for it, so they are kept for it), the key contacts to pins with an internal pull-up.
+function boardPinSuggest(pins, lo, hi, skip) {
+    const free = [], inOnly = [];
+    for (let g = lo; g <= hi; g++) {
+        if (skip.indexOf(g) >= 0) continue;
+        const e = pins[g];
+        if (!e) free.push(g); else if (e[0] === "i") inOnly.push(g);
+    }
+    const sug = {};
+    const adcOk = g => g >= PIN_ADC[0] && g <= PIN_ADC[1];
+    let kp = inOnly.filter(adcOk).pop();
+    if (kp === undefined) { const f = free.filter(adcOk); kp = f.length ? f[f.length - 1] : undefined; }
+    if (kp !== undefined) { sug["cw.keypadPin"] = kp; const i = free.indexOf(kp); if (i >= 0) free.splice(i, 1); }
+    const pool = free;
+    ["notification.ledTxPin", "notification.ledMessagePin", "cw.keyPin", "cw.dahPin", "notification.ledFlashlightPin", "notification.buzzerPinTone", "notification.buzzerPinVcc"].forEach(id => {
+        sug[id] = pool.length ? pool.shift() : -1;          // no free pin left: the function stays unassigned
+    });
+    return sug;
+}
+
+function boardPinInit() {
     fetch("/api/info?_t=" + Date.now())
         .then(r => r.json())
         .then(i => {
-            if (!i.board || i.board.toLowerCase().indexOf("supreme") < 0) return;
-            supremeBoard = true;
-            document.getElementById("pin-guide").classList.remove("d-none");
-            document.getElementById("grp-nmea").classList.remove("d-none");
-            SUPREME_PIN_ROLES.forEach(([id]) => document.getElementById(id).addEventListener("input", supremePinRefresh));
-            document.getElementById("pin-guide-suggest").addEventListener("click", () => {
-                Object.keys(SUPREME_PIN_SUGGEST).forEach(id => { document.getElementById(id).value = SUPREME_PIN_SUGGEST[id]; });
-                supremePinRefresh();
+            const name = i.board || "";
+            const isSupreme = name.toLowerCase().indexOf("supreme") >= 0;
+            const show = () => {
+                PIN_NAME = name;
+                PIN_SUPREME = isSupreme;
+                document.getElementById("pin-guide").classList.remove("d-none");
+                document.getElementById("pin-guide-title").textContent = isSupreme ? "T-Beam S3 Supreme: expansion header pins" : "Board pins: " + (name || "this board");
+                document.querySelectorAll(".pin-guide-supreme").forEach(e => e.classList.toggle("d-none", !isSupreme));
+                document.querySelectorAll(".pin-guide-generic").forEach(e => e.classList.toggle("d-none", isSupreme));
+                PIN_ROLES.forEach(([id]) => document.getElementById(id).addEventListener("input", boardPinRefresh));
+                document.getElementById("pin-guide-suggest").addEventListener("click", () => {
+                    Object.keys(PIN_SUGGEST).forEach(id => { document.getElementById(id).value = PIN_SUGGEST[id]; });
+                    boardPinRefresh();
+                });
+                const sg = Object.keys(PIN_SUGGEST).map(id => (PIN_ROLES.filter(r => r[0] === id)[0] || [id, id])[1] + " " + (PIN_SUGGEST[id] < 0 ? "-" : PIN_SUGGEST[id])).join(", ");
+                document.getElementById("pin-guide-suggest").textContent = "Use the suggested pins (" + sg + ")";
+                boardPinRefresh();
+            };
+            if (isSupreme) {
+                PIN_ROLES = PIN_ROLES_BASE.concat([["nmeaUart.txPin", "NMEA TX", "out"]]);
+                PIN_INFO = SUPREME_PIN_INFO;
+                PIN_SUGGEST = SUPREME_PIN_SUGGEST;
+                PIN_ROWS = [2, 3, 6, 21, 38, 39, 43, 44, 45, 46, 48, 17, 18];
+                PIN_ADC = [1, 10];
+                document.getElementById("grp-nmea").classList.remove("d-none");
+                show();
+                return;
+            }
+            return fetch("/api/pins?_t=" + Date.now()).then(r => r.json()).then(d => {
+                const info = {}, rows = [];
+                const skip = d.skip || [];
+                for (let g = d.lo; g <= d.hi; g++) {
+                    if (skip.indexOf(g) >= 0) continue;
+                    const e = d.pins[g];
+                    const st = !e ? "ok" : (e[0] === "u" ? "used" : (e[0] === "i" ? "in" : "strap"));
+                    info[g] = { hdr: "-", st: st, txt: e ? e[1] : "Free" };
+                    rows.push(g);
+                }
+                PIN_ROLES = PIN_ROLES_BASE;
+                PIN_INFO = info;
+                PIN_ROWS = rows;
+                PIN_ADC = d.adc1 || [1, 10];
+                PIN_SUGGEST = boardPinSuggest(d.pins, d.lo, d.hi, skip);
+                show();
             });
-            supremePinRefresh();
         })
         .catch(() => {});
 }
-window.addEventListener("load", () => setTimeout(supremePinInit, 300));
+window.addEventListener("load", () => setTimeout(boardPinInit, 300));

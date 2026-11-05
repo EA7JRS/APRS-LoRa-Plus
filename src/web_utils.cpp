@@ -22,6 +22,7 @@
 #include "lora_utils.h"
 #include "gps_utils.h"
 #include "web_utils.h"
+#include "board_pins.h"
 #include "display.h"
 #include "utils.h"
 #include "fw_update.h"
@@ -579,6 +580,11 @@ namespace WEB_Utils {
         server.on("/bootstrap.js", HTTP_GET, handleBootstrapScript);
         server.on("/favicon.png", HTTP_GET, handleFavicon);
 
+        server.on("/api/pins", HTTP_GET, [](AsyncWebServerRequest *request) {      // GPIO ocupados por la placa (WebUI: guia de pines)
+            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", BOARD_PINS::json());
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
         FW_Update::registerRoutes(server);
 
         server.onNotFound(handleNotFound);
