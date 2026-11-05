@@ -37,6 +37,17 @@ namespace FW_Update {
     void   registerRoutes(AsyncWebServer& server);   // /api/info, /api/update (upload), /api/update/check|install|status
     void   autoUpdateAtBoot();              // if enabled in the configuration: join the WiFi, look for a newer version, install it
 
+    // From the APRS LoRa+ app over BLE (EA7JRS)
+    bool   onlineStart(bool install);       // the same as the WebUI buttons: check (and install) over the tracker's WiFi; false if busy
+    String onlineStatus();                  // {"state","progress","message","latest","current","size"}
+    // Image sent by the phone: written into the free slot, checked against the SHA-256 the phone announces and against the
+    // board identity inside the image (like an upload from the WebUI), then activated
+    bool   bleBegin(size_t size, const char* sha256Hex, String& error);
+    bool   bleWrite(const uint8_t* data, size_t length, String& error);
+    size_t bleWritten();
+    bool   bleFinish(String& error);        // true: the new firmware boots at the next restart
+    void   bleAbort();
+
 }
 
 #endif

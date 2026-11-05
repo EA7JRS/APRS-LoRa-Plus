@@ -498,6 +498,20 @@ namespace LoRa_Utils {
         return true;
     }
 
+    // Perfil LoRa elegido desde la app por BLE (EA7JRS): como changeFreq() pero a un indice concreto y sin mensaje en pantalla
+    bool selectLoraIndex(uint8_t index) {
+        if (aisLoraActive || (int)index >= loraIndexSize) return false;
+        loraIndex       = index;
+        currentLoRaType = &Config.loraTypes[loraIndex];
+        catFreqOverrideHz = 0;          // un perfil nuevo anula la frecuencia puesta por CAT
+        applyCurrentType();
+        transmitFlag    = true;
+        operationDone   = true;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "LoRa", "Profile %d from BLE: Freq %ld / SF%d / CR 4/%d", (int)loraIndex,
+                   currentLoRaType->frequency, currentLoRaType->spreadingFactor, currentLoRaType->codingRate4);
+        return true;
+    }
+
     void changeFreq() {
         if (aisLoraActive) {            // el perfil nautico AIS tiene la frecuencia fija
             displayShow("LORA FREQ>", "", "FIXED BY AIS", "NAUTICAL PROFILE", "", "", 2000);

@@ -70,6 +70,7 @@ ____________________________________________________________________*/
 #include "gps_utils.h"
 #include "web_utils.h"
 #include "ble_utils.h"
+#include "ble_control.h"
 #include "wx_utils.h"
 #include "display.h"
 #include "utils.h"
@@ -375,4 +376,6 @@ void loop() {
         #endif
         delay(10);
     }
+
+    if (bluetoothActive && Config.bluetooth.useBLE) BLE_Control::loop();     // app APRS LoRa+: ordenes y eventos de control (EA7JRS)
 }

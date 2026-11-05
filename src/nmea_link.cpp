@@ -37,6 +37,7 @@
 #include "mag_utils.h"
 #include "baro_utils.h"
 #include "wx_utils.h"
+#include "ble_control.h"
 #include <string.h>
 
 #ifndef NMEA_USB
@@ -124,6 +125,7 @@ namespace {
                 if (clients[i].write((const uint8_t*) text, length) == 0) clients[i].stop();
             }
         }
+        BLE_Control::nmea(text, length);                // al movil por BLE, solo si la app esta suscrita
     }
 
     void startNetwork() {
