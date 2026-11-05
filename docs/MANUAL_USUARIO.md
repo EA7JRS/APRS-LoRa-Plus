@@ -672,7 +672,7 @@ La placa puede ser un **TNC KISS por WiFi** para programas como **APRSdroid** (p
 - **Seguridad:** KISS no tiene contraseña; cualquiera permitido puede transmitir con tu indicativo. Úsalo en redes de confianza y con la lista de direcciones.
 - Con el punto de acceso del móvil, la IP puede cambiar entre sesiones: mira la pantalla o usa `aprs-lora-plus.local` si tu aplicación lo resuelve. Probado con APRSdroid en Android por TCP en **LoRa y en FSK**; UDP sin probar. El nombre `.local` (mDNS) lo resuelven bien Windows, macOS y Linux, pero **muchas aplicaciones de Android no**: allí usa la IP que muestra la vista LINK de SYSTEM. El nombre de equipo en la red es `aprs-lora-plus` (se aplica al reiniciar).
 
-## 33. CAT por WiFi (Hamlib)
+## 33. CAT por WiFi (Hamlib) (5.3.3)
 
 La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), así que programas como GPredict, `rigctl` o scripts de Hamlib la ven como una radio: leen la **frecuencia**, el **modo** (APRS LoRa o APRS FSK 9600), el **RSSI** y la **potencia**. **No es una radio de audio**: WSJT-X y fldigi no pueden decodificar ni modular a través de ella; solo pueden seguir la frecuencia o, con *PTT = baliza*, hacer que el tracker emita su baliza APRS. Solo en APRS LoRa y APRS FSK, en placas ESP32-S3 / C3.
 

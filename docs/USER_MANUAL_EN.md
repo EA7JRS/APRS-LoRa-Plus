@@ -678,7 +678,7 @@ The board can be a **KISS TNC over WiFi** for programs such as **APRSdroid** (te
 - **Security:** KISS has no password; anyone allowed can transmit with your callsign. Use it on trusted networks and with the address list.
 - With a phone hotspot the IP may change between sessions: read the screen, or use `aprs-lora-plus.local` if your application resolves it. Tested with APRSdroid on Android over TCP in **LoRa and FSK**; UDP untested. The `.local` name (mDNS) works on Windows, macOS and Linux, but **many Android apps do not resolve it**: use the IP shown in the LINK view of SYSTEM. The network host name is `aprs-lora-plus` (applied after a restart).
 
-## 33. CAT over WiFi (Hamlib)
+## 33. CAT over WiFi (Hamlib) (5.3.3)
 
 The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), so programs such as GPredict, `rigctl` or Hamlib scripts see it as a radio: they read the **frequency**, the **mode** (APRS LoRa or APRS FSK 9600), the **RSSI** and the **power**. **It is not an audio radio**: WSJT-X and fldigi cannot decode or modulate through it; they can only follow the frequency or, with *PTT = beacon*, make the tracker send its APRS beacon. APRS LoRa and APRS FSK modes only, on ESP32-S3 / C3 boards.
 
