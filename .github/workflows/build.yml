@@ -213,7 +213,7 @@ jobs:
                       0x8000 installer/firmware/partitions.bin \
                       0xe000 installer/firmware/boot_app0.bin \
                       0x10000 installer/firmware/firmware.bin \
-                      0x310000 installer/firmware/spiffs.bin
+                      0x3D0000 installer/firmware/spiffs.bin
                   elif [ "${{ matrix.target.chip }}" == "esp32s3" ]; then
                       esptool --chip esp32s3 merge-bin \
                         -o installer/web_factory.bin \
@@ -230,11 +230,11 @@ jobs:
                       --flash-mode dio \
                       --flash-freq 40m \
                       --flash-size 4MB \
-                      0x1000 installer/firmware/bootloader.bin \
+                      0x0000 installer/firmware/bootloader.bin \
                       0x8000 installer/firmware/partitions.bin \
                       0xe000 installer/firmware/boot_app0.bin \
                       0x10000 installer/firmware/firmware.bin \
-                      0x310000 installer/firmware/spiffs.bin
+                      0x3D0000 installer/firmware/spiffs.bin
                   fi
 
             - name: Web installer files (images, manifest, update info)
