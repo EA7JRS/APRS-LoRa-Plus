@@ -72,6 +72,8 @@ namespace POWER_Utils {
                 case 6: case 7: case 8: case 9:     // GPS PPS, Wakeup, TX, RX
                 case 10: case 11: case 12: case 13: // LoRa SPI (CS, MOSI, SCLK, MISO)
                 case 14:                            // RTC INT
+                case 19: case 20:                   // USB (D-, D+)
+                case 26: case 27: case 28: case 29: case 30: case 31: case 32:   // flash y PSRAM QSPI
                 case 17: case 18:                   // I2C0 (OLED, BME280, QMC6310)
                 case 33: case 34: case 35: case 36: case 37: // IMU SPI + IMU INT
                 case 40: case 41: case 42:          // I2C1 (PMU, RTC) + PMU IRQ
@@ -82,6 +84,16 @@ namespace POWER_Utils {
             }
         }
     #endif
+
+    // true si el GPIO esta ocupado por la propia placa (solo la T-Beam S3 Supreme lo sabe; en las demas siempre false)
+    bool pinReserved(int pin) {
+        #ifdef TTGO_T_Beam_S3_SUPREME_V3
+            return isReservedSupremePin(pin);
+        #else
+            (void)pin;
+            return false;
+        #endif
+    }
 
     #ifdef VEXT_CTRL
         void vext_ctrl_ON() {

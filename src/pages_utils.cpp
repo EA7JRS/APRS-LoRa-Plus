@@ -113,6 +113,9 @@ namespace {
     }
     bool aprsMode() { return Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && !ftMode(); }
 
+    // Pin del manipulador / teclado FH-2: -1 (sin usar) si es negativo o si lo ocupa la propia placa (Supreme: radio, GPS, IMU, PMU...)
+    int cwPin(int pin) { return (pin >= 0 && !POWER_Utils::pinReserved(pin)) ? pin : -1; }
+
     const char* const PAGE_TITLES[PAGE_COUNT] = {
         "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP"
     };
@@ -2581,7 +2584,7 @@ namespace PAGES_Utils {
             if (cwRxSnr >= CWMorse::Envelope::MIN_SNR_DB) row(5, "%.0fdBm SNR %.0f", cwRxDbm, cwRxSnr);
             else row(5, "%.0fdBm no signal", cwRxDbm);
         }
-        else if (Config.cw.keyPin < 0) row(5, "No key pin (WebUI)");
+        else if (cwPin(Config.cw.keyPin) < 0) row(5, "No key pin (WebUI)");
         else row(5, "Key GPIO%d  Hold:macros", Config.cw.keyPin);
     }
 
@@ -3323,14 +3326,14 @@ namespace PAGES_Utils {
 
     void cwInitPins() {
         if (cwPinsReady) return;
-        if (Config.cw.keyPin >= 0) pinMode(Config.cw.keyPin, INPUT_PULLUP);
-        if (Config.cw.dahPin >= 0) pinMode(Config.cw.dahPin, INPUT_PULLUP);
+        if (cwPin(Config.cw.keyPin) >= 0) pinMode(Config.cw.keyPin, INPUT_PULLUP);
+        if (cwPin(Config.cw.dahPin) >= 0) pinMode(Config.cw.dahPin, INPUT_PULLUP);
         cwPinsReady = true;
     }
 
     void cwReadPaddles(bool& dit, bool& dah) {
-        dit = Config.cw.keyPin >= 0 && digitalRead(Config.cw.keyPin) == LOW;
-        dah = Config.cw.dahPin >= 0 && digitalRead(Config.cw.dahPin) == LOW;
+        dit = cwPin(Config.cw.keyPin) >= 0 && digitalRead(Config.cw.keyPin) == LOW;
+        dah = cwPin(Config.cw.dahPin) >= 0 && digitalRead(Config.cw.dahPin) == LOW;
         if (Config.cw.keyMode != 0 && Config.cw.swapPaddles) { bool t = dit; dit = dah; dah = t; }
     }
 
@@ -3499,7 +3502,7 @@ namespace PAGES_Utils {
 
     // Manipular: se muestra un caracter, se teclea con el manipulador y se corrige
     void cwTrainerKeying() {
-        if (Config.cw.keyPin < 0) { showToast("Set key GPIO (WebUI)"); return; }
+        if (cwPin(Config.cw.keyPin) < 0) { showToast("Set key GPIO (WebUI)"); return; }
         cwInitPins();
         displayToggle(true);
         const bool iambic   = Config.cw.keyMode != 0;
@@ -3567,7 +3570,7 @@ namespace PAGES_Utils {
         static uint8_t stable  = 0;
         static bool    latched = false;
         static uint32_t lastMs = 0;
-        const int pin = Config.cw.keypadPin;
+        const int pin = cwPin(Config.cw.keypadPin);
         if (page != PAGE_CW || submenuOpen || pin < 0 || !FH2::adcPinOk(pin) || sosState != SOS_IDLE || alarmShown) return;
         const uint32_t t = millis();
         if (t - lastMs < 15) return;
@@ -3587,7 +3590,7 @@ namespace PAGES_Utils {
     }
 
     void cwKeyPoll() {
-        if (page != PAGE_CW || submenuOpen || Config.cw.keyPin < 0 || sosState != SOS_IDLE || alarmShown) return;
+        if (page != PAGE_CW || submenuOpen || cwPin(Config.cw.keyPin) < 0 || sosState != SOS_IDLE || alarmShown) return;
         cwInitPins();
         bool dit, dah;
         cwReadPaddles(dit, dah);

@@ -645,10 +645,12 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2">
                                         <input type="number" class="form-control form-control-sm" name="cw.keyPin" id="cw.keyPin" min="-1" max="48" value="-1" required />
                                         <label for="cw.keyPin">Key / dit GPIO (-1 = none)</label>
+                                        <div class="form-text pin-hint" id="pinhint-cw.keyPin"></div>
                                     </div>
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2">
                                         <input type="number" class="form-control form-control-sm" name="cw.dahPin" id="cw.dahPin" min="-1" max="48" value="-1" required />
                                         <label for="cw.dahPin">Dah GPIO (-1 = none)</label>
+                                        <div class="form-text pin-hint" id="pinhint-cw.dahPin"></div>
                                     </div>
                                 </div>
                                 <div class="row">
@@ -656,6 +658,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2">
                                         <input type="number" class="form-control form-control-sm" name="cw.keypadPin" id="cw.keypadPin" min="-1" max="48" value="-1" required />
                                         <label for="cw.keypadPin">FH-2 keypad ADC GPIO (-1 = none)</label>
+                                        <div class="form-text pin-hint" id="pinhint-cw.keypadPin"></div>
                                     </div>
                                     <div class="col-6 col-md-9 px-1 mb-2 d-flex align-items-center"><small id="kp-live">Live: -</small></div>
                                 </div>
@@ -1166,6 +1169,31 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
+                        <div class="row my-5 d-flex align-items-top d-none" id="grp-nmea">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>NMEA output (TTL &rarr; RS422)</h5>
+                                <small>Serial NMEA 0183 for a plotter (Garmin&hellip;) through a TTL&rarr;RS422 converter. T-Beam S3 Supreme only.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="nmeaUart.txPin">TX pin (-1 = off)</label>
+                                        <input type="number" class="form-control" id="nmeaUart.txPin" name="nmeaUart.txPin" min="-1" max="48" value="-1">
+                                        <div class="form-text pin-hint" id="pinhint-nmeaUart.txPin"></div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="nmeaUart.baud">Baud rate</label>
+                                        <select class="form-select" id="nmeaUart.baud" name="nmeaUart.baud">
+                                            <option value="4800">4800 (NMEA 0183)</option>
+                                            <option value="9600">9600</option>
+                                            <option value="38400" selected>38400 (AIS speed)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <small>Applied after saving and restarting. Only the sentences a Garmin accepts over NMEA 0183 are sent (AIS <code>!AIVDM</code> and <code>MDA</code>). Wiring: TX pin &rarr; DI/TXD of the converter, converter VCC &rarr; 3V3 (DC1), GND &rarr; GND, converter A/B (or Y/Z) &rarr; the plotter's NMEA 0183 Rx+ / Rx&minus;, and the plotter's signal ground to the tracker's GND. Suggested pin: 43 (TXD). The USB and TCP outputs are set in the firmware.</small>
+                            </div>
+                        </div>
+
                         <div class="row my-5 d-flex align-items-top">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
@@ -1482,6 +1510,19 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         </div>
                                     </div>
                                 </div>
+                                <div id="pin-guide" class="d-none mt-3">
+                                    <details class="border rounded p-2">
+                                        <summary><strong>T-Beam S3 Supreme: expansion header pins</strong> <small class="text-muted">(which GPIO is free, which is used by the board)</small></summary>
+                                        <div class="table-responsive mt-2">
+                                            <table class="table table-sm align-middle mb-2" id="pin-guide-table">
+                                                <thead><tr><th>GPIO</th><th>Header pin</th><th>State</th><th>Assigned to</th></tr></thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                        <small class="text-muted">R1&hellip;R13 = right row of the 2&times;13 expansion header counted from the SDA end (right row, next to the OLED: SDA, SCL, GND, A-LDO2, IO46, IO45, IO39, IO38, IO2, IO3, IO6, IO21, IO48; left row: VBAT, VBUS, GND, <strong>VSYS (5 V out)</strong>, GND, B-LDO2, DC4, GND, DC5, DC1, RST, RXD, TXD). LEDs and the buzzer work at 3.3 V from the GPIO with a resistor; the high-intensity flash needs a logic-level MOSFET and is powered from VSYS. Wiring diagram: <code>docs/HARDWARE_SUPREME_EXTRAS.md</code>.</small>
+                                        <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="pin-guide-suggest">Use the suggested pins (Tx 38, Message 21, Flash 46, Buzzer 39 / 48, Key 44 / 43, FH-2 on 2)</button></div>
+                                    </details>
+                                </div>
                                 <div class="row mt-1">
                                     <div class="col-6">
                                         <label
@@ -1501,6 +1542,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                                 >Pin</span
                                             >
                                         </div>
+                                        <div class="form-text pin-hint" id="pinhint-ledTxPin"></div>
                                     </div>                                    
                                     <div class="col-6">
                                         <label
@@ -1520,6 +1562,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                                 >Pin</span
                                             >
                                         </div>
+                                        <div class="form-text pin-hint" id="pinhint-ledMessagePin"></div>
                                     </div>                                    
                                 </div>
                                 <div class="row mt-3">
@@ -1573,6 +1616,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                                 >Pin</span
                                             >
                                         </div>
+                                        <div class="form-text pin-hint" id="pinhint-buzzerPinTone"></div>
                                     </div>
                                     <div class="col-6">
                                         <label
@@ -1592,6 +1636,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                                 >Pin</span
                                             >
                                         </div>
+                                        <div class="form-text pin-hint" id="pinhint-ledFlashlightPin"></div>
                                     </div>
                                     <div class="col-6">
                                         <label 
@@ -1608,6 +1653,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                             />
                                             <span class="input-group-text">Pin</span>
                                         </div>
+                                        <div class="form-text pin-hint" id="pinhint-buzzerPinVcc"></div>
                                     </div>
                                     
                                 </div>

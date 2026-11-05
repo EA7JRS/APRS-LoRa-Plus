@@ -50,6 +50,13 @@ public:
     int     tuneKHz;            // ventana de sintonia en kHz alrededor de la frecuencia del perfil (0 = el cliente no puede cambiar la frecuencia)
 };
 
+// Salida NMEA por UART hacia un conversor TTL->RS422 (plotter Garmin): pin TX y velocidad. Solo las placas con NMEA_OUTPUT (T-Beam S3 Supreme); aplica al reiniciar
+class NmeaUartConfig {
+public:
+    int     txPin;              // GPIO TX; -1 = sin salida por UART
+    int     baud;               // 4800, 9600 o 38400 (velocidad de AIS)
+};
+
 // Vigilancia de grupo (estilo ARTS) y emergencia remota (estilo EAI)
 class TeamConfig {
 public:
@@ -305,6 +312,7 @@ public:
     TeamConfig              team;
     KissNetConfig           kissNet;
     CatConfig               cat;
+    NmeaUartConfig          nmeaUart;
     std::vector<Beacon>     beacons;
     Display                 display;
     Battery                 battery;

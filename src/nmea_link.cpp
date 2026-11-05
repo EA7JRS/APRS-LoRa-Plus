@@ -21,6 +21,7 @@
 
 #include "board_pinout.h"
 #include "nmea_link.h"
+#include "power_utils.h"
 
 #ifdef NMEA_OUTPUT
 
@@ -250,10 +251,14 @@ namespace NMEA_Link {
         options.n2kSource   = NMEA_N2K_SOURCE;
         engine.configure(options);
         engine.setSink(deliver, nullptr);
-        #if NMEA_UART_TX_PIN >= 0
-            nmeaSerial.begin(NMEA_UART_BAUD, SERIAL_8N1, -1, NMEA_UART_TX_PIN);
-            uartActive = true;
-        #endif
+        if (Config.nmeaUart.txPin >= 0) {                           // pin y velocidad de la WebUI (Hardware > NMEA output); aplican al reiniciar
+            if (POWER_Utils::pinReserved(Config.nmeaUart.txPin)) {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "NMEA", "UART pin %d conflicts with an internal bus, disabled", Config.nmeaUart.txPin);
+            } else {
+                nmeaSerial.begin(Config.nmeaUart.baud, SERIAL_8N1, -1, Config.nmeaUart.txPin);
+                uartActive = true;
+            }
+        }
         startNetwork();
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "NMEA", "Output ready (USB %d, TCP %d, UART %d)", NMEA_USB, NMEA_TCP, uartActive ? 1 : 0);
     }

@@ -52,6 +52,7 @@ namespace POWER_Utils {
     void deactivateLoRa();
 
     void externalPinSetup();
+    bool pinReserved(int pin);      // GPIO ocupado por la placa (T-Beam S3 Supreme); manipulador CW y teclado FH-2 lo ignoran
 
     bool begin(TwoWire &port);
     void setup();

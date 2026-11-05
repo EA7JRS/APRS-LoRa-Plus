@@ -450,6 +450,8 @@ namespace WEB_Utils {
         Config.kissNet.udpPort                  = constrain(getParamIntSafe("kissNet.udpPort", Config.kissNet.udpPort), 0, 65535);
         Config.kissNet.allowed                  = getParamStringSafe("kissNet.allowed", Config.kissNet.allowed);
         Config.kissNet.allowed.trim();
+        Config.nmeaUart.txPin                   = constrain(getParamIntSafe("nmeaUart.txPin", Config.nmeaUart.txPin), -1, 48);
+        { const int b = getParamIntSafe("nmeaUart.baud", Config.nmeaUart.baud); Config.nmeaUart.baud = (b == 4800 || b == 9600 || b == 38400) ? b : 38400; }
         Config.cat.enabled                      = request->hasParam("cat.enabled", true);
         Config.cat.port                         = constrain(getParamIntSafe("cat.port", Config.cat.port), 1, 65535);
         Config.cat.allowed                      = getParamStringSafe("cat.allowed", Config.cat.allowed);

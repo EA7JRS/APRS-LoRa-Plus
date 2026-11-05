@@ -842,6 +842,12 @@ function loadSettings(settings) {
         kissNetUpdate();
     }
 
+    // NMEA OUTPUT (UART)
+    if (settings.nmeaUart) {
+        document.getElementById("nmeaUart.txPin").value                 = settings.nmeaUart.txPin;
+        document.getElementById("nmeaUart.baud").value                  = settings.nmeaUart.baud;
+    }
+
     // CAT OVER WIFI
     if (settings.cat) {
         document.getElementById("cat.enabled").checked                  = settings.cat.enabled;
@@ -851,6 +857,8 @@ function loadSettings(settings) {
         document.getElementById("cat.pttBeacon").checked                = settings.cat.pttBeacon;
         catUpdate();
     }
+
+    if (typeof supremePinRefresh === "function") supremePinRefresh();      // pin hints of the T-Beam S3 Supreme
 
     // GROUP WATCH / REMOTE EMERGENCY
     if (settings.team) {
@@ -1405,3 +1413,111 @@ function lrfhssWire() {
     };
     f.addEventListener("input", upd); b.addEventListener("change", upd); upd();
 }
+
+// ---- T-Beam S3 Supreme: identify the expansion-header pins used by LEDs, flash and buzzer ----
+// state: ok = free, strap = strapping pin (usable with care), used = taken by the board (the firmware refuses it), nohdr = not on the header
+const SUPREME_PIN_INFO = {
+    2:  { hdr: "IO2 · R9",   st: "ok",    txt: "Free (ADC1: the only free analog pin; use it for the FH-2 keypad)" },
+    3:  { hdr: "IO3 · R10",  st: "strap", txt: "Strapping pin (JTAG select): avoid" },
+    6:  { hdr: "IO6 · R11",  st: "used",  txt: "GPS PPS" },
+    21: { hdr: "IO21 · R12", st: "ok",    txt: "Free" },
+    38: { hdr: "IO38 · R8",  st: "ok",    txt: "Free" },
+    39: { hdr: "IO39 · R7",  st: "ok",    txt: "Free (JTAG clock, not used by the firmware)" },
+    43: { hdr: "TXD / QWIIC",  st: "ok",    txt: "Free (UART1 TX, also on the QWIIC socket)" },
+    44: { hdr: "RXD / QWIIC",  st: "ok",    txt: "Free (UART1 RX, also on the QWIIC socket)" },
+    45: { hdr: "IO45 · R6",  st: "strap", txt: "Strapping pin: only with a pull-down or a contact to GND" },
+    46: { hdr: "IO46 · R5",  st: "strap", txt: "Strapping pin: only with a pull-down or a contact to GND" },
+    48: { hdr: "IO48 · R13", st: "ok",    txt: "Free" },
+    17: { hdr: "SDA · R1",   st: "used",  txt: "I2C: OLED, BME280, magnetometer" },
+    18: { hdr: "SCL · R2",   st: "used",  txt: "I2C: OLED, BME280, magnetometer" },
+    0:  { hdr: "-",            st: "used",  txt: "BOOT button" },
+    1:  { hdr: "-",            st: "used",  txt: "LoRa DIO1" },
+    4:  { hdr: "-",            st: "used",  txt: "LoRa BUSY" },
+    5:  { hdr: "-",            st: "used",  txt: "LoRa RESET" },
+    7:  { hdr: "-",            st: "used",  txt: "GPS wake-up" },
+    8:  { hdr: "-",            st: "used",  txt: "GPS TX" },
+    9:  { hdr: "-",            st: "used",  txt: "GPS RX" },
+    10: { hdr: "-",            st: "used",  txt: "LoRa CS" },
+    11: { hdr: "-",            st: "used",  txt: "LoRa MOSI" },
+    12: { hdr: "-",            st: "used",  txt: "LoRa SCLK" },
+    13: { hdr: "-",            st: "used",  txt: "LoRa MISO" },
+    14: { hdr: "-",            st: "used",  txt: "RTC interrupt" },
+    33: { hdr: "-",            st: "used",  txt: "IMU interrupt" },
+    34: { hdr: "-",            st: "used",  txt: "IMU chip select" },
+    35: { hdr: "-",            st: "used",  txt: "IMU / SD MOSI" },
+    36: { hdr: "-",            st: "used",  txt: "IMU / SD SCK" },
+    37: { hdr: "-",            st: "used",  txt: "IMU / SD MISO" },
+    40: { hdr: "-",            st: "used",  txt: "PMU interrupt" },
+    41: { hdr: "-",            st: "used",  txt: "PMU / RTC I2C SCL" },
+    42: { hdr: "-",            st: "used",  txt: "PMU / RTC I2C SDA" },
+    47: { hdr: "-",            st: "used",  txt: "SD card chip select" }
+};
+for (let g = 26; g <= 32; g++) SUPREME_PIN_INFO[g] = { hdr: "-", st: "used", txt: "Flash / PSRAM" };
+SUPREME_PIN_INFO[19] = { hdr: "-", st: "used", txt: "USB D-" };
+SUPREME_PIN_INFO[20] = { hdr: "-", st: "used", txt: "USB D+" };
+const SUPREME_PIN_ROLES = [
+    ["notification.ledTxPin", "Tx LED"], ["notification.ledMessagePin", "Message LED"], ["notification.ledFlashlightPin", "Flash"],
+    ["notification.buzzerPinTone", "Buzzer tone"], ["notification.buzzerPinVcc", "Buzzer Vcc"],
+    ["cw.keyPin", "Key tip (dit)"], ["cw.dahPin", "Key ring (dah)"], ["cw.keypadPin", "FH-2 keypad"], ["nmeaUart.txPin", "NMEA TX"]
+];
+const SUPREME_PIN_SUGGEST = { "notification.ledTxPin": 38, "notification.ledMessagePin": 21, "notification.ledFlashlightPin": 45, "notification.buzzerPinTone": 39, "notification.buzzerPinVcc": 48, "cw.keyPin": 44, "cw.dahPin": 46, "cw.keypadPin": 2, "nmeaUart.txPin": 43 };
+let supremeBoard = false;
+
+function supremePinRefresh() {
+    if (!supremeBoard) return;
+    const roles = {};                       // gpio -> roles that use it
+    SUPREME_PIN_ROLES.forEach(([id, name]) => {
+        const v = parseInt(document.getElementById(id).value, 10);
+        if (!isNaN(v) && v >= 0) (roles[v] = roles[v] || []).push(name);
+    });
+    SUPREME_PIN_ROLES.forEach(([id, name]) => {
+        const hint = document.getElementById("pinhint-" + id.replace("notification.", ""));
+        if (!hint) return;
+        const v = parseInt(document.getElementById(id).value, 10);
+        let cls = "text-muted", msg;
+        if (isNaN(v) || v < 0) { msg = "Not used"; }
+        else {
+            const info = SUPREME_PIN_INFO[v];
+            const dup = roles[v].length > 1 ? " &middot; also used by " + roles[v].filter(n => n !== name).join(", ") : "";
+            if (!info)                  { cls = "text-warning"; msg = "GPIO " + v + ": not on the Supreme header"; }
+            else if (info.st === "ok")  { cls = "text-success"; msg = "GPIO " + v + " &middot; header " + info.hdr + " &middot; " + info.txt; }
+            else if (info.st === "strap"){ cls = "text-warning"; msg = "GPIO " + v + " &middot; header " + info.hdr + " &middot; " + info.txt; }
+            else                        { cls = "text-danger";  msg = "GPIO " + v + " is used by the board (" + info.txt + "): the firmware will switch this function off"; }
+            if (id === "cw.keypadPin" && info && info.st !== "used" && !(v >= 1 && v <= 10)) { cls = "text-warning"; msg += " &middot; the keypad needs an ADC1 pin (GPIO 1-10)"; }
+            if (dup) cls = "text-danger";
+            msg += dup;
+        }
+        hint.className = "form-text pin-hint " + cls;
+        hint.innerHTML = msg;
+    });
+    const tbody = document.querySelector("#pin-guide-table tbody");
+    const rows = [2, 3, 6, 21, 38, 39, 43, 44, 45, 46, 48, 17, 18];
+    let html = "";
+    rows.forEach(g => {
+        const info = SUPREME_PIN_INFO[g];
+        const badge = info.st === "ok" ? "text-bg-success" : (info.st === "strap" ? "text-bg-warning" : "text-bg-danger");
+        const label = info.st === "ok" ? "free" : (info.st === "strap" ? "avoid" : "used");
+        html += "<tr><td class=\"text-nowrap\">" + g + "</td><td class=\"text-nowrap\">" + info.hdr + "</td><td><span class=\"badge " + badge + "\">" + label + "</span>" + (info.txt === "Free" ? "" : " <small>" + info.txt + "</small>")
+              + "</td><td>" + (roles[g] ? "<strong>" + roles[g].join(", ") + "</strong>" : "") + "</td></tr>";
+    });
+    tbody.innerHTML = html;
+}
+
+function supremePinInit() {
+    fetch("/api/info?_t=" + Date.now())
+        .then(r => r.json())
+        .then(i => {
+            if (!i.board || i.board.toLowerCase().indexOf("supreme") < 0) return;
+            supremeBoard = true;
+            document.getElementById("pin-guide").classList.remove("d-none");
+            document.getElementById("grp-nmea").classList.remove("d-none");
+            SUPREME_PIN_ROLES.forEach(([id]) => document.getElementById(id).addEventListener("input", supremePinRefresh));
+            document.getElementById("pin-guide-suggest").addEventListener("click", () => {
+                Object.keys(SUPREME_PIN_SUGGEST).forEach(id => { document.getElementById(id).value = SUPREME_PIN_SUGGEST[id]; });
+                supremePinRefresh();
+            });
+            supremePinRefresh();
+        })
+        .catch(() => {});
+}
+window.addEventListener("load", () => setTimeout(supremePinInit, 300));

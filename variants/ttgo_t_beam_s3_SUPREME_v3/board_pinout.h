@@ -66,7 +66,7 @@
     #define NMEA_TCP_PORT           10110
     #define NMEA_WIFI_SSID          ""          // vacio: crea el punto de acceso "LoRaTracker-NMEA"; con valor: se une a esa red
     #define NMEA_WIFI_PASSWORD      ""
-    #define NMEA_UART_TX_PIN        -1          // pin TX para un conversor TTL->RS422 (plotter); -1 = desactivado
+    #define NMEA_UART_TX_PIN        -1          // pin TX por defecto para un conversor TTL->RS422 (plotter); -1 = desactivado. Se cambia en la WebUI (Hardware > NMEA output); sugerido: 43 (TXD de la cabecera)
     #define NMEA_UART_BAUD          38400       // 38400 es la velocidad de AIS
     #define NMEA_OUT_GNSS           1           // RMC/GGA/VTG/GLL/ZDA propios; ponlo a 0 para un plotter Garmin por NMEA 0183 (no los acepta)
     #define NMEA_OUT_ENV            1           // MDA y XDR (el plotter acepta MDA)

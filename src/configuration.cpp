@@ -24,6 +24,33 @@
 #include "ais_vessel.h"
 #include "logger.h"
 
+#ifdef NMEA_UART_TX_PIN
+    #define NMEA_UART_TX_DEFAULT    NMEA_UART_TX_PIN        // el board_pinout.h de la variante (-1 = apagado)
+#else
+    #define NMEA_UART_TX_DEFAULT    -1
+#endif
+#ifdef NMEA_UART_BAUD
+    #define NMEA_UART_BAUD_DEFAULT  NMEA_UART_BAUD
+#else
+    #define NMEA_UART_BAUD_DEFAULT  38400
+#endif
+
+// Pines por defecto de LEDs, flash y buzzer (todo apagado por defecto). En la T-Beam S3 Supreme los de otras placas chocan con la radio, el IMU o el RTC:
+// se usan pines libres de su cabecera de expansion (38 LED Tx, 21 LED mensaje, 45 flash, 39 tono y 48 Vcc del buzzer; el 2 (ADC1) queda para el teclado FH-2, 44 / 46 para el manipulador y 43 para la salida NMEA; esquema en docs/HARDWARE_SUPREME_EXTRAS.md)
+#ifdef TTGO_T_Beam_S3_SUPREME_V3
+    #define NOTIF_DEF_LED_TX        38
+    #define NOTIF_DEF_LED_MESSAGE   21
+    #define NOTIF_DEF_FLASHLIGHT    45
+    #define NOTIF_DEF_BUZZER_TONE   39
+    #define NOTIF_DEF_BUZZER_VCC    48
+#else
+    #define NOTIF_DEF_LED_TX        13
+    #define NOTIF_DEF_LED_MESSAGE   2
+    #define NOTIF_DEF_FLASHLIGHT    14
+    #define NOTIF_DEF_BUZZER_TONE   33
+    #define NOTIF_DEF_BUZZER_VCC    25
+#endif
+
 extern logging::Logger logger;
 
 bool Configuration::writeFile() {
@@ -52,6 +79,8 @@ bool Configuration::writeFile() {
         data["kissNet"]["tcpPort"]                  = kissNet.tcpPort;
         data["kissNet"]["udpPort"]                  = kissNet.udpPort;
         data["kissNet"]["allowed"]                  = kissNet.allowed;
+        data["nmeaUart"]["txPin"]                   = nmeaUart.txPin;
+        data["nmeaUart"]["baud"]                    = nmeaUart.baud;
         data["cat"]["enabled"]                      = cat.enabled;
         data["cat"]["port"]                         = cat.port;
         data["cat"]["allowed"]                      = cat.allowed;
@@ -310,6 +339,10 @@ bool Configuration::readFile() {
         kissNet.tcpPort             = constrain((int)(data["kissNet"]["tcpPort"] | 8001), 1, 65535);
         kissNet.udpPort             = constrain((int)(data["kissNet"]["udpPort"] | 0), 0, 65535);
         kissNet.allowed             = data["kissNet"]["allowed"] | "";
+        if (data["nmeaUart"]["baud"].isNull()) needsRewrite = true;
+        nmeaUart.txPin              = constrain((int)(data["nmeaUart"]["txPin"] | NMEA_UART_TX_DEFAULT), -1, 48);
+        nmeaUart.baud               = data["nmeaUart"]["baud"] | NMEA_UART_BAUD_DEFAULT;
+        if (nmeaUart.baud != 4800 && nmeaUart.baud != 9600 && nmeaUart.baud != 38400) nmeaUart.baud = NMEA_UART_BAUD_DEFAULT;
         if (data["cat"]["port"].isNull()) needsRewrite = true;
         cat.enabled                 = data["cat"]["enabled"] | false;
         cat.port                    = constrain((int)(data["cat"]["port"] | 4532), 1, 65535);
@@ -607,12 +640,12 @@ bool Configuration::readFile() {
             data["notification"]["ledFlashlight"].isNull() ||
             data["notification"]["ledFlashlightPin"].isNull()) needsRewrite = true;
         notification.ledTx              = data["notification"]["ledTx"] | false;
-        notification.ledTxPin           = data["notification"]["ledTxPin"]| 13;
+        notification.ledTxPin           = data["notification"]["ledTxPin"] | NOTIF_DEF_LED_TX;
         notification.ledMessage         = data["notification"]["ledMessage"] | false;
-        notification.ledMessagePin      = data["notification"]["ledMessagePin"] | 2;
+        notification.ledMessagePin      = data["notification"]["ledMessagePin"] | NOTIF_DEF_LED_MESSAGE;
         notification.buzzerActive       = data["notification"]["buzzerActive"] | false;
-        notification.buzzerPinTone      = data["notification"]["buzzerPinTone"] | 33;
-        notification.buzzerPinVcc       = data["notification"]["buzzerPinVcc"] | 25;
+        notification.buzzerPinTone      = data["notification"]["buzzerPinTone"] | NOTIF_DEF_BUZZER_TONE;
+        notification.buzzerPinVcc       = data["notification"]["buzzerPinVcc"] | NOTIF_DEF_BUZZER_VCC;
         notification.bootUpBeep         = data["notification"]["bootUpBeep"] | false;
         notification.txBeep             = data["notification"]["txBeep"] | false;
         notification.messageRxBeep      = data["notification"]["messageRxBeep"] | false;
@@ -621,7 +654,7 @@ bool Configuration::readFile() {
         notification.shutDownBeep       = data["notification"]["shutDownBeep"] | false;
         notification.bellRings          = data["notification"]["bellRings"] | true;
         notification.ledFlashlight      = data["notification"]["ledFlashlight"] | false;
-        notification.ledFlashlightPin   = data["notification"]["ledFlashlightPin"] | 14;
+        notification.ledFlashlightPin   = data["notification"]["ledFlashlightPin"] | NOTIF_DEF_FLASHLIGHT;
 
         if (data["pttTrigger"]["active"].isNull() ||
             data["pttTrigger"]["reverse"].isNull() ||
@@ -887,6 +920,8 @@ void Configuration::setDefaultValues() {
     kissNet.tcpPort                 = 8001;
     kissNet.udpPort                 = 0;
     kissNet.allowed                 = "";
+    nmeaUart.txPin                  = NMEA_UART_TX_DEFAULT;
+    nmeaUart.baud                   = NMEA_UART_BAUD_DEFAULT;
     cat.enabled                     = false;
     cat.port                        = 4532;
     cat.allowed                     = "";
@@ -984,12 +1019,12 @@ void Configuration::setDefaultValues() {
     winlink.password                = "NOPASS";
 
     notification.ledTx              = false;
-    notification.ledTxPin           = 13;
+    notification.ledTxPin           = NOTIF_DEF_LED_TX;
     notification.ledMessage         = false;
-    notification.ledMessagePin      = 2;
+    notification.ledMessagePin      = NOTIF_DEF_LED_MESSAGE;
     notification.buzzerActive       = false;
-    notification.buzzerPinTone      = 33;
-    notification.buzzerPinVcc       = 25;
+    notification.buzzerPinTone      = NOTIF_DEF_BUZZER_TONE;
+    notification.buzzerPinVcc       = NOTIF_DEF_BUZZER_VCC;
     notification.bootUpBeep         = false;
     notification.txBeep             = false;
     notification.messageRxBeep      = false;
@@ -998,7 +1033,7 @@ void Configuration::setDefaultValues() {
     notification.shutDownBeep       = false;
     notification.bellRings          = true;
     notification.ledFlashlight      = false;
-    notification.ledFlashlightPin   = 14;
+    notification.ledFlashlightPin   = NOTIF_DEF_FLASHLIGHT;
 
     ptt.active                      = false;
     ptt.reverse                     = false;
