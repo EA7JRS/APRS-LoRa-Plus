@@ -153,7 +153,7 @@ void setup() {
     bluetoothActive   = Config.bluetooth.active;
 
     #ifndef DEBUG
-        logger.setDebugLevel(logging::LoggerLevel::LOGGER_LEVEL_INFO);
+        logger.setDebugLevel(Config.cat.usb ? logging::LoggerLevel::LOGGER_LEVEL_ERROR : logging::LoggerLevel::LOGGER_LEVEL_INFO);   // CAT por USB: el log no se mezcla con las respuestas
     #endif
 
     POWER_Utils::setup();

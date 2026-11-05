@@ -18,17 +18,19 @@
 
 #include "cat_net.h"
 
-#if KISS_NET_SUPPORTED
-
-#include <WiFi.h>
-#include <ESPmDNS.h>
+#include <Arduino.h>
 #include <string>
 #include "configuration.h"
 #include "lora_utils.h"
-#include "kiss_stream.h"
 #include "cat_proto.h"
 #include "sleep_utils.h"
+#include "fw_update.h"
 #include "logger.h"
+#if KISS_NET_SUPPORTED
+    #include <WiFi.h>
+    #include <ESPmDNS.h>
+    #include "kiss_stream.h"
+#endif
 #ifdef HAS_APRS_PAGES
     #include "pages_utils.h"
 #endif
@@ -40,8 +42,6 @@ extern bool             sendUpdate;
 extern bool             gpsIsActive;
 
 namespace {
-
-    constexpr uint8_t MAX_CLIENTS = 2;
 
     // La radio del tracker vista por el protocolo (include/cat_proto.h)
     class TrackerRig : public CatProto::Rig {
@@ -101,12 +101,24 @@ namespace {
         const char* info() override { return "APRS LoRa+ tracker (EA7JRS)"; }
     };
 
+    TrackerRig              rig;
+    CatProto::Session       usbSession;
+    char                    usbLine[24];                        // detecta "APRS-INFO?" sin esperar al final de linea del protocolo
+    uint8_t                 usbLineLen = 0;
+
+}
+
+#if KISS_NET_SUPPORTED
+
+namespace {
+
+    constexpr uint8_t MAX_CLIENTS = 2;
+
     struct CatClient {
         WiFiClient          socket;
         CatProto::Session   session;
     };
 
-    TrackerRig      rig;
     CatClient       clients[MAX_CLIENTS];
     WiFiServer*     server = nullptr;
 
@@ -176,10 +188,6 @@ namespace CAT_NET {
         }
     }
 
-    void onRx(int rssiDbm) {
-        rig.rssi = rssiDbm;
-    }
-
     uint8_t clientCount() {
         uint8_t n = 0;
         for (uint8_t i = 0; i < MAX_CLIENTS; i++) if (clients[i].socket && clients[i].socket.connected()) n++;
@@ -194,8 +202,45 @@ namespace CAT_NET {
     void begin() {}
     void end() {}
     void poll() {}
-    void onRx(int) {}
     uint8_t clientCount() { return 0; }
 }
 
 #endif
+
+namespace CAT_NET {
+
+    void onRx(int rssiDbm) {
+        rig.rssi = rssiDbm;
+    }
+
+    bool usbActive() {
+        return Config.cat.usb;
+    }
+
+    // CAT por USB: el mismo protocolo de texto que el servidor TCP, por el puerto serie. Las lineas "APRS-INFO?" (instalador web) se siguen contestando
+    void usbPoll() {
+        if (!Config.cat.usb) return;
+        int guard = 128;                                            // trabajo acotado por pasada
+        while (Serial.available() > 0 && guard-- > 0) {
+            const int c = Serial.read();
+            if (c < 0) break;
+            if (c == '\n' || c == '\r') {
+                usbLine[usbLineLen] = 0;
+                if (usbLineLen > 0 && strcmp(usbLine, "APRS-INFO?") == 0) {
+                    FW_Update::printBanner();
+                    usbSession.reset();
+                    usbLineLen = 0;
+                    continue;
+                }
+                usbLineLen = 0;
+            } else if (usbLineLen < sizeof(usbLine) - 1) {
+                usbLine[usbLineLen++] = (char)c;
+            }
+            const char b = (char)c;
+            std::string out;
+            usbSession.feed(&b, 1, rig, out);                       // "q" en el puerto serie no cierra nada
+            if (!out.empty()) Serial.write((const uint8_t*)out.data(), out.size());
+        }
+    }
+
+}

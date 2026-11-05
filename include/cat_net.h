@@ -16,6 +16,8 @@ namespace CAT_NET {
     void end();                         // el enlace se ha perdido o se apaga: cierra el servidor y los clientes
     void poll();                        // cada pasada del bucle principal con el enlace arriba: acepta clientes y atiende comandos
     void onRx(int rssiDbm);             // paquete recibido: guarda el RSSI para el nivel STRENGTH
+    void usbPoll();                     // CAT por el puerto serie USB (si Config.cat.usb): llamar desde loop(); tambien atiende "APRS-INFO?"
+    bool usbActive();
     uint8_t clientCount();              // clientes conectados ahora
 
 }

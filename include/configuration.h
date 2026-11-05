@@ -43,7 +43,8 @@ public:
 // CAT por WiFi (Hamlib/rigctld): servidor TCP compatible con el modelo "NET rigctl" de Hamlib, en la misma red WiFi que KISS
 class CatConfig {
 public:
-    bool    enabled;            // apagado por defecto
+    bool    enabled;            // WiFi: apagado por defecto
+    bool    usb;                // CAT por el puerto USB (serie), apagado por defecto; aplica al reiniciar (silencia el log)
     int     port;               // puerto TCP (4532 por defecto, como rigctld)
     String  allowed;            // direcciones IP permitidas (o prefijos acabados en punto); vacio = cualquiera de la red
     bool    pttBeacon;          // PTT 1 emite una baliza APRS (apagado por defecto)

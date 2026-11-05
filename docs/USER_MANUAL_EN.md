@@ -688,6 +688,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 4. From a computer: `rigctl -m 2 -r aprs-lora-plus.local:4532 f` (model 2 = *NET rigctl*).
 
 - Up to 2 clients. No password: use trusted networks and the address list.
+- **Over USB:** the same protocol on the board's USB serial port (115200 baud). Enable *CAT over the USB serial port* in Connectivity > CAT (off by default; applies after a restart). While it is on, the log on that port only shows errors. Hamlib has no serial model for this protocol: use the backend in `tools/hamlib_backend` (model "APRS LoRa+ tracker (USB)", DTR and RTS off so the board does not reset) or talk to the port directly. Not available while the tracker is in deep sleep.
 - A frequency change requested over CAT lives in RAM only: it is not saved and is dropped when the profile changes. The AIS profile has a fixed frequency.
 - The mode does not change live (it is chosen at start-up).
 - Full protocol for anyone writing their own client or a Hamlib *backend*: `docs/CAT_HAMLIB.md`. Tested on a PC with `rigctl` 4.6.5; untested on the board.

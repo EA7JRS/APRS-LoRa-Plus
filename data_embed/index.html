@@ -1139,13 +1139,17 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
 
                         <div class="row my-5 d-flex align-items-top" id="grp-cat">
                             <div class="col-lg-3 col-sm-12">
-                                <h5>CAT (Hamlib) over WiFi</h5>
-                                <small>Lets WSJT-X, fldigi, GPredict&hellip; and any Hamlib program talk to the tracker as a radio (<em>Hamlib NET rigctl</em>, model 2). Same WiFi as KISS (APRS LoRa and APRS FSK modes; ESP32-S3 / C3 boards).</small>
+                                <h5>CAT (Hamlib) over WiFi / USB</h5>
+                                <small>Lets WSJT-X, fldigi, GPredict&hellip; and any Hamlib program talk to the tracker as a radio (<em>Hamlib NET rigctl</em>, model 2). Over WiFi (same network as KISS; ESP32-S3 / C3 boards) or over the USB serial port. APRS LoRa and APRS FSK modes.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" id="cat.enabled" name="cat.enabled">
                                     <label class="form-check-label" for="cat.enabled">Enable CAT over WiFi (off by default)</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="cat.usb" name="cat.usb">
+                                    <label class="form-check-label" for="cat.usb">Enable CAT over the USB serial port (off by default; applies after restart and quiets the log on that port)</label>
                                 </div>
                                 <div class="row g-2 mb-2">
                                     <div class="col-md-3">
@@ -1165,7 +1169,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <input class="form-check-input" type="checkbox" id="cat.pttBeacon" name="cat.pttBeacon">
                                     <label class="form-check-label" for="cat.pttBeacon">PTT sends an APRS beacon (a program that keys the radio makes the tracker transmit its position)</label>
                                 </div>
-                                <small>Hamlib: <code>rigctl -m 2 -r aprs-lora-plus.local:4532</code>. CAT has no password: anyone allowed here can retune the radio within the window and, if PTT is enabled, make it transmit. The tracker only transmits APRS packets, never audio. Details in docs/CAT_HAMLIB.md.</small>
+                                <small>Hamlib: <code>rigctl -m 2 -r aprs-lora-plus.local:4532</code> (WiFi) or, over USB, the APRS LoRa+ (USB) model of the backend in tools/hamlib_backend with the board's serial port (115200 baud, DTR and RTS off). CAT has no password: anyone allowed here can retune the radio within the window and, if PTT is enabled, make it transmit. The tracker only transmits APRS packets, never audio. Details in docs/CAT_HAMLIB.md.</small>
                             </div>
                         </div>
 

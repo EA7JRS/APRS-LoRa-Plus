@@ -6,12 +6,12 @@ Copyright (C) 2026 Manuel - EA7JRS. `aprslorap.c` es LGPL-2.1 o posterior (la li
 
 Un *backend* nativo de Hamlib (`RIG_MODEL_APRSLORAP`, familia `dummy`, como `quisk.c`, `sdrsharp.c` o `gqrx.c`) que habla con el servidor CAT del firmware (`docs/CAT_HAMLIB.md`) por TCP. Hace lo mismo que `rigctl -m 2` (NET rigctl), pero con nombre propio, rangos de frecuencia de las bandas LoRa y sin tener que saber que la placa es "un rigctld". Frecuencia, modo (`PKTFM` = APRS FSK, `PKTFMN` = APRS LoRa), RSSI (`STRENGTH`), potencia (`RFPOWER`) y PTT = baliza APRS.
 
-Mientras no esté aceptado en Hamlib, **no hace falta**: usa el modelo 2 (`rigctl -m 2 -r aprs-lora-plus.local:4532`).
+Hay dos modelos: **WiFi** (red, `aprs-lora-plus.local:4532`) y **USB** (puerto serie de la placa, 115200 baudios, DTR y RTS apagados por defecto para no reiniciar la placa). Mientras no esté aceptado en Hamlib, **para WiFi no hace falta**: usa el modelo 2 (`rigctl -m 2 -r aprs-lora-plus.local:4532`). Por USB sí hace falta el backend (Hamlib no trae modelo serie para este protocolo).
 
 ## Estado
 
-- Probado con el `rigctl` real de Hamlib **4.7.2** (modelo 12 con el parche; también `-m 2`) y, antes, con 4.6.5, contra el servidor de pruebas de `tools/cat_net` (get/set de frecuencia, modo, STRENGTH, RFPOWER, PTT, info).
-- El parche `hamlib-4.7.2-aprslorap.patch` usa el modelo 12 (el 11 es GQRX en 4.7.2) y aplica limpio sobre el árbol original.
+- Probado con el `rigctl` real de Hamlib **4.7.2** (modelo 12 WiFi y modelo 13 USB con el parche, el USB probado a través de un seudoterminal enlazado al servidor de pruebas; también `-m 2`) y, antes, con 4.6.5, contra el servidor de pruebas de `tools/cat_net` (get/set de frecuencia, modo, STRENGTH, RFPOWER, PTT, info).
+- El parche `hamlib-4.7.2-aprslorap.patch` usa los modelos 12 (WiFi) y 13 (USB) (el 11 es GQRX en 4.7.2) y aplica limpio sobre el árbol original.
 - El número de modelo definitivo lo asigna Hamlib al aceptarlo.
 
 ## Probarlo en local
@@ -22,6 +22,7 @@ patch -p1 < /ruta/a/tools/hamlib_backend/hamlib-4.7.2-aprslorap.patch
 ./bootstrap && ./configure && make && sudo make install     # (bootstrap solo si compilas desde git)
 rigctl -l | grep -i aprs
 rigctl -m 12 -r aprs-lora-plus.local:4532 f
+rigctl -m 13 -r /dev/ttyACM0 f          # por USB (COM3, etc. en Windows)
 ```
 
 ## Enviarlo a Hamlib (lo tiene que hacer el autor)

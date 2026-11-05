@@ -33,7 +33,8 @@
 
 #include "dummy.h"
 
-#define APRSLORAP_DEFAULT_PATH "aprs-lora-plus.local:4532"
+#define APRSLORAP_DEFAULT_PATH   "aprs-lora-plus.local:4532"
+#define APRSLORAP_DEFAULT_SERIAL "/dev/ttyACM0"
 #define APRSLORAP_LINE         96
 
 #define APRSLORAP_MODES  (RIG_MODE_PKTFM | RIG_MODE_PKTFMN)    /* PKTFM = APRS FSK 9600, PKTFMN = APRS LoRa */
@@ -76,7 +77,18 @@ static int aprslorap_rprt(RIG *rig, const char *cmd)
 static int aprslorap_init(RIG *rig)
 {
     ENTERFUNC;
-    strncpy(RIGPORT(rig)->pathname, APRSLORAP_DEFAULT_PATH, sizeof(RIGPORT(rig)->pathname) - 1);
+    if (rig->caps->port_type == RIG_PORT_SERIAL)
+    {
+        /* USB: the native USB port of the board; opening it must not reset the board (DTR / RTS off) */
+        strncpy(RIGPORT(rig)->pathname, APRSLORAP_DEFAULT_SERIAL, sizeof(RIGPORT(rig)->pathname) - 1);
+        RIGPORT(rig)->parm.serial.rts_state = RIG_SIGNAL_OFF;
+        RIGPORT(rig)->parm.serial.dtr_state = RIG_SIGNAL_OFF;
+    }
+    else
+    {
+        strncpy(RIGPORT(rig)->pathname, APRSLORAP_DEFAULT_PATH, sizeof(RIGPORT(rig)->pathname) - 1);
+    }
+
     STATE(rig)->current_vfo = RIG_VFO_A;
     RETURNFUNC(RIG_OK);
 }
@@ -218,63 +230,82 @@ static const char *aprslorap_get_info(RIG *rig)
     return info;
 }
 
+/* fields shared by the WiFi (network) and USB (serial) models: same protocol, same capabilities */
+#define APRSLORAP_COMMON_CAPS \
+    .rig_type       = RIG_TYPE_OTHER, \
+    .ptt_type       = RIG_PTT_RIG, \
+    .write_delay    = 0, \
+    .post_write_delay = 0, \
+    .timeout        = 2000, \
+    .retry          = 2, \
+    .has_get_level  = APRSLORAP_LEVELS, \
+    .has_set_level  = RIG_LEVEL_RFPOWER, \
+    .level_gran     = { \
+        [LVL_RFPOWER] = { .min = { .f = 0 }, .max = { .f = 1 }, .step = { .f = 0.01f } }, \
+        [LVL_STRENGTH] = { .min = { .i = -60 }, .max = { .i = 60 }, .step = { .i = 1 } }, \
+    }, \
+    .filters        = { {APRSLORAP_MODES, RIG_FLT_ANY}, RIG_FLT_END }, \
+    /* ISM bands used by LoRa APRS (EU 433 / 868, Americas 915); the owner's tuning window is enforced by the tracker */ \
+    .rx_range_list1 = { \
+        { .startf = MHz(433), .endf = MHz(435), .modes = APRSLORAP_MODES, .low_power = -1, .high_power = -1, .vfo = RIG_VFO_A, .ant = RIG_ANT_1 }, \
+        { .startf = MHz(863), .endf = MHz(870), .modes = APRSLORAP_MODES, .low_power = -1, .high_power = -1, .vfo = RIG_VFO_A, .ant = RIG_ANT_1 }, \
+        RIG_FRNG_END, \
+    }, \
+    .tx_range_list1 = { \
+        { .startf = MHz(433), .endf = MHz(435), .modes = APRSLORAP_MODES, .low_power = mW(1), .high_power = W(1), .vfo = RIG_VFO_A, .ant = RIG_ANT_1 }, \
+        { .startf = MHz(863), .endf = MHz(870), .modes = APRSLORAP_MODES, .low_power = mW(1), .high_power = W(1), .vfo = RIG_VFO_A, .ant = RIG_ANT_1 }, \
+        RIG_FRNG_END, \
+    }, \
+    .rx_range_list2 = { \
+        { .startf = MHz(902), .endf = MHz(928), .modes = APRSLORAP_MODES, .low_power = -1, .high_power = -1, .vfo = RIG_VFO_A, .ant = RIG_ANT_1 }, \
+        RIG_FRNG_END, \
+    }, \
+    .tx_range_list2 = { \
+        { .startf = MHz(902), .endf = MHz(928), .modes = APRSLORAP_MODES, .low_power = mW(1), .high_power = W(1), .vfo = RIG_VFO_A, .ant = RIG_ANT_1 }, \
+        RIG_FRNG_END, \
+    }, \
+    .tuning_steps   = { {APRSLORAP_MODES, 1}, RIG_TS_END }, \
+    .priv           = NULL, \
+    .rig_init       = aprslorap_init, \
+    .rig_open       = aprslorap_open, \
+    .get_freq       = aprslorap_get_freq, \
+    .set_freq       = aprslorap_set_freq, \
+    .get_mode       = aprslorap_get_mode, \
+    .set_mode       = aprslorap_set_mode, \
+    .get_level      = aprslorap_get_level, \
+    .set_level      = aprslorap_set_level, \
+    .get_ptt        = aprslorap_get_ptt, \
+    .set_ptt        = aprslorap_set_ptt, \
+    .get_info       = aprslorap_get_info, \
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
+
 struct rig_caps aprslorap_caps =
 {
     RIG_MODEL(RIG_MODEL_APRSLORAP),
     .model_name     = "APRS LoRa+ tracker",
     .mfg_name       = "EA7JRS",
-    .version        = "20261105.0",
+    .version        = "20261105.1",
     .copyright      = "LGPL",
     .status         = RIG_STATUS_BETA,
-    .rig_type       = RIG_TYPE_OTHER,
-    .ptt_type       = RIG_PTT_RIG,
     .port_type      = RIG_PORT_NETWORK,
-    .write_delay    = 0,
-    .post_write_delay = 0,
-    .timeout        = 2000,
-    .retry          = 2,
+    APRSLORAP_COMMON_CAPS
+};
 
-    .has_get_level  = APRSLORAP_LEVELS,
-    .has_set_level  = RIG_LEVEL_RFPOWER,
-    .level_gran     = {
-        [LVL_RFPOWER] = { .min = { .f = 0 }, .max = { .f = 1 }, .step = { .f = 0.01f } },
-        [LVL_STRENGTH] = { .min = { .i = -60 }, .max = { .i = 60 }, .step = { .i = 1 } },
-    },
-
-    .filters        = { {APRSLORAP_MODES, RIG_FLT_ANY}, RIG_FLT_END },
-
-    /* ISM bands used by LoRa APRS (EU 433 / 868, Americas 915); the owner's tuning window is enforced by the tracker */
-    .rx_range_list1 = {
-        { .startf = MHz(433), .endf = MHz(435), .modes = APRSLORAP_MODES, .low_power = -1, .high_power = -1, .vfo = RIG_VFO_A, .ant = RIG_ANT_1 },
-        { .startf = MHz(863), .endf = MHz(870), .modes = APRSLORAP_MODES, .low_power = -1, .high_power = -1, .vfo = RIG_VFO_A, .ant = RIG_ANT_1 },
-        RIG_FRNG_END,
-    },
-    .tx_range_list1 = {
-        { .startf = MHz(433), .endf = MHz(435), .modes = APRSLORAP_MODES, .low_power = mW(1), .high_power = W(1), .vfo = RIG_VFO_A, .ant = RIG_ANT_1 },
-        { .startf = MHz(863), .endf = MHz(870), .modes = APRSLORAP_MODES, .low_power = mW(1), .high_power = W(1), .vfo = RIG_VFO_A, .ant = RIG_ANT_1 },
-        RIG_FRNG_END,
-    },
-    .rx_range_list2 = {
-        { .startf = MHz(902), .endf = MHz(928), .modes = APRSLORAP_MODES, .low_power = -1, .high_power = -1, .vfo = RIG_VFO_A, .ant = RIG_ANT_1 },
-        RIG_FRNG_END,
-    },
-    .tx_range_list2 = {
-        { .startf = MHz(902), .endf = MHz(928), .modes = APRSLORAP_MODES, .low_power = mW(1), .high_power = W(1), .vfo = RIG_VFO_A, .ant = RIG_ANT_1 },
-        RIG_FRNG_END,
-    },
-    .tuning_steps   = { {APRSLORAP_MODES, 1}, RIG_TS_END },
-    .priv           = NULL,
-
-    .rig_init       = aprslorap_init,
-    .rig_open       = aprslorap_open,
-    .get_freq       = aprslorap_get_freq,
-    .set_freq       = aprslorap_set_freq,
-    .get_mode       = aprslorap_get_mode,
-    .set_mode       = aprslorap_set_mode,
-    .get_level      = aprslorap_get_level,
-    .set_level      = aprslorap_set_level,
-    .get_ptt        = aprslorap_get_ptt,
-    .set_ptt        = aprslorap_set_ptt,
-    .get_info       = aprslorap_get_info,
-    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
+/* The same tracker over its USB serial port (CAT over USB enabled in the WebUI) */
+struct rig_caps aprslorap_usb_caps =
+{
+    RIG_MODEL(RIG_MODEL_APRSLORAP_USB),
+    .model_name     = "APRS LoRa+ tracker (USB)",
+    .mfg_name       = "EA7JRS",
+    .version        = "20261105.1",
+    .copyright      = "LGPL",
+    .status         = RIG_STATUS_BETA,
+    .port_type      = RIG_PORT_SERIAL,
+    .serial_rate_min = 115200,
+    .serial_rate_max = 115200,
+    .serial_data_bits = 8,
+    .serial_stop_bits = 1,
+    .serial_parity  = RIG_PARITY_NONE,
+    .serial_handshake = RIG_HANDSHAKE_NONE,
+    APRSLORAP_COMMON_CAPS
 };

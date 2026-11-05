@@ -682,6 +682,7 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 4. Desde el ordenador: `rigctl -m 2 -r aprs-lora-plus.local:4532 f` (modelo 2 = *NET rigctl*).
 
 - Hasta 2 clientes. Sin contraseña: usa redes de confianza y la lista de direcciones.
+- **Por USB:** el mismo protocolo por el puerto serie de la placa (115200 baudios). Activa *CAT over the USB serial port* en Connectivity > CAT (apagado por defecto; aplica al reiniciar). Con él activo, el log de ese puerto solo muestra errores. Hamlib no trae modelo serie para este protocolo: usa el backend de `tools/hamlib_backend` (modelo «APRS LoRa+ tracker (USB)», DTR y RTS apagados para no reiniciar la placa) o habla con el puerto directamente. No funciona con la placa en sueño profundo.
 - Un cambio de frecuencia pedido por CAT solo vive en RAM: no se guarda y se descarta al cambiar de perfil. El perfil AIS tiene la frecuencia fija.
 - El modo no cambia en caliente (se elige al arrancar).
 - Protocolo completo para quien quiera hacer su propio cliente o un *backend* de Hamlib: `docs/CAT_HAMLIB.md`. Probado en PC con `rigctl` 4.6.5; sin probar en placa.

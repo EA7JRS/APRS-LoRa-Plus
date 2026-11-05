@@ -8,6 +8,7 @@
 #include <time.h>
 #include <logger.h>
 #include "fw_update.h"
+#include "cat_net.h"
 #include "configuration.h"
 #include "display.h"
 
@@ -516,6 +517,7 @@ namespace FW_Update {
     }
 
     void serialPoll() {
+        if (CAT_NET::usbActive()) { CAT_NET::usbPoll(); return; }       // CAT por USB: atiende tambien "APRS-INFO?"
         static char line[24];
         static uint8_t n = 0;
         while (Serial.available() > 0) {

@@ -851,6 +851,7 @@ function loadSettings(settings) {
     // CAT OVER WIFI
     if (settings.cat) {
         document.getElementById("cat.enabled").checked                  = settings.cat.enabled;
+        document.getElementById("cat.usb").checked                      = !!settings.cat.usb;
         document.getElementById("cat.port").value                       = settings.cat.port;
         document.getElementById("cat.tuneKHz").value                    = settings.cat.tuneKHz;
         document.getElementById("cat.allowed").value                    = settings.cat.allowed;
@@ -1095,10 +1096,12 @@ document.getElementById("kissNet.enabled").addEventListener("change", kissNetUpd
 
 // CAT over WiFi: same behaviour
 function catUpdate() {
-    const on = document.getElementById("cat.enabled").checked;
-    ["cat.port", "cat.tuneKHz", "cat.allowed", "cat.pttBeacon"].forEach((id) => { document.getElementById(id).disabled = !on; });
+    const wifi = document.getElementById("cat.enabled").checked, usb = document.getElementById("cat.usb").checked;
+    ["cat.port", "cat.allowed"].forEach((id) => { document.getElementById(id).disabled = !wifi; });
+    ["cat.tuneKHz", "cat.pttBeacon"].forEach((id) => { document.getElementById(id).disabled = !(wifi || usb); });     // shared by both links
 }
 document.getElementById("cat.enabled").addEventListener("change", catUpdate);
+document.getElementById("cat.usb").addEventListener("change", catUpdate);
 
 const BluetoothActiveCheckbox   = document.querySelector('input[name="bluetooth.active"]');
 const BluetoothDeviceName       = document.querySelector('input[name="bluetooth.deviceName"]');

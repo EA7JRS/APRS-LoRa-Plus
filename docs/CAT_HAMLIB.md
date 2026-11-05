@@ -32,6 +32,18 @@ rigctl -m 2 -r aprs-lora-plus.local:4532 l STRENGTH  # RSSI
 rigctl -m 2 -r aprs-lora-plus.local:4532 L RFPOWER 0.5
 ```
 
+### 2.1 Over USB (serial)
+
+- The same text protocol over the board's USB serial port (115200 baud 8N1, newline-terminated lines), enabled with *Enable CAT over the USB serial port* in the WebUI (Connectivity > CAT). Off by default; applies after a restart.
+- While it is on, the firmware lowers its log on that port to errors only, so that log lines do not mix with the answers. The boot banner is still printed once at start-up: **flush the port after opening it** (the Hamlib backend does).
+- The line `APRS-INFO?` (used by the web installer) keeps working: it is answered with the banner and is never taken as a CAT command.
+- Opening the port with DTR / RTS asserted can reset the board (the USB-JTAG/CDC port of the ESP32-S3 uses them for the bootloader): keep **DTR and RTS off**. The backend sets this by default (`--set-conf=rts_state=OFF,dtr_state=OFF`).
+- Not available while the tracker is in deep sleep. The tuning window, PTT option and every other setting are shared with the WiFi server. Stock Hamlib has no serial model for it: use the backend below (model `APRS LoRa+ tracker (USB)`, serial port) or talk to the port directly (for example with pyserial).
+
+```
+rigctl -m 13 -r /dev/ttyACM0 f        # backend model number in the 4.7.2 patch (Hamlib assigns the final one)
+```
+
 ## 3. Commands
 
 | Command | Short | Answer |
@@ -85,4 +97,4 @@ rigctl -m 2 -r 127.0.0.1:4532 f  # real Hamlib client against it (CAT_TRACE=1 pr
 
 ## 8. Hamlib backend
 
-A native Hamlib backend (`aprslorap.c`, LGPL-2.1+, proposed model `RIG_MODEL_APRSLORAP`, family `dummy`) lives in `tools/hamlib_backend/` with a patch for Hamlib 4.7.2 and the submission steps; it is meant to be submitted upstream by the author. Until it is accepted, use model 2 (*NET rigctl*) as shown above.
+A native Hamlib backend (`aprslorap.c`, LGPL-2.1+, proposed model `RIG_MODEL_APRSLORAP`, family `dummy`) lives in `tools/hamlib_backend/` with a patch for Hamlib 4.7.2 and the submission steps; it is meant to be submitted upstream by the author. Until it is accepted, use model 2 (*NET rigctl*) as shown above for WiFi; the USB link needs the backend (second model, `APRS LoRa+ tracker (USB)`).

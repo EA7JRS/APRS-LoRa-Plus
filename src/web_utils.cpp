@@ -454,10 +454,11 @@ namespace WEB_Utils {
         Config.nmeaUart.txPin                   = constrain(getParamIntSafe("nmeaUart.txPin", Config.nmeaUart.txPin), -1, 48);
         { const int b = getParamIntSafe("nmeaUart.baud", Config.nmeaUart.baud); Config.nmeaUart.baud = (b == 4800 || b == 9600 || b == 38400) ? b : 38400; }
         Config.cat.enabled                      = request->hasParam("cat.enabled", true);
+        Config.cat.usb                          = request->hasParam("cat.usb", true);
         Config.cat.port                         = constrain(getParamIntSafe("cat.port", Config.cat.port), 1, 65535);
         Config.cat.allowed                      = getParamStringSafe("cat.allowed", Config.cat.allowed);
         Config.cat.allowed.trim();
-        if (Config.cat.enabled) Config.cat.pttBeacon = request->hasParam("cat.pttBeacon", true);       // con el interruptor apagado los campos no se envian: se conservan
+        if (Config.cat.enabled || Config.cat.usb) Config.cat.pttBeacon = request->hasParam("cat.pttBeacon", true);       // con el interruptor apagado los campos no se envian: se conservan
         Config.cat.tuneKHz                      = constrain(getParamIntSafe("cat.tuneKHz", Config.cat.tuneKHz), 0, 500);
         Config.team.watchActive                 = request->hasParam("team.watchActive", true);
         Config.team.watchCalls                  = getParamStringSafe("team.watchCalls", Config.team.watchCalls);

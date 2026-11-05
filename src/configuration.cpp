@@ -89,6 +89,7 @@ bool Configuration::writeFile() {
         data["nmeaUart"]["txPin"]                   = nmeaUart.txPin;
         data["nmeaUart"]["baud"]                    = nmeaUart.baud;
         data["cat"]["enabled"]                      = cat.enabled;
+        data["cat"]["usb"]                          = cat.usb;
         data["cat"]["port"]                         = cat.port;
         data["cat"]["allowed"]                      = cat.allowed;
         data["cat"]["pttBeacon"]                    = cat.pttBeacon;
@@ -352,6 +353,7 @@ bool Configuration::readFile() {
         if (nmeaUart.baud != 4800 && nmeaUart.baud != 9600 && nmeaUart.baud != 38400) nmeaUart.baud = NMEA_UART_BAUD_DEFAULT;
         if (data["cat"]["port"].isNull()) needsRewrite = true;
         cat.enabled                 = data["cat"]["enabled"] | false;
+        cat.usb                     = data["cat"]["usb"] | false;
         cat.port                    = constrain((int)(data["cat"]["port"] | 4532), 1, 65535);
         cat.allowed                 = data["cat"]["allowed"] | "";
         cat.pttBeacon               = data["cat"]["pttBeacon"] | false;
@@ -930,6 +932,7 @@ void Configuration::setDefaultValues() {
     nmeaUart.txPin                  = NMEA_UART_TX_DEFAULT;
     nmeaUart.baud                   = NMEA_UART_BAUD_DEFAULT;
     cat.enabled                     = false;
+    cat.usb                         = false;
     cat.port                        = 4532;
     cat.allowed                     = "";
     cat.pttBeacon                   = false;
