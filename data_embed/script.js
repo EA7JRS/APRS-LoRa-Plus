@@ -892,6 +892,7 @@ function loadSettings(settings) {
     document.getElementById("notification.ledMessagePin").value         = settings.notification.ledMessagePin;
     document.getElementById("notification.ledRxBeacon").checked         = !!settings.notification.ledRxBeacon;
     document.getElementById("notification.flashEmergency").checked      = !!settings.notification.flashEmergency;
+    document.getElementById("notification.ledCw").checked               = !!settings.notification.ledCw;
     NotificationLedMessageCheckbox.checked  = settings.notification.ledMessage;
     ledMessagePinUpdate();
     

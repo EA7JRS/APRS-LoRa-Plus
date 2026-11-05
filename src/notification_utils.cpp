@@ -31,8 +31,44 @@ uint8_t shutDownSoundDuration[] = {60, 60, 200};
 
 extern Configuration    Config;
 extern bool             digipeaterActive;
+extern bool             flashlight;
 
 namespace NOTIFICATION_Utils {
+
+    // ---- Luces ligadas al zumbador y al modo CW ------------------------------------------------------------------------
+    static bool lampLit     = false;        // el flash lo lleva una luz (sirena / lampara Morse)
+    static bool rxLedOwned  = false;        // el LED rojo lo lleva la recepcion CW
+
+    // Flash blanco: enciende / apaga; al apagarse recupera el estado de la linterna manual
+    static void lampSet(bool on) {
+        if (!Config.notification.ledFlashlight || Config.notification.ledFlashlightPin < 0) return;
+        lampLit = on;
+        digitalWrite(Config.notification.ledFlashlightPin, (on || flashlight) ? HIGH : LOW);
+    }
+
+    // Sirena de emergencia: el flash blanco sigue cada nota del zumbador
+    static void sirenLight(bool on) {
+        if (Config.notification.flashEmergency) lampSet(on);
+    }
+
+    bool lampBusy()  { return lampLit; }
+    bool rxLedBusy() { return rxLedOwned; }
+
+    void lightTx(bool on) {
+        if (!Config.notification.ledCw || !Config.notification.ledTx || Config.notification.ledTxPin < 0) return;
+        digitalWrite(Config.notification.ledTxPin, on ? HIGH : LOW);
+    }
+
+    void lightMorse(bool on) {
+        if (!Config.notification.ledCw) return;
+        lampSet(on);
+    }
+
+    void lightRx(bool on) {
+        if (!Config.notification.ledCw || !(Config.notification.ledMessage || Config.notification.ledRxBeacon) || Config.notification.ledMessagePin < 0) return;
+        rxLedOwned = on;
+        digitalWrite(Config.notification.ledMessagePin, on ? HIGH : LOW);
+    }
 
     void sidetone(bool on) {
         static bool active = false;
@@ -107,21 +143,30 @@ namespace NOTIFICATION_Utils {
         update();
     }
 
-    void playTone(int frequency, uint8_t duration) {
+    // light = true: el flash blanco se enciende y se apaga con la nota (sirena de emergencia)
+    static void playToneLit(int frequency, uint8_t duration, bool light) {
         #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
         ledcAttach(Config.notification.buzzerPinTone, frequency, resolution);   // Arduino core 3.x API
         ledcWrite(Config.notification.buzzerPinTone, 128);
+        if (light) sirenLight(true);
         delay(duration);
         ledcWrite(Config.notification.buzzerPinTone, 0);
         ledcDetach(Config.notification.buzzerPinTone);
+        if (light) sirenLight(false);
         #else
         ledcSetup(channel, frequency, resolution);
         ledcAttachPin(Config.notification.buzzerPinTone, 0);
         ledcWrite(channel, 128);
+        if (light) sirenLight(true);
         delay(duration);
         ledcWrite(channel, 0);
+        if (light) sirenLight(false);
         #endif
         delay(pauseDuration);
+    }
+
+    void playTone(int frequency, uint8_t duration) {
+        playToneLit(frequency, duration, false);
     }
 
     void beaconTxBeep() {
@@ -152,16 +197,16 @@ namespace NOTIFICATION_Utils {
 
     void countdownBeep() {
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playTone(1500,80);
+        playToneLit(1500,80,true);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 
     void alarmBeep() {
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playTone(1800,120);
-        playTone(1200,120);
-        playTone(1800,120);
-        playTone(1200,120);
+        playToneLit(1800,120,true);
+        playToneLit(1200,120,true);
+        playToneLit(1800,120,true);
+        playToneLit(1200,120,true);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 

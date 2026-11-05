@@ -477,6 +477,7 @@ namespace WEB_Utils {
         Config.notification.ledMessage          = request->hasParam("notification.ledMessage", true);
         Config.notification.ledRxBeacon         = request->hasParam("notification.ledRxBeacon", true);
         Config.notification.flashEmergency      = request->hasParam("notification.flashEmergency", true);
+        Config.notification.ledCw               = request->hasParam("notification.ledCw", true);
         if (Config.notification.ledMessage || Config.notification.ledRxBeacon) Config.notification.ledMessagePin = getParamIntSafe("notification.ledMessagePin", Config.notification.ledMessagePin);
         Config.notification.buzzerActive        = request->hasParam("notification.buzzerActive", true);
         if (Config.notification.buzzerActive) {

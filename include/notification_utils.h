@@ -38,6 +38,13 @@ namespace NOTIFICATION_Utils {
     void bell(Bell::Id id);         // melodia de campana APRS (sin bloqueos): se reproduce desde update()
     void update();                  // llamar en cada vuelta del loop
 
+    // Luces (LED verde / blanco / rojo) ligadas al zumbador y al modo CW; cada una solo actua si su LED esta activo en la WebUI
+    void lightTx(bool on);          // modo CW: LED verde = portadora emitida (WebUI: LEDs in CW mode)
+    void lightMorse(bool on);       // modo CW: flash blanco como lampara Morse (sigue el manipulador / entrenador)
+    void lightRx(bool on);          // modo CW: LED rojo = senal CW recibida
+    bool rxLedBusy();               // el LED rojo lo lleva ahora la recepcion CW (ledNotification no lo toca)
+    bool lampBusy();                // el flash lo lleva ahora el zumbador o la lampara Morse (checkFlashlight no lo toca)
+
 }
 
 #endif

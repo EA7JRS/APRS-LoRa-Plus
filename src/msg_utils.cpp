@@ -194,6 +194,7 @@ namespace MSG_Utils {
         const bool msgLed = Config.notification.ledMessage;
         const bool rxLed  = Config.notification.ledRxBeacon;
         if ((!msgLed && !rxLed) || Config.notification.ledMessagePin < 0) return;
+        if (NOTIFICATION_Utils::rxLedBusy()) return;         // modo CW: el LED rojo sigue la senal recibida
         const int pin = Config.notification.ledMessagePin;
 
         #ifdef HAS_APRS_PAGES

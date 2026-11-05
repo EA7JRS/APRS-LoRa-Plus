@@ -780,6 +780,8 @@ namespace LoRa_Utils {
     }
 
     void cwKey(bool on) {
+        NOTIFICATION_Utils::lightTx(on);                    // LED verde = portadora (si esta elegido: LEDs in CW mode)
+        NOTIFICATION_Utils::lightMorse(on);                 // flash blanco = lampara Morse
         #if defined(HAS_SX1262) || defined(HAS_SX1268)
             if (on) {
                 #if defined(TTGO_T_BEAM_1W)

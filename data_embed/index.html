@@ -1623,7 +1623,20 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                             <label
                                                 for="notification.flashEmergency"
                                                 class="form-label"
-                                                >White flash: strobe on emergency alarm or own SOS (200 ms per second, 5 min at most; needs the flash active)</label
+                                                >White flash: on an emergency alarm or own SOS it flashes in step with the buzzer siren (without a buzzer: 200 ms per second, 5 min at most); needs the flash active</label
+                                            >
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input
+                                                type="checkbox"
+                                                name="notification.ledCw"
+                                                id="notification.ledCw"
+                                                class="form-check-input"
+                                            />
+                                            <label
+                                                for="notification.ledCw"
+                                                class="form-label"
+                                                >LEDs in CW mode: green = carrier on (key down), white = Morse lamp (follows the key), red = CW signal received</label
                                             >
                                         </div>
                                     </div>

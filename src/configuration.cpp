@@ -263,6 +263,7 @@ bool Configuration::writeFile() {
         data["notification"]["ledMessagePin"]       = notification.ledMessagePin;
         data["notification"]["ledRxBeacon"]         = notification.ledRxBeacon;
         data["notification"]["flashEmergency"]      = notification.flashEmergency;
+        data["notification"]["ledCw"]               = notification.ledCw;
         data["notification"]["buzzerActive"]        = notification.buzzerActive;
         data["notification"]["buzzerPinTone"]       = notification.buzzerPinTone;
         data["notification"]["buzzerPinVcc"]        = notification.buzzerPinVcc;
@@ -655,6 +656,7 @@ bool Configuration::readFile() {
         notification.ledMessage         = data["notification"]["ledMessage"] | false;
         notification.ledRxBeacon        = data["notification"]["ledRxBeacon"] | false;
         notification.flashEmergency     = data["notification"]["flashEmergency"] | false;
+        notification.ledCw              = data["notification"]["ledCw"] | false;
         notification.ledMessagePin      = data["notification"]["ledMessagePin"] | defaultPin(NOTIF_DEF_LED_MESSAGE);
         notification.buzzerActive       = data["notification"]["buzzerActive"] | false;
         notification.buzzerPinTone      = data["notification"]["buzzerPinTone"] | defaultPin(NOTIF_DEF_BUZZER_TONE);
@@ -1037,6 +1039,7 @@ void Configuration::setDefaultValues() {
     notification.ledMessage         = false;
     notification.ledRxBeacon        = false;
     notification.flashEmergency     = false;
+    notification.ledCw              = false;
     notification.ledMessagePin      = defaultPin(NOTIF_DEF_LED_MESSAGE);
     notification.buzzerActive       = false;
     notification.buzzerPinTone      = defaultPin(NOTIF_DEF_BUZZER_TONE);

@@ -3367,6 +3367,7 @@ namespace PAGES_Utils {
                 keyed = out;
                 if (rf) LoRa_Utils::cwKey(keyed);
                 if (tone) NOTIFICATION_Utils::sidetone(keyed);
+                NOTIFICATION_Utils::lightMorse(keyed);
                 if (keyed) decoder.keyDown(now); else decoder.keyUp(now);
                 snprintf(cwPending, sizeof(cwPending), "%s", decoder.pending());
             }
@@ -3383,6 +3384,7 @@ namespace PAGES_Utils {
         }
         if (keyed && rf) LoRa_Utils::cwKey(false);
         if (tone) NOTIFICATION_Utils::sidetone(false);
+        NOTIFICATION_Utils::lightMorse(false);
         if (rf) LoRa_Utils::cwEnd();
         cwPending[0] = '\0';
         displayTime = millis();
@@ -3418,6 +3420,7 @@ namespace PAGES_Utils {
                 keyed = k;
                 if (keyed) decoder.keyDown(now); else decoder.keyUp(now);
                 if (tone) NOTIFICATION_Utils::sidetone(keyed);
+                NOTIFICATION_Utils::lightRx(keyed);                    // LED rojo = senal CW recibida
                 snprintf(cwPending, sizeof(cwPending), "%s", decoder.pending());
             }
             char c = decoder.tick(now);
@@ -3441,6 +3444,7 @@ namespace PAGES_Utils {
             delay(1);
         }
         if (tone) NOTIFICATION_Utils::sidetone(false);
+        NOTIFICATION_Utils::lightRx(false);
         LoRa_Utils::cwRxEnd();
         cwRxActive = false;
         cwPending[0] = '\0';
@@ -3465,6 +3469,7 @@ namespace PAGES_Utils {
 
     void cwTrainKeyHook(void*, bool on) {
         NOTIFICATION_Utils::sidetone(on);
+        NOTIFICATION_Utils::lightMorse(on);
     }
 
     // Escuchar: grupos de 5 caracteres en el zumbador (velocidad de caracter = WPM, espacios Farnsworth); despues se muestran
@@ -3499,6 +3504,7 @@ namespace PAGES_Utils {
             if (!cwWaitHook(&run, 3000)) { aborted = true; break; }
         }
         NOTIFICATION_Utils::sidetone(false);
+        NOTIFICATION_Utils::lightMorse(false);
         displayTime = millis();
         char message[24];
         snprintf(message, sizeof(message), "Trainer: %u groups", (unsigned)groups);
@@ -3537,6 +3543,7 @@ namespace PAGES_Utils {
                 if (out != keyed) {
                     keyed = out;
                     if (tone) NOTIFICATION_Utils::sidetone(keyed);
+                    NOTIFICATION_Utils::lightMorse(keyed);
                     if (keyed) decoder.keyDown(now); else decoder.keyUp(now);
                     startMs = now;
                 }
@@ -3547,6 +3554,7 @@ namespace PAGES_Utils {
                 delay(1);
             }
             if (tone) NOTIFICATION_Utils::sidetone(false);
+            NOTIFICATION_Utils::lightMorse(false);
             if (quit) break;
             total++;
             bool right_ = (got == target);
