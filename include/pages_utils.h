@@ -73,6 +73,7 @@ namespace PAGES_Utils {
     void    onTx(int bytes);            // paquete transmitido (bytes en el aire)
     void    onRx(int bytes);            // trama LoRa recibida (cualquiera), para el tiempo en el aire
     void    onEmergencyGesture();       // 5 pulsaciones cortas o SOS en morse: inicia (o cancela) la baliza de emergencia
+    bool    emergencyFlash();           // alarma de emergencia sonando o SOS propio: estroboscopio del flash blanco
     bool    emergencyActive();          // emergencia en curso: no se duerme el GPS
     bool    alarmLed(bool& on);         // true: una alarma de emergencia controla el LED (on = fase del parpadeo)
     void    onDigipeat();               // paquete repetido por el digipeater

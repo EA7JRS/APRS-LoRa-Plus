@@ -180,28 +180,49 @@ namespace MSG_Utils {
         }
     }
 
+    static bool     rxFlashPending  = false;
+    static uint32_t rxFlashTime     = 0;
+
+    // Paquete recibido de otra estacion (baliza...): destello corto del LED rojo si esta elegido en la WebUI
+    void rxBlink() {
+        if (!Config.notification.ledRxBeacon || Config.notification.ledMessagePin < 0) return;
+        rxFlashPending = true;
+        rxFlashTime    = millis();
+    }
+
     void ledNotification() {
-        if (!Config.notification.ledMessage || Config.notification.ledMessagePin < 0) return;
+        const bool msgLed = Config.notification.ledMessage;
+        const bool rxLed  = Config.notification.ledRxBeacon;
+        if ((!msgLed && !rxLed) || Config.notification.ledMessagePin < 0) return;
+        const int pin = Config.notification.ledMessagePin;
 
         #ifdef HAS_APRS_PAGES
             bool alarmOn;
             if (PAGES_Utils::alarmLed(alarmOn)) {            // alarma de emergencia: parpadeo rapido
-                digitalWrite(Config.notification.ledMessagePin, alarmOn ? HIGH : LOW);
+                digitalWrite(pin, alarmOn ? HIGH : LOW);
                 return;
             }
         #endif
-        uint32_t currentTime = millis();
-        uint32_t ledTimeDelta = currentTime - messageLedTime;
-        if (messageLed) {
+        const uint32_t currentTime = millis();
+        static bool slowOn = false;                          // mensajes sin leer: 1 s encendido cada 5 s
+        if (msgLed && messageLed) {
+            const uint32_t ledTimeDelta = currentTime - messageLedTime;
             if (ledTimeDelta > 5 * 1000) {
-                digitalWrite(Config.notification.ledMessagePin, HIGH);
+                slowOn = true;
                 messageLedTime = currentTime;
             } else if (ledTimeDelta > 1 * 1000) {
-                digitalWrite(Config.notification.ledMessagePin, LOW);
+                slowOn = false;
             }
-        } else if (!messageLed && digitalRead(Config.notification.ledMessagePin) == HIGH) {
-            digitalWrite(Config.notification.ledMessagePin, LOW);
+        } else {
+            slowOn = false;
         }
+        bool rxOn = false;                                   // paquete recibido: destello de 120 ms
+        if (rxLed && rxFlashPending) {
+            if (currentTime - rxFlashTime < 120) rxOn = true;
+            else rxFlashPending = false;
+        }
+        const bool want = slowOn || rxOn;
+        if ((digitalRead(pin) == HIGH) != want) digitalWrite(pin, want ? HIGH : LOW);
     }
 
     void deleteFile(uint8_t typeOfFile) {
@@ -592,6 +613,7 @@ namespace MSG_Utils {
                             }
                         }
                     } else {
+                        rxBlink();
                         #ifdef HAS_APRS_PAGES
                             PAGES_Utils::onAprsPacket(lastReceivedPacket, millis());
                         #endif

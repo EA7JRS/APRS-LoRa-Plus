@@ -136,8 +136,10 @@ class Notification {
 public:
     bool    ledTx;
     int     ledTxPin;
-    bool    ledMessage;
+    bool    ledMessage;                         // LED rojo: parpadea mientras haya mensajes sin leer (y alarma de emergencia)
     int     ledMessagePin;
+    bool    ledRxBeacon;                        // LED rojo: destello corto por cada paquete recibido de otra estacion (balizas...)
+    bool    flashEmergency;                     // flash blanco: estroboscopio con una alarma de emergencia o la baliza SOS propia (necesita el flash activo)
     bool    ledFlashlight;
     int     ledFlashlightPin;
     bool    buzzerActive;

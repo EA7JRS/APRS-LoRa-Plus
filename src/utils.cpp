@@ -24,6 +24,9 @@
 #include "lora_utils.h"
 #include "display.h"
 #include "utils.h"
+#ifdef HAS_APRS_PAGES
+    #include "pages_utils.h"
+#endif
 
 extern Beacon                   *currentBeacon;
 extern Configuration            Config;
@@ -38,6 +41,7 @@ extern bool                     displayState;
 extern int                      menuDisplay;
 extern String                   versionDate;
 extern bool                     flashlight;
+extern bool                     sosActive;
 
 extern bool                     statusUpdate;
 
@@ -145,6 +149,19 @@ namespace Utils {
         if (!Config.notification.ledFlashlight || Config.notification.ledFlashlightPin < 0) return;    // flashlight disabled or invalid pin: don't touch any pin
         bool desiredState       = flashlight ? HIGH : LOW;
         uint8_t flashlightPin   = Config.notification.ledFlashlightPin;
+        if (Config.notification.flashEmergency) {
+            // Emergencia (alarma recibida o SOS propio): rafagas de 200 ms cada segundo, como mucho 5 minutos seguidos (el LED de 1 W se calienta)
+            static bool     strobing    = false;
+            static uint32_t strobeStart = 0;
+            #ifdef HAS_APRS_PAGES
+                const bool emergency = PAGES_Utils::emergencyFlash() || sosActive;
+            #else
+                const bool emergency = sosActive;
+            #endif
+            if (emergency && !strobing) { strobing = true; strobeStart = millis(); }
+            if (!emergency) strobing = false;
+            if (strobing && millis() - strobeStart < 5UL * 60UL * 1000UL && ((millis() - strobeStart) % 1000UL) < 200UL) desiredState = HIGH;
+        }
         if (desiredState != digitalRead(flashlightPin)) digitalWrite(flashlightPin, desiredState);
     }
 

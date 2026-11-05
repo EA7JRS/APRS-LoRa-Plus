@@ -39,6 +39,7 @@ namespace MSG_Utils {
     void    loadNumMessages();
     void    loadMessagesFromMemory(uint8_t typeOfMessage);
     void    ledNotification();
+    void    rxBlink();                  // paquete de otra estacion recibido: destello del LED rojo (si esta elegido)
     void    deleteFile(uint8_t typeOfFile);
     void    saveNewMessage(uint8_t typeMessage, const String& station, const String& newMessage);
     void    sendMessage(const String& station, const String& textMessage);

@@ -1509,7 +1509,20 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                             <label
                                                 for="notification.ledMessage"
                                                 class="form-label"
-                                                >Messsage Rx Led Active</label
+                                                >Red LED: unread messages (blinks) and emergency alarm</label
+                                            >
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input
+                                                type="checkbox"
+                                                name="notification.ledRxBeacon"
+                                                id="notification.ledRxBeacon"
+                                                class="form-check-input"
+                                            />
+                                            <label
+                                                for="notification.ledRxBeacon"
+                                                class="form-label"
+                                                >Red LED: short flash for every beacon / packet heard</label
                                             >
                                         </div>
                                     </div>
@@ -1598,6 +1611,19 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                                 for="notification.ledFlashlight"
                                                 class="form-label"
                                                 >Flashlight Pin Active</label
+                                            >
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input
+                                                type="checkbox"
+                                                name="notification.flashEmergency"
+                                                id="notification.flashEmergency"
+                                                class="form-check-input"
+                                            />
+                                            <label
+                                                for="notification.flashEmergency"
+                                                class="form-label"
+                                                >White flash: strobe on emergency alarm or own SOS (200 ms per second, 5 min at most; needs the flash active)</label
                                             >
                                         </div>
                                     </div>

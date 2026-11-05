@@ -2081,6 +2081,11 @@ namespace PAGES_Utils {
         return sosState == SOS_ACTIVE;
     }
 
+    // alarma de emergencia recibida sonando o baliza SOS propia en curso (estroboscopio del flash)
+    bool emergencyFlash() {
+        return alarmSounding || sosState != SOS_IDLE;
+    }
+
     static void changedPage();
 
     // ---------- Vigilancia de grupo (estilo ARTS) y emergencia remota (estilo EAI) ----------
