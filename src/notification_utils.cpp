@@ -37,7 +37,7 @@ namespace NOTIFICATION_Utils {
 
     // ---- Luces ligadas al zumbador y al modo CW ------------------------------------------------------------------------
     static bool lampLit     = false;        // el flash lo lleva una luz (sirena / lampara Morse)
-    static bool rxLedOwned  = false;        // el LED rojo lo lleva la recepcion CW
+    static bool rxLedOwned  = false;        // el LED verde (Rx) lo lleva la recepcion CW
 
     // Flash blanco: enciende / apaga; al apagarse recupera el estado de la linterna manual
     static void lampSet(bool on) {

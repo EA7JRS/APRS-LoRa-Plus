@@ -21,7 +21,7 @@ Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KI
 | **WebUI** | Reorganizada por secciones, con un grupo de ajustes por modo y cabecera «APRS LoRa+ / Tracker versión». |
 | **KISS por WiFi** *(5.3.2, sin probar)* | TNC KISS por TCP (8001) y UDP opcional para APRSDroid, Xastir o YAAC a través de tu WiFi o del punto de acceso del móvil. Interruptor en la WebUI. Solo APRS LoRa y APRS FSK en ESP32-S3 / C3. Ver el manual, apartado 32. |
 | **CAT por WiFi y USB (Hamlib)** *(5.3.3, sin probar)* | Servidor NET rigctl (puerto 4532, `rigctl -m 2`) y el mismo protocolo por el puerto USB: frecuencia, modo, RSSI y potencia; PTT opcional = baliza APRS. Especificación pública y backend de Hamlib 4.7.2 en `docs/CAT_HAMLIB.md` y `tools/hamlib_backend`. Manual, apartado 33. |
-| **Hardware externo en la T-Beam S3 Supreme** *(5.3.3, sin probar)* | Esquema y pines para LED verde y rojo, flash de 1 W, buzzer KY-006, jacks del manipulador y del FH-2 y salida NMEA; la WebUI identifica cada pin y rellena los sugeridos. Ver `docs/HARDWARE_SUPREME_EXTRAS.md`. |
+| **Hardware externo en la T-Beam S3 Supreme** *(5.3.3, sin probar)* | Esquema y pines para LED rojo (Tx) y verde (Rx), flash de 1 W, buzzer KY-006, jacks del manipulador y del FH-2 y salida NMEA; la WebUI identifica cada pin y rellena los sugeridos. Ver `docs/HARDWARE_SUPREME_EXTRAS.md`. |
 | **Instalar y actualizar** *(5.3.1, sin probar)* | Instalador web por USB que reconoce la placa y la versión instalada, actualización desde la WebUI (archivo o internet) en placas con dos copias de firmware y actualización automática opcional. Ver el manual, apartado 30. |
 | **Identificación de equipos** | Lista oficial aprs-deviceid (tocalls y sufijos Mic-E). |
 

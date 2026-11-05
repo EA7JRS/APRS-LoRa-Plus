@@ -183,7 +183,7 @@ namespace MSG_Utils {
     static bool     rxFlashPending  = false;
     static uint32_t rxFlashTime     = 0;
 
-    // Paquete recibido de otra estacion (baliza...): destello corto del LED rojo si esta elegido en la WebUI
+    // Paquete recibido de otra estacion (baliza...): destello corto del LED verde (Rx) si esta elegido en la WebUI
     void rxBlink() {
         if (!Config.notification.ledRxBeacon || Config.notification.ledMessagePin < 0) return;
         rxFlashPending = true;
@@ -194,7 +194,7 @@ namespace MSG_Utils {
         const bool msgLed = Config.notification.ledMessage;
         const bool rxLed  = Config.notification.ledRxBeacon;
         if ((!msgLed && !rxLed) || Config.notification.ledMessagePin < 0) return;
-        if (NOTIFICATION_Utils::rxLedBusy()) return;         // modo CW: el LED rojo sigue la senal recibida
+        if (NOTIFICATION_Utils::rxLedBusy()) return;         // modo CW: el LED verde (Rx) sigue la senal recibida
         const int pin = Config.notification.ledMessagePin;
 
         #ifdef HAS_APRS_PAGES

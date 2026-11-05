@@ -10,9 +10,9 @@ Copyright (C) 2026 Manuel - EA7JRS. Esquema y reparto de pines para añadir hard
 
 | Función | GPIO | Cabecera | WebUI | Notas |
 |---|---|---|---|---|
-| LED verde (TX) | 38 | IO38 | Hardware → Notification → *Pin used for Tx Led* | 220 Ω en serie |
-| LED rojo (mensaje / alarma) | 21 | IO21 | *Pin used for Message Rx Led* | 220 Ω en serie |
-| Flash de alta intensidad | 45 | IO45 | *Pin used for Flashlight Pin* | MOSFET de nivel lógico; LED desde VSYS (5 V) |
+| LED rojo (TX) | 38 | IO38 | Hardware → Notifications → *Tx LED pin* | 220 Ω en serie |
+| LED verde (RX: mensajes / balizas) | 21 | IO21 | *Rx LED pin* | 220 Ω en serie |
+| Flash de alta intensidad | 45 | IO45 | *Flash pin* | MOSFET de nivel lógico; LED desde VSYS (5 V) |
 | Buzzer, tono | 39 | IO39 | *Buzzer Tone Pin* | módulo **KY-006** (piezo pasivo), pin **S** |
 | Buzzer, Vcc | 48 | IO48 | *Buzzer Vcc Pin* | pin **+** (central) del KY-006; a nivel alto solo mientras suena |
 | Teclado Yaesu FH-2 | 2 | IO2 (ADC1) | Transmission mode → CW / Morse → *FH-2 keypad ADC GPIO* | 10 kΩ a 3V3 (pin DC1) |
@@ -32,7 +32,7 @@ Sin usar: IO3 (pin de arranque), IO6 (PPS del GPS) y A-LDO2. Los defaults de fá
 
 ## Notas por bloque
 
-- **LEDs:** 220 Ω da unos 5 mA a 3,3 V; para más brillo baja a 150 Ω (máx. 12 mA por GPIO). **Verde:** se enciende al transmitir. **Rojo** (a elegir en la WebUI, pueden activarse los dos): parpadea mientras haya mensajes sin leer, con parpadeo rápido si llega una emergencia, y/o da un destello corto por cada baliza o paquete oído de otra estación. **Blanco (flash):** linterna desde el menú EXTRAS y, si lo activas (*White flash*), se enciende y se apaga con cada nota de la sirena del zumbador durante una alarma de emergencia recibida o tu propia baliza SOS (sin zumbador: ráfagas de 200 ms por segundo, 5 minutos como máximo para no calentar el LED de 1 W). El flash debe estar activo. **Modo CW** (un interruptor por LED en la sección *Notifications*): verde = portadora emitida (tecla pulsada, macros y baliza CW), blanco = lámpara Morse que sigue el manipulador y el entrenador, rojo = señal CW recibida.
+- **LEDs:** 220 Ω da unos 5 mA a 3,3 V; para más brillo baja a 150 Ω (máx. 12 mA por GPIO). **Rojo (Tx):** se enciende al transmitir. **Verde (Rx)** (a elegir en la WebUI, pueden activarse los dos): parpadea mientras haya mensajes sin leer, con parpadeo rápido si llega una emergencia, y/o da un destello corto por cada baliza o paquete oído de otra estación. **Blanco (flash):** linterna desde el menú EXTRAS y, si lo activas (*White flash*), se enciende y se apaga con cada nota de la sirena del zumbador durante una alarma de emergencia recibida o tu propia baliza SOS (sin zumbador: ráfagas de 200 ms por segundo, 5 minutos como máximo para no calentar el LED de 1 W). El flash debe estar activo. **Modo CW** (un interruptor por LED en la sección *Notifications*): rojo = portadora emitida (tecla pulsada, macros y baliza CW), blanco = lámpara Morse que sigue el manipulador y el entrenador, verde = señal CW recibida.
 - **Flash:** LED blanco de 1 W (Vf ≈ 3,2 V, 350 mA) desde VSYS (5 V, máx. 500 mA) con R3 = 5,1 Ω / 1 W; Q1 = AO3400A (o IRLML6344), R4 = 100 Ω, R5 = 100 kΩ. LED y Q1 sobre un pequeño disipador. Para más corriente, módulo LED con driver propio alimentado de VBAT. Es una salida encendido / apagado; el estroboscopio lo hace el firmware.
 - **Buzzer:** módulo **KY-006** (piezo **pasivo**, 3,3–5 V; el firmware genera tonos y melodías, uno activo solo da un tono fijo). Conexión: **S → IO39**, **+** (pin central) **→ IO48**, **−** → GND. Sin resistencia ni transistor: el módulo se excita directo desde el GPIO. Con IO48 el módulo solo recibe alimentación mientras suena; si tu módulo no tiene el pin central conectado, deja IO48 libre, no afecta. Antes de conectar, comprueba con el polímetro que el pin central y S no están unidos entre sí (según el fabricante el central va a + o está al aire). También es el sidetone del manipulador.
 - **FH-2:** conecta el teclado entre IO2 y GND con 10 kΩ de IO2 a 3V3 (DC1). Mide con el polímetro los dos contactos del conector que cierra cada tecla y calibra las teclas 1–5 en la WebUI (ver `CW_MORSE.md`). 100 nF de IO2 a GND ayuda contra RF.

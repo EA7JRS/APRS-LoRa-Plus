@@ -3420,7 +3420,7 @@ namespace PAGES_Utils {
                 keyed = k;
                 if (keyed) decoder.keyDown(now); else decoder.keyUp(now);
                 if (tone) NOTIFICATION_Utils::sidetone(keyed);
-                NOTIFICATION_Utils::lightRx(keyed);                    // LED rojo = senal CW recibida
+                NOTIFICATION_Utils::lightRx(keyed);                    // LED verde (Rx) = senal CW recibida
                 snprintf(cwPending, sizeof(cwPending), "%s", decoder.pending());
             }
             char c = decoder.tick(now);

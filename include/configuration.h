@@ -136,11 +136,11 @@ class Notification {
 public:
     bool    ledTx;
     int     ledTxPin;
-    bool    ledMessage;                         // LED rojo: parpadea mientras haya mensajes sin leer (y alarma de emergencia)
+    bool    ledMessage;                         // LED verde (Rx): parpadea mientras haya mensajes sin leer (y alarma de emergencia)
     int     ledMessagePin;
-    bool    ledRxBeacon;                        // LED rojo: destello corto por cada paquete recibido de otra estacion (balizas...)
-    bool    ledTxCw;                            // modo CW: LED verde = portadora emitida (tecla pulsada, macros, baliza CW)
-    bool    ledRxCw;                            // modo CW: LED rojo = senal CW recibida
+    bool    ledRxBeacon;                        // LED verde (Rx): destello corto por cada paquete recibido de otra estacion (balizas...)
+    bool    ledTxCw;                            // modo CW: LED rojo (Tx) = portadora emitida (tecla pulsada, macros, baliza CW)
+    bool    ledRxCw;                            // modo CW: LED verde (Rx) = senal CW recibida
     bool    flashCw;                            // modo CW: flash blanco = lampara Morse (manipulador y entrenador)
     bool    flashEmergency;                     // flash blanco: estroboscopio con una alarma de emergencia o la baliza SOS propia (necesita el flash activo)
     bool    ledFlashlight;
