@@ -13,8 +13,8 @@ Copyright (C) 2026 Manuel - EA7JRS. Esquema y reparto de pines para añadir hard
 | LED verde (TX) | 38 | IO38 | Hardware → Notification → *Pin used for Tx Led* | 220 Ω en serie |
 | LED rojo (mensaje / alarma) | 21 | IO21 | *Pin used for Message Rx Led* | 220 Ω en serie |
 | Flash de alta intensidad | 45 | IO45 | *Pin used for Flashlight Pin* | MOSFET de nivel lógico; LED desde VSYS (5 V) |
-| Buzzer, tono | 39 | IO39 | *Buzzer Tone Pin* | piezo **pasivo**, 100 Ω en serie |
-| Buzzer, Vcc | 48 | IO48 | *Buzzer Vcc Pin* | a nivel alto solo mientras suena |
+| Buzzer, tono | 39 | IO39 | *Buzzer Tone Pin* | módulo **KY-006** (piezo pasivo), pin **S** |
+| Buzzer, Vcc | 48 | IO48 | *Buzzer Vcc Pin* | pin **+** (central) del KY-006; a nivel alto solo mientras suena |
 | Teclado Yaesu FH-2 | 2 | IO2 (ADC1) | Transmission mode → CW / Morse → *FH-2 keypad ADC GPIO* | 10 kΩ a 3V3 (pin DC1) |
 | Manipulador, punto / vertical (punta) | 44 | RXD (QWIIC) | *Key / dit GPIO* | contacto a GND, pull-up interno |
 | Manipulador, raya (anillo) | 46 | IO46 | *Dah GPIO* | contacto a GND, pull-up interno |
@@ -34,7 +34,7 @@ Sin usar: IO3 (pin de arranque), IO6 (PPS del GPS) y A-LDO2. Los defaults de fá
 
 - **LEDs:** 220 Ω da unos 5 mA a 3,3 V; para más brillo baja a 150 Ω (máx. 12 mA por GPIO).
 - **Flash:** LED blanco de 1 W (Vf ≈ 3,2 V, 350 mA) desde VSYS (5 V, máx. 500 mA) con R3 = 5,1 Ω / 1 W; Q1 = AO3400A (o IRLML6344), R4 = 100 Ω, R5 = 100 kΩ. LED y Q1 sobre un pequeño disipador. Para más corriente, módulo LED con driver propio alimentado de VBAT. Es una salida encendido / apagado.
-- **Buzzer:** **pasivo** (el firmware genera tonos y melodías; uno activo solo da un tono fijo). También es el sidetone del manipulador.
+- **Buzzer:** módulo **KY-006** (piezo **pasivo**, 3,3–5 V; el firmware genera tonos y melodías, uno activo solo da un tono fijo). Conexión: **S → IO39**, **+** (pin central) **→ IO48**, **−** → GND. Sin resistencia ni transistor: el módulo se excita directo desde el GPIO. Con IO48 el módulo solo recibe alimentación mientras suena; si tu módulo no tiene el pin central conectado, deja IO48 libre, no afecta. Antes de conectar, comprueba con el polímetro que el pin central y S no están unidos entre sí (según el fabricante el central va a + o está al aire). También es el sidetone del manipulador.
 - **FH-2:** conecta el teclado entre IO2 y GND con 10 kΩ de IO2 a 3V3 (DC1). Mide con el polímetro los dos contactos del conector que cierra cada tecla y calibra las teclas 1–5 en la WebUI (ver `CW_MORSE.md`). 100 nF de IO2 a GND ayuda contra RF.
 - **Manipulador:** jack de 3,5 mm: punta = punto (o manipulador vertical), anillo = raya, malla = GND. 10 nF de cada entrada a GND contra RF (opcional).
 - **NMEA:** IO43 → DI/TXD del conversor; VCC del conversor a 3V3 (DC1) si es de 3,3 V; GND común; A/B (o Y/Z) → entrada NMEA 0183 del plotter (Rx+ / Rx−) con la masa de señal unida. Solo salida. Se envían las sentencias que acepta el Garmin por NMEA 0183: `!AIVDM` y `MDA`.
