@@ -101,21 +101,21 @@ namespace {
         const char* info() override { return "APRS LoRa+ tracker (EA7JRS)"; }
     };
 
-    struct Client {
+    struct CatClient {
         WiFiClient          socket;
         CatProto::Session   session;
     };
 
     TrackerRig      rig;
-    Client          clients[MAX_CLIENTS];
+    CatClient       clients[MAX_CLIENTS];
     WiFiServer*     server = nullptr;
 
-    void closeClient(Client& c) {
+    void closeClient(CatClient& c) {
         c.socket.stop();
         c.session.reset();
     }
 
-    void serve(Client& c) {
+    void serve(CatClient& c) {
         uint8_t buffer[96];
         int guard = 4;                                          // trabajo acotado por pasada
         while (c.socket.available() > 0 && guard-- > 0) {
@@ -169,7 +169,7 @@ namespace CAT_NET {
             if (!placed) incoming.stop();
         }
         for (uint8_t i = 0; i < MAX_CLIENTS; i++) {
-            Client& c = clients[i];
+            CatClient& c = clients[i];
             if (!c.socket) continue;
             if (!c.socket.connected() && c.socket.available() == 0) { closeClient(c); continue; }
             serve(c);
