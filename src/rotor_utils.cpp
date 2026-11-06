@@ -50,6 +50,8 @@ namespace ROTOR_Utils {
         float          sentAz = -999, sentEl = -999;
         uint32_t       sentMs = 0;
         bool           parked = false;
+        float          tgtAbsAz = 0, tgtHdg = 0;
+        bool           tgtMobile = false;
         char           tgtName[24] = "";
         double         tgtDist = 0;
 
@@ -219,6 +221,7 @@ namespace ROTOR_Utils {
         return Config.rotor.source;
     }
     const char* targetName() { return tgtName; }
+    bool mobileInfo(float& absoluteAz, float& headingDeg) { absoluteAz = tgtAbsAz; headingDeg = tgtHdg; return tgtMobile; }
     double targetDistKm() { return tgtDist; }
 
     void begin() {
@@ -232,7 +235,7 @@ namespace ROTOR_Utils {
     void loop() {
         if (!Config.rotor.enabled && !Config.rotor.bleEvents) return;
         const uint32_t ms = millis();
-        if (ms - lastCalcMs < 1000) return;
+        if (ms - lastCalcMs < (Config.rotor.mount == 1 ? 500UL : 1000UL)) return;          // en un vehiculo se recalcula cada 0,5 s
         lastCalcMs = ms;
 
         const float step = Config.rotor.stepTenths / 10.0f;
@@ -273,6 +276,14 @@ namespace ROTOR_Utils {
             }
         }
         if (!have) return;
+        tgtAbsAz = az;
+        tgtMobile = Config.rotor.mount == 1;
+        if (tgtMobile) {                                                           // rotor en un vehiculo: azimut relativo al rumbo del vehiculo
+            float hdg;
+            if (!PAGES_Utils::headingForRotor(hdg)) { setState(ST_WAIT, "No heading"); return; }
+            tgtHdg = hdg;
+            az = wrap360(az - hdg);
+        }
         az = wrap360(az + Config.rotor.azOffset);
         el = constrain(el + Config.rotor.elOffset, 0.0f, 90.0f);
 
@@ -296,6 +307,7 @@ namespace ROTOR_Utils {
     uint32_t targetSeq() { return 0; }
     int  source() { return -1; }
     const char* targetName() { return ""; }
+    bool mobileInfo(float&, float&) { return false; }
     double targetDistKm() { return 0.0; }
 }
 

@@ -25,6 +25,7 @@ namespace ROTOR_Utils {
     uint32_t    targetSeq();
     int         source();                   // fuente activa: 0 satelite, 1 objetivo APRS de la brujula, 2 objetivo fijo (-1 = ninguna activa en este modo)
     const char* targetName();               // nombre del objetivo (satelite, indicativo o nombre guardado)
+    bool        mobileInfo(float& absoluteAz, float& headingDeg);   // montaje movil: azimut absoluto y rumbo del vehiculo usados (el azimut ordenado es relativo)
     double      targetDistKm();             // distancia al objetivo terrestre (0 = satelite o desconocida)                // aumenta con cada objetivo nuevo (para los eventos BLE)
 
 }

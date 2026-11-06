@@ -79,6 +79,7 @@ namespace PAGES_Utils {
     void    onDigipeat();               // paquete repetido por el digipeater
     void    sendCw(uint8_t index);      // modo MORSE: emite el mensaje CW guardado numero index (0-4)
     bool    cwSendText(const char* text);   // modo MORSE: emite un texto libre (app por BLE)
+    bool    headingForRotor(float& trueHeadingDeg);   // rumbo verdadero del vehiculo: curso GPS en marcha; parado, magnetometro; si no hay, el ultimo curso (30 s)
     bool    aprsTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize);   // estacion APRS elegida como destino de la brujula (GO TO) con posicion; para el rotor
     void    cwRemoteSession();          // modo MORSE: manipulador conectado al movil (eventos BLE_Control::KeyEvent)
 

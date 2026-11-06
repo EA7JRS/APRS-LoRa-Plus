@@ -102,7 +102,7 @@ Solo en modo SAT, con *Send the rot event* activo (WebUI), cada vez que cambia e
 ```json
 {"e":"rot","az":123.4,"el":45.0,"trk":true,"src":0,"name":"ISS (ZARYA)","km":0}
 ```
-`az` / `el` en grados (ya con los desfases de la WebUI), `trk` = sigue un objetivo visible, `src` = fuente (0 satélite, 1 estación APRS de la brújula, 2 objetivo fijo), `name` = nombre del objetivo, `km` = distancia a un objetivo terrestre. La app los retransmite a su rotor (p. ej. un `rotctld`). Fuera del modo SAT el evento solo sale si la fuente es 1 o 2. Evento `targets`: `{"e":"targets","sel":0,"src":2,"items":[{"i":0,"n":"Repetidor X","lat":37.1,"lon":-5.9,"alt":850,"f":145600000}]}`.
+`az` / `el` en grados (ya con los desfases de la WebUI), `trk` = sigue un objetivo visible, `src` = fuente (0 satélite, 1 estación APRS de la brújula, 2 objetivo fijo), `name` = nombre del objetivo, `km` = distancia a un objetivo terrestre. La app los retransmite a su rotor (p. ej. un `rotctld`). Con el montaje móvil el `az` ya es relativo al rumbo del vehículo y el evento añade `mob:true`, `abs` (azimut absoluto) y `hdg` (rumbo usado). Fuera del modo SAT el evento solo sale si la fuente es 1 o 2. Evento `targets`: `{"e":"targets","sel":0,"src":2,"items":[{"i":0,"n":"Repetidor X","lat":37.1,"lon":-5.9,"alt":850,"f":145600000}]}`.
 
 ## Modos
 

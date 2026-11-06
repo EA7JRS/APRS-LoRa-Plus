@@ -275,6 +275,7 @@ public:
     bool    park;                               // ir a la posicion de reposo al terminar el paso
     int     parkAz, parkEl;
     bool    bleEvents;                          // enviar el evento "rot" a la app por BLE
+    int     mount;                              // montaje: 0 = fijo (el azimut del rotor va referido al norte), 1 = movil (en un vehiculo: el azimut va relativo al rumbo del vehiculo)
     int     source;                             // que sigue el rotor: 0 = el satelite (modo SAT), 1 = el objetivo APRS de la brujula (GO TO), 2 = un objetivo fijo guardado
     int     targetIndex;                        // objetivo fijo elegido (0..ROTOR_TARGETS-1)
     static const int TARGETS = 8;

@@ -364,6 +364,8 @@ namespace {
         doc["el"] = serialized(String(el, 1));
         doc["trk"] = tracking;
         doc["src"] = ROTOR_Utils::source();
+        float absAz, hdg;
+        if (ROTOR_Utils::mobileInfo(absAz, hdg)) { doc["mob"] = true; doc["abs"] = serialized(String(absAz, 1)); doc["hdg"] = serialized(String(hdg, 1)); }
         if (ROTOR_Utils::targetName()[0]) doc["name"] = ROTOR_Utils::targetName();
         if (ROTOR_Utils::targetDistKm() > 0.0) doc["km"] = (int)ROTOR_Utils::targetDistKm();
         sendDoc(doc);

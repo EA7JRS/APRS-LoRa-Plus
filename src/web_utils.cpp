@@ -283,6 +283,7 @@ namespace WEB_Utils {
             Config.rotor.parkAz     = constrain(getParamIntSafe("rotor.parkAz", Config.rotor.parkAz), 0, 359);
             Config.rotor.parkEl     = constrain(getParamIntSafe("rotor.parkEl", Config.rotor.parkEl), 0, 90);
             Config.rotor.bleEvents  = request->hasParam("rotor.bleEvents", true);
+            Config.rotor.mount       = constrain(getParamIntSafe("rotor.mount", Config.rotor.mount), 0, 1);
             Config.rotor.source      = constrain(getParamIntSafe("rotor.source", Config.rotor.source), 0, 2);
             Config.rotor.targetIndex = constrain(getParamIntSafe("rotor.targetIndex", Config.rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
             for (int i = 0; i < RotorConfig::TARGETS; i++) {

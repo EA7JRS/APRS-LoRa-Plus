@@ -51,6 +51,10 @@ namespace SLEEP_Utils {
                 gpsShouldSleep = false;
                 return;
             }
+            if (Config.rotor.enabled && Config.rotor.mount == 1) {                            // rotor en un vehiculo: necesita posicion y rumbo GPS continuos
+                gpsShouldSleep = false;
+                return;
+            }
             // El modo eco es por perfil: un perfil sin eco nunca duerme el GPS
             if ( currentBeacon == nullptr || !currentBeacon->gpsEcoMode ) {
                 gpsShouldSleep = false;

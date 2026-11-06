@@ -47,6 +47,13 @@ Se configura en la WebUI (*Antenna rotor*). El tracker apunta el rotor al satél
 
 Limitaciones: acimut de 0 a 359° (rotores de 450° sin tratamiento especial), elevación 0–90°, sin corrección de refracción. Ejemplo para probar sin rotor: `rotctld -m 1 -t 4533` (rotor «dummy» de Hamlib) y mirar `rotctl -m 2 -r IP:4533 p`.
 
+### Estación fija o en movimiento
+
+*Rotor mounting* en la WebUI:
+
+- **Fixed station**: el azimut que recibe el rotor está referido al norte.
+- **Mobile / vehicle**: el rotor va en un vehículo, así que el azimut que se le manda es **relativo al rumbo del vehículo** (azimut al objetivo − rumbo). El rumbo verdadero sale del curso GPS cuando se va a 5 km/h o más y, parado, del magnetómetro (con la declinación); si no hay ninguno, se mantiene el último curso 30 s y después el rotor espera («No heading»). En movimiento la posición se toma del GPS (o de la fusión con el móvil) y el objetivo se recalcula cada 0,5 s; el GPS no entra en reposo mientras el rotor móvil está activo. Los pasos de satélite se recalculan si la estación se mueve más de 0,5° (≈ 55 km). No se compensa la inclinación del vehículo (cabeceo / alabeo) ni el retardo del rotor. Para que el rumbo sea fiable parado hace falta magnetómetro calibrado; sin él, el rotor móvil solo apunta bien en marcha.
+
 ### Objetivos terrestres (estaciones APRS y repetidores)
 
 El rotor no sirve solo para satélites. En *What the rotor follows* se elige:

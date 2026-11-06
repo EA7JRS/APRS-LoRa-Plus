@@ -3636,6 +3636,27 @@ namespace PAGES_Utils {
     // reproducen con un retardo fijo (BLE_Control::keyDelayMs) para absorber las variaciones del enlace. Misma salida que
     // cwKeySession (perfil de Telegrafia, tono local, decodificador en pantalla). Seguridades: portadora como maximo 10 s
     // seguidos, se suelta si cae el enlace o si el movil deja de mandar, y el boton corta la sesion.
+    bool headingForRotor(float& hdg) {
+        static float lastCourse = 0;
+        static uint32_t lastCourseMs = 0;
+        const uint32_t nowMs = millis();
+        const bool gpsGood = gpsIsActive && gps.course.isValid() && gps.speed.isValid() && gps.location.age() < 3000 &&
+                             gps.satellites.isValid() && gps.satellites.value() >= 4;
+        if (gpsGood && GPS_Utils::getSpeedKmph() >= 5.0f) {                                   // en marcha el curso GPS es fiable
+            lastCourse = GPS_Utils::getCourseDeg();
+            lastCourseMs = nowMs ? nowMs : 1;
+            hdg = lastCourse;
+            return true;
+        }
+        if (MAG_Utils::isHeadingValid()) {                                                    // parado: magnetometro (norte verdadero)
+            const float magRaw = wrap360(MAG_Utils::heading() - MAG_Utils::alignmentOffset());
+            hdg = MAG_Utils::isAligned() ? MAG_Utils::heading() : wrap360(magRaw + currentDeclination(nullptr));
+            return true;
+        }
+        if (lastCourseMs && nowMs - lastCourseMs < 30000UL) { hdg = lastCourse; return true; }
+        return false;
+    }
+
     bool aprsTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize) {
         const Station* s = compassStation();
         if (!s || !s->hasPosition) return false;

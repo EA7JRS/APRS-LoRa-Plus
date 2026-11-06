@@ -866,6 +866,10 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     </div>
                                 </div>
                                 <div class="form-floating mb-2">
+                                    <select class="form-select form-select-sm" name="rotor.mount" id="rotor.mount"><option value="0" selected>Fixed station (azimuth referred to north)</option><option value="1">Mobile / vehicle (azimuth relative to the vehicle heading)</option></select>
+                                    <label for="rotor.mount">Rotor mounting</label>
+                                </div>
+                                <div class="form-floating mb-2">
                                     <select class="form-select form-select-sm" name="rotor.source" id="rotor.source"><option value="0" selected>Satellite (SAT mode)</option><option value="1">APRS station set with GO TO (compass target)</option><option value="2">Fixed target (list below)</option></select>
                                     <label for="rotor.source">What the rotor follows</label>
                                 </div>
