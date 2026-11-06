@@ -79,11 +79,11 @@ static inline double satAtan(double x) {
 }
 
 static inline double satAtan2(double y, double x) {
-    const double PI = 3.14159265358979323846;
-    if (x == 0.0) return y > 0 ? PI / 2 : (y < 0 ? -PI / 2 : 0.0);
+    const double SAT_PI = 3.14159265358979323846;
+    if (x == 0.0) return y > 0 ? SAT_PI / 2 : (y < 0 ? -SAT_PI / 2 : 0.0);
     const double a = satAtan(y / x);
     if (x > 0) return a;
-    return y >= 0 ? a + PI : a - PI;
+    return y >= 0 ? a + SAT_PI : a - SAT_PI;
 }
 
 static inline double satCbrt(double x) {
