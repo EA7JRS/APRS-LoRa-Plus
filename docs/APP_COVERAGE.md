@@ -9,25 +9,27 @@ Para cada función nueva del firmware hay que hacer tres cosas antes de darla po
 
 Mientras no haya pantalla propia, la app puede usar los mecanismos genéricos: `actlist` / `act` (todas las opciones de menú), `screen` (espejo de la pantalla del equipo) y `cfgget` / `cfgset` (toda la configuración de la WebUI).
 
-Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android ya lo usa.
+Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene el código (pestañas Tracker, Sensors, Heard, SAT, Remote, Config, DAPNET, Firmware). **Nada está probado todavía en el móvil ni con el hardware real.**
 
 | Función | Orden / evento BLE | FW | App |
 |---|---|---|---|
-| Estado, modo, perfil de baliza, perfil LoRa, digi, baliza ahora, reinicio | `status`, `mode`, `profile`, `lora`, `digi`, `beacon`, `reboot` | sí | no |
-| Sensores (batería, PMU, carga, T/HR/P, gas, IAQ, IMU, magnetómetro, QNH, altitud, placa) | `sensors`, `sub` | sí | no |
-| GNSS | `gnss`, `sub` | sí | no |
-| Salida NMEA / AIS | canal NMEA | sí | no |
-| Mensajes APRS (ver, enviar, confirmación) | `msgs`, `msg`, evento `msg` | sí | no |
-| Estaciones oídas, meteo, equipos | `heard` | sí | no |
-| Tramas KISS / APRS | servicio KISS | sí | sí (esqueleto) |
-| DAPNET | `dapnet`, evento `page` | sí | no |
-| Telegrafía: mensajes, texto libre, manipulador remoto | `cw`, `k`, `kcfg` | sí | no |
-| Modo SAT: estado, lista, selección, receptor, emisión, transmisores, datos | `sat`, `satlist`, `satsel`, `satrx`, `sattx`, `sattxlist`, `satdata`, `pos` | sí | no |
-| Rotor y objetivos | evento `rot`, `att`, `tgtlist`, `tgt` | sí | no |
-| Actualización de firmware | `ota`, `fwstatus`, `fwcheck`, `fwinstall` | sí | no |
-| **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | no |
-| Espejo de pantalla de cualquier página | `screen` | sí | no |
-| **Toda la configuración** (WebUI) | `cfgget`, `cfgset` | sí | no |
+| Estado, modo, perfil de baliza, perfil LoRa, digi, baliza ahora, reinicio | `status`, `mode`, `profile`, `lora`, `digi`, `beacon`, `reboot` | sí | sí |
+| Sensores (batería, PMU, carga, T/HR/P, gas, IAQ, IMU, magnetómetro, QNH, altitud, placa) | `sensors`, `sub` | sí | sí |
+| GNSS | `gnss`, `sub` | sí | sí |
+| Salida NMEA / AIS | canal NMEA | sí | sí |
+| Mensajes APRS (ver, enviar, confirmación) | `msgs`, `msg`, evento `msg` | sí | sí |
+| Estaciones oídas, meteo, equipos | `heard` | sí | sí |
+| Tramas KISS / APRS | servicio KISS | sí | sí |
+| DAPNET | `dapnet`, evento `page` | sí | sí |
+| Telegrafía: mensajes, texto libre, manipulador remoto | `cw`, `k`, `kcfg` | sí | sí |
+| Modo SAT: estado, lista, selección, receptor, emisión, transmisores, datos | `sat`, `satlist`, `satsel`, `satrx`, `sattx`, `sattxlist`, `satdata`, `pos` | sí | sí |
+| Rotor y objetivos (sin `att`, ver abajo) | evento `rot`, `att`, `tgtlist`, `tgt` | sí | sí |
+| Actualización de firmware | `ota`, `fwstatus`, `fwcheck`, `fwinstall` | sí | sí |
+| **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | sí |
+| Espejo de pantalla de cualquier página | `screen` | sí | sí |
+| **Toda la configuración** (WebUI) | `cfgget`, `cfgset` | sí | sí |
 | Sesiones interactivas con el pulsador (escucha CW, entrenador, sintonías WSPR / CW-baliza) | pendiente de orden propia | no | no |
+
+Pendiente en la app: la orden `att` (el móvil como inclinómetro del soporte del rotor) no tiene pantalla porque depende de cómo se monte el móvil (ejes y signos) y hay que fijarlo con el montaje real.
 
 Pendiente en el firmware: sesiones interactivas (escucha CW y entrenador, sintonía WSPR / CW-baliza) con orden BLE propia y cancelación; espejo de los gráficos (brújula, mapa) como datos.
