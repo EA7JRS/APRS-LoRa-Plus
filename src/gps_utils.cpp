@@ -42,6 +42,8 @@
 
 #define GPS_BAUD_FILE           "/gps_baud.dat"
 #define GPS_BAUD_PROBE_TIME_MS  1500
+#define GPS_RX_BUFFER           2048
+#define GPS_FAST_BAUD           115200  // u-blox M10: el puerto se sube de 9600 a 115200 (EA7JRS)
 const uint32_t gpsBaudRates[] = {9600, 115200, 38400, 4800, 57600};     // most common first
 
 
@@ -151,6 +153,7 @@ namespace GPS_Utils {
     bool probeBaudRate(uint32_t baud) {
         gpsSerial.end();
         delay(50);
+        gpsSerial.setRxBufferSize(GPS_RX_BUFFER);               // antes de begin(); 256 bytes se desbordan si el bucle se para (TX LoRa, pantalla)
         gpsSerial.begin(baud, SERIAL_8N1, GPS_TX, GPS_RX);
         uint32_t validSentences = gps.passedChecksum();
         uint32_t probeStart     = millis();
@@ -265,6 +268,26 @@ namespace GPS_Utils {
             result = ubxWaitAck(0x06, 0x8A, 500);
         }
         return result;
+    }
+
+    // MAX-M10S de fabrica a 9600 baudios: se sube a 115200 (CFG-UART1-BAUDRATE, capas RAM + BBR). El A-GPS de la app entra 12 veces
+    // mas rapido y las rafagas NMEA de todas las constelaciones ocupan el puerto 100 ms en vez de un segundo. El ACK sale ya a la
+    // nueva velocidad: se da por bueno si llegan frases NMEA validas; si no, se vuelve a la velocidad anterior (EA7JRS)
+    uint32_t ubloxFastBaud(uint32_t currentBaud) {
+        if (currentBaud >= GPS_FAST_BAUD) return currentBaud;
+        const uint32_t b = GPS_FAST_BAUD;
+        const uint8_t payload[12] = {0x00, 0x03, 0x00, 0x00,  0x01, 0x00, 0x52, 0x40,
+                                     (uint8_t)b, (uint8_t)(b >> 8), (uint8_t)(b >> 16), (uint8_t)(b >> 24)};
+        ubxSend(0x06, 0x8A, payload, sizeof(payload));
+        delay(100);
+        if (probeBaudRate(b)) {
+            saveBaudRate(b);
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "GPS", "u-blox: puerto serie a %u baudios", (unsigned)b);
+            return b;
+        }
+        probeBaudRate(currentBaud);
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "GPS", "u-blox: sin respuesta a %u, se mantiene %u", (unsigned)b, (unsigned)currentBaud);
+        return currentBaud;
     }
 
     // Reglas del MAX-M10S: SBAS y QZSS necesitan GPS; BeiDou y GLONASS no a la vez; al menos una constelacion
@@ -604,6 +627,7 @@ namespace GPS_Utils {
                 loadGnssMask();
                 if (configureConstellations()) {
                     gpsModuleType = 1;
+                    ubloxFastBaud(detectedBaud);
                     configureAssistNow();
                     configureStaticHold();
                     configureNavigation();
@@ -618,6 +642,7 @@ namespace GPS_Utils {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "GPS", "No NMEA data found, using default baud rate: %u", GPS_BAUD);
             gpsSerial.end();
             delay(50);
+            gpsSerial.setRxBufferSize(GPS_RX_BUFFER);
             gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_TX, GPS_RX);
         }
         #ifdef GPS_CONFIG_CONSTELLATIONS
