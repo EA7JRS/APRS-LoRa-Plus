@@ -433,11 +433,11 @@ Five messages editable in the WebUI (LoRa → CW / Morse), with `{CALL}` replace
 In the WebUI define the pins: tip = *Key / dit GPIO*, ring = *Dah GPIO*, sleeve = GND (−1 = no key). They are inputs with pull-up (the contact goes to ground); use GPIOs that are free on your board.
 - **Straight key**: tip only; adaptive decoder (the configured WPM must be close to yours).
 - **Iambic A / B**: tip = dit, ring = dah, with paddle memory. *Swap paddles* for left-handed use.
-- *Key the RF carrier*: the key emits the RF carrier live. *Sidetone*: 700 Hz tone on the buzzer (it must be enabled).
+- *Key the RF carrier*: the key emits the RF carrier live. *Sidetone*: 700 Hz tone on the buzzer (it must be enabled); it sounds with the key, the macros (manual or FH-2 keypad), the trainer and the remote key, not with the autonomous beacon.
 - Operating the key with the MORSE screen open starts a session that ends after 2.5 s of inactivity or with the button.
 
 ### 21.5 CW listening over RF
-Submenu → **Listen CW (RF)**. The chip switches to narrow-band FSK (4.8 kHz) on the profile frequency and the instantaneous RSSI is read (~1 kHz). An envelope detector with adaptive threshold and an adaptive decoder turn it into text (header `RX <wpm>`; below, level in dBm and SNR). The button exits and restores the modem.
+Submenu → **Listen CW (RF)**. The chip switches to narrow-band FSK (4.8 kHz) on the profile frequency and the instantaneous RSSI is read (~1 kHz). An envelope detector with adaptive threshold and an adaptive decoder turn it into text (header `RX <wpm>`). The **first line** shows the **S-meter** (VHF/UHF, IARU: S9 = −93 dBm, 6 dB per S-unit, S9+10, +20…), the level in dBm and the SNR; below, the three latest text lines and the letter in progress. The last line shows the **squelch**: **short press** = next value (OFF, −120 … −70 dBm in 5 dB steps), **long press (0.7 s)** = exit and restore the modem. Below the squelch nothing is decoded or drawn (3 dB hysteresis). It can also be set in the submenu (*CW squelch*) and in the WebUI (LoRa → CW / Morse → *CW RX squelch*).
 - Designed for a keyed carrier (A1A) within ±2 kHz of the profile frequency. It is not an audio demodulator.
 - It needs ≥ 6 dB between carrier and noise; with a weak signal or strong QSB it decodes poorly.
 - During listening there is no APRS reception or beaconing.

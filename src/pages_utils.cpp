@@ -131,7 +131,7 @@ namespace {
         C_COMPASS_TARGET, C_ALT_SPAN, C_ALT_RESET, C_ALT_QNH, C_CLK_ZONE, C_CLK_FORMAT, C_CLK_SYNC, C_ZN_MODE, C_ZN_UP, C_ZN_DN, C_Q_AUTO, C_Q_UP1, C_Q_DN1, C_Q_UP2, C_Q_DN2,
         C_SOS_SEND, C_SOS_CANCEL, C_LORA_PROFILE, C_LORA_POWER, C_LORA_RESET, C_LORA_HEARD, C_PW_SHOW, C_PW_UP, C_PW_DN,
         C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
-        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON,
+        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON,
         C_MODE_CHANGE,
         C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
         C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI, C_SYS_IARU
@@ -259,8 +259,9 @@ namespace {
     uint32_t        lrfhssBlockUntil = 0;        // no volver a emitir antes de este millis() (evita repetir la misma ranura)
     uint32_t        lrfhssStatusUntil = 0;       // millis() hasta el que se muestra lrfhssStatus (0 = permanente mientras dure la causa)
     char            lrfhssStatus[22] = "";
-    Item            cwItems[CW_MESSAGE_COUNT + 7];
+    Item            cwItems[CW_MESSAGE_COUNT + 8];
     char            cwBeaconLabel[20];
+    char            cwSquelchLabel[20];
     Item            cwbItems[5];
     char            cwbToggleLabel[20];
     uint16_t        cwBeaconTxCount = 0;         // balizas CW completas enviadas desde el arranque
@@ -355,14 +356,17 @@ namespace {
                     cwItems[i] = Item{cwLabels[i], (Command)(C_CW0 + i)};
                 }
                 cwItems[CW_MESSAGE_COUNT] = Item{"Listen CW (RF)", C_CW_LISTEN};
-                cwItems[CW_MESSAGE_COUNT + 1] = Item{"Trainer: listen", C_CW_TRAIN_LISTEN};
-                cwItems[CW_MESSAGE_COUNT + 2] = Item{"Trainer: keying", C_CW_TRAIN_KEY};
-                cwItems[CW_MESSAGE_COUNT + 3] = Item{"Clear text", C_CW_CLEAR};
+                if (Config.cw.squelchDbm == 0) snprintf(cwSquelchLabel, sizeof(cwSquelchLabel), "CW squelch: OFF");
+                else                           snprintf(cwSquelchLabel, sizeof(cwSquelchLabel), "CW squelch: %d", Config.cw.squelchDbm);
+                cwItems[CW_MESSAGE_COUNT + 1] = Item{cwSquelchLabel, C_CW_SQUELCH};
+                cwItems[CW_MESSAGE_COUNT + 2] = Item{"Trainer: listen", C_CW_TRAIN_LISTEN};
+                cwItems[CW_MESSAGE_COUNT + 3] = Item{"Trainer: keying", C_CW_TRAIN_KEY};
+                cwItems[CW_MESSAGE_COUNT + 4] = Item{"Clear text", C_CW_CLEAR};
                 snprintf(cwBeaconLabel, sizeof(cwBeaconLabel), "CW beacon: %s", cwBeaconOn ? "ON" : "OFF");
-                cwItems[CW_MESSAGE_COUNT + 4] = Item{cwBeaconLabel, C_CW_BEACON};
-                cwItems[CW_MESSAGE_COUNT + 5] = Item{"Change mode", C_MODE_CHANGE};
-                cwItems[CW_MESSAGE_COUNT + 6] = Item{"Back", C_BACK};
-                count = CW_MESSAGE_COUNT + 7;
+                cwItems[CW_MESSAGE_COUNT + 5] = Item{cwBeaconLabel, C_CW_BEACON};
+                cwItems[CW_MESSAGE_COUNT + 6] = Item{"Change mode", C_MODE_CHANGE};
+                cwItems[CW_MESSAGE_COUNT + 7] = Item{"Back", C_BACK};
+                count = CW_MESSAGE_COUNT + 8;
                 return cwItems;
             case PAGE_LAST:     PAGES_ITEMS(ITEMS_LAST);
             case PAGE_LIST:     PAGES_ITEMS(ITEMS_LIST);
@@ -2576,11 +2580,46 @@ namespace PAGES_Utils {
         return Config.cw.keyMode == 0 ? "KEY" : (Config.cw.keyMode == 1 ? "IA" : "IB");
     }
 
+    // S-meter para VHF / UHF (por encima de 30 MHz, IARU): S9 = -93 dBm, 6 dB por punto (S1 = -141 dBm); por encima de S9, +10, +20...
+    void cwSMeter(float dbm, char* out, size_t n) {
+        if (dbm < -141.0f) { snprintf(out, n, "S0"); return; }
+        if (dbm >= -93.0f) {
+            const int over = (int)((dbm + 93.0f + 5.0f) / 10.0f) * 10;
+            if (over <= 0) snprintf(out, n, "S9"); else snprintf(out, n, "S9+%d", over);
+            return;
+        }
+        snprintf(out, n, "S%d", constrain((int)((dbm + 147.0f) / 6.0f), 1, 9));
+    }
+
+    // Squelch del CW por RF: siguiente valor de la rueda OFF, -120, -115 ... -70 dBm (5 dB por paso)
+    int cwNextSquelch(int current) {
+        if (current == 0) return -120;
+        return current + 5 > -70 ? 0 : current + 5;
+    }
+
     void drawCwPage() {
         char right[12];
         if (cwRxActive) snprintf(right, sizeof(right), "RX %d", cwRxWpm);
         else            snprintf(right, sizeof(right), "%s %d", cwModeLabel(), Config.cw.wpm);
         header(PAGE_TITLES[PAGE_CW], right);
+        if (cwRxActive) {
+            // Recepcion: primera linea = S-meter, nivel (RSSI) y SNR; despues las 3 ultimas lineas de texto, la letra en curso y el squelch
+            char sm[8], snr[6];
+            cwSMeter(cwRxDbm, sm, sizeof(sm));
+            if (cwRxSnr >= CWMorse::Envelope::MIN_SNR_DB) snprintf(snr, sizeof(snr), "%.0f", cwRxSnr); else snprintf(snr, sizeof(snr), "--");
+            row(0, "%s %.0fdBm SNR %s", sm, cwRxDbm, snr);
+            const size_t len = cwText.length();
+            const size_t first = len > 63 ? len - 63 : 0;                // las 3 lineas mas recientes
+            for (uint8_t r = 0; r < 3; r++) {
+                const size_t from = first + (size_t)r * 21;
+                if (from >= len) break;
+                text(0, ROW_Y0 + (r + 1) * ROW_PITCH, cwText.substring(from, from + 21).c_str());
+            }
+            if (cwPending[0]) row(4, "> %s", cwPending);
+            if (Config.cw.squelchDbm == 0) row(5, "SQL OFF tap+ hold:end");
+            else                           row(5, "SQL%4d tap+ hold:end", Config.cw.squelchDbm);
+            return;
+        }
         for (uint8_t r = 0; r < 4; r++) {
             size_t from = (size_t)r * 21;
             if (from >= cwText.length()) break;
@@ -2588,11 +2627,7 @@ namespace PAGES_Utils {
             text(0, ROW_Y0 + r * ROW_PITCH, line.c_str());
         }
         if (cwPending[0]) row(4, "> %s", cwPending);
-        if (cwRxActive) {
-            if (cwRxSnr >= CWMorse::Envelope::MIN_SNR_DB) row(5, "%.0fdBm SNR %.0f", cwRxDbm, cwRxSnr);
-            else row(5, "%.0fdBm no signal", cwRxDbm);
-        }
-        else if (cwPin(Config.cw.keyPin) < 0) row(5, "No key pin (WebUI)");
+        if (cwPin(Config.cw.keyPin) < 0) row(5, "No key pin (WebUI)");
         else row(5, "Key GPIO%d  Hold:macros", Config.cw.keyPin);
     }
 
@@ -2609,6 +2644,7 @@ namespace PAGES_Utils {
         uint32_t next;              // instante absoluto del siguiente cambio
         bool     armed;             // el boton se ha visto suelto: a partir de ahi, pulsarlo aborta
         bool     keyDown;
+        bool     tone = false;      // tono local en el zumbador (macros, FH-2, mensajes desde la app; no en la baliza CW desatendida)
     };
 
     bool cwButtonDown() {
@@ -2648,6 +2684,7 @@ namespace PAGES_Utils {
         CwRun* run = (CwRun*)ctx;
         run->keyDown = on;
         LoRa_Utils::cwKey(on);
+        if (run->tone) NOTIFICATION_Utils::sidetone(on);
     }
 
     bool cwWaitHook(void* ctx, uint32_t ms) {
@@ -2696,12 +2733,14 @@ namespace PAGES_Utils {
         run.wpm     = (uint8_t)constrain(Config.cw.wpm, (int)CWMorse::WPM_MIN, (int)CWMorse::WPM_MAX);
         run.armed   = !cwButtonDown();
         run.keyDown = false;
+        run.tone    = !beacon && Config.cw.sidetone && Config.notification.buzzerActive;
         if (strlen(run.text) == 0) { showToast("CW: empty message"); return false; }
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "CW Tx", "---> %s (%u WPM)", run.text, run.wpm);
         cwDraw(run, 0, "");
         run.next = millis();
         CWMorse::Hooks hooks = { cwKeyHook, cwWaitHook, cwProgressHook, &run };
         bool finished = CWMorse::send(run.text, run.wpm, hooks);
+        if (run.tone) NOTIFICATION_Utils::sidetone(false);         // por si se aborto con la tecla pulsada
         LoRa_Utils::cwEnd();
         cwAppendString(String(">") + run.text + " ");
         showToast(finished ? "CW sent" : "CW aborted");
@@ -3483,7 +3522,8 @@ namespace PAGES_Utils {
         env.begin();
         decoder.begin(wpm, true);
         bool keyed = false, dirty = true, armed = !cwButtonDown();
-        uint32_t started = millis(), lastDraw = 0;
+        bool sqOpen = false, sqChanged = false;                    // squelch con histeresis de 3 dB
+        uint32_t started = millis(), lastDraw = 0, pressAt = 0;   // pressAt: inicio de la pulsacion en curso (0 = suelto)
         cwRxActive = true;
         cwRxWpm = wpm;
         cwPending[0] = '\0';
@@ -3491,6 +3531,12 @@ namespace PAGES_Utils {
             uint32_t now = millis();
             float level = LoRa_Utils::cwRxLevel();
             bool k = env.update(level);
+            const int sq = Config.cw.squelchDbm;
+            if (sq != 0) {                                          // squelch: por debajo del nivel elegido no hay senal
+                if (sqOpen) { if (level < (float)(sq - 3)) sqOpen = false; }
+                else if (level >= (float)sq) sqOpen = true;
+                if (!sqOpen) k = false;
+            }
             if (k != keyed) {
                 keyed = k;
                 if (keyed) decoder.keyDown(now); else decoder.keyUp(now);
@@ -3514,13 +3560,30 @@ namespace PAGES_Utils {
                 dirty = false;
                 displayTime = lastDraw;
             }
-            if (cwButtonDown()) { if (armed) break; } else armed = true;
+            // Boton: pulsacion corta = siguiente squelch (OFF, -120 ... -70 dBm); pulsacion larga (0,7 s) = salir
+            if (cwButtonDown()) {
+                if (armed) {
+                    if (pressAt == 0) pressAt = now;
+                    else if (now - pressAt >= 700) break;
+                }
+            } else {
+                if (pressAt != 0 && armed) {
+                    Config.cw.squelchDbm = cwNextSquelch(Config.cw.squelchDbm);
+                    sqChanged = true;
+                    sqOpen = false;
+                    lastDraw = 0;                                    // se redibuja en cuanto la portadora este apagada
+                }
+                pressAt = 0;
+                armed = true;
+            }
             if (now - started > 600000UL) break;                     // 10 minutos como maximo
             delay(1);
         }
         if (tone) NOTIFICATION_Utils::sidetone(false);
         NOTIFICATION_Utils::lightRx(false);
         LoRa_Utils::cwRxEnd();
+        while (cwButtonDown()) delay(5);                             // espera a que se suelte el boton: el menu no debe verlo como una pulsacion
+        if (sqChanged) Config.writeFile();                           // el squelch elegido se guarda al salir
         cwRxActive = false;
         cwPending[0] = '\0';
         displayTime = millis();
@@ -4386,6 +4449,12 @@ namespace PAGES_Utils {
                 break;
             case C_CW_LISTEN:
                 cwListenSession();
+                break;
+            case C_CW_SQUELCH:
+                Config.cw.squelchDbm = cwNextSquelch(Config.cw.squelchDbm);
+                Config.writeFile();
+                if (Config.cw.squelchDbm == 0) showToast("CW squelch OFF");
+                else { char t[24]; snprintf(t, sizeof(t), "CW squelch %d dBm", Config.cw.squelchDbm); showToast(t); }
                 break;
             case C_CW_TRAIN_LISTEN:
                 cwTrainerListen();

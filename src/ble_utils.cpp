@@ -17,6 +17,7 @@
  */
 
 #include <NimBLEDevice.h>
+#include <Preferences.h>
 #include "configuration.h"
 #include "lora_utils.h"
 #include "kiss_utils.h"
@@ -85,6 +86,11 @@ class MyServerCallbacks : public NimBLEServerCallbacks {
 
     void onMTUChange(uint16_t MTU, NimBLEConnInfo& connInfo) override {
         BLE_Control::onMtu(MTU);
+    }
+
+    // Emparejamiento con PIN (EA7JRS): solo el servicio de control lo exige; el KISS sigue abierto como siempre
+    void onAuthenticationComplete(NimBLEConnInfo& connInfo) override {
+        BLE_Control::onSecurity(connInfo.isEncrypted() && connInfo.isAuthenticated());
     }
 };
 
@@ -158,6 +164,23 @@ namespace BLE_Utils {
     void setup() {
         String BLEid = Config.bluetooth.deviceName;
         BLEDevice::init(BLEid.c_str());
+
+        // Seguridad del servicio de control (EA7JRS): emparejamiento con PIN fijo (mostrar-solo), MITM + conexiones seguras + bonding.
+        // Si el PIN ha cambiado desde el arranque anterior se olvidan los moviles emparejados
+        BLEDevice::setSecurityAuth(true, true, true);
+        BLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
+        BLEDevice::setSecurityPasskey((uint32_t)constrain(Config.bluetooth.controlPin, 0, 999999));
+        {
+            Preferences prefs;
+            if (prefs.begin("blectl", false)) {
+                if (prefs.getInt("pin", -1) != Config.bluetooth.controlPin) {
+                    BLEDevice::deleteAllBonds();
+                    prefs.putInt("pin", Config.bluetooth.controlPin);
+                }
+                prefs.end();
+            }
+        }
+
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new MyServerCallbacks());
         if (bleToLoRaQueue == nullptr) bleToLoRaQueue = xQueueCreate(BLE_TX_QUEUE, sizeof(String*));

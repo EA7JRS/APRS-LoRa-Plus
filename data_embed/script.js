@@ -485,6 +485,7 @@ function loadSettings(settings) {
         document.getElementById("cw.wpm").value = cw.wpm || 15;
         document.getElementById("cw.trainerLevel").value = cw.trainerLevel ?? 4;
         document.getElementById("cw.trainerGapWpm").value = cw.trainerGapWpm ?? 10;
+        document.getElementById("cw.squelchDbm").value = cw.squelchDbm ?? 0;
         document.getElementById("cw.beaconMin").value = cw.beaconMin ?? 0;
         const cwProfiles = document.getElementById("cw-profiles");
         const baseLora = (settings.lora && settings.lora[0]) || { frequency: 433775000, power: 17 };
@@ -607,10 +608,12 @@ function loadSettings(settings) {
     document.getElementById("bluetooth.deviceName").value               = settings.bluetooth.deviceName;
     document.getElementById("bluetooth.useBLE").value                   = settings.bluetooth.useBLE ? "1" : "0";
     document.getElementById("bluetooth.useKISS").value                  = settings.bluetooth.useKISS ? "1" : "0";
+    document.getElementById("bluetooth.controlPin").value               = String(settings.bluetooth.controlPin === undefined ? 123456 : settings.bluetooth.controlPin).padStart(6, "0");
     BluetoothActiveCheckbox.checked = settings.bluetooth.active;
     BluetoothDeviceName.disabled    = !BluetoothActiveCheckbox.checked;
     BluetoothUseBle.disabled        = !BluetoothActiveCheckbox.checked;
     BluetoothUseKiss.disabled       = !BluetoothActiveCheckbox.checked;
+    document.getElementById("bluetooth.controlPin").disabled = !BluetoothActiveCheckbox.checked;
 
     // LORA
     const loraContainer = document.getElementById("lora-settings");
@@ -1136,10 +1139,12 @@ const BluetoothActiveCheckbox   = document.querySelector('input[name="bluetooth.
 const BluetoothDeviceName       = document.querySelector('input[name="bluetooth.deviceName"]');
 const BluetoothUseBle           = document.querySelector('select[name="bluetooth.useBLE"]');
 const BluetoothUseKiss          = document.querySelector('select[name="bluetooth.useKISS"]');
+const BluetoothControlPin       = document.querySelector('input[name="bluetooth.controlPin"]');
 BluetoothActiveCheckbox.addEventListener("change", function () {
     BluetoothDeviceName.disabled    = !this.checked;
     BluetoothUseBle.disabled        = !this.checked;
     BluetoothUseKiss.disabled       = !this.checked;
+    BluetoothControlPin.disabled    = !this.checked;
 });
 
 // Battery Switches

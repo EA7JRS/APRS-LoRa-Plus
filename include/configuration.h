@@ -295,6 +295,7 @@ public:
     bool    keyTx;                              // el manipulador tambien emite la portadora RF
     bool    sidetone;                           // tono local en el zumbador al manipular
     int     trainerLevel;                       // nivel Koch del trainer (cuantos caracteres, 2-41)
+    int     squelchDbm;                         // CW por RF en recepcion: la portadora solo cuenta si supera este nivel (dBm, -130..-40); 0 = sin squelch (solo deteccion automatica)
     int     trainerGapWpm;                      // Farnsworth: velocidad efectiva de los espacios en el trainer (0 = igual que wpm)
     int     beaconMin;                          // baliza CW autonoma: minutos entre emisiones (0 = desactivada)
     // Dos perfiles de radio: baliza CW (perfil 1) y telegrafia con manipulador / mensajes / trainer (perfil 2)
@@ -314,6 +315,7 @@ public:
     String  deviceName;
     bool    useBLE;
     bool    useKISS;
+    int     controlPin;                         // PIN (0-999999) de emparejamiento del servicio de control BLE de la app (EA7JRS)
 };
 
 

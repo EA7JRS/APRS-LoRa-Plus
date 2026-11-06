@@ -7,15 +7,25 @@ Las apps KISS de terceros (aprs.fi, APRSdroid...) no lo ven: siguen usando solo 
 
 El servicio existe siempre que el Bluetooth esté activo en modo BLE (con KISS o con TNC2).
 
+## Seguridad: emparejamiento con PIN
+
+El servicio de control **exige un enlace cifrado y autenticado**: sin emparejar, el tracker rechaza las escrituras en *Órdenes* y *Firmware* (error ATT «insufficient authentication») y no emite eventos ni NMEA. Con ello nadie en alcance puede cambiar el modo, reiniciar ni instalar un firmware.
+
+- Emparejamiento LE Secure Connections con clave fija: el tracker es «mostrar solo» y su clave es el **PIN de 6 cifras** de la WebUI (*Bluetooth > Control PIN*, por defecto `123456`: **cámbialo**). El móvil pide el PIN al emparejar. Con MITM + bonding: se pide una sola vez por móvil.
+- La app debe emparejar (`BluetoothDevice.createBond()`) antes de usar el servicio, o provocarlo leyendo la característica *Eventos* (lectura cifrada). Hasta que el enlace esté autenticado no llega ningún evento aunque se active la suscripción.
+- Si se cambia el PIN, el tracker olvida los móviles emparejados (hay que olvidar el dispositivo en el móvil y volver a emparejar).
+- El servicio KISS no se toca: aprs.fi, APRSdroid y demás siguen sin PIN.
+- Es una clave fija de 6 cifras: protege de curiosos y de órdenes accidentales, no de un atacante que pueda escuchar el emparejamiento.
+
 ## UUID
 
 | | UUID | Propiedades | Sentido |
 |---|---|---|---|
 | Servicio | `4c6f5261-2b00-4ea7-a000-000000000001` | | |
-| Órdenes | `4c6f5261-2b00-4ea7-a000-000000000002` | WRITE, WRITE_NR | móvil → tracker |
-| Eventos | `4c6f5261-2b00-4ea7-a000-000000000003` | NOTIFY | tracker → móvil |
+| Órdenes | `4c6f5261-2b00-4ea7-a000-000000000002` | WRITE, WRITE_NR (cifrado + PIN) | móvil → tracker |
+| Eventos | `4c6f5261-2b00-4ea7-a000-000000000003` | NOTIFY, READ (cifrada, solo para provocar el emparejamiento) | tracker → móvil |
 | NMEA | `4c6f5261-2b00-4ea7-a000-000000000004` | NOTIFY | tracker → móvil |
-| Firmware | `4c6f5261-2b00-4ea7-a000-000000000005` | WRITE, WRITE_NR | móvil → tracker (imagen en binario) |
+| Firmware | `4c6f5261-2b00-4ea7-a000-000000000005` | WRITE, WRITE_NR (cifrado + PIN) | móvil → tracker (imagen en binario) |
 
 (`4c6f5261` = "LoRa", `2b` = "+".)
 

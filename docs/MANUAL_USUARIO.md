@@ -429,11 +429,11 @@ Cinco mensajes editables en la WebUI (LoRa → CW / Morse), con `{CALL}` sustitu
 En la WebUI define los pines: punta = *Key / dit GPIO*, anillo = *Dah GPIO*, malla = GND (−1 = sin manipulador). Son entradas con pull-up (el contacto va a masa); usa GPIO libres de tu placa.
 - **Straight key** (vertical): solo punta; decodificador adaptativo (el WPM configurado debe estar cerca del tuyo).
 - **Iambic A / B**: punta = punto, anillo = raya, con memoria de paletas. *Swap paddles* para zurdos.
-- *Key the RF carrier*: el manipulador emite la portadora RF en directo. *Sidetone*: tono de 700 Hz en el zumbador (hay que tenerlo activado).
+- *Key the RF carrier*: el manipulador emite la portadora RF en directo. *Sidetone*: tono de 700 Hz en el zumbador (hay que tenerlo activado); suena con el manipulador, las macros (a mano o con el teclado FH-2), el entrenador y el mando remoto, no con la baliza autónoma.
 - Al accionar el manipulador con la pantalla MORSE abierta empieza una sesión que termina a los 2,5 s sin actividad o con el botón.
 
 ### 21.5 Escucha CW por RF
-Submenú → **Listen CW (RF)**. El chip pasa a FSK de banda estrecha (4,8 kHz) en la frecuencia del perfil y se lee el RSSI instantáneo (~1 kHz). Un detector de envolvente con umbral adaptativo y un decodificador adaptativo lo convierten en texto (cabecera `RX <wpm>`; abajo, nivel en dBm y SNR). El botón sale y restaura el modem.
+Submenú → **Listen CW (RF)**. El chip pasa a FSK de banda estrecha (4,8 kHz) en la frecuencia del perfil y se lee el RSSI instantáneo (~1 kHz). Un detector de envolvente con umbral adaptativo y un decodificador adaptativo lo convierten en texto (cabecera `RX <wpm>`). La **primera línea** muestra el **S-meter** (VHF/UHF, IARU: S9 = −93 dBm, 6 dB por punto, S9+10, +20…), el nivel en dBm y el SNR; debajo, las tres últimas líneas de texto y la letra en curso. La última línea muestra el **squelch**: **pulsación corta** = siguiente valor (OFF, −120 … −70 dBm en pasos de 5), **pulsación larga (0,7 s)** = salir y restaurar el modem. Por debajo del squelch no se decodifica ni se pinta nada (histéresis de 3 dB). También se ajusta en el submenú (*CW squelch*) y en la WebUI (LoRa → CW / Morse → *CW RX squelch*).
 - Pensado para portadora manipulada (A1A) a ±2 kHz de la frecuencia del perfil. No es un demodulador de audio.
 - Necesita ≥ 6 dB entre portadora y ruido; con señal débil o QSB fuerte decodifica mal.
 - Durante la escucha no hay recepción APRS ni balizas.

@@ -226,6 +226,7 @@ namespace WEB_Utils {
                 Config.bluetooth.useBLE         = true;    // fixed as BLE
             #endif
             Config.bluetooth.useKISS            = getParamIntSafe("bluetooth.useKISS", Config.bluetooth.useKISS) == 1;
+            Config.bluetooth.controlPin         = constrain(getParamIntSafe("bluetooth.controlPin", Config.bluetooth.controlPin), 0, 999999);
         }
 
         // CW
@@ -240,6 +241,8 @@ namespace WEB_Utils {
         Config.cw.sidetone    = request->hasParam("cw.sidetone", true);
         Config.cw.trainerLevel  = constrain(getParamIntSafe("cw.trainerLevel", Config.cw.trainerLevel), 2, 41);
         Config.cw.trainerGapWpm = constrain(getParamIntSafe("cw.trainerGapWpm", Config.cw.trainerGapWpm), 0, 40);
+        Config.cw.squelchDbm    = constrain(getParamIntSafe("cw.squelchDbm", Config.cw.squelchDbm), -130, 0);
+        if (Config.cw.squelchDbm > -40) Config.cw.squelchDbm = 0;
         Config.wspr.freqHz      = 432301500;                // la frecuencia WSPR es fija (dial 432,300 MHz + 1500 Hz): la WebUI no la modifica
         Config.wspr.corrHz      = constrain(getParamIntSafe("wspr.corrHz", Config.wspr.corrHz), -5000, 5000);
         Config.wspr.useGlobalPpm = request->hasParam("wspr.useGlobalPpm", true);

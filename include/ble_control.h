@@ -17,6 +17,8 @@ namespace BLE_Control {
     void onConnect();
     void onMtu(uint16_t mtu);                           // MTU negociado: tamano de los trozos de las notificaciones
     void onDisconnect();
+    void onSecurity(bool authenticated);                // emparejamiento con PIN completado (cifrado + MITM); sin el no se emite nada al movil
+    bool authenticated();
     void loop();                                        // al final de cada vuelta del bucle principal: ordenes, envios periodicos, DAPNET
     void nmea(const char* text, size_t length);         // frase NMEA para el movil (solo si esta suscrito)
     int  takeBootMode();                                // modo pedido por el movil para este arranque (-1 = ninguno); lo borra

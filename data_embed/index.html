@@ -706,6 +706,10 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         <input type="number" class="form-control form-control-sm" name="cw.trainerGapWpm" id="cw.trainerGapWpm" min="0" max="40" value="10" required />
                                         <label for="cw.trainerGapWpm">Trainer gap WPM (Farnsworth, 0 = off)</label>
                                     </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="cw.squelchDbm" id="cw.squelchDbm" min="-130" max="0" step="1" value="0" required />
+                                        <label for="cw.squelchDbm">CW RX squelch (dBm, 0 = off)</label>
+                                    </div>
                                 </div>
                                 <div class="row">
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2">
@@ -724,7 +728,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 </div>
                                 <div class="form-check form-switch">
                                     <input type="checkbox" name="cw.sidetone" id="cw.sidetone" class="form-check-input" />
-                                    <label for="cw.sidetone" class="form-label">Sidetone on the buzzer (needs the buzzer enabled)</label>
+                                    <label for="cw.sidetone" class="form-label">Sidetone on the buzzer (needs the buzzer enabled): sounds with the key / paddles, the trainer, and the macros and FH-2 keys</label>
                                 </div>
                                 <div class="form-check form-switch mb-2">
                                     <input type="checkbox" name="cw.swapPaddles" id="cw.swapPaddles" class="form-check-input" />
@@ -1132,6 +1136,27 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                             <option value="1">KISS</option>
                                             <option value="0">TNC2</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-6">
+                                        <label
+                                            for="bluetooth.controlPin"
+                                            class="form-label"
+                                            >Control PIN (APRS LoRa+ app)</label
+                                        >
+                                        <input
+                                            name="bluetooth.controlPin"
+                                            id="bluetooth.controlPin"
+                                            type="text"
+                                            inputmode="numeric"
+                                            pattern="[0-9]{1,6}"
+                                            maxlength="6"
+                                            class="form-control"
+                                            placeholder="123456"
+                                            value="123456"
+                                        />
+                                        <small>6-digit PIN the phone must enter to pair with the control service (commands, OTA, status). Change the default 123456. Changing it forgets the phones already paired.</small>
                                     </div>
                                 </div>
                             </div>

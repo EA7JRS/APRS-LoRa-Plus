@@ -93,6 +93,7 @@ namespace {
     volatile uint16_t       keyDelay        = KEY_DELAY_DEFAULT_MS;
     volatile bool           keyRejected     = false;           // llegaron eventos de manipulador fuera del modo MORSE
     volatile bool           connected       = false;
+    volatile bool           authed          = false;           // enlace cifrado y emparejado con PIN
     volatile bool           nmeaWanted      = false;
     volatile uint16_t       mtu             = 23;
 
@@ -119,7 +120,7 @@ namespace {
     }
 
     void sendLine(const String& line) {
-        if (!connected || evtChar == nullptr) return;
+        if (!connected || !authed || evtChar == nullptr) return;
         const uint8_t* data = (const uint8_t*)line.c_str();
         const size_t length = line.length();
         const size_t chunk  = chunkSize();
@@ -583,10 +584,12 @@ namespace BLE_Control {
         queue    = xQueueCreate(CONTROL_QUEUE_LEN, sizeof(Line));
         keyQueue = xQueueCreate(KEY_QUEUE_LEN, sizeof(BLE_Control::KeyEvent));
         NimBLEService* service = server->createService(CONTROL_SERVICE_UUID);
-        cmdChar  = service->createCharacteristic(CONTROL_CMD_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
-        evtChar  = service->createCharacteristic(CONTROL_EVT_UUID, NIMBLE_PROPERTY::NOTIFY);
+        cmdChar  = service->createCharacteristic(CONTROL_CMD_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::WRITE_AUTHEN);
+        // Seguridad (EA7JRS): escribir ordenes / OTA exige enlace cifrado y emparejado con PIN; leer "eventos" sirve a la app para
+        // provocar el emparejamiento. Las notificaciones ademas se retienen hasta completarse (ver authed)
+        evtChar  = service->createCharacteristic(CONTROL_EVT_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::READ_ENC | NIMBLE_PROPERTY::READ_AUTHEN);
         nmeaChar = service->createCharacteristic(CONTROL_NMEA_UUID, NIMBLE_PROPERTY::NOTIFY);
-        otaChar  = service->createCharacteristic(CONTROL_OTA_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
+        otaChar  = service->createCharacteristic(CONTROL_OTA_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::WRITE_AUTHEN);
         otaChar->setCallbacks(new OtaCallbacks());
         cmdChar->setCallbacks(new CommandCallbacks());
         nmeaChar->setCallbacks(new NmeaCallbacks());
@@ -596,8 +599,16 @@ namespace BLE_Control {
 
     void onConnect() {
         connected = true;
+        authed    = false;
         mtu       = 23;
     }
+
+    void onSecurity(bool authenticated) {
+        authed = authenticated;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE Ctrl", "Pairing %s", authenticated ? "OK" : "not authenticated");
+    }
+
+    bool authenticated() { return authed; }
 
     void onMtu(uint16_t newMtu) {
         mtu = newMtu;
@@ -605,6 +616,7 @@ namespace BLE_Control {
 
     void onDisconnect() {
         connected      = false;
+        authed         = false;
         if (otaActive) { FW_Update::bleAbort(); otaStop(); displayPopup("Firmware update", "Cancelled", "Link lost", -1, 1500); }
         keyDelay       = KEY_DELAY_DEFAULT_MS;
         nmeaWanted     = false;
@@ -648,7 +660,7 @@ namespace BLE_Control {
     }
 
     void nmea(const char* text, size_t length) {
-        if (!connected || !nmeaWanted || nmeaChar == nullptr || length == 0) return;
+        if (!connected || !authed || !nmeaWanted || nmeaChar == nullptr || length == 0) return;
         const size_t chunk = chunkSize();
         for (size_t i = 0; i < length; i += chunk) {
             const size_t n = (length - i < chunk) ? (length - i) : chunk;

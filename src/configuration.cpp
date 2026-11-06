@@ -141,6 +141,7 @@ bool Configuration::writeFile() {
             data["bluetooth"]["useBLE"]             = true; // fixed as BLE
         #endif
         data["bluetooth"]["useKISS"]                = bluetooth.useKISS;
+        data["bluetooth"]["controlPin"]             = bluetooth.controlPin;
 
         data["operatingMode"]                       = savedMode;
         data["radioPpm1000"]                        = radioPpm1000;
@@ -155,6 +156,7 @@ bool Configuration::writeFile() {
         data["cw"]["sidetone"]                      = cw.sidetone;
         data["cw"]["trainerLevel"]                  = cw.trainerLevel;
         data["cw"]["trainerGapWpm"]                 = cw.trainerGapWpm;
+        data["cw"]["squelchDbm"]                    = cw.squelchDbm;
         data["gps"]["gnssMask"]                     = gps.gnssMask;
         data["gps"]["assistNow"]                    = gps.assistNow;
         data["gps"]["dynModel"]                     = gps.dynModel;
@@ -439,6 +441,8 @@ bool Configuration::readFile() {
         if (data["cw"]["trainerLevel"].isNull()) needsRewrite = true;
         cw.trainerLevel  = constrain((int)(data["cw"]["trainerLevel"] | cw.trainerLevel), 2, 41);
         cw.trainerGapWpm = constrain((int)(data["cw"]["trainerGapWpm"] | cw.trainerGapWpm), 0, 40);
+        cw.squelchDbm    = constrain((int)(data["cw"]["squelchDbm"] | cw.squelchDbm), -130, 0);
+        if (cw.squelchDbm > -40) cw.squelchDbm = 0;
         if (data["gps"]["gnssMask"].isNull()) needsRewrite = true;
         setGpsDefaults();
         {
@@ -546,6 +550,7 @@ bool Configuration::readFile() {
             bluetooth.useBLE            = true;    // fixed as BLE
             bluetooth.useKISS           = data["bluetooth"]["useKISS"] | true;    // true=KISS,  false=TNC2
         #endif
+        bluetooth.controlPin            = constrain((int)(data["bluetooth"]["controlPin"] | 123456), 0, 999999);
 
         JsonArray LoraTypesArray = data["lora"];
         for (int j = 0; j < LoraTypesArray.size(); j++) {
@@ -919,6 +924,7 @@ void Configuration::setCwDefaults() {
     cw.sidetone = true;
     cw.trainerLevel = 4;
     cw.trainerGapWpm = 10;
+    cw.squelchDbm    = 0;
     cw.beaconMin = 0;
     cw.beaconFreq = 432050000; cw.beaconPower = 17; cw.beaconRegion = 1;
     cw.keyFreq    = 432050000; cw.keyPower    = 17; cw.keyRegion    = 1;
@@ -1001,6 +1007,7 @@ void Configuration::setDefaultValues() {
         bluetooth.useBLE            = true;    // fixed as BLE
         bluetooth.useKISS           = true;
     #endif
+    bluetooth.controlPin            = 123456;
 
     for (int j = 0; j < 4; j++) {
         LoraType loraType;

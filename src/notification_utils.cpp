@@ -70,29 +70,6 @@ namespace NOTIFICATION_Utils {
         digitalWrite(Config.notification.ledMessagePin, on ? HIGH : LOW);
     }
 
-    void sidetone(bool on) {
-        static bool active = false;
-        if (on == active) return;
-        active = on;
-        #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
-            if (on) {
-                ledcAttach(Config.notification.buzzerPinTone, 700, resolution);
-                ledcWrite(Config.notification.buzzerPinTone, 128);
-            } else {
-                ledcWrite(Config.notification.buzzerPinTone, 0);
-                ledcDetach(Config.notification.buzzerPinTone);
-            }
-        #else
-            if (on) {
-                ledcSetup(channel, 700, resolution);
-                ledcAttachPin(Config.notification.buzzerPinTone, 0);
-                ledcWrite(channel, 128);
-            } else {
-                ledcWrite(channel, 0);
-            }
-        #endif
-    }
-
     // ---- Campanas APRS (bell_rings.h): reproductor sin bloqueos, una nota por vez en el pin de tono ------------------
     static Bell::Player bellPlayer;
     static uint16_t     bellHz     = 0;         // frecuencia que suena ahora (0 = nada)
@@ -141,6 +118,34 @@ namespace NOTIFICATION_Utils {
             bellPowered = true;
         }
         update();
+    }
+
+    // Tono continuo de manipulador CW (700 Hz). Alimenta el pin Vcc del zumbador (modulo KY-006: + a un GPIO) mientras suena; sin ese pin
+    // (-1, zumbador activo con el + a 3V3) solo se mueve el pin de tono. Si una campana tiene el zumbador alimentado, no se lo corta.
+    void sidetone(bool on) {
+        static bool active = false;
+        if (on == active) return;
+        active = on;
+        const int vcc = Config.notification.buzzerPinVcc;
+        if (on && vcc >= 0) digitalWrite(vcc, HIGH);
+        #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+            if (on) {
+                ledcAttach(Config.notification.buzzerPinTone, 700, resolution);
+                ledcWrite(Config.notification.buzzerPinTone, 128);
+            } else {
+                ledcWrite(Config.notification.buzzerPinTone, 0);
+                ledcDetach(Config.notification.buzzerPinTone);
+            }
+        #else
+            if (on) {
+                ledcSetup(channel, 700, resolution);
+                ledcAttachPin(Config.notification.buzzerPinTone, 0);
+                ledcWrite(channel, 128);
+            } else {
+                ledcWrite(channel, 0);
+            }
+        #endif
+        if (!on && vcc >= 0 && !bellPowered) digitalWrite(vcc, LOW);
     }
 
     // light = true: el flash blanco se enciende y se apaga con la nota (sirena de emergencia)
