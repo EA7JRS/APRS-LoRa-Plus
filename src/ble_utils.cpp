@@ -179,6 +179,9 @@ namespace BLE_Utils {
             pAdvertising->addServiceUUID(useKISS ? SERVICE_UUID_0 : SERVICE_UUID_1);
 
             pServer->getAdvertising()->enableScanResponse(true);
+            // NimBLE-Arduino 2.x no longer advertises the device name by itself: without this the phone sees only the
+            // MAC address. After enableScanResponse() the name goes in the scan response (EA7JRS)
+            pServer->getAdvertising()->setName(std::string(BLEid.c_str()));
             pServer->getAdvertising()->setPreferredParams(0x06, 0x0C);
             pAdvertising->start();
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_DEBUG, "BLE", "%s", "Waiting for BLE central to connect...");
