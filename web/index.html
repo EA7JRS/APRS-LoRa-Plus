@@ -68,6 +68,7 @@
     </div>
 
     <p><small><span data-i="foot"></span> <a href="https://github.com/EA7JRS/APRS-LoRa-Plus">github.com/EA7JRS/APRS-LoRa-Plus</a></small></p>
+    <p id="privBox" hidden><small class="muted" data-i="priv"></small></p>
 </main>
 
 <script type="module" src="https://unpkg.com/esp-web-tools@10.1.0/dist/web/install-button.js?module"></script>
@@ -85,6 +86,7 @@
             n2: "Las placas con dos copias de firmware (p. ej. T-Beam S3 Supreme) también se pueden actualizar desde la web de configuración de la propia placa.",
             n3: "Una instalación por USB repone la tabla de particiones; el primer arranque puede tardar unos segundos.",
             foot: "Proyecto de código abierto (GPL-3.0). Instalador basado en ESP Web Tools.",
+            priv: "Contador anónimo de visitas e instalaciones (GoatCounter): sin cookies, sin IP ni datos personales; solo cuenta la visita y la placa elegida.",
             reading: "Leyendo la placa…", noanswer: "La placa no ha respondido. Tiene que ser un firmware APRS LoRa+ 5.3.1 o posterior; si es otro, elige la placa a mano abajo.",
             found: "Placa detectada: ", installed: "versión instalada ", newer: "Hay una versión más nueva: ", uptodate: "Ya tienes la última versión (", unknownBoard: "Esa placa no está en la lista de esta versión.",
             avail: "Versión disponible: ", loading: "Cargando lista de placas…", loadfail: "No se pudo cargar la lista de placas.", otaYes: "actualización web desde la propia placa: sí", otaNo: "esta placa solo se actualiza por USB",
@@ -100,6 +102,7 @@
             n2: "Boards with two firmware copies (e.g. T-Beam S3 Supreme) can also be updated from the board's own configuration web page.",
             n3: "A USB install rewrites the partition table; the first boot may take a few seconds.",
             foot: "Open source project (GPL-3.0). Installer based on ESP Web Tools.",
+            priv: "Anonymous visit and install counter (GoatCounter): no cookies, no IP or personal data; it only counts the visit and the chosen board.",
             reading: "Reading the board…", noanswer: "The board did not answer. It must run APRS LoRa+ 5.3.1 or later; otherwise pick the board by hand below.",
             found: "Board detected: ", installed: "installed version ", newer: "A newer version is available: ", uptodate: "You already have the latest version (", unknownBoard: "That board is not in this release.",
             avail: "Available version: ", loading: "Loading board list…", loadfail: "Could not load the board list.", otaYes: "update from the board's own web page: yes", otaNo: "this board is updated over USB only",
@@ -107,8 +110,32 @@
         }
     };
     let lang = (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en";
-    let latest = null, detected = null;
     const $ = id => document.getElementById(id);
+    let latest = null, detected = null;
+
+    // Contador anonimo (EA7JRS): GoatCounter (https://www.goatcounter.com), gratuito, sin cookies ni datos personales.
+    // Para activarlo crea una cuenta, elige un codigo (p. ej. "ea7jrs") y ponlo aqui; vacio = sin contador y sin conexion a terceros.
+    const GOATCOUNTER_CODE = "";
+    function ev(name) {                                           // evento (visita ya cuenta sola): detect/<placa>, install-start/<placa>, install-ok/<placa>, install-error/<placa>
+        try { if (GOATCOUNTER_CODE && window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: name, title: name, event: true }); } catch (e) {}
+    }
+    function boardNow() { const v = $("board") ? $("board").value : ""; return v || (detected && detected.board) || "unknown"; }
+    if (GOATCOUNTER_CODE) {
+        const s = document.createElement("script");
+        s.async = true; s.src = "https://gc.zgo.at/count.js";
+        s.setAttribute("data-goatcounter", "https://" + GOATCOUNTER_CODE + ".goatcounter.com/count");
+        document.head.appendChild(s);
+        $("privBox").hidden = false;
+        // Instalacion: ESP Web Tools avisa con "state-changed" (finished / error); si esa version no lo emitiera, solo se cuenta el inicio
+        const onState = e => {
+            const st = e && e.detail && e.detail.state;
+            if (st === "finished") ev("install-ok/" + boardNow());
+            else if (st === "error") ev("install-error/" + boardNow());
+        };
+        document.addEventListener("state-changed", onState, true);
+        window.addEventListener("state-changed", onState, true);
+        $("install").addEventListener("click", () => ev("install-start/" + boardNow()), true);
+    }
     const t = k => T[lang][k];
 
     function cmp(a, b) {
@@ -191,6 +218,7 @@
         try { await port.close(); } catch (e) {}
         if (!info) { if (!st.textContent.startsWith(t("err"))) { st.className = "status warn"; st.textContent = t("noanswer"); } return; }
         detected = info;
+        ev("detect/" + info.board);
         st.className = "status ok";
         st.textContent = t("found") + info.board + " · " + t("installed") + info.version + " · " + info.chip;
         if (latest && latest.boards[info.board]) $("board").value = info.board;
