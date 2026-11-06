@@ -778,6 +778,10 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <small>Selected at boot (SELECT MODE &rarr; Satellites 70cm). Pass prediction (SGP4), azimuth / elevation and Doppler for the satellites with an uplink and/or downlink in 70 cm. Orbital elements and frequencies (CelesTrak + SatNOGS) are downloaded from the project by WiFi, using the network set in <em>Firmware update</em>. The position comes from the GPS; with no GPS fix the fixed position below is used. This first version is informative only: it does not transmit or receive.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
+                                <div class="form-floating mb-2">
+                                    <select class="form-select form-select-sm" name="sat.posSource" id="sat.posSource"><option value="0" selected>Tracker GPS (reference; phone if no fix)</option><option value="1">Fused tracker GPS + phone (app)</option><option value="2">Phone only (app)</option></select>
+                                    <label for="sat.posSource">Station position</label>
+                                </div>
                                 <div class="row">
                                     <div class="form-floating col-12 col-md-4 px-1 mb-2">
                                         <input type="number" class="form-control form-control-sm" name="sat.minEl" id="sat.minEl" min="0" max="60" step="1" value="10" required />

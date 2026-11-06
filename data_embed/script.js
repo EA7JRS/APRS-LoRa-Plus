@@ -562,6 +562,7 @@ function loadSettings(settings) {
         document.getElementById("rotor.parkEl").value = rot.parkEl ?? 0;
         document.getElementById("rotor.bleEvents").checked = rot.bleEvents ?? true;
         const sat = settings.sat || {};
+        document.getElementById("sat.posSource").value = String(sat.posSource ?? 0);
         document.getElementById("sat.minEl").value = sat.minEl ?? 10;
         document.getElementById("sat.lat").value = sat.lat ?? 0;
         document.getElementById("sat.lon").value = sat.lon ?? 0;
@@ -1599,6 +1600,7 @@ function boardPinInit() {
         .then(r => r.json())
         .then(i => {
             const name = i.board || "";
+            if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             const isSupreme = name.toLowerCase().indexOf("supreme") >= 0;
             const show = () => {
                 PIN_NAME = name;

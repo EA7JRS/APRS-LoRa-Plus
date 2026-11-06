@@ -40,6 +40,8 @@ namespace SAT_Utils {
 
     bool           haveTime();
     bool           haveQth();
+    const char*    qthSource();                         // "GPS" tracker, "FUS" fusion tracker + movil, "PHN" movil, "LAST" ultima conocida, "FIX" fija de la WebUI
+    void           setPhonePosition(double latDeg, double lonDeg, double altM, float accuracyM);   // posicion del movil (app, orden BLE "pos")
     bool           live(SatCore::Look& out);            // posicion actual respecto a la estacion (false = sin hora, sin posicion o sin satelite)
     // Proximo paso (o el actual): false si aun no se ha calculado; searching = la busqueda sigue en marcha
     bool           nextPass(SatCore::Pass& out, bool& searching);

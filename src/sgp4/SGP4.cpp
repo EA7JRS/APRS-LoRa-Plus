@@ -1,3 +1,5 @@
+#include "sat_config.h"
+#ifdef HAS_SAT
 /*     ----------------------------------------------------------------
 *
 *                               sgp4unit.cpp
@@ -3262,5 +3264,4 @@ namespace SGP4Funcs
 
 
 } // namespace SGP4Funcs
-
-
+#endif  // HAS_SAT

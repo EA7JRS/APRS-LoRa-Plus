@@ -3,6 +3,12 @@
  *
  * Copyright (c) 2026 Manuel - EA7JRS
  */
+#include "sat_config.h"
+#include "sat_utils.h"
+#include "rotor_utils.h"
+
+#ifdef HAS_SAT
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <TimeLib.h>
@@ -242,3 +248,18 @@ namespace ROTOR_Utils {
     }
 
 }
+
+#else   // sin HAS_SAT: funciones vacias
+
+namespace ROTOR_Utils {
+    void begin() {}
+    void loop() {}
+    bool target(float&, float&, bool& tracking) { tracking = false; return false; }
+    State state() { return ST_OFF; }
+    const char* stateText() { return "OFF"; }
+    bool actual(float&, float&) { return false; }
+    bool enabled() { return false; }
+    uint32_t targetSeq() { return 0; }
+}
+
+#endif  // HAS_SAT

@@ -590,6 +590,11 @@ namespace FW_Update {
         doc["sketchSize"]      = (uint32_t)ESP.getSketchSize();
         doc["ota"]             = slotAvailable();
         doc["onlineUpdate"]    = FW_UPDATE_SUPPORTED ? true : false;
+        #ifdef HAS_SAT
+            doc["sat"]         = true;
+        #else
+            doc["sat"]         = false;
+        #endif
         doc["wifiConfigured"]  = !Config.fwUpdate.ssid.isEmpty();
         doc["autoCheck"]       = Config.fwUpdate.autoCheck;
         doc["autoInstall"]     = Config.fwUpdate.autoInstall;

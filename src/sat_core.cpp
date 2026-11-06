@@ -1,3 +1,5 @@
+#include "sat_config.h"
+#ifdef HAS_SAT
 /*
  * Nucleo de calculo de satelites (modo SAT). Ver include/sat_core.h
  *
@@ -373,3 +375,4 @@ namespace SatCore {
     }
 
 }
+#endif  // HAS_SAT

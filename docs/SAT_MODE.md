@@ -2,13 +2,15 @@
 
 *Copyright (c) 2026 Manuel - EA7JRS. Estado: **fase 1**, sin probar en placa.*
 
+**Solo en las placas que lo admiten** (con pantalla y no el ESP32 original, p. ej. T-Beam Supreme S3): en las demás no aparece en el menú, ni en la app, ni en la WebUI.
+
 ## Qué hace (fase 1)
 
 Se elige en **SELECT MODE → Satellites 70cm** (y desde la app por BLE: modo 9). Es un modo de **solo cálculo**: no emite ni procesa paquetes de radio.
 
 - Lista de satélites con enlace de subida y/o bajada entre 420 y 450 MHz (datos de CelesTrak y SatNOGS).
 - Para el satélite elegido: **azimut, elevación, distancia, altura y velocidad radial**, próximo paso (AOS, LOS, elevación máxima) y **Doppler** de cada transmisor (lo que oyes en la bajada y lo que hay que emitir en la subida para que llegue en su frecuencia). La frecuencia de subida y de bajada de un transpondedor lineal se muestra en su centro.
-- Posición de la estación: GPS; sin fix se usa la última posición conocida y, si no hay, la posición fija de la WebUI (*Satellites 70 cm*).
+- Posición de la estación (*Station position* en la WebUI; la pantalla muestra la fuente arriba a la derecha): **GPS del tracker como referencia** (`GPS`; sin fix, la del móvil `PHN`), **fusión** del GPS del tracker y del móvil (`FUS`: media ponderada por la inversa de la varianza; precisión del tracker ≈ HDOP × 5 m, la del móvil la manda la app) o **solo el móvil**. La posición del móvil la envía la app por BLE con la orden `pos` (ver `BLE_CONTROL.md`) y caduca a los 2 minutos. Si no hay ninguna: última posición conocida (`LAST`) y, si no, la fija de la WebUI (`FIX`).
 - Hora: UTC del GPS. Sin hora válida no se calcula nada.
 
 Pantalla **SATELLITE** (pulsación larga → submenú): *Next / Previous satellite*, *Change view* (ahora / próximo paso / frecuencias), *Update TLE (WiFi)*.

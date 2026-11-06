@@ -18,6 +18,7 @@
 #include "battery_utils.h"
 #include "station_utils.h"
 #include "dapnet_utils.h"
+#include "sat_config.h"
 #include "sat_utils.h"
 #include "rotor_utils.h"
 #include "baro_utils.h"
@@ -169,7 +170,9 @@ namespace {
             }
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) out[n++] = ModeOption{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) out[n++] = ModeOption{ MODE_DAPNET, "DAPNET pager" };
+            #ifdef HAS_SAT
             out[n++] = ModeOption{ MODE_SAT, "Satellites 70cm" };
+            #endif
         #endif
         return n;
     }
@@ -489,6 +492,11 @@ namespace {
             const int g = doc["gnss"] | -1;
             if (s >= 0) sensorsEveryMs = s == 0 ? 0 : (uint32_t)max(s, 2) * 1000UL;
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
+            reply(cmd, id);
+        }
+        else if (strcmp(cmd, "pos") == 0) {                       // posicion del movil para el modo SAT: lat, lon, alt (m), acc (m)
+            if (doc["lat"].isNull() || doc["lon"].isNull()) { reply(cmd, id, "lat and lon needed"); return; }
+            SAT_Utils::setPhonePosition(doc["lat"] | 0.0, doc["lon"] | 0.0, doc["alt"] | 0.0, doc["acc"] | 0.0f);
             reply(cmd, id);
         }
         else if (strcmp(cmd, "mode") == 0)    setMode(doc["m"] | -1, cmd, id);

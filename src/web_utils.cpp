@@ -285,6 +285,7 @@ namespace WEB_Utils {
             Config.rotor.bleEvents  = request->hasParam("rotor.bleEvents", true);
         }
         {   // modo SAT
+            Config.sat.posSource = constrain(getParamIntSafe("sat.posSource", Config.sat.posSource), 0, 2);
             Config.sat.minEl = constrain(getParamIntSafe("sat.minEl", Config.sat.minEl), 0, 60);
             if (request->hasParam("sat.lat", true)) Config.sat.lat = constrain(request->getParam("sat.lat", true)->value().toDouble(), -90.0, 90.0);
             if (request->hasParam("sat.lon", true)) Config.sat.lon = constrain(request->getParam("sat.lon", true)->value().toDouble(), -180.0, 180.0);

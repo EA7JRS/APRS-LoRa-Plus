@@ -3,6 +3,12 @@
  *
  * Copyright (c) 2026 Manuel - EA7JRS
  */
+#include "sat_config.h"
+#include "sat_utils.h"
+#include "rotor_utils.h"
+
+#ifdef HAS_SAT
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -65,25 +71,60 @@ namespace SAT_Utils {
 
         bool timeOk() { return year(::now()) >= 2024; }
 
+        // posicion enviada por el movil (app, orden BLE "pos")
+        double   phLat = 0, phLon = 0, phAlt = 0;
+        float    phAcc = 0;
+        uint32_t phAtMs = 0;
+        const char* qthSrc = "";
+        const uint32_t PHONE_MAX_AGE_MS = 120000UL;                 // una posicion del movil mas vieja ya no vale
+
+        // Posicion de la estacion segun Config.sat.posSource:
+        //   0 = GPS del tracker como referencia (si no tiene fix, la del movil)
+        //   1 = fusion del tracker y del movil (media ponderada por la inversa de la varianza de cada precision)
+        //   2 = solo el movil
+        // y, si no hay ninguna: ultima posicion conocida y, por ultimo, la fija de la WebUI.
         bool pickQth() {
-            if (gps.location.isValid()) {
+            const bool trk = Config.sat.posSource != 2 && gps.location.isValid() && gps.location.age() < 10000UL;
+            const bool ph  = Config.sat.posSource != 3 && phAtMs != 0 && millis() - phAtMs < PHONE_MAX_AGE_MS;
+            // precision (m) del tracker: HDOP x 5 m, como en un receptor de consumo; 15 m si no hay HDOP
+            const double accT = gps.hdop.isValid() ? (gps.hdop.hdop() * 5.0 > 3.0 ? gps.hdop.hdop() * 5.0 : 3.0) : 15.0;
+            const double accP = phAcc > 1.0f ? (double)phAcc : 10.0;
+            if (trk && ph && Config.sat.posSource == 1) {
+                const double wT = 1.0 / (accT * accT), wP = 1.0 / (accP * accP);
+                const double tAlt = gps.altitude.isValid() ? gps.altitude.meters() : phAlt;
+                obs.latDeg = (gps.location.lat() * wT + phLat * wP) / (wT + wP);
+                obs.lonDeg = (gps.location.lng() * wT + phLon * wP) / (wT + wP);
+                obs.altM   = (tAlt * wT + phAlt * wP) / (wT + wP);
+                qthSrc = "FUS";
+                return true;
+            }
+            if (trk) {
                 obs.latDeg = gps.location.lat();
                 obs.lonDeg = gps.location.lng();
                 obs.altM   = gps.altitude.isValid() ? gps.altitude.meters() : 0.0;
+                qthSrc = "GPS";
+                return true;
+            }
+            if (ph) {
+                obs.latDeg = phLat; obs.lonDeg = phLon; obs.altM = phAlt;
+                qthSrc = "PHN";
                 return true;
             }
             if (GPS_Utils::hasLastPosition()) {
                 obs.latDeg = GPS_Utils::getLastLat();
                 obs.lonDeg = GPS_Utils::getLastLng();
                 obs.altM   = 0;
+                qthSrc = "LAST";
                 return true;
             }
             if (Config.sat.lat != 0.0 || Config.sat.lon != 0.0) {          // posicion fija de la WebUI (sin GPS)
                 obs.latDeg = Config.sat.lat;
                 obs.lonDeg = Config.sat.lon;
                 obs.altM   = 0;
+                qthSrc = "FIX";
                 return true;
             }
+            qthSrc = "";
             return false;
         }
 
@@ -263,6 +304,12 @@ namespace SAT_Utils {
     int  selected() { return sel; }
     const SatCore::Block* block() { return satReady ? &blk : nullptr; }
     bool haveTime() { return timeOk(); }
+    const char* qthSource() { return qthSrc; }
+    void setPhonePosition(double lat, double lon, double alt, float accuracyM) {
+        if (lat < -90.0 || lat > 90.0 || lon < -180.0 || lon > 180.0) return;
+        phLat = lat; phLon = lon; phAlt = alt; phAcc = accuracyM;
+        phAtMs = millis() ? millis() : 1;
+    }
     bool haveQth()  { return qthOk; }
     const char* dataStamp() { return stamp; }
 
@@ -394,3 +441,35 @@ namespace SAT_Utils {
     const char* updateMessage() { return updMsg; }
 
 }
+
+#else   // sin HAS_SAT: la placa no admite el modo SAT; funciones vacias para que el resto compile igual
+
+namespace SAT_Utils {
+    void begin() {}
+    void loop() {}
+    bool hasData() { return false; }
+    int  count() { return 0; }
+    const Entry* at(int) { return nullptr; }
+    int  selected() { return -1; }
+    bool select(int) { return false; }
+    bool inCategory(const Entry&) { return false; }
+    int  step(int) { return -1; }
+    const char* categoryName() { return ""; }
+    int  nextCategory() { return 0; }
+    bool geo() { return false; }
+    const SatCore::Block* block() { return nullptr; }
+    bool haveTime() { return false; }
+    bool haveQth() { return false; }
+    const char* qthSource() { return ""; }
+    void setPhonePosition(double, double, double, float) {}
+    bool live(SatCore::Look&) { return false; }
+    bool nextPass(SatCore::Pass&, bool& searching) { searching = false; return false; }
+    double tleAgeDays() { return -1.0; }
+    const char* dataStamp() { return ""; }
+    void doppler(const SatCore::Transmitter&, double& rxHz, double& txHz) { rxHz = txHz = 0.0; }
+    bool updateStart() { return false; }
+    UpdateState updateState() { return UPD_IDLE; }
+    const char* updateMessage() { return ""; }
+}
+
+#endif  // HAS_SAT

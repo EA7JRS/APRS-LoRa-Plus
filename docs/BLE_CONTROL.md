@@ -59,6 +59,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 | `ota_abort` | | cancela la actualización en curso |
 | `fwcheck` / `fwinstall` | | busca (e instala) la última versión con la WiFi del tracker, como los botones de la WebUI |
 | `fwstatus` | | evento `fw` con el estado de `fwcheck` / `fwinstall` |
+| `pos` | `lat`, `lon` (grados), `alt` (m), `acc` (precisión en m) | posición GPS del móvil para el modo SAT (ver `SAT_MODE.md`); caduca a los 2 min, así que la app debe repetirla (p. ej. cada 5–10 s) |
 | `reboot` | | reinicia |
 
 ## Eventos

@@ -51,6 +51,7 @@
 #include "wmm.h"
 #include "notification_utils.h"
 #include "dapnet_utils.h"
+#include "sat_config.h"
 #include "sat_utils.h"
 #include "rotor_utils.h"
 #include "station_utils.h"
@@ -2904,10 +2905,11 @@ namespace PAGES_Utils {
         snprintf(out, n, "%02d:%02d:%02d", hour(t), minute(t), second(t));
     }
 
+#ifdef HAS_SAT
     void drawSatPage() {
         const SatCore::Block* b = SAT_Utils::block();
         const bool upd = SAT_Utils::updateState() == SAT_Utils::UPD_WORKING;
-        header(PAGE_TITLES[PAGE_SAT], upd ? "WIFI" : (SAT_Utils::haveQth() ? "" : "NO POS"));
+        header(PAGE_TITLES[PAGE_SAT], upd ? "WIFI" : (SAT_Utils::haveQth() ? SAT_Utils::qthSource() : "NO POS"));
         if (SAT_Utils::updateState() == SAT_Utils::UPD_WORKING || SAT_Utils::updateState() == SAT_Utils::UPD_ERROR) {
             row(0, "TLE update");
             row(1, "%s", SAT_Utils::updateMessage());
@@ -2987,6 +2989,9 @@ namespace PAGES_Utils {
         const double age = SAT_Utils::tleAgeDays();
         row(5, "TLE %.1fd %s%s", age < 0 ? 0.0 : age, SAT_Utils::dataStamp()[0] ? "" : "", satView == 0 ? "v:now" : (satView == 1 ? "v:pass" : "v:freq"));
     }
+#else
+    void drawSatPage() {}
+#endif
 
     // ======================= WSPR =======================
     // Callsign del perfil de baliza sin SSID
@@ -3938,7 +3943,9 @@ namespace PAGES_Utils {
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FST4W, "FST4W beacon" };
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) options[n++] = Option{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) options[n++] = Option{ MODE_DAPNET, "DAPNET pager" };
+            #ifdef HAS_SAT
             options[n++] = Option{ MODE_SAT, "Satellites 70cm" };
+            #endif
             uint8_t sel = 0;
             for (uint8_t i = 0; i < n; i++) if (options[i].mode == Config.savedMode) sel = i;
             pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -4002,6 +4009,9 @@ namespace PAGES_Utils {
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
+        #ifndef HAS_SAT
+        if (Config.operatingMode == MODE_SAT) Config.operatingMode = MODE_APRS_LORA;                          // modo no disponible en esta placa
+        #endif
         if (Config.operatingMode == MODE_SAT) { beaconManualMode = true; page = PAGE_SAT; SAT_Utils::begin(); ROTOR_Utils::begin(); }               // solo prediccion: sin balizas APRS
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",

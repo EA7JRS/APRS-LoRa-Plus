@@ -255,6 +255,7 @@ class SatConfig {
 public:
     int     noradId;                            // satelite elegido (numero NORAD; 0 = el primero de la lista)
     int     category;                           // filtro de la lista: 0 todos, 1 70 cm, 2 LoRa / LR-FHSS / TinyGS, 3 geoestacionarios (Inmarsat: solo seguimiento)
+    int     posSource;                          // posicion de la estacion: 0 = GPS del tracker (referencia; sin fix, el movil), 1 = fusion tracker + movil, 2 = solo el movil
     int     minEl;                              // elevacion minima de un paso util (grados)
     double  lat, lon;                           // posicion fija de la estacion cuando no hay GPS (0,0 = sin definir)
     String  dataUrl;                            // direccion del archivo de datos (vacio = el oficial del proyecto)
