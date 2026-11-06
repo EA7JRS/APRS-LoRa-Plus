@@ -52,6 +52,7 @@
 #include "notification_utils.h"
 #include "dapnet_utils.h"
 #include "sat_utils.h"
+#include "rotor_utils.h"
 #include "station_utils.h"
 #include "sleep_utils.h"
 #include "keypad_fh2.h"
@@ -2884,6 +2885,7 @@ namespace PAGES_Utils {
     void satPoll() {
         if (Config.operatingMode != MODE_SAT) return;
         SAT_Utils::loop();
+        ROTOR_Utils::loop();
     }
 
     // Duracion corta: "12m34s" o "1h05m"
@@ -2965,6 +2967,12 @@ namespace PAGES_Utils {
                 if (up) row(4, "UP %.4f TX %.4f", up / 1e6, tx > 0 ? tx / 1e6 : 0.0);
                 else    row(4, "UP -");
             }
+        }
+        if (Config.rotor.enabled && satView == 0) {
+            float ra, re; bool trk;
+            if (ROTOR_Utils::target(ra, re, trk)) row(5, "ROT %s %03d/%02d", ROTOR_Utils::stateText(), (int)lroundf(ra) % 360, (int)lroundf(re));
+            else                                  row(5, "ROT %s", ROTOR_Utils::stateText());
+            return;
         }
         const double age = SAT_Utils::tleAgeDays();
         row(5, "TLE %.1fd %s%s", age < 0 ? 0.0 : age, SAT_Utils::dataStamp()[0] ? "" : "", satView == 0 ? "v:now" : (satView == 1 ? "v:pass" : "v:freq"));
@@ -3984,7 +3992,7 @@ namespace PAGES_Utils {
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
-        if (Config.operatingMode == MODE_SAT) { beaconManualMode = true; page = PAGE_SAT; SAT_Utils::begin(); }               // solo prediccion: sin balizas APRS
+        if (Config.operatingMode == MODE_SAT) { beaconManualMode = true; page = PAGE_SAT; SAT_Utils::begin(); ROTOR_Utils::begin(); }               // solo prediccion: sin balizas APRS
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
                    Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : "APRS LoRa")));

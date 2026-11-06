@@ -7,6 +7,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include "sat_core.h"
+#include "sat_math.h"
+#define pow satPow
+#define fmod satFmod
+#define asin satAsin
+#define acos satAcos
+#define tan satTan
 
 namespace SatCore {
 

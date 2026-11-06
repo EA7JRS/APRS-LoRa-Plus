@@ -18,6 +18,8 @@
 #include "battery_utils.h"
 #include "station_utils.h"
 #include "dapnet_utils.h"
+#include "sat_utils.h"
+#include "rotor_utils.h"
 #include "baro_utils.h"
 #include "lora_utils.h"
 #include "gps_utils.h"
@@ -344,6 +346,25 @@ namespace {
         sendDoc(doc);
     }
 
+    // Rotor (modo SAT): el movil recibe azimut / elevacion cuando cambian y los retransmite al rotor
+    void checkRotor() {
+        if (!connected || !authed || !Config.rotor.bleEvents || Config.operatingMode != MODE_SAT) return;
+        static uint32_t seen = 0;
+        const uint32_t s = ROTOR_Utils::targetSeq();
+        if (s == seen) return;
+        seen = s;
+        float az, el; bool tracking;
+        if (!ROTOR_Utils::target(az, el, tracking)) return;
+        JsonDocument doc;
+        doc["e"]  = "rot";
+        doc["az"] = serialized(String(az, 1));
+        doc["el"] = serialized(String(el, 1));
+        doc["trk"] = tracking;
+        const SatCore::Block* b = SAT_Utils::block();
+        if (b) doc["sat"] = b->name;
+        sendDoc(doc);
+    }
+
     // ---------------------------------------------------------------- actualizacion del firmware desde la app
 
     void otaStop() {
@@ -654,6 +675,7 @@ namespace BLE_Control {
         #endif
         if (otaActive) { otaPoll(); return; }                         // durante la actualizacion no se envia nada mas
         checkDapnet();
+        checkRotor();
         if (!connected) return;
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }

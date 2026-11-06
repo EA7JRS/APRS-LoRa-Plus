@@ -799,6 +799,75 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
+                        <div class="row my-5 d-flex align-items-top" id="grp-rotor">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>Antenna rotor</h5>
+                                <small>Satellite mode only. The tracker points the rotor at the selected satellite: from <em>pre-position</em> seconds before AOS until LOS. <strong>WiFi / TCP</strong>: client of Hamlib <code>rotctld</code> (default port 4533; the PC or Raspberry running rotctld must be reachable from the WiFi set in <em>Firmware update</em>, e.g. your phone hotspot). <strong>Bluetooth SPP</strong>: Yaesu GS-232 controller (only boards with classic Bluetooth, and only when the tracker Bluetooth is off). <strong>BLE</strong>: the Android app receives the <code>rot</code> event with azimuth / elevation and can relay it to the rotor. Azimuth is sent as 0&ndash;359&deg;; rotors with 450&deg; travel are not handled.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="rotor.enabled" id="rotor.enabled" class="form-check-input" />
+                                    <label for="rotor.enabled" class="form-label">Enable rotor control (WiFi / Bluetooth transport)</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-12 col-md-3 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="rotor.transport" id="rotor.transport"><option value="0" selected>WiFi / TCP (rotctld)</option><option value="1">Bluetooth SPP (GS-232)</option></select>
+                                        <label for="rotor.transport">Transport</label>
+                                    </div>
+                                    <div class="form-floating col-12 col-md-6 px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" name="rotor.host" id="rotor.host" maxlength="63" placeholder="192.168.1.50" />
+                                        <label for="rotor.host">rotctld host or IP</label>
+                                    </div>
+                                    <div class="form-floating col-12 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.port" id="rotor.port" min="1" max="65535" value="4533" />
+                                        <label for="rotor.port">Port</label>
+                                    </div>
+                                </div>
+                                <div class="form-floating mb-2">
+                                    <input type="text" class="form-control form-control-sm" name="rotor.btName" id="rotor.btName" maxlength="31" placeholder="Rotor-BT" />
+                                    <label for="rotor.btName">Bluetooth name of the GS-232 controller</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.stepTenths" id="rotor.stepTenths" min="1" max="100" value="10" />
+                                        <label for="rotor.stepTenths">Step (tenths of &deg;)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.preSec" id="rotor.preSec" min="0" max="600" value="60" />
+                                        <label for="rotor.preSec">Pre-position (s)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.azOffset" id="rotor.azOffset" min="-180" max="180" value="0" />
+                                        <label for="rotor.azOffset">Azimuth offset (&deg;)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.elOffset" id="rotor.elOffset" min="-90" max="90" value="0" />
+                                        <label for="rotor.elOffset">Elevation offset (&deg;)</label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 col-md-4 px-1 mb-2">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" name="rotor.park" id="rotor.park" class="form-check-input" />
+                                            <label for="rotor.park" class="form-label">Park after the pass</label>
+                                        </div>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.parkAz" id="rotor.parkAz" min="0" max="359" value="0" />
+                                        <label for="rotor.parkAz">Park azimuth (&deg;)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.parkEl" id="rotor.parkEl" min="0" max="90" value="0" />
+                                        <label for="rotor.parkEl">Park elevation (&deg;)</label>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" name="rotor.bleEvents" id="rotor.bleEvents" class="form-check-input" checked />
+                                    <label for="rotor.bleEvents" class="form-label">Send the <code>rot</code> event (azimuth / elevation) to the Android app by BLE</label>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row my-5 d-flex align-items-top" id="grp-dapnet">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>

@@ -198,6 +198,19 @@ bool Configuration::writeFile() {
         data["sat"]["lat"]                          = sat.lat;
         data["sat"]["lon"]                          = sat.lon;
         data["sat"]["dataUrl"]                      = sat.dataUrl;
+        data["rotor"]["enabled"]                    = rotor.enabled;
+        data["rotor"]["transport"]                  = rotor.transport;
+        data["rotor"]["host"]                       = rotor.host;
+        data["rotor"]["port"]                       = rotor.port;
+        data["rotor"]["btName"]                     = rotor.btName;
+        data["rotor"]["stepTenths"]                 = rotor.stepTenths;
+        data["rotor"]["preSec"]                     = rotor.preSec;
+        data["rotor"]["azOffset"]                   = rotor.azOffset;
+        data["rotor"]["elOffset"]                   = rotor.elOffset;
+        data["rotor"]["park"]                       = rotor.park;
+        data["rotor"]["parkAz"]                     = rotor.parkAz;
+        data["rotor"]["parkEl"]                     = rotor.parkEl;
+        data["rotor"]["bleEvents"]                  = rotor.bleEvents;
         data["ft"]["ft8FreqHz"]                     = ft.ft8FreqHz;
         data["ft"]["ft4FreqHz"]                     = ft.ft4FreqHz;
         data["ft"]["ft8Region"]                     = ft.ft8Region;
@@ -510,6 +523,20 @@ bool Configuration::readFile() {
         sat.lat              = constrain((double)(data["sat"]["lat"] | sat.lat), -90.0, 90.0);
         sat.lon              = constrain((double)(data["sat"]["lon"] | sat.lon), -180.0, 180.0);
         sat.dataUrl          = data["sat"]["dataUrl"] | "";
+        if (data["rotor"]["enabled"].isNull()) needsRewrite = true;
+        rotor.enabled        = data["rotor"]["enabled"] | rotor.enabled;
+        rotor.transport      = constrain((int)(data["rotor"]["transport"] | rotor.transport), 0, 1);
+        rotor.host           = data["rotor"]["host"] | "";
+        rotor.port           = constrain((int)(data["rotor"]["port"] | rotor.port), 1, 65535);
+        rotor.btName         = data["rotor"]["btName"] | "";
+        rotor.stepTenths     = constrain((int)(data["rotor"]["stepTenths"] | rotor.stepTenths), 1, 100);
+        rotor.preSec         = constrain((int)(data["rotor"]["preSec"] | rotor.preSec), 0, 600);
+        rotor.azOffset       = constrain((int)(data["rotor"]["azOffset"] | rotor.azOffset), -180, 180);
+        rotor.elOffset       = constrain((int)(data["rotor"]["elOffset"] | rotor.elOffset), -90, 90);
+        rotor.park           = data["rotor"]["park"] | rotor.park;
+        rotor.parkAz         = constrain((int)(data["rotor"]["parkAz"] | rotor.parkAz), 0, 359);
+        rotor.parkEl         = constrain((int)(data["rotor"]["parkEl"] | rotor.parkEl), 0, 90);
+        rotor.bleEvents      = data["rotor"]["bleEvents"] | rotor.bleEvents;
         if (data["ft"]["ft8FreqHz"].isNull()) needsRewrite = true;
         setFtDefaults();
         ft.ft8FreqHz     = constrain((int)(data["ft"]["ft8FreqHz"] | ft.ft8FreqHz), 400000000, 480000000);
@@ -833,6 +860,19 @@ void Configuration::setDapnetDefaults() {
     sat.lat              = 0.0;
     sat.lon              = 0.0;
     sat.dataUrl          = "";
+    rotor.enabled        = false;
+    rotor.transport      = 0;
+    rotor.host           = "";
+    rotor.port           = 4533;                // puerto por defecto de rotctld
+    rotor.btName         = "";
+    rotor.stepTenths     = 10;
+    rotor.preSec         = 60;
+    rotor.azOffset       = 0;
+    rotor.elOffset       = 0;
+    rotor.park           = false;
+    rotor.parkAz         = 0;
+    rotor.parkEl         = 0;
+    rotor.bleEvents      = true;
     dapnet.charset       = 1;                   // la red es alemana: ISO 646 aleman por defecto (los demas caracteres son ASCII)
 }
 

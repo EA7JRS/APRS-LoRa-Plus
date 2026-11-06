@@ -269,6 +269,21 @@ namespace WEB_Utils {
             Config.dapnet.timeSync   = request->hasParam("dapnet.timeSync", true);
             Config.dapnet.charset    = constrain(getParamIntSafe("dapnet.charset", Config.dapnet.charset), 0, 1);
         }
+        {   // rotor (modo SAT)
+            Config.rotor.enabled    = request->hasParam("rotor.enabled", true);
+            Config.rotor.transport  = constrain(getParamIntSafe("rotor.transport", Config.rotor.transport), 0, 1);
+            if (request->hasParam("rotor.host", true)) { String h = request->getParam("rotor.host", true)->value(); h.trim(); Config.rotor.host = h.length() > 63 ? h.substring(0, 63) : h; }
+            Config.rotor.port       = constrain(getParamIntSafe("rotor.port", Config.rotor.port), 1, 65535);
+            if (request->hasParam("rotor.btName", true)) { String n = request->getParam("rotor.btName", true)->value(); n.trim(); Config.rotor.btName = n.length() > 31 ? n.substring(0, 31) : n; }
+            Config.rotor.stepTenths = constrain(getParamIntSafe("rotor.stepTenths", Config.rotor.stepTenths), 1, 100);
+            Config.rotor.preSec     = constrain(getParamIntSafe("rotor.preSec", Config.rotor.preSec), 0, 600);
+            Config.rotor.azOffset   = constrain(getParamIntSafe("rotor.azOffset", Config.rotor.azOffset), -180, 180);
+            Config.rotor.elOffset   = constrain(getParamIntSafe("rotor.elOffset", Config.rotor.elOffset), -90, 90);
+            Config.rotor.park       = request->hasParam("rotor.park", true);
+            Config.rotor.parkAz     = constrain(getParamIntSafe("rotor.parkAz", Config.rotor.parkAz), 0, 359);
+            Config.rotor.parkEl     = constrain(getParamIntSafe("rotor.parkEl", Config.rotor.parkEl), 0, 90);
+            Config.rotor.bleEvents  = request->hasParam("rotor.bleEvents", true);
+        }
         {   // modo SAT
             Config.sat.minEl = constrain(getParamIntSafe("sat.minEl", Config.sat.minEl), 0, 60);
             if (request->hasParam("sat.lat", true)) Config.sat.lat = constrain(request->getParam("sat.lat", true)->value().toDouble(), -90.0, 90.0);

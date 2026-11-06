@@ -64,6 +64,12 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #include "SGP4.h"
+#include "sat_math.h"
+#define pow satPow
+#define fmod satFmod
+#define asin satAsin
+#define acos satAcos
+#define tan satTan
 
 #define pi 3.14159265358979323846
 

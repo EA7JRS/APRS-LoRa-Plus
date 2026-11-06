@@ -259,6 +259,22 @@ public:
     String  dataUrl;                            // direccion del archivo de datos (vacio = el oficial del proyecto)
 };
 
+// Control de rotor de antenas (modo SAT): cliente de rotctld de Hamlib por TCP / WiFi, GS-232 por Bluetooth SPP, o evento BLE para la app
+class RotorConfig {
+public:
+    bool    enabled;
+    int     transport;                          // 0 = TCP (rotctld), 1 = Bluetooth SPP (GS-232)
+    String  host;                               // rotctld: nombre o IP
+    int     port;                               // rotctld: 4533 por defecto
+    String  btName;                             // nombre Bluetooth del controlador (transporte 1)
+    int     stepTenths;                         // paso minimo entre ordenes (decimas de grado)
+    int     preSec;                             // segundos antes del AOS en que se coloca el rotor
+    int     azOffset, elOffset;                 // correcciones (grados)
+    bool    park;                               // ir a la posicion de reposo al terminar el paso
+    int     parkAz, parkEl;
+    bool    bleEvents;                          // enviar el evento "rot" a la app por BLE
+};
+
 // Balizas FT8 y FT4 (modos FT8 y FT4; solo emision, SX1262/SX1268): mensaje estandar con el indicativo del perfil de baliza, ranuras de 15 s (FT8) o 7,5 s (FT4) sincronizadas con el GPS
 class FTConfig {
 public:
@@ -353,6 +369,7 @@ public:
     LRFHSSConfig            lrfhss;
     DAPNETConfig            dapnet;
     SatConfig               sat;
+    RotorConfig             rotor;
     GPSConfig               gps;
     int                     radioPpm1000;       // correccion del oscilador en milesimas de ppm (-50000..50000), global: TX y RX de todos los modos
     int                     operatingMode;      // modo en curso: MODE_APRS_LORA / MODE_APRS_FSK / MODE_MORSE / MODE_WSPR / MODE_LRFHSS / MODE_DAPNET / MODE_FT8 / MODE_FT4 / MODE_FST4W / MODE_SAT (MORSE, WSPR, LRFHSS, FT8, FT4 y FST4W solo si se elige a mano en el arranque)
