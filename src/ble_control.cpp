@@ -170,7 +170,7 @@ namespace {
         }
         void text(const char* k, const char* v) { key(k); esc(v); }
         void itemText(const char* v) { sep(); esc(v); }
-        void num(const char* k, long v) { key(k); s += v; }
+        void num(const char* k, long long v) { key(k); char b[24]; snprintf(b, sizeof(b), "%lld", v); s += b; }
         void unum(const char* k, uint32_t v) { key(k); s += (unsigned long)v; }
         void flt(const char* k, double v, int decimals = 2) {
             if (isnan(v) || isinf(v)) return;
@@ -654,39 +654,37 @@ namespace {
         seen = s;
         float az, el; bool tracking;
         if (!ROTOR_Utils::target(az, el, tracking)) return;
-        JsonDocument doc;
-        doc["e"]  = "rot";
-        doc["az"] = serialized(String(az, 1));
-        doc["el"] = serialized(String(el, 1));
-        doc["trk"] = tracking;
-        doc["src"] = ROTOR_Utils::source();
+        JW j("rot");
+        j.flt("az", az, 1);
+        j.flt("el", el, 1);
+        j.flag("trk", tracking);
+        j.num("src", ROTOR_Utils::source());
         float pit, rol;
-        if (ROTOR_Utils::tiltInfo(pit, rol)) { doc["pit"] = serialized(String(pit, 1)); doc["rol"] = serialized(String(rol, 1)); }
+        if (ROTOR_Utils::tiltInfo(pit, rol)) { j.flt("pit", pit, 1); j.flt("rol", rol, 1); }
         float absAz, hdg;
-        if (ROTOR_Utils::mobileInfo(absAz, hdg)) { doc["mob"] = true; doc["abs"] = serialized(String(absAz, 1)); doc["hdg"] = serialized(String(hdg, 1)); }
-        if (ROTOR_Utils::targetName()[0]) doc["name"] = ROTOR_Utils::targetName();
-        if (ROTOR_Utils::targetDistKm() > 0.0) doc["km"] = (int)ROTOR_Utils::targetDistKm();
-        sendDoc(doc);
+        if (ROTOR_Utils::mobileInfo(absAz, hdg)) { j.flag("mob", true); j.flt("abs", absAz, 1); j.flt("hdg", hdg, 1); }
+        if (ROTOR_Utils::targetName()[0]) j.text("name", ROTOR_Utils::targetName());
+        if (ROTOR_Utils::targetDistKm() > 0.0) j.num("km", (int)ROTOR_Utils::targetDistKm());
+        j.send(sendLine);
     }
 
     // Recepcion de satelites (modo SAT, fase 2): cada linea nueva (trama, paquete LoRa o texto CW) y cada 5 s mientras se escucha
     void sendSatRx(bool withText) {
         #ifdef HAS_SAT
-            JsonDocument doc;
-            doc["e"]    = "satrx";
-            doc["on"]   = SATRX_Utils::active();
+            JW j("satrx");
+            j.flag("on", SATRX_Utils::active());
             if (SATRX_Utils::active()) {
-                doc["k"]    = SATRX_Utils::kindText(SATRX_Utils::kind());
-                doc["f"]    = (long)llround(SATRX_Utils::rxHz());
-                doc["dop"]  = SATRX_Utils::dopplerHz();
-                doc["fine"] = SATRX_Utils::fineHz();
-                doc["rssi"] = (int)lroundf(SATRX_Utils::rssi());
-                doc["n"]    = SATRX_Utils::frames();
-                doc["tx"]   = SATRX_Utils::txIndex();
+                j.text("k", SATRX_Utils::kindText(SATRX_Utils::kind()));
+                j.num("f", llround(SATRX_Utils::rxHz()));
+                j.num("dop", SATRX_Utils::dopplerHz());
+                j.num("fine", SATRX_Utils::fineHz());
+                j.num("rssi", lroundf(SATRX_Utils::rssi()));
+                j.num("n", SATRX_Utils::frames());
+                j.num("tx", SATRX_Utils::txIndex());
             }
             char line[112];
-            if (withText && SATRX_Utils::logLine(0, line, sizeof(line))) doc["txt"] = line;
-            sendDoc(doc);
+            if (withText && SATRX_Utils::logLine(0, line, sizeof(line))) j.text("txt", line);
+            j.send(sendLine);
         #else
             (void)withText;
         #endif
@@ -717,30 +715,29 @@ namespace {
     void sendSat() {
         #ifdef HAS_SAT
             const SatCore::Block* b = SAT_Utils::block();
-            JsonDocument doc;
-            doc["e"]   = "sat";
-            doc["ok"]  = SAT_Utils::hasData() && b != nullptr;
+            JW j("sat");
+            j.flag("ok", SAT_Utils::hasData() && b != nullptr);
             if (b) {
-                doc["n"]   = b->name;
-                doc["id"]  = b->noradId;
-                doc["i"]   = SAT_Utils::selected();
-                doc["geo"] = SAT_Utils::geo();
-                doc["tx"]  = b->txCount;
-                doc["tle"] = serialized(String(SAT_Utils::tleAgeDays(), 1));
+                j.text("n", b->name);
+                j.num("id", b->noradId);
+                j.num("i", SAT_Utils::selected());
+                j.flag("geo", SAT_Utils::geo());
+                j.num("tx", b->txCount);
+                j.flt("tle", SAT_Utils::tleAgeDays(), 1);
             }
-            doc["pos"] = SAT_Utils::haveQth() ? SAT_Utils::qthSource() : "";
+            j.text("pos", SAT_Utils::haveQth() ? SAT_Utils::qthSource() : "");
             SatCore::Look lk;
             if (b && SAT_Utils::live(lk)) {
-                doc["az"]  = serialized(String(lk.azDeg, 1));
-                doc["el"]  = serialized(String(lk.elDeg, 1));
-                doc["rng"] = (int)lround(lk.rangeKm);
-                doc["rr"]  = serialized(String(lk.rangeRateKmS, 3));
+                j.flt("az", lk.azDeg, 1);
+                j.flt("el", lk.elDeg, 1);
+                j.num("rng", lround(lk.rangeKm));
+                j.flt("rr", lk.rangeRateKmS, 3);
                 SatCore::Pass ps; bool searching = false;
                 if (!SAT_Utils::geo() && SAT_Utils::nextPass(ps, searching)) {
-                    doc["aos"] = (long)ps.aosUnix; doc["los"] = (long)ps.losUnix; doc["max"] = (int)lround(ps.maxElDeg);
+                    j.num("aos", (long)ps.aosUnix); j.num("los", (long)ps.losUnix); j.num("max", lround(ps.maxElDeg));
                 }
             }
-            sendDoc(doc);
+            j.send(sendLine);
         #endif
     }
 
@@ -757,19 +754,22 @@ namespace {
 
     void sendSatList(int from, int cnt) {
         #ifdef HAS_SAT
-            JsonDocument doc;
-            doc["e"]   = "satlist";
-            doc["tot"] = SAT_Utils::count();
-            doc["sel"] = SAT_Utils::selected();
-            doc["from"] = from;
-            JsonArray items = doc["items"].to<JsonArray>();
-            for (int i = from; i < SAT_Utils::count() && (int)items.size() < cnt; i++) {
+            JW j("satlist");
+            j.num("tot", SAT_Utils::count());
+            j.num("sel", SAT_Utils::selected());
+            j.num("from", from);
+            j.arr("items");
+            int n = 0;
+            for (int i = from; i < SAT_Utils::count() && n < cnt; i++, n++) {
                 const SAT_Utils::Entry* e = SAT_Utils::at(i);
                 if (!e) break;
-                JsonObject o = items.add<JsonObject>();
-                o["i"] = i; o["id"] = e->noradId; o["n"] = e->name; o["c"] = String(e->cat); o["t"] = e->txCount;
+                const char cat[2] = { (char)e->cat, '\0' };
+                j.obj();
+                j.num("i", i); j.num("id", e->noradId); j.text("n", e->name); j.text("c", cat); j.num("t", e->txCount);
+                j.endObj();
             }
-            sendDoc(doc);
+            j.endArr();
+            j.send(sendLine);
         #else
             (void)from; (void)cnt;
         #endif
@@ -778,24 +778,25 @@ namespace {
     void sendSatTx() {
         #ifdef HAS_SAT
             const SatCore::Block* b = SAT_Utils::block();
-            JsonDocument doc;
-            doc["e"] = "sattxlist";
-            JsonArray items = doc["items"].to<JsonArray>();
+            JW j("sattxlist");
+            j.arr("items");
             if (b) {
                 for (int i = 0; i < b->txCount; i++) {
                     const SatCore::Transmitter& t = b->tx[i];
-                    JsonObject o = items.add<JsonObject>();
-                    o["i"] = i; o["m"] = t.mode; o["b"] = t.baud; o["d"] = t.desc;
-                    o["up"] = (long long)SatCore::txUpCenter(t); o["dn"] = (long long)SatCore::txDownCenter(t);
-                    o["rx"] = SATRX_Utils::kindText(SATRX_Utils::classify(t));
-                    o["tx"] = SATRX_Utils::kindText(SATTX_Utils::classifyUp(t));
+                    j.obj();
+                    j.num("i", i); j.text("m", t.mode); j.num("b", t.baud); j.text("d", t.desc);
+                    j.num("up", (long long)SatCore::txUpCenter(t)); j.num("dn", (long long)SatCore::txDownCenter(t));
+                    j.text("rx", SATRX_Utils::kindText(SATRX_Utils::classify(t)));
+                    j.text("tx", SATRX_Utils::kindText(SATTX_Utils::classifyUp(t)));
                     double rx = 0, tx = 0;
                     SAT_Utils::doppler(t, rx, tx);
-                    if (rx > 0) o["rxd"] = (long long)llround(rx);
-                    if (tx > 0) o["txd"] = (long long)llround(tx);
+                    if (rx > 0) j.num("rxd", llround(rx));
+                    if (tx > 0) j.num("txd", llround(tx));
+                    j.endObj();
                 }
             }
-            sendDoc(doc);
+            j.endArr();
+            j.send(sendLine);
         #endif
     }
 
