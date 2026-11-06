@@ -514,89 +514,60 @@ namespace {
         #endif
     }
 
-    // Configuracion completa de /tracker_conf.json: se lee por secciones y se escribe con un parche (cfgset)
-    bool cfgSecret(const char* key) {
-        String k = key;
-        k.toLowerCase();
-        return k.indexOf("password") >= 0 || k.indexOf("passcode") >= 0 || k.indexOf("token") >= 0 || k.indexOf("secret") >= 0 || k == "controlpin";
-    }
-
-    void cfgRedact(JsonVariant v) {
-        if (v.is<JsonObject>()) {
-            for (JsonPair kv : v.as<JsonObject>()) {
-                if (cfgSecret(kv.key().c_str()) && !kv.value().isNull()) kv.value().set("***");
-                else cfgRedact(kv.value());
-            }
-        } else if (v.is<JsonArray>()) {
-            for (JsonVariant e : v.as<JsonArray>()) cfgRedact(e);
-        }
-    }
-
-    void sendCfg(const char* section, int id) {
+    // Configuracion completa: el fichero /tracker_conf.json se lee y se escribe en bruto (la app lo interpreta y lo mezcla; el tracker
+    // no analiza JSON aqui, lo que ahorra mucha flash). Lectura por trozos (cfgget con o = desplazamiento); escritura de todo el fichero
+    // por trozos (cfgset). Al arrancar, Configuration::readFile() lo valida y pone valores por defecto a lo que falte o este fuera de rango.
+    void sendCfg(uint32_t offset, int id) {
         File f = SPIFFS.open("/tracker_conf.json", "r");
         if (!f) { reply("cfgget", id, "no config file"); return; }
-        JsonDocument all;
-        const DeserializationError err = deserializeJson(all, f);
+        const uint32_t total = f.size();
+        char buf[321];
+        size_t len = 0;
+        if (offset < total && f.seek(offset)) len = f.read((uint8_t*)buf, 320);
         f.close();
-        if (err) { reply("cfgget", id, "config unreadable"); return; }
+        if (offset + len < total && len > 0) {                      // no se corta un caracter UTF-8 por la mitad
+            size_t i = len - 1;
+            while (i > 0 && (buf[i] & 0xC0) == 0x80) i--;
+            const uint8_t lead = (uint8_t)buf[i];
+            const size_t need = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1;
+            if (i + need > len) len = i;
+        }
+        buf[len] = '\0';
         JsonDocument doc;
         doc["e"] = "cfg";
         if (id >= 0) doc["id"] = id;
-        if (section == nullptr || section[0] == '\0') {
-            JsonArray names = doc["sections"].to<JsonArray>();
-            for (JsonPair kv : all.as<JsonObject>()) names.add(kv.key().c_str());
-        } else {
-            if (all[section].isNull()) { reply("cfgget", id, "no such section"); return; }
-            doc["k"] = section;
-            doc["v"] = all[section];
-            cfgRedact(doc["v"]);
-        }
+        doc["o"] = offset;
+        doc["n"] = total;
+        doc["b"] = (uint32_t)len;
+        doc["d"] = (const char*)buf;
         sendDoc(doc);
     }
 
-    String  cfgPatchText;
-    String  cfgPatchKey;
-    bool    cfgPatchOpen = false;
-    bool    cfgReboot    = true;
+    File     cfgUp;
+    uint32_t cfgExpect = 0, cfgGot = 0;
+    int      cfgDepth = 0;
+    bool     cfgInString = false, cfgEscape = false, cfgBroken = false, cfgStarted = false;
+    bool     cfgReboot = true;
 
-    // Mezcla objeto con objeto (los valores "***" de los secretos se ignoran); matrices y escalares sustituyen
-    void cfgMerge(JsonVariant dst, JsonVariantConst src) {
-        if (src.is<JsonObjectConst>() && dst.is<JsonObject>()) {
-            for (JsonPairConst kv : src.as<JsonObjectConst>()) {
-                const char* key = kv.key().c_str();
-                if (cfgSecret(key) && kv.value().is<const char*>() && strcmp(kv.value().as<const char*>(), "***") == 0) continue;
-                if (kv.value().is<JsonObjectConst>() && dst[key].is<JsonObject>()) cfgMerge(dst[key], kv.value());
-                else dst[key].set(kv.value());
-            }
-        } else {
-            dst.set(src);
-        }
+    void cfgAbort() {
+        if (cfgUp) cfgUp.close();
+        SPIFFS.remove("/tracker_conf.up");
+        cfgExpect = cfgGot = 0;
     }
 
-    const char* cfgApply() {
-        JsonDocument patch;
-        if (deserializeJson(patch, cfgPatchText)) return "patch is not valid JSON";
-        File f = SPIFFS.open("/tracker_conf.json", "r");
-        if (!f) return "no config file";
-        JsonDocument all;
-        const DeserializationError err = deserializeJson(all, f);
-        f.close();
-        if (err) return "config unreadable";
-        if (cfgPatchKey.isEmpty()) {                               // parche de varias secciones a la vez
-            if (!patch.is<JsonObject>()) return "patch must be an object";
-            cfgMerge(all.as<JsonVariant>(), patch.as<JsonVariantConst>());
-        } else {
-            if (all[cfgPatchKey].isNull()) return "no such section";
-            cfgMerge(all[cfgPatchKey].as<JsonVariant>(), patch.as<JsonVariantConst>());
+    // Comprobacion de forma mientras llega: llaves y corchetes equilibrados y un unico objeto raiz
+    void cfgFeed(const char* text) {
+        for (const char* p = text; *p; p++) {
+            const char c = *p;
+            if (cfgInString) {
+                if (cfgEscape) cfgEscape = false;
+                else if (c == '\\') cfgEscape = true;
+                else if (c == '"') cfgInString = false;
+            } else if (c == '"') cfgInString = true;
+            else if (c == '{' || c == '[') { if (!cfgStarted && c != '{') cfgBroken = true; cfgStarted = true; cfgDepth++; }
+            else if (c == '}' || c == ']') { if (--cfgDepth < 0) cfgBroken = true; }
+            else if (!cfgStarted && c > ' ') cfgBroken = true;
         }
-        File out = SPIFFS.open("/tracker_conf.tmp", "w");
-        if (!out) return "cannot write";
-        const size_t written = serializeJson(all, out);
-        out.close();
-        if (written == 0) { SPIFFS.remove("/tracker_conf.tmp"); return "nothing written"; }
-        SPIFFS.remove("/tracker_conf.json");
-        if (!SPIFFS.rename("/tracker_conf.tmp", "/tracker_conf.json")) return "could not replace the config file";
-        return nullptr;
     }
 
     void fillPage(JsonObject o, const DAPNET_Utils::Entry* entry) {
@@ -1112,30 +1083,35 @@ namespace {
             #endif
         }
         else if (strcmp(cmd, "heard") == 0) sendHeard(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 6), 1, 12));
-        else if (strcmp(cmd, "cfgget") == 0) sendCfg(doc["k"] | "", id);
-        else if (strcmp(cmd, "cfgset") == 0) {                    // parche de configuracion: s = begin (k = seccion, reboot) | c (d = texto JSON) | end
+        else if (strcmp(cmd, "cfgget") == 0) sendCfg((uint32_t)max(0, (int)(doc["o"] | 0)), id);
+        else if (strcmp(cmd, "cfgset") == 0) {                    // sustituye /tracker_conf.json entero: s = begin (n = bytes, reboot) | c (d = texto) | end | abort
             const char* st = doc["s"] | "";
             if (strcmp(st, "begin") == 0) {
-                cfgPatchText = "";
-                cfgPatchKey  = doc["k"] | "";
-                cfgReboot    = doc["reboot"] | true;
-                cfgPatchOpen = true;
+                cfgAbort();
+                cfgExpect = (uint32_t)(doc["n"] | 0);
+                if (cfgExpect < 2 || cfgExpect > 60000) { reply(cmd, id, "bad size"); return; }
+                cfgReboot = doc["reboot"] | true;
+                cfgUp = SPIFFS.open("/tracker_conf.up", "w");
+                if (!cfgUp) { reply(cmd, id, "cannot write"); return; }
+                cfgDepth = 0; cfgInString = cfgEscape = cfgBroken = cfgStarted = false;
             } else if (strcmp(st, "c") == 0) {
                 const char* d = doc["d"] | "";
-                if (!cfgPatchOpen || cfgPatchText.length() + strlen(d) > 12000) { cfgPatchOpen = false; reply(cmd, id, "chunk refused"); return; }
-                cfgPatchText += d;
+                const size_t n = strlen(d);
+                if (!cfgUp || cfgGot + n > cfgExpect || cfgUp.write((const uint8_t*)d, n) != n) { cfgAbort(); reply(cmd, id, "chunk refused"); return; }
+                cfgFeed(d);
+                cfgGot += n;
             } else if (strcmp(st, "end") == 0) {
-                if (!cfgPatchOpen) { reply(cmd, id, "no patch open"); return; }
-                cfgPatchOpen = false;
-                const char* error = cfgApply();
-                cfgPatchText = "";
-                if (error) { reply(cmd, id, error); return; }
+                const bool good = cfgUp && cfgGot == cfgExpect && !cfgBroken && cfgStarted && cfgDepth == 0 && !cfgInString;
+                if (cfgUp) cfgUp.close();
+                if (!good) { cfgAbort(); reply(cmd, id, "incomplete or malformed config"); return; }
+                SPIFFS.remove("/tracker_conf.json");
+                if (!SPIFFS.rename("/tracker_conf.up", "/tracker_conf.json")) { reply(cmd, id, "could not replace the config file"); return; }
+                cfgExpect = cfgGot = 0;
                 reply(cmd, id);
                 if (cfgReboot) restartAtMs = millis() + 800;
                 return;
             } else if (strcmp(st, "abort") == 0) {
-                cfgPatchOpen = false;
-                cfgPatchText = "";
+                cfgAbort();
             } else { reply(cmd, id, "bad step"); return; }
             reply(cmd, id);
         }
@@ -1293,8 +1269,7 @@ namespace BLE_Control {
         sensorsEveryMs = 0;
         gnssEveryMs    = 0;
         screenEveryMs  = 0;
-        cfgPatchOpen   = false;
-        cfgPatchText   = "";
+        cfgAbort();
     }
 
     void loop() {
