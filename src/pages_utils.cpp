@@ -54,6 +54,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "rotor_utils.h"
+#include "sat_rx.h"
 #include "station_utils.h"
 #include "sleep_utils.h"
 #include "keypad_fh2.h"
@@ -144,7 +145,7 @@ namespace {
         C_COMPASS_TARGET, C_ALT_SPAN, C_ALT_RESET, C_ALT_QNH, C_CLK_ZONE, C_CLK_FORMAT, C_CLK_SYNC, C_ZN_MODE, C_ZN_UP, C_ZN_DN, C_Q_AUTO, C_Q_UP1, C_Q_DN1, C_Q_UP2, C_Q_DN2,
         C_SOS_SEND, C_SOS_CANCEL, C_LORA_PROFILE, C_LORA_POWER, C_LORA_RESET, C_LORA_HEARD, C_PW_SHOW, C_PW_UP, C_PW_DN,
         C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
-        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE, C_SAT_CAT, C_ROT_SOURCE, C_ROT_NEXT, C_ROT_PREV, C_ROT_PARK,
+        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE, C_SAT_CAT, C_SATRX_TOGGLE, C_SATRX_TX, C_SATRX_FINE_UP, C_SATRX_FINE_DN, C_SATRX_LORA, C_SATRX_CLEAR, C_ROT_SOURCE, C_ROT_NEXT, C_ROT_PREV, C_ROT_PARK,
         C_MODE_CHANGE,
         C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
         C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI, C_SYS_IARU
@@ -256,7 +257,8 @@ namespace {
     Item            dapItems[6];
     char            dapMonLabel[24];
     uint8_t         dapIndex = 0;                // 0 = mensaje mas reciente
-    Item            satItems[8];
+    Item            satItems[16];
+    char            satListenLabel[24];
     Item            rotItems[5];
     char            rotSourceLabel[28];
     char            satCatLabel[28];
@@ -362,6 +364,19 @@ namespace {
                 satItems[3] = Item{satCatLabel, C_SAT_CAT};
                 satItems[4] = Item{"Update TLE (WiFi)", C_SAT_UPDATE};
                 count = 5;
+            #ifdef HAS_SAT
+                if (SATRX_Utils::available()) {
+                    snprintf(satListenLabel, sizeof(satListenLabel), "Listen: %s", SATRX_Utils::active() ? "ON" : "OFF");
+                    satItems[count++] = Item{satListenLabel, C_SATRX_TOGGLE};
+                    satItems[count++] = Item{"Next transmitter", C_SATRX_TX};
+                    if (SATRX_Utils::active()) {
+                        satItems[count++] = Item{"Fine +100 Hz", C_SATRX_FINE_UP};
+                        satItems[count++] = Item{"Fine -100 Hz", C_SATRX_FINE_DN};
+                        if (SATRX_Utils::kind() == SATRX_Utils::K_LORA) satItems[count++] = Item{"LoRa SF/BW", C_SATRX_LORA};
+                        satItems[count++] = Item{"Clear RX log", C_SATRX_CLEAR};
+                    }
+                }
+            #endif
                 if (Config.rotor.enabled) { snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Rotor: %s", Config.rotor.source == 0 ? "satellite" : (Config.rotor.source == 1 ? "APRS target" : "fixed target")); satItems[count++] = Item{rotSourceLabel, C_ROT_SOURCE}; }
                 satItems[count++] = Item{"Change mode", C_MODE_CHANGE};
                 satItems[count++] = Item{"Back", C_BACK};
@@ -2916,6 +2931,7 @@ namespace PAGES_Utils {
     void satPoll() {
         if (Config.operatingMode != MODE_SAT) return;
         SAT_Utils::loop();
+        SATRX_Utils::loop();
     }
 
     // El rotor sigue un objetivo terrestre tambien en los modos APRS (y el satelite solo en el modo SAT)
@@ -3022,6 +3038,40 @@ namespace PAGES_Utils {
             } else {
                 row(1, "%s", searching ? "Searching passes..." : "No pass in 36 h");
             }
+        } else if (satView == 3) {                           // recepcion
+            if (!SATRX_Utils::active()) {
+                if (b->txCount == 0) { row(1, "No transmitter data"); }
+                else {
+                    if (satTx >= b->txCount) satTx = 0;
+                    const SatCore::Transmitter& t = b->tx[satTx];
+                    const char* why = "";
+                    const SATRX_Utils::Kind rk = SATRX_Utils::classify(t, &why);
+                    row(1, "RX idle  %u/%u", (unsigned)satTx + 1, (unsigned)b->txCount);
+                    row(2, "%s %.9s", t.mode, t.desc);
+                    if (rk == SATRX_Utils::K_NO) { row(3, "Not receivable:"); row(4, "%s", why); }
+                    else                          { row(3, "%s %.4f MHz", SATRX_Utils::kindText(rk), SatCore::txDownCenter(t) / 1e6); row(4, "Menu > Listen"); }
+                    if (SATRX_Utils::message()[0]) row(5, "%s", SATRX_Utils::message());
+                }
+            } else {
+                row(1, "%s %.4f MHz", SATRX_Utils::kindText(SATRX_Utils::kind()), SATRX_Utils::rxHz() / 1e6);
+                row(2, "Dop %+dHz Fn %+d%s", SATRX_Utils::dopplerHz(), SATRX_Utils::fineHz(), SATRX_Utils::dopplerOk() ? "" : " !");
+                if (SATRX_Utils::kind() == SATRX_Utils::K_LORA) { char lt[24]; SATRX_Utils::loraText(lt, sizeof(lt)); row(3, "%ddBm %s", (int)lroundf(SATRX_Utils::rssi()), lt); }
+                else                                            row(3, "%ddBm n=%lu", (int)lroundf(SATRX_Utils::rssi()), (unsigned long)SATRX_Utils::frames());
+                char line[112];
+                line[0] = 0;
+                if (SATRX_Utils::kind() == SATRX_Utils::K_CW) SATRX_Utils::cwLine(line, 41);
+                if (!line[0]) SATRX_Utils::logLine(0, line, sizeof(line));
+                if (!line[0]) { row(4, "Listening..."); }
+                else {
+                    const size_t len = strlen(line);
+                    const size_t pages = (len + 39) / 40;                       // 40 caracteres por pantalla: dos filas de 20
+                    const size_t off = pages > 1 ? ((millis() / 3000) % pages) * 40 : 0;
+                    char r[22];
+                    snprintf(r, sizeof(r), "%.20s", line + off);
+                    row(4, "%s", r);
+                    if (len > off + 20) { snprintf(r, sizeof(r), "%.20s", line + off + 20); row(5, "%s", r); }
+                }
+            }
         } else {                                             // frecuencias
             if (b->txCount == 0) { row(1, "No transmitter data"); }
             else {
@@ -3031,12 +3081,13 @@ namespace PAGES_Utils {
                 SAT_Utils::doppler(t, rx, tx);
                 row(1, "%u/%u %s %.10s", (unsigned)satTx + 1, (unsigned)b->txCount, t.mode, t.desc);
                 const int64_t dn = SatCore::txDownCenter(t), up = SatCore::txUpCenter(t);
-                if (dn) row(2, "DN %.4f", dn / 1e6); else row(2, "DN -");
+                if (dn) { const SATRX_Utils::Kind rk = SATRX_Utils::classify(t); row(2, "DN %.4f %s", dn / 1e6, SATRX_Utils::available() ? SATRX_Utils::kindText(rk) : ""); } else row(2, "DN -");
                 if (dn && rx > 0) row(3, "RX %.4f %+dHz", rx / 1e6, (int)lround(rx - dn));
                 if (up) row(4, "UP %.4f TX %.4f", up / 1e6, tx > 0 ? tx / 1e6 : 0.0);
                 else    row(4, "UP -");
             }
         }
+        if (satView == 3) return;                            // la pantalla de recepcion usa las seis filas
         if (Config.rotor.enabled && satView == 0) {
             float ra, re; bool trk;
             if (ROTOR_Utils::target(ra, re, trk)) row(5, "ROT %s %03d/%02d", ROTOR_Utils::stateText(), (int)lroundf(ra) % 360, (int)lroundf(re));
@@ -4729,8 +4780,54 @@ namespace PAGES_Utils {
                 dapIndex = 0;
                 showToast("List cleared");
                 break;
+            case C_SATRX_TOGGLE:
+            #ifdef HAS_SAT
+                if (SATRX_Utils::active()) { SATRX_Utils::stop(); showToast("Listen OFF"); }
+                else if (SATRX_Utils::start(satTx)) { satView = 3; showToast("Listening"); }
+                else showToast(SATRX_Utils::message());
+            #endif
+                break;
+            case C_SATRX_TX:
+            #ifdef HAS_SAT
+            {
+                const SatCore::Block* sb = SAT_Utils::block();
+                if (!sb || sb->txCount == 0) { showToast("No transmitter data"); break; }
+                const bool was = SATRX_Utils::active();
+                if (was) SATRX_Utils::stop();
+                uint8_t i = satTx;
+                for (uint8_t k = 0; k < sb->txCount; k++) {                  // siguiente transmisor que se pueda recibir
+                    i = (uint8_t)((i + 1) % sb->txCount);
+                    if (SATRX_Utils::classify(sb->tx[i]) != SATRX_Utils::K_NO) break;
+                }
+                satTx = i;
+                if (was && SATRX_Utils::start(satTx)) showToast("Listening");
+                else if (was) showToast(SATRX_Utils::message());
+                else { char tt[28]; snprintf(tt, sizeof(tt), "Tx %u: %.8s", (unsigned)satTx + 1, sb->tx[satTx].mode); showToast(tt); }
+            }
+            #endif
+                break;
+            case C_SATRX_FINE_UP:
+            case C_SATRX_FINE_DN:
+            #ifdef HAS_SAT
+                SATRX_Utils::fine(command == C_SATRX_FINE_UP ? 100 : -100);
+                { char tt[24]; snprintf(tt, sizeof(tt), "Fine %+d Hz", SATRX_Utils::fineHz()); showToast(tt); }
+            #endif
+                break;
+            case C_SATRX_LORA:
+            #ifdef HAS_SAT
+                SATRX_Utils::nextLoraPreset();
+                { char tt[24]; SATRX_Utils::loraText(tt, sizeof(tt)); showToast(tt); }
+            #endif
+                break;
+            case C_SATRX_CLEAR:
+            #ifdef HAS_SAT
+                SATRX_Utils::clearLog();
+                showToast("RX log cleared");
+            #endif
+                break;
             case C_SAT_NEXT:
             case C_SAT_PREV: {
+                SATRX_Utils::stop();
                 const int i = SAT_Utils::step(command == C_SAT_NEXT ? 1 : -1);
                 if (i >= 0) { SAT_Utils::select(i); satTx = 0; }
                 else showToast("No satellite in this list");
@@ -4738,7 +4835,7 @@ namespace PAGES_Utils {
             }
             case C_SAT_VIEW:
                 if (satView == 2 && SAT_Utils::block() && satTx + 1 < SAT_Utils::block()->txCount) { satTx++; break; }          // en la vista de frecuencias recorre los transmisores
-                satView = (satView + 1) % 3;
+                satView = (satView + 1) % (SATRX_Utils::available() ? 4 : 3);
                 satTx = 0;
                 break;
             case C_ROT_SOURCE: {

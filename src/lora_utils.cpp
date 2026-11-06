@@ -30,6 +30,7 @@
 #include "ax25_g3ruh.h"
 #include "lrfhss.h"
 #include "display.h"
+#include "sat_config.h"
 
 extern logging::Logger  logger;
 extern Configuration    Config;
@@ -253,6 +254,7 @@ namespace LoRa_Utils {
     bool aisLoraActive = false;     // true mientras el perfil de baliza activo es el nautico AIS (usa su propio perfil LoRa)
 
     bool fskMode = false;           // modem actualmente cargado en el chip (false = LoRa, true = FSK)
+    bool satRxOn = false;           // modo SAT: el receptor de satelites tiene el chip (nadie mas lo reconfigura)
 
     // ---- Packet FSK G3RUH (AX.25 a 9600 bd) -------------------------------------------------------------------------
     // Sin palabra de sincronismo, sin preambulo, sin CRC ni whitening del chip: el chip solo mueve bits en bloques de
@@ -417,6 +419,7 @@ namespace LoRa_Utils {
     }
 
     void applyCurrentType() {
+        if (satRxOn) return;                        // el receptor de satelites manda sobre el chip hasta que termine
         float freq = radioFreqMHz();
         if (profileIsFsk() != fskMode) {            // cambio de modem LoRa <-> FSK: reinicio completo del chip
             int state = beginModem(freq);
@@ -857,6 +860,193 @@ namespace LoRa_Utils {
         #if defined(HAS_SX1262) || defined(HAS_SX1268)
             fskMode = !profileIsFsk();              // fuerza la reconfiguracion completa del modem del perfil
             applyCurrentType();
+        #endif
+        transmitFlag  = true;
+        operationDone = true;
+    }
+
+
+    // ---- Modo SAT, fase 2: receptor de satelites (CW, FSK / GMSK AX.25 G3RUH y LoRa) con frecuencia absoluta -------------------
+    // Copyright (c) 2026 Manuel - EA7JRS. Solo SX1262 / SX1268; frecuencia, modem y parametros los fija sat_rx.cpp (Doppler incluido)
+    bool satRxAvailable() {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            return true;
+        #else
+            return false;
+        #endif
+    }
+
+    #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+    static uint8_t        satKind = 0;
+    static uint8_t        satBlock = 64;                    // FSK: bytes por bloque de recepcion
+    static AX25G3::Decoder satDecoder;
+    static uint8_t        satFrame[AX25G3::MAX_FRAME + 4];
+    static size_t         satFrameLen = 0;
+    static int            satFrameRssi = 0;
+    static bool           satFramePending = false;
+
+    // Frecuencia exacta en el registro del PLL (paso de 0,954 Hz) con la correccion global en ppm
+    static void satSetHz(int64_t hz) {
+        const double h = (double)hz + ppmCorrectionHzExact((long)hz);
+        const uint32_t frf = (uint32_t)llround(h * 33554432.0 / 32000000.0);
+        static_cast<WsprAccess&>(radio).setRfFrequency(frf);
+    }
+
+    // Menor ancho de banda del filtro FSK del SX126x que contiene el de la senal
+    static float satFskBandwidth(int baud) {
+        static const float bw[] = { 4.8f, 5.8f, 7.3f, 9.7f, 11.7f, 14.6f, 19.5f, 23.4f, 29.3f, 39.0f, 46.9f, 58.6f, 78.2f, 93.8f, 117.3f, 156.2f, 187.2f, 234.3f, 312.0f, 373.6f, 467.0f };
+        const float want = baud * 2.5f / 1000.0f;           // senal + margen para el error del oscilador del satelite
+        for (size_t i = 0; i < sizeof(bw) / sizeof(bw[0]); i++) if (bw[i] >= want) return bw[i];
+        return 467.0f;
+    }
+
+    static void satOnFrame(const uint8_t* frame, size_t len, void*) {
+        if (satFramePending) return;
+        satFrameLen = len > sizeof(satFrame) ? sizeof(satFrame) : len;
+        memcpy(satFrame, frame, satFrameLen);
+        satFramePending = true;
+    }
+    #endif
+
+    bool satRxBegin(const SatRxParams& p) {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            satRxOn = false;
+            satKind = p.kind;
+            const float mhz = (float)(((double)p.hz + ppmCorrectionHzExact((long)p.hz)) / 1e6);
+            int state;
+            if (p.kind == 2) {
+                #if defined(RADIO_HAS_XTAL)
+                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0);
+                #else
+                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8);
+                #endif
+                fskMode = false;
+            } else {
+                const float baud = p.kind == 0 ? 4.8f : p.baud / 1000.0f;
+                const float dev  = p.kind == 0 ? 2.4f : max(1.0f, p.baud * 0.3f / 1000.0f);
+                const float bw   = p.kind == 0 ? 4.8f : satFskBandwidth(p.baud);
+                #if defined(RADIO_HAS_XTAL)
+                    state = radio.beginFSK(mhz, baud, dev, bw, 10, 16, 0.0f);
+                #else
+                    state = radio.beginFSK(mhz, baud, dev, bw, 10, 16);
+                #endif
+                fskMode = true;
+            }
+            if (state != RADIOLIB_ERR_NONE) {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SAT Rx", "Modem start failed! State: %d", state);
+                fskMode = !profileIsFsk();          // el chip queda en un estado desconocido: se fuerza el reinicio al salir
+                return false;
+            }
+            applyBoardRadioSettings();
+            if (p.kind == 2) {
+                radio.setCRC(true);
+            } else if (p.kind == 1) {
+                uint8_t noSync[1] = { 0 };
+                radio.setSyncWord(noSync, 0);       // sin sincronismo: el flujo de bits va entero al decodificador G3RUH
+                radio.setPreambleLength(0);
+                radio.setCRC(0);
+                radio.setWhitening(false);
+                radio.setDataShaping(RADIOLIB_SHAPING_0_5);
+                satBlock = (uint8_t)constrain(p.baud / 40, 32, 255);          // unos 200 ms por bloque
+                radio.fixedPacketLengthMode(satBlock);
+                satDecoder.reset();
+                satFramePending = false;
+            }
+            satSetHz(p.hz);
+            #if defined(TTGO_T_BEAM_1W)
+                digitalWrite(RADIO_RXEN, HIGH);
+            #endif
+            operationDone = false;
+            satRxOn = true;
+            if (radio.startReceive() != RADIOLIB_ERR_NONE) { satRxOn = false; fskMode = !profileIsFsk(); return false; }
+            return true;
+        #else
+            (void)p;
+            return false;
+        #endif
+    }
+
+    bool satRxTune(int64_t hz) {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            if (!satRxOn) return false;
+            radio.standby();
+            satSetHz(hz);
+            if (satKind == 1) radio.fixedPacketLengthMode(satBlock);
+            operationDone = false;
+            return radio.startReceive() == RADIOLIB_ERR_NONE;
+        #else
+            (void)hz;
+            return false;
+        #endif
+    }
+
+    float satRxLevel() {
+        #if defined(HAS_SX1262) || defined(HAS_SX1268)
+            return radio.getRSSI(false);
+        #else
+            return -150.0f;
+        #endif
+    }
+
+    int satRxPoll(uint8_t* out, size_t outMax, size_t& len, int& rssi, float& snr, int& freqErr) {
+        len = 0; rssi = 0; snr = 0; freqErr = 0;
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            if (!satRxOn || satKind == 0) return 0;
+            if (satFramePending) {                          // trama ya decodificada de un bloque anterior
+                char tnc2[AX25G3::MAX_FRAME + 120];
+                if (AX25G3::frameToTnc2(satFrame, satFrameLen, tnc2, sizeof(tnc2)) > 0) {
+                    len = strlen(tnc2);
+                    if (len >= outMax) len = outMax - 1;
+                    memcpy(out, tnc2, len);
+                    out[len] = 0;
+                } else {                                    // no es una trama UI: volcado hexadecimal para decodificarla fuera
+                    static const char* hx = "0123456789ABCDEF";
+                    len = 0;
+                    for (size_t i = 0; i < satFrameLen && len + 3 < outMax; i++) { out[len++] = hx[satFrame[i] >> 4]; out[len++] = hx[satFrame[i] & 15]; }
+                    out[len] = 0;
+                    rssi = satFrameRssi;
+                    satFramePending = false;
+                    return 3;
+                }
+                rssi = satFrameRssi;
+                satFramePending = false;
+                return 1;
+            }
+            if (!operationDone) return 0;
+            operationDone = false;
+            if (satKind == 1) {
+                uint8_t block[256];
+                size_t n = radio.getPacketLength();
+                if (n == 0 || n > sizeof(block)) n = satBlock;
+                if (radio.readData(block, n) == RADIOLIB_ERR_NONE) {
+                    satFrameRssi = (int)radio.getRSSI();
+                    satDecoder.feed(block, n, satOnFrame, nullptr);
+                    if (satFramePending) operationDone = true;       // la proxima vuelta la entrega
+                }
+                return 0;
+            }
+            size_t n = radio.getPacketLength();
+            if (n == 0 || n > outMax) n = outMax;
+            if (radio.readData(out, n) != RADIOLIB_ERR_NONE) return 0;     // -7 = CRC erroneo: se descarta
+            len = n;
+            rssi = (int)radio.getRSSI();
+            snr  = radio.getSNR();
+            freqErr = (int)radio.getFrequencyError();
+            return 2;
+        #else
+            (void)out; (void)outMax;
+            return 0;
+        #endif
+    }
+
+    void satRxEnd() {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            if (!satRxOn) return;
+            satRxOn = false;
+            radio.standby();
+            fskMode = !profileIsFsk();                      // fuerza la reconfiguracion completa del modem del perfil
+            applyCurrentType();
+            radio.standby();
         #endif
         transmitFlag  = true;
         operationDone = true;

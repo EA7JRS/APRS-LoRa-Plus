@@ -21,6 +21,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "rotor_utils.h"
+#include "sat_rx.h"
 #include "baro_utils.h"
 #include "lora_utils.h"
 #include "gps_utils.h"
@@ -373,6 +374,50 @@ namespace {
         sendDoc(doc);
     }
 
+    // Recepcion de satelites (modo SAT, fase 2): cada linea nueva (trama, paquete LoRa o texto CW) y cada 5 s mientras se escucha
+    void sendSatRx(bool withText) {
+        #ifdef HAS_SAT
+            JsonDocument doc;
+            doc["e"]    = "satrx";
+            doc["on"]   = SATRX_Utils::active();
+            if (SATRX_Utils::active()) {
+                doc["k"]    = SATRX_Utils::kindText(SATRX_Utils::kind());
+                doc["f"]    = (long)llround(SATRX_Utils::rxHz());
+                doc["dop"]  = SATRX_Utils::dopplerHz();
+                doc["fine"] = SATRX_Utils::fineHz();
+                doc["rssi"] = (int)lroundf(SATRX_Utils::rssi());
+                doc["n"]    = SATRX_Utils::frames();
+                doc["tx"]   = SATRX_Utils::txIndex();
+            }
+            char line[112];
+            if (withText && SATRX_Utils::logLine(0, line, sizeof(line))) doc["txt"] = line;
+            sendDoc(doc);
+        #else
+            (void)withText;
+        #endif
+    }
+
+    void checkSatRx() {
+        #ifdef HAS_SAT
+            if (!connected || !authed) return;
+            static uint32_t seen = 0, lastMs = 0, lastLogged = 0;
+            static bool wasOn = false;
+            const bool on = SATRX_Utils::active();
+            const uint32_t now = millis();
+            const uint32_t s = SATRX_Utils::eventSeq();
+            if (s != seen && now - lastMs >= 300) {
+                seen = s; lastMs = now;
+                const uint32_t n = SATRX_Utils::frames();
+                sendSatRx(n != lastLogged);
+                lastLogged = n;
+            } else if (on != wasOn || (on && now - lastMs >= 5000)) {
+                lastMs = now;
+                sendSatRx(false);
+            }
+            wasOn = on;
+        #endif
+    }
+
     void sendTargets() {
         JsonDocument doc;
         doc["e"]   = "targets";
@@ -517,6 +562,23 @@ namespace {
         else if (strcmp(cmd, "att") == 0) {                       // inclinometro del soporte del rotor: p = cabeceo (+ morro arriba), r = alabeo (+ lado derecho abajo), grados; repetir cada <2 s
             if (doc["p"].isNull() || doc["r"].isNull()) { reply(cmd, id, "p and r needed"); return; }
             ROTOR_Utils::setAttitude(doc["p"] | 0.0f, doc["r"] | 0.0f);
+        }
+        else if (strcmp(cmd, "satrx") == 0) {                     // receptor de satelites (modo SAT): on = true/false, tx = indice del transmisor (opcional), fine = ajuste en Hz (opcional)
+            #ifdef HAS_SAT
+                if (Config.operatingMode != MODE_SAT) { reply(cmd, id, "not in SAT mode"); return; }
+                if (!doc["fine"].isNull()) SATRX_Utils::fine((int)(doc["fine"] | 0));
+                if (!doc["on"].isNull()) {
+                    if (doc["on"] | false) {
+                        if (!SATRX_Utils::start((uint8_t)(doc["tx"] | 0))) { reply(cmd, id, SATRX_Utils::message()); return; }
+                    } else {
+                        SATRX_Utils::stop();
+                    }
+                }
+                reply(cmd, id);
+                sendSatRx(false);
+            #else
+                reply(cmd, id, "not available");
+            #endif
         }
         else if (strcmp(cmd, "tgtlist") == 0) sendTargets();
         else if (strcmp(cmd, "tgt") == 0) {                       // objetivo fijo para el rotor (repetidor, baliza...): i, n, lat, lon, alt, f | del | sel | src
@@ -749,6 +811,7 @@ namespace BLE_Control {
         if (otaActive) { otaPoll(); return; }                         // durante la actualizacion no se envia nada mas
         checkDapnet();
         checkRotor();
+        checkSatRx();
         if (!connected) return;
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }

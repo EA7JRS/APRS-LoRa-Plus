@@ -29,6 +29,16 @@ struct ReceivedLoRaPacket {
     int     freqError;
 };
 
+// Recepcion de satelites (modo SAT, fase 2): parametros del demodulador
+struct SatRxParams {
+    uint8_t kind;           // 0 = CW (FSK estrecho + RSSI), 1 = FSK / GMSK (AX.25 G3RUH), 2 = LoRa
+    int64_t hz;             // frecuencia de recepcion (Hz), ya con el Doppler
+    int     baud;           // FSK: baudios
+    uint8_t sf;             // LoRa: factor de ensanchamiento 5..12
+    float   bwKHz;          // LoRa: ancho de banda (kHz)
+    uint8_t cr;             // LoRa: denominador de la tasa de codigo 5..8
+};
+
 namespace LoRa_Utils {
 
     void setFlag();
@@ -48,6 +58,14 @@ namespace LoRa_Utils {
     bool cwRxBegin();                   // modem FSK de banda estrecha (4,8 kHz) en la frecuencia del perfil para escuchar CW; false si no se puede
     float cwRxLevel();                  // RSSI instantaneo en dBm (solo tras cwRxBegin)
     void cwRxEnd();                     // restaura el modem del perfil y la escucha normal                       // termina la transmision CW y vuelve a escuchar
+    // ---- Modo SAT, fase 2: receptor de satelites con frecuencia absoluta (solo SX126x). Solo los toca una tarea a la vez ----
+    bool satRxAvailable();              // true si el chip puede (SX1262 / SX1268)
+    bool satRxBegin(const SatRxParams& p);          // carga el modem y empieza a escuchar; false si la frecuencia o los parametros no son validos
+    bool satRxTune(int64_t hz);                     // cambia la frecuencia de recepcion (Doppler) y rearma la escucha
+    float satRxLevel();                             // RSSI instantaneo (dBm)
+    // Mira si ha llegado algo. Devuelve 0 nada, 1 trama AX.25 (texto TNC2 o volcado hexadecimal en out), 2 paquete LoRa (bytes en out)
+    int  satRxPoll(uint8_t* out, size_t outMax, size_t& len, int& rssi, float& snr, int& freqErr);
+    void satRxEnd();                                // devuelve el chip al perfil normal
     int  getPower();                    // potencia (dBm) del perfil LoRa activo
     int  powerMin();
     int  powerMax();

@@ -1,6 +1,6 @@
 # Modo SAT (satélites en 70 cm) y control de rotor
 
-*Copyright (c) 2026 Manuel - EA7JRS. Estado: **fase 1**, sin probar en placa.*
+*Copyright (c) 2026 Manuel - EA7JRS. Estado: **fases 1 y 2** (predicción, rotor y recepción con Doppler), sin probar en placa.*
 
 **Solo en las placas que lo admiten** (con pantalla y no el ESP32 original, p. ej. T-Beam Supreme S3): en las demás no aparece en el menú, ni en la app, ni en la WebUI.
 
@@ -31,9 +31,21 @@ El tracker descarga por WiFi (la red de *Firmware update* de la WebUI) el archiv
 
 Formato (texto, un bloque por satélite): `S|norad|nombre`, las dos líneas del TLE y `T|subidaMin|subidaMax|bajadaMin|bajadaMax|modo|baudios|inversor|descripción` por transmisor (Hz; 0 = sin dato).
 
-## Radio
+## Radio: recepción con Doppler (fase 2)
 
-En esta fase la radio no se usa. Lo que sí admite el SX1262 en 70 cm: CW por portadora (A1A) y FSK/GMSK de 1,2 a 9,6 kbaud y LoRa; **no** BPSK, SSB ni AFSK. Las fases siguientes (recepción de CW y telemetría con Doppler, emisión con precompensación y PTT, integración con GPredict) no están hechas.
+En la pantalla de frecuencias (*Change view* → *v:freq*) cada transmisor lleva la clase de recepción (`CW`, `FSK`, `LoRa` o `n/a`). Con **menú → Listen: OFF** el tracker sintoniza la bajada del transmisor mostrado y la **corrige por Doppler** de forma continua (se recalcula cada medio segundo y se retoca la radio solo cuando la deriva supera una fracción del ancho de banda: 400 Hz en CW, ~2/3 de la velocidad en FSK, 1/10 del ancho de banda en LoRa, y como mucho una vez por segundo). La pantalla *RX* (cuarta vista) muestra el modo, la frecuencia recibida, el Doppler aplicado, el ajuste fino, el RSSI y el último texto; los textos largos se pasan de 40 en 40 caracteres cada 3 s. Mientras se escucha, la pantalla puede apagarse y la recepción sigue; el rotor sigue funcionando.
+
+| Modo del transmisor | Qué hace el tracker |
+|---|---|
+| **CW** | FSK estrecho (4,8 kHz) y detector de envolvente por RSSI (1 kHz) con el mismo decodificador Morse que la escucha CW; el texto se agrupa en líneas del registro. LED verde y *sidetone* como en la escucha CW |
+| **FSK / GFSK / GMSK** (300 a 120 000 bd; típico 9600) | Modem FSK sin sincronismo (filtro según la velocidad) y descodificador AX.25 G3RUH por software (descrambler, NRZI, HDLC, CRC y FX.25). Las tramas UI salen en formato TNC2 (`ORIGEN>DESTINO,VIA:info`); las que no son UI, en hexadecimal. Las señales con otro formato (AX.100, CCSDS, GOMspace...) no se decodifican: se ve el RSSI pero no tramas |
+| **LoRa** (TinyGS y similares) | Modem LoRa con SF / BW / CR leídos de la descripción del transmisor (por defecto SF10, 125 kHz, CR 4/5); palabra de sincronismo privada (0x12), CRC activado. Menú *LoRa SF/BW* recorre combinaciones habituales. Carga útil en texto (o hexadecimal si es binaria), con SNR |
+| AFSK 1200, BPSK, SSB, FM de voz, SSTV, LRPT, banda L... | **No se pueden** con un SX126x: el tracker lo avisa. La pantalla de frecuencias da la frecuencia corregida por Doppler para sintonizarlos con un SDR u otro equipo |
+| LR-FHSS | El SX126x solo emite LR-FHSS: no se recibe |
+
+Menú del modo SAT: **Listen ON/OFF**, **Next transmitter** (el siguiente que se pueda recibir; si se está escuchando, cambia en caliente), **Fine +100 Hz / -100 Hz** (error del oscilador del satélite; se suma al Doppler), **LoRa SF/BW** y **Clear RX log**. Al cambiar de satélite o de modo la escucha se detiene.
+
+Limitaciones: solo SX1262 / SX1268 (frecuencia 400-510 MHz en esta fase); la radio es semidúplex y en esta fase no emite; el SX1268 no llega a los 401,9 MHz de algún satélite LoRa («Freq/params refused»). Con antena yagi y preamplificador externo la sensibilidad mejora, pero el tracker no controla ni alimenta el preamplificador. BLE: orden `satrx` y evento `satrx` (ver `BLE_CONTROL.md`), con cada línea recibida, para que la app la guarde o la decodifique. Las fases siguientes (emisión con precompensación y PTT, integración con GPredict) no están hechas.
 
 ## Control de rotor
 
