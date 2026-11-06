@@ -148,6 +148,49 @@ namespace {
         sendLine(out);
     }
 
+    // Escritor JSON minimo para los eventos grandes (la plantilla de ArduinoJson ocupa mucha mas flash por cada campo) (Manuel - EA7JRS)
+    struct JW {
+        String s;
+        bool   first = true;
+        JW(const char* event) { s = "{\"e\":\""; s += event; s += '"'; }
+        void key(const char* k) {
+            const char last = s[s.length() - 1];
+            if (last != '{' && last != '[') s += ',';
+            s += '"'; s += k; s += "\":";
+        }
+        void esc(const char* v) {
+            s += '"';
+            for (; *v; v++) {
+                const unsigned char c = (unsigned char)*v;
+                if (c == '"' || c == '\\') { s += '\\'; s += (char)c; }
+                else if (c < 0x20) { char b[8]; snprintf(b, sizeof(b), "\\u%04x", c); s += b; }
+                else s += (char)c;
+            }
+            s += '"';
+        }
+        void text(const char* k, const char* v) { key(k); esc(v); }
+        void itemText(const char* v) { sep(); esc(v); }
+        void num(const char* k, long v) { key(k); s += v; }
+        void unum(const char* k, uint32_t v) { key(k); s += (unsigned long)v; }
+        void flt(const char* k, double v, int decimals = 2) {
+            if (isnan(v) || isinf(v)) return;
+            key(k);
+            char b[24];
+            snprintf(b, sizeof(b), "%.*f", decimals, v);
+            s += b;
+        }
+        void flag(const char* k, bool v) { key(k); s += v ? "true" : "false"; }
+        void raw(const char* k, const char* v) { key(k); s += v; }
+        void arr(const char* k) { key(k); s += '['; first = true; }
+        void sep() { if (!first) s += ','; first = false; }
+        void endArr() { s += ']'; }
+        void obj() { sep(); s += '{'; }                        // objeto dentro de una matriz
+        void objKey(const char* k) { key(k); s += '{'; }       // objeto con nombre
+        void endObj() { s += '}'; }
+        void item(double v, int decimals = 3) { sep(); char b[24]; snprintf(b, sizeof(b), "%.*f", decimals, v); s += b; }
+        void send(void (*out)(const String&)) { s += "}\n"; out(s); }
+    };
+
     void reply(const char* cmd, int id, const char* error = nullptr) {
         JsonDocument doc;
         doc["e"] = error ? "err" : "ok";
@@ -271,59 +314,57 @@ namespace {
     }
 
     void sendSensors() {
-        JsonDocument doc;
-        doc["e"] = "sensors";
+        JW j("sensors");
         const float v = batteryVolts();
-        if (v > 0.0f) doc["batt"] = v;
+        if (v > 0.0f) j.flt("batt", v);
         float temperature = 0.0f, humidity = 0.0f, pressure = 0.0f;
         bool hasTemperature = false, hasHumidity = false, hasPressure = false;
         if (WX_Utils::getEnvironment(temperature, hasTemperature, humidity, hasHumidity, pressure, hasPressure)) {
-            if (hasTemperature) doc["temp"]  = temperature;
-            if (hasHumidity)    doc["hum"]   = humidity;
-            if (hasPressure)    doc["press"] = pressure;
+            if (hasTemperature) j.flt("temp", temperature);
+            if (hasHumidity)    j.flt("hum", humidity);
+            if (hasPressure)    j.flt("press", pressure);
         }
         const float qnh = BARO_Utils::getQnh();
-        if (qnh > 0.0f) doc["qnh"] = qnh;
-        if (BARO_Utils::altitudeValid()) doc["baroAlt"] = BARO_Utils::getAltitude();
-        if (MAG_Utils::isHeadingValid()) doc["heading"] = MAG_Utils::heading();
+        if (qnh > 0.0f) j.flt("qnh", qnh);
+        if (BARO_Utils::altitudeValid()) j.flt("baroAlt", BARO_Utils::getAltitude(), 1);
+        if (MAG_Utils::isHeadingValid()) j.flt("heading", MAG_Utils::heading(), 1);
         if (IMU_Utils::isReady()) {
-            doc["moving"]  = IMU_Utils::movingNow();
-            doc["imuTemp"] = IMU_Utils::getTemperatureC();
+            j.flag("moving", IMU_Utils::movingNow());
+            j.flt("imuTemp", IMU_Utils::getTemperatureC(), 1);
         }
         #ifdef FAN_CTRL_PIN
-            doc["boardTemp"] = THERMAL_Utils::getTemperature();
+            j.flt("boardTemp", THERMAL_Utils::getTemperature(), 1);
         #endif
         // Resto de sensores y de la alimentacion (la app los muestra todos) (Manuel - EA7JRS)
         WX_Utils::Reading reading;
         if (WX_Utils::getReading(reading) && reading.valid) {
-            doc["wxSensor"] = WX_Utils::sensorName();
-            if (reading.hasGas) doc["gas"] = reading.gasKohm;
+            j.text("wxSensor", WX_Utils::sensorName());
+            if (reading.hasGas) j.flt("gas", reading.gasKohm, 1);
         }
         #ifdef HAS_APRS_PAGES
             float iaqIndex = 0;
             const char* iaqLabel = "";
-            if (PAGES_Utils::iaqValue(iaqIndex, &iaqLabel)) { doc["iaq"] = iaqIndex; doc["iaqLabel"] = iaqLabel; }
+            if (PAGES_Utils::iaqValue(iaqIndex, &iaqLabel)) { j.flt("iaq", iaqIndex, 0); j.text("iaqLabel", iaqLabel); }
         #endif
         if (IMU_Utils::isReady()) {
             float x = 0, y = 0, z = 0;
             IMU_Utils::getAccelG(x, y, z);
-            JsonArray a = doc["accel"].to<JsonArray>(); a.add(x); a.add(y); a.add(z);
+            j.arr("accel"); j.item(x); j.item(y); j.item(z); j.endArr();
             IMU_Utils::getGyroDps(x, y, z);
-            JsonArray g = doc["gyro"].to<JsonArray>(); g.add(x); g.add(y); g.add(z);
-            doc["flat"] = IMU_Utils::isFlat();
+            j.arr("gyro"); j.item(x, 1); j.item(y, 1); j.item(z, 1); j.endArr();
+            j.flag("flat", IMU_Utils::isFlat());
         }
         if (MAG_Utils::isReady()) {
-            doc["magCal"]   = MAG_Utils::isCalibrated();
-            doc["magAlign"] = MAG_Utils::isAligned();
-            if (MAG_Utils::isAligned()) doc["magOff"] = MAG_Utils::alignmentOffset();
+            j.flag("magCal", MAG_Utils::isCalibrated());
+            j.flag("magAlign", MAG_Utils::isAligned());
+            if (MAG_Utils::isAligned()) j.flt("magOff", MAG_Utils::alignmentOffset(), 1);
         }
-        doc["charging"] = POWER_Utils::isCharging();
+        j.flag("charging", POWER_Utils::isCharging());
         const float vbus = POWER_Utils::getVbusVoltage();
-        if (vbus > 0.0f) doc["vbus"] = vbus;
-        const float pmuT = POWER_Utils::getPmuTemperature();
-        if (!isnan(pmuT)) doc["pmuTemp"] = pmuT;
+        if (vbus > 0.0f) j.flt("vbus", vbus);
+        j.flt("pmuTemp", POWER_Utils::getPmuTemperature(), 1);
         #if defined(HAS_AXP192) || defined(HAS_AXP2101)
-            doc["battMa"] = POWER_Utils::getBatteryChargeDischargeCurrent();
+            j.flt("battMa", POWER_Utils::getBatteryChargeDischargeCurrent(), 0);
         #endif
         if (batteryConnected) {
             #ifdef HAS_AXP2101
@@ -332,10 +373,10 @@ namespace {
                 String pct = BATTERY_Utils::getPercentVoltageBattery(batteryVolts());
             #endif
             pct.trim();
-            doc["battPct"] = pct.toInt();
+            j.num("battPct", pct.toInt());
         }
-        doc["heap"] = ESP.getFreeHeap();
-        sendDoc(doc);
+        j.unum("heap", ESP.getFreeHeap());
+        j.send(sendLine);
     }
 
     void sendGnss() {
@@ -369,85 +410,81 @@ namespace {
 
     void sendScreen() {
         #ifdef HAS_APRS_PAGES
-            JsonDocument doc;
-            doc["e"]    = "screen";
-            doc["p"]    = PAGES_Utils::screenPage();
-            doc["cur"]  = PAGES_Utils::currentPage();
-            doc["t"]    = PAGES_Utils::screenTitle();
-            doc["r"]    = PAGES_Utils::screenRight();
-            doc["age"]  = PAGES_Utils::screenAgeMs();
-            doc["on"]   = displayState;
-            JsonArray rows = doc["rows"].to<JsonArray>();
-            for (uint8_t i = 0; i < PAGES_Utils::screenRows(); i++) rows.add(PAGES_Utils::screenRow(i));
-            sendDoc(doc);
+            JW j("screen");
+            j.num("p", PAGES_Utils::screenPage());
+            j.num("cur", PAGES_Utils::currentPage());
+            j.text("t", PAGES_Utils::screenTitle());
+            j.text("r", PAGES_Utils::screenRight());
+            j.unum("age", PAGES_Utils::screenAgeMs());
+            j.flag("on", displayState);
+            j.arr("rows");
+            for (uint8_t i = 0; i < PAGES_Utils::screenRows(); i++) j.itemText(PAGES_Utils::screenRow(i));
+            j.endArr();
+            j.send(sendLine);
         #endif
     }
 
     #ifdef HAS_APRS_PAGES
-    struct ActCtx { JsonDocument* doc; JsonArray items; int page; };
-
-    void flushActList(ActCtx* c) {
-        if (c->page >= 0) sendDoc(*c->doc);
-        c->doc->clear();
-    }
+    struct ActCtx { JW* j; int page; };
 
     void actCallback(uint8_t page, const char* pageTitle, const char* name, const char* label, bool allowed, void* ctx) {
         ActCtx* c = (ActCtx*)ctx;
         if ((int)page != c->page) {
-            flushActList(c);
+            if (c->j) { c->j->endArr(); c->j->send(sendLine); delete c->j; }
+            c->j = new JW("actlist");
             c->page = page;
-            (*c->doc)["e"]  = "actlist";
-            (*c->doc)["p"]  = page;
-            (*c->doc)["pt"] = pageTitle;
-            c->items = (*c->doc)["items"].to<JsonArray>();
+            c->j->num("p", page);
+            c->j->text("pt", pageTitle);
+            c->j->arr("items");
         }
-        JsonObject o = c->items.add<JsonObject>();
-        o["n"] = name;
-        o["l"] = label;
-        if (!allowed) o["ok"] = false;
+        c->j->obj();
+        c->j->text("n", name);
+        c->j->text("l", label);
+        if (!allowed) c->j->flag("ok", false);
+        c->j->endObj();
     }
     #endif
 
     void sendActList() {
         #ifdef HAS_APRS_PAGES
-            JsonDocument doc;
-            ActCtx ctx{&doc, JsonArray(), -1};
+            ActCtx ctx{nullptr, -1};
             PAGES_Utils::forEachAction(actCallback, &ctx);
-            flushActList(&ctx);
-            JsonDocument end;
-            end["e"] = "actlist";
-            end["end"] = true;
-            end["pages"] = PAGES_Utils::pageCount();
-            sendDoc(end);
+            if (ctx.j) { ctx.j->endArr(); ctx.j->send(sendLine); delete ctx.j; }
+            JW end("actlist");
+            end.flag("end", true);
+            end.num("pages", PAGES_Utils::pageCount());
+            end.send(sendLine);
         #endif
     }
 
-    void fillMsg(JsonObject o, uint8_t position) {
+    void putMsg(JW& j, uint8_t position) {
         #ifdef HAS_APRS_PAGES
             const PAGES_Core::MsgEntry* m = PAGES_Utils::msgAt(position);
             if (!m) return;
-            o["i"]  = position;
-            o["d"]  = String(m->dir);
-            o["ep"] = m->epoch;
-            o["st"] = PAGES_Utils::msgStateAt(position);       // 0 sin leer, 1 leido, 2 enviado, 3 esperando ack, 4 con ack, 5 fallido
-            if (m->ackId) o["ack"] = m->ackId;
-            o["c"]  = m->call;
-            o["t"]  = m->text;
+            const char dir[2] = { m->dir, '\0' };
+            j.num("i", position);
+            j.text("d", dir);
+            j.unum("ep", m->epoch);
+            j.num("st", PAGES_Utils::msgStateAt(position));       // 0 sin leer, 1 leido, 2 enviado, 3 esperando ack, 4 con ack, 5 fallido
+            if (m->ackId) j.num("ack", m->ackId);
+            j.text("c", m->call);
+            j.text("t", m->text);
         #else
-            (void)o; (void)position;
+            (void)j; (void)position;
         #endif
     }
 
     void sendMsgs(int from, int cnt) {
         #ifdef HAS_APRS_PAGES
-            JsonDocument doc;
-            doc["e"]      = "msgs";
-            doc["tot"]    = PAGES_Utils::msgCount();
-            doc["unread"] = PAGES_Utils::msgUnread();
-            doc["from"]   = from;
-            JsonArray items = doc["items"].to<JsonArray>();
-            for (int i = from; i < PAGES_Utils::msgCount() && (int)items.size() < cnt; i++) fillMsg(items.add<JsonObject>(), (uint8_t)i);
-            sendDoc(doc);
+            JW j("msgs");
+            j.num("tot", PAGES_Utils::msgCount());
+            j.num("unread", PAGES_Utils::msgUnread());
+            j.num("from", from);
+            j.arr("items");
+            int n = 0;
+            for (int i = from; i < PAGES_Utils::msgCount() && n < cnt; i++, n++) { j.obj(); putMsg(j, (uint8_t)i); j.endObj(); }
+            j.endArr();
+            j.send(sendLine);
         #else
             (void)from; (void)cnt;
         #endif
@@ -460,55 +497,58 @@ namespace {
             if (seq == msgSeen) return;
             msgSeen = seq;
             if (!connected || !authed) return;
-            JsonDocument doc;
-            doc["e"]      = "msg";
-            doc["tot"]    = PAGES_Utils::msgCount();
-            doc["unread"] = PAGES_Utils::msgUnread();
-            if (PAGES_Utils::msgCount() > 0) fillMsg(doc.as<JsonObject>(), 0);
-            sendDoc(doc);
+            JW j("msg");
+            j.num("tot", PAGES_Utils::msgCount());
+            j.num("unread", PAGES_Utils::msgUnread());
+            if (PAGES_Utils::msgCount() > 0) putMsg(j, 0);
+            j.send(sendLine);
         #endif
     }
 
     void sendHeard(int from, int cnt) {
         #ifdef HAS_APRS_PAGES
-            JsonDocument doc;
-            doc["e"]    = "heard";
-            doc["tot"]  = PAGES_Utils::heardCount();
-            doc["pkts"] = PAGES_Utils::heardPackets();
-            doc["from"] = from;
-            JsonArray items = doc["items"].to<JsonArray>();
+            JW j("heard");
+            j.num("tot", PAGES_Utils::heardCount());
+            j.unum("pkts", PAGES_Utils::heardPackets());
+            j.num("from", from);
+            j.arr("items");
             const uint32_t now = millis();
-            for (int i = from; i < PAGES_Utils::heardCount() && (int)items.size() < cnt; i++) {
+            int n = 0;
+            for (int i = from; i < PAGES_Utils::heardCount() && n < cnt; i++, n++) {
                 const PAGES_Core::Station* st = PAGES_Utils::heardAt((uint8_t)i);
                 if (!st) break;
-                JsonObject o = items.add<JsonObject>();
-                o["c"]   = st->call;
-                o["sym"] = String(st->symbol) + String(st->table);
-                o["k"]   = PAGES_Core::kindName(st->kind);
-                if (st->hasPosition) { o["lat"] = st->lat; o["lon"] = st->lon; }
-                o["alt"] = st->altitude;
-                o["spd"] = st->speed;
-                o["crs"] = st->course;
-                o["rssi"] = st->rssi;
-                o["snr"] = st->snr;
-                o["age"] = (now - st->lastMs) / 1000UL;
-                o["n"]   = st->packets;
-                if (st->device[0])  o["dev"] = st->device;
-                if (st->path[0])    o["path"] = st->path;
-                if (st->comment[0]) o["cmt"] = st->comment;
-                if (st->status[0])  o["sts"] = st->status;
+                j.obj();
+                j.text("c", st->call);
+                const char sym[3] = { st->symbol, st->table, '\0' };
+                j.text("sym", sym);
+                j.text("k", PAGES_Core::kindName(st->kind));
+                if (st->hasPosition) { j.flt("lat", st->lat, 5); j.flt("lon", st->lon, 5); }
+                j.num("alt", st->altitude);
+                j.num("spd", st->speed);
+                j.num("crs", st->course);
+                j.num("rssi", st->rssi);
+                j.flt("snr", st->snr, 1);
+                j.unum("age", (now - st->lastMs) / 1000UL);
+                j.num("n", st->packets);
+                if (st->device[0])  j.text("dev", st->device);
+                if (st->path[0])    j.text("path", st->path);
+                if (st->comment[0]) j.text("cmt", st->comment);
+                if (st->status[0])  j.text("sts", st->status);
                 if (st->wx.valid) {
-                    JsonObject w = o["wx"].to<JsonObject>();
-                    if (st->wx.tempC != PAGES_Core::WX_NA)       w["t"] = st->wx.tempC;
-                    if (st->wx.humidity != PAGES_Core::WX_NA)    w["h"] = st->wx.humidity;
-                    if (st->wx.pressureHpa != PAGES_Core::WX_NA) w["p"] = st->wx.pressureHpa;
-                    if (st->wx.windDir != PAGES_Core::WX_NA)     w["wd"] = st->wx.windDir;
-                    if (st->wx.windKmh != PAGES_Core::WX_NA)     w["ws"] = st->wx.windKmh;
-                    if (st->wx.gustKmh != PAGES_Core::WX_NA)     w["wg"] = st->wx.gustKmh;
-                    if (st->wx.rainMm10 != PAGES_Core::WX_NA)    w["r"] = st->wx.rainMm10;
+                    j.objKey("wx");
+                    if (st->wx.tempC != PAGES_Core::WX_NA)       j.num("t", st->wx.tempC);
+                    if (st->wx.humidity != PAGES_Core::WX_NA)    j.num("h", st->wx.humidity);
+                    if (st->wx.pressureHpa != PAGES_Core::WX_NA) j.num("p", st->wx.pressureHpa);
+                    if (st->wx.windDir != PAGES_Core::WX_NA)     j.num("wd", st->wx.windDir);
+                    if (st->wx.windKmh != PAGES_Core::WX_NA)     j.num("ws", st->wx.windKmh);
+                    if (st->wx.gustKmh != PAGES_Core::WX_NA)     j.num("wg", st->wx.gustKmh);
+                    if (st->wx.rainMm10 != PAGES_Core::WX_NA)    j.num("r", st->wx.rainMm10);
+                    j.endObj();
                 }
+                j.endObj();
             }
-            sendDoc(doc);
+            j.endArr();
+            j.send(sendLine);
         #else
             (void)from; (void)cnt;
         #endif
