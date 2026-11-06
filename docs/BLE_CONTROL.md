@@ -120,6 +120,24 @@ Mientras se escucha un satélite (modo SAT), cada línea recibida (texto CW, tra
 
 Evento `sat` (solo modo SAT, cada 2 s y tras `satsel`): `{"e":"sat","ok":true,"n":"ISS (ZARYA)","id":25544,"i":3,"geo":false,"tx":4,"tle":1.2,"pos":"GPS","az":123.4,"el":45.0,"rng":850,"rr":-1.234,"aos":1790000000,"los":1790000600,"max":62}` — `rr` velocidad radial (km/s, + se aleja), `aos`/`los` Unix UTC del paso actual o siguiente.
 
+## Control y datos completos para la app (`act`, `screen`, `msgs`, `heard`, `cfg`)
+
+Regla del proyecto: **todas las funciones del tracker se controlan desde la app APRS LoRa+ de Android, y la app muestra todos sus datos** (sensores, mensajes APRS, DAPNET...). Matriz de cobertura en `docs/APP_COVERAGE.md`.
+
+| Orden | Parámetros | Respuesta / evento |
+|---|---|---|
+| `actlist` | — | Un evento `actlist` por página: `{"e":"actlist","p":2,"pt":"MORSE","items":[{"n":"CW0","l":"Send CW 1","ok":false?}]}`; al final `{"e":"actlist","end":true,"pages":N}`. Solo salen las páginas visibles en el modo actual. `ok:false` = la opción existe pero no se ejecuta por BLE. |
+| `act` | `a` = nombre (`n` de `actlist`, sin distinguir mayúsculas) | `ok` o `err` (`accion desconocida`, `no disponible por BLE`, `no disponible en este modo`). Ejecuta **cualquier** opción de los menús del equipo (baliza, perfil, mensajes, brújula, SOS, rotor, SAT, DAPNET, CW, reloj...). Si la opción es de otra página, el equipo cambia a esa página. No se ejecutan por `act`: abrir submenús, `MENU`, `MODE_CHANGE` (usa `mode`), escucha / entrenador CW interactivos y las sintonías WSPR / CW-baliza (tienen su orden propia) |
+| `screen` | `p` página (opc.), `every` segundos (opc., 0 = no) | `ok` si cambia algo y evento `screen`: `{"e":"screen","p","cur","t":título,"r":derecha,"age":ms,"on":pantalla encendida,"rows":["...", ...]}`: el texto de la última pantalla dibujada (las filas de texto; gráficos como brújula o mapas no salen). También `sub` con `"screen":s` |
+| `msgs` | `from`, `cnt` (1–20, 10) | `{"e":"msgs","tot","unread","from","items":[{"i","d":"R"\|"T","ep","st","ack","c","t"}]}`; `st`: 0 sin leer, 1 leído, 2 enviado, 3 esperando ack, 4 con ack, 5 fallido. 0 = el más reciente |
+| `msg` | `to`, `t` (≤ 67), `ack` (true) | `{"e":"ok","c":"msg","ack":n}` y el mensaje sale por el aire con la siguiente ventana. Solo en modos APRS |
+| evento `msg` | — | Se emite solo ante cualquier cambio del registro (llega uno, se envía, ack, leído): `{"e":"msg","tot","unread", + el más reciente}` |
+| `heard` | `from`, `cnt` (1–12, 6) | `{"e":"heard","tot","pkts","items":[{"c","sym","k","lat","lon","alt","spd","crs","rssi","snr","age","n","dev","path","cmt","sts","wx":{...}}]}`; 0 = la más reciente |
+| `cfgget` | `k` sección (opc.) | Sin `k`: `{"e":"cfg","sections":[...]}`. Con `k`: `{"e":"cfg","k":"beacons","v":{...}}` con el contenido de `/tracker_conf.json`; las contraseñas y claves salen como `"***"` |
+| `cfgset` | `s`:`begin` (`k` sección, `reboot` true) → `s`:`c` (`d` texto JSON, ≤ 180 caracteres por orden) → `s`:`end` | Parche JSON que se **mezcla** con la sección (objetos con objetos, matrices y escalares sustituyen; los `"***"` se ignoran). Sin `k`, el parche lleva varias secciones. Un chunk por orden y espera de `ok`. Guarda en `/tracker_conf.json` y reinicia (salvo `reboot:false`). Es el mismo fichero que edita la WebUI |
+
+`sensors` incluye ahora todos los sensores: además de los anteriores, `wxSensor`, `gas` (kΩ), `iaq`/`iaqLabel`, `accel` y `gyro` ([x,y,z]), `flat`, `magCal`/`magAlign`/`magOff`, `charging`, `vbus`, `pmuTemp`, `battMa`, `battPct` y `heap`.
+
 ## Modos
 
 `m`: 0 APRS LoRa, 1 APRS FSK, 2 MORSE, 3 WSPR, 4 LR-FHSS, 5 DAPNET, 6 FT8, 7 FT4, 8 FST4W, 9 SAT (satélites 70 cm). `info.modes` dice cuáles admite la placa.
