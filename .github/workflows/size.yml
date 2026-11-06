@@ -37,3 +37,7 @@ jobs:
                   for a in $(find $B -name '*.a'); do echo "$($T/${{ matrix.target.tool }}-size -t $a | tail -1 | awk '{print $1+0}') $a"; done | sort -rn | head -25
                   echo "=== project objects"
                   for o in $(find $B/src -name '*.o'); do echo "$($T/${{ matrix.target.tool }}-size $o | tail -1 | awk '{print $1}') $o"; done | sort -rn | head -15
+                  echo "=== all project objects"
+                  for o in $(find $B/src -name '*.o'); do echo "$($T/${{ matrix.target.tool }}-size $o | tail -1 | awk '{print $1}') $o"; done | sort -rn | sed 's|.*/src/||'
+                  echo "=== linked symbols by group (bytes in the final image)"
+                  $T/${{ matrix.target.tool }}-nm --size-sort -S -C $B/firmware.elf | awk '$3 ~ /^[TtWwDdRrVv]$/ { n=$4; for (i=5;i<=NF;i++) n=n" "$i; sz=strtonum("0x"$2); g="other"; if (n ~ /^(SGP4Funcs|SatCore|SAT_Utils|SATRX_Utils|SATTX_Utils|\(anonymous namespace\)::.*[Ss]at)/ || n ~ /SAT_Utils|SatCore|SGP4/) g="SAT"; else if (n ~ /ROTOR|Rotor|rotor/) g="ROTOR"; else if (n ~ /^NimBLE|^ble_|^BLE_|^BLEControl/) g="BLE"; else if (n ~ /^Configuration|^WEB_Utils|AsyncWeb/) g="CONFIG+WEB"; else if (n ~ /^PAGES_Utils|^MENU_Utils|^KEYBOARD_Utils|^DISPLAY|^Adafruit|^drawCompass/) g="SCREEN+MENUS"; else if (n ~ /^FW_Update|HTTPClient|ssl|mbedtls/) g="FW-UPDATE+TLS"; else if (n ~ /^WMM|^MAG_|^IMU_|^WX_|^POWER_|^SENSORS_/) g="SENSORS"; else if (n ~ /^FX25|^LoRa_Utils|SX126x|SX127x|RadioLib|^WSPR|^FT8|^LRFHSS/) g="RADIO+MODES"; t[g]+=sz } END { for (g in t) print t[g], g }' | sort -rn
