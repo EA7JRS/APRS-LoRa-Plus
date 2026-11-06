@@ -28,7 +28,7 @@ Dos modos en el submenú. No emiten RF: usan el zumbador y el manipulador. En la
 
 ## Límites
 - Solo SX1262/SX1268 para emitir (la T‑Beam S3 Supreme lo es). Sin SX126x se puede decodificar y ver el sidetone, pero no emitir.
-- Temporización PARIS, keyer y decodificador comprobados en PC; sin probar con un manipulador real.
+- Temporización PARIS, keyer y decodificador comprobados en PC; probado con manipulador real (vertical e iambico).
 - Solo existe en el modo MORSE, que tiene esta única pantalla (sin barra de iconos).
 
 ## Pantalla CW BEACON (5.2.11)
@@ -39,5 +39,5 @@ El FH-2 es un teclado de 12 teclas con una escalera de resistencias: cada tecla 
 - **Conexión:** el teclado entre el pin elegido y GND, y una resistencia de **10 kΩ** del pin a 3V3. Usa un pin del ADC1 (ESP32-S3: GPIO 1–10; ESP32 clásica: GPIO 32–39; ESP32-C3: GPIO 0–4) que no use ya tu placa. El ADC2 no vale: no funciona con el WiFi encendido. Comprueba en tu placa que el pin esté libre.
 - **Configuración (WebUI → LoRa → CW / Morse → FH-2 keypad):** escribe el GPIO, guarda, pulsa una tecla y, **sin soltarla**, pulsa su botón *Read* (se muestra también la lectura en directo). Repite con las teclas 1–5 y guarda de nuevo. No hace falta conocer las resistencias exactas.
 - **Uso:** con la página MORSE abierta, las teclas **1–5** envían los mensajes CW 1–5 (como en el submenú) y el botón del Tracker aborta el envío. Una pulsación = un envío; hay que soltar la tecla para repetir. El resto de teclas no hacen nada de momento.
-- Sin probar con el teclado real. Los mensajes salen por RF como portadora A1A: la responsabilidad de la transmisión es tuya.
+- Probado con el teclado real. Los mensajes salen por RF como portadora A1A: la responsabilidad de la transmisión es tuya.
 

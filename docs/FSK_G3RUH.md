@@ -29,7 +29,7 @@ Cada perfil FSK tiene el selector **Packet protocol (TX)**:
 - **IL2P** tiene menos sobrecarga, pero sus tramas pequeñas llevan solo 2 bytes de control: con el scrambler G3RUH un solo bit erróneo del canal puede inutilizarlas. Úsalo solo si el otro extremo es IL2P.
 - El chip emite 255 bytes como máximo por transmisión: una trama FX.25 admite unos 120 bytes de AX.25 (200 bytes en IL2P). Si no cabe se emite como AX.25 normal.
 - La recepción de bloques FX.25 e IL2P es la de siempre, por bloques de 255 bytes; una trama partida entre dos bloques se pierde.
-- Verificación en PC (`tools/fx25`, `tools/il2p`): el control Reed-Solomon de los 11 formatos FX.25 coincide con el de Dire Wolf, el decodificador lee los 11 ficheros de prueba de Dire Wolf (con 8 bytes dañados) y el receptor de Dire Wolf lee nuestros bloques; las 12 tramas IL2P de prueba salen idénticas byte a byte. **Sin probar en radio**: hace falta otro equipo (Dire Wolf con un módem 9600) para confirmarlo.
+- Verificación en PC (`tools/fx25`, `tools/il2p`): el control Reed-Solomon de los 11 formatos FX.25 coincide con el de Dire Wolf, el decodificador lee los 11 ficheros de prueba de Dire Wolf (con 8 bytes dañados) y el receptor de Dire Wolf lee nuestros bloques; las 12 tramas IL2P de prueba salen idénticas byte a byte. **Probado en radio**: FX.25 e IL2P funcionan en placa.
 - Tamaño en flash: unos pocos KB más (se medirá al compilar).
 
 ## Plan de bandas IARU en la WebUI

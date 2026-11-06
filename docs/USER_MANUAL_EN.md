@@ -357,7 +357,7 @@ Trackers that receive your emergency will show the §15 alarm with GO TO towards
 ## 18. Known limitations and verification status
 
 - The 5.1.0 firmware was **compiled and run by its user on a T-Beam S3 Supreme**. Verified on PC: the pure logic (station list, altitude profile, trend, heading, formats, WMM, time on air, S-meter, forecast, alarm detection, SOS gestures, AX.25/G3RUH, Morse timing and decoding) with unit tests; and the screens in a 128×64 simulator.
-- **Not verified on hardware in depth:** FSK reception (experimental), CW timing, the jack pins, the sidetone. AIS and iGate builds have not been recompiled.
+- **Not verified on hardware in depth:** FSK reception (experimental) and the CW sidetone on the buzzer (fixed in 5.3.4, still to be tested). AIS and iGate builds have not been recompiled.
 - `gps_utils.cpp` (constellations, SBAS, satellites) could not be compiled in the development environment.
 - TFT screens (Heltec Wireless Tracker, T-Deck) only passed a syntax check.
 - The `HELTEC_WSL_V3_TNC` board has no display.
@@ -395,7 +395,7 @@ Beacons are converted to **AX.25 UI** frames (PID 0xF0) with CRC-16 FCS, HDLC wi
 It is heard by 9600 baud G3RUH packet receivers (TNCs and radios with a 9600 data port). It is **not** heard by analogue 1200 baud APRS (AFSK) equipment.
 
 ### 20.2b FX.25 and IL2P (5.3.1)
-The **Packet protocol (TX)** selector of each FSK profile chooses how the frame is sent: **AX.25** (plain), **FX.25** (the same frame inside a Reed-Solomon error-correcting block with 16, 32 or 64 check bytes; stations that do not know FX.25 still read the frame) or **IL2P** (compact, with error correction, but only heard by IL2P stations such as Dire Wolf 1.7). Reception understands all three formats at once. FX.25 is the recommended option; frames that do not fit in 255 bytes are sent as plain AX.25. Details and limits in `docs/FSK_G3RUH.md` (Spanish). Not yet tested on air.
+The **Packet protocol (TX)** selector of each FSK profile chooses how the frame is sent: **AX.25** (plain), **FX.25** (the same frame inside a Reed-Solomon error-correcting block with 16, 32 or 64 check bytes; stations that do not know FX.25 still read the frame) or **IL2P** (compact, with error correction, but only heard by IL2P stations such as Dire Wolf 1.7). Reception understands all three formats at once. FX.25 is the recommended option; frames that do not fit in 255 bytes are sent as plain AX.25. Details and limits in `docs/FSK_G3RUH.md` (Spanish). Tested on air (FX.25 and IL2P).
 
 ### 20.3 Parameters (WebUI, per profile)
 Bit rate (9.6 kbps), deviation (3.0 kHz) and receive bandwidth (39 kHz). SF, CR and BW only apply to LoRa.
@@ -453,7 +453,7 @@ They do not transmit RF. In the WebUI you set the **Koch level** (2–41; order 
 - **Trainer: keying** (key GPIO defined): a large character and its code are shown; you key it, the decoder reads it and shows OK or what you keyed. Top right, hits/attempts. The button exits.
 
 ### 21.8 Limits
-Only SX1262/SX1268 transmit (without them you can decode and hear the sidetone). PARIS timing, keyer and decoder checked on PC; **not tested with a real key or on the board**.
+Only SX1262/SX1268 transmit (without them you can decode and hear the sidetone). PARIS timing, keyer and decoder checked on PC; **tested with a real key (straight and iambic)**.
 
 ---
 
@@ -665,11 +665,11 @@ APRS LoRa and APRS FSK 9600 modes only. Both are off by default (WebUI → Stati
 - **Browse**: a cursor walks through the members (1P next, 2P exit). The bottom line shows bearing, compass point and distance of the selected one. Long press: **GO TO** (opens the compass pointing at that station), **Quick msg** (quick reply to that member only) or **Ping**.
 - **Radar**: APL-style view with your position in the centre, north up and each member numbered by bearing and distance (filled circle = IN, hollow = OUT or beyond the scale). The scale is automatic (shown as "A") or fixed from 1 to 500 km: 1P changes it; *Auto scale* resets it.
 - **Quick msg: all** sends the quick reply (QSL, 73, TNX…) to every member that is IN, like Yaesu's "SEND to ALL"; **Ping all** pings everybody.
-- Members show on the radar and in GO TO once their position has been received. Untested on a board.
+- Members show on the radar and in GO TO once their position has been received. Tested on a board.
 
 **Remote emergency (like EAI).** Set who may start it and a 4–12 character code. From any APRS client, send a message to the tracker: `EAI <code>` starts the SOS beacon (the same as the local emergency, every 30 s with GPS position) for *Duration* minutes, with an audible alarm and no countdown; `EAI STOP <code>` ends it. The tracker replies "EAI ON n min" or "EAI OFF". An unauthorised sender or a wrong code is ignored without reply. The button gesture cancels it.
 - The code travels unencrypted: it prevents mistakes, it is not security. Each user must make sure remote control is allowed by their regulations.
-- Untested on a board.
+- Tested on a board.
 
 ## 32. KISS over WiFi (5.3.2)
 

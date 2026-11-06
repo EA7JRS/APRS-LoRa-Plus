@@ -391,7 +391,7 @@ Las balizas se convierten a tramas **AX.25 UI** (PID 0xF0) con FCS CRC-16, HDLC 
 Lo oyen receptores de packet 9600 baudios G3RUH (TNC y radios con puerto de datos 9600). **No** lo oyen los equipos APRS analógicos de 1200 baudios (AFSK).
 
 ### 20.2b FX.25 e IL2P (5.3.1)
-El selector **Packet protocol (TX)** de cada perfil FSK elige cómo se emite la trama: **AX.25** (normal), **FX.25** (la misma trama dentro de un bloque con corrección de errores Reed-Solomon, con 16, 32 o 64 bytes de control; las estaciones que no lo conocen siguen leyendo la trama) o **IL2P** (compacto, con corrección de errores, pero solo lo oyen estaciones IL2P como Dire Wolf 1.7). La recepción entiende los tres formatos a la vez. FX.25 es la opción recomendada; las tramas que no caben en 255 bytes se emiten como AX.25 normal. Detalles y límites en `docs/FSK_G3RUH.md`. Sin probar todavía en radio.
+El selector **Packet protocol (TX)** de cada perfil FSK elige cómo se emite la trama: **AX.25** (normal), **FX.25** (la misma trama dentro de un bloque con corrección de errores Reed-Solomon, con 16, 32 o 64 bytes de control; las estaciones que no lo conocen siguen leyendo la trama) o **IL2P** (compacto, con corrección de errores, pero solo lo oyen estaciones IL2P como Dire Wolf 1.7). La recepción entiende los tres formatos a la vez. FX.25 es la opción recomendada; las tramas que no caben en 255 bytes se emiten como AX.25 normal. Detalles y límites en `docs/FSK_G3RUH.md`. Probado en radio (FX.25 e IL2P).
 
 ### 20.3 Parámetros (WebUI, por perfil)
 Velocidad (9,6 kbps), desviación (3,0 kHz) y ancho de banda de recepción (39 kHz). SF, CR y BW solo valen para LoRa.
@@ -449,7 +449,7 @@ No emiten RF. En la WebUI se ajustan el **nivel Koch** (2–41; orden K M R S U 
 - **Trainer: keying** (GPIO de manipulador definido): se muestra un carácter grande y su código; lo tecleas, el decodificador lo lee y se indica OK o lo que tecleaste. Arriba a la derecha, aciertos/intentos. El botón sale.
 
 ### 21.8 Límites
-Solo SX1262/SX1268 emiten (sin ellos se puede decodificar y oír el sidetone). Temporización PARIS, keyer y decodificador comprobados en PC; **sin probar con manipulador real ni en la placa**.
+Solo SX1262/SX1268 emiten (sin ellos se puede decodificar y oír el sidetone). Temporización PARIS, keyer y decodificador comprobados en PC; **probado con manipulador real (vertical e iambico)**.
 
 ## 22. Modo WSPR beacon
 
@@ -659,11 +659,11 @@ Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apag
 - **Browse**: un cursor recorre los miembros (1P siguiente, 2P salir). Abajo se ve el rumbo, el punto cardinal y la distancia del marcado. Pulsación larga: **GO TO** (abre la brújula apuntando a esa estación), **Quick msg** (respuesta rápida solo a ese miembro) o **Ping**.
 - **Radar**: vista tipo APL con tu posición en el centro, norte arriba y cada miembro numerado según su rumbo y distancia (círculo relleno = IN, hueco = OUT o fuera de escala). La escala es automática (se ve «A») o fija de 1 a 500 km: 1P la cambia; *Auto scale* la restablece.
 - **Quick msg: all** envía la respuesta rápida (QSL, 73, TNX…) a todos los miembros que están IN, como «SEND to ALL» de Yaesu; **Ping all** pregunta a todos.
-- Los miembros aparecen en el radar y en GO TO cuando se ha recibido su posición. Sin probar en placa.
+- Los miembros aparecen en el radar y en GO TO cuando se ha recibido su posición. Probado en placa.
 
 **Emergencia remota (estilo EAI).** Indica quién puede activarla y un código de 4–12 caracteres. Desde un cliente APRS, enviando un mensaje al tracker: `EAI <código>` inicia la baliza SOS (la misma de la emergencia local, cada 30 s, con posición GPS) durante *Duration* minutos, con alarma sonora y sin cuenta atrás; `EAI STOP <código>` la termina. El tracker contesta «EAI ON n min» o «EAI OFF». Un remitente no autorizado o un código erróneo se ignoran sin respuesta. El gesto del botón la cancela.
 - El código viaja sin cifrar: evita errores, no es seguridad. Cada usuario debe asegurarse de que el control remoto está permitido por su normativa.
-- Sin probar en placa.
+- Probado en placa.
 
 ## 32. KISS por WiFi (5.3.2)
 
