@@ -547,6 +547,11 @@ function loadSettings(settings) {
             document.getElementById("radio.freqCorrPpm").value = next.toFixed(3);
             document.getElementById("freqcal.errHz").value = 0;
         };
+        const sat = settings.sat || {};
+        document.getElementById("sat.minEl").value = sat.minEl ?? 10;
+        document.getElementById("sat.lat").value = sat.lat ?? 0;
+        document.getElementById("sat.lon").value = sat.lon ?? 0;
+        document.getElementById("sat.dataUrl").value = sat.dataUrl ?? "";
         const dap = settings.dapnet || {};
         document.getElementById("dapnet.freqMHz").value = ((dap.freqHz ?? 439987500) / 1e6).toFixed(4);
         document.getElementById("dapnet.baud").value = String(dap.baud ?? 1200);

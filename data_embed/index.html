@@ -770,6 +770,35 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
+                        <div class="row my-5 d-flex align-items-top" id="grp-sat">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>
+                                    Satellites 70 cm
+                                </h5>
+                                <small>Selected at boot (SELECT MODE &rarr; Satellites 70cm). Pass prediction (SGP4), azimuth / elevation and Doppler for the satellites with an uplink and/or downlink in 70 cm. Orbital elements and frequencies (CelesTrak + SatNOGS) are downloaded from the project by WiFi, using the network set in <em>Firmware update</em>. The position comes from the GPS; with no GPS fix the fixed position below is used. This first version is informative only: it does not transmit or receive.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="row">
+                                    <div class="form-floating col-12 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="sat.minEl" id="sat.minEl" min="0" max="60" step="1" value="10" required />
+                                        <label for="sat.minEl">Minimum elevation (&deg;)</label>
+                                    </div>
+                                    <div class="form-floating col-12 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="sat.lat" id="sat.lat" min="-90" max="90" step="0.0001" value="0" />
+                                        <label for="sat.lat">Fixed latitude (&deg;, 0 = none)</label>
+                                    </div>
+                                    <div class="form-floating col-12 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="sat.lon" id="sat.lon" min="-180" max="180" step="0.0001" value="0" />
+                                        <label for="sat.lon">Fixed longitude (&deg;, east +)</label>
+                                    </div>
+                                </div>
+                                <div class="form-floating mb-2">
+                                    <input type="text" class="form-control form-control-sm" name="sat.dataUrl" id="sat.dataUrl" maxlength="160" placeholder="https://" />
+                                    <label for="sat.dataUrl">Data file address (empty = the project's own)</label>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row my-5 d-flex align-items-top" id="grp-dapnet">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>

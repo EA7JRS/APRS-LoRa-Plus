@@ -193,6 +193,11 @@ bool Configuration::writeFile() {
         data["dapnet"]["monitorAll"]                = dapnet.monitorAll;
         data["dapnet"]["timeSync"]                  = dapnet.timeSync;
         data["dapnet"]["charset"]                   = dapnet.charset;
+        data["sat"]["noradId"]                      = sat.noradId;
+        data["sat"]["minEl"]                        = sat.minEl;
+        data["sat"]["lat"]                          = sat.lat;
+        data["sat"]["lon"]                          = sat.lon;
+        data["sat"]["dataUrl"]                      = sat.dataUrl;
         data["ft"]["ft8FreqHz"]                     = ft.ft8FreqHz;
         data["ft"]["ft4FreqHz"]                     = ft.ft4FreqHz;
         data["ft"]["ft8Region"]                     = ft.ft8Region;
@@ -499,6 +504,12 @@ bool Configuration::readFile() {
         dapnet.monitorAll    = data["dapnet"]["monitorAll"] | dapnet.monitorAll;
         dapnet.timeSync      = data["dapnet"]["timeSync"] | dapnet.timeSync;
         dapnet.charset       = constrain((int)(data["dapnet"]["charset"] | dapnet.charset), 0, 1);
+        if (data["sat"]["minEl"].isNull()) needsRewrite = true;
+        sat.noradId          = data["sat"]["noradId"] | sat.noradId;
+        sat.minEl            = constrain((int)(data["sat"]["minEl"] | sat.minEl), 0, 60);
+        sat.lat              = constrain((double)(data["sat"]["lat"] | sat.lat), -90.0, 90.0);
+        sat.lon              = constrain((double)(data["sat"]["lon"] | sat.lon), -180.0, 180.0);
+        sat.dataUrl          = data["sat"]["dataUrl"] | "";
         if (data["ft"]["ft8FreqHz"].isNull()) needsRewrite = true;
         setFtDefaults();
         ft.ft8FreqHz     = constrain((int)(data["ft"]["ft8FreqHz"] | ft.ft8FreqHz), 400000000, 480000000);
@@ -817,6 +828,11 @@ void Configuration::setDapnetDefaults() {
     dapnet.rics          = "";
     dapnet.monitorAll    = false;
     dapnet.timeSync      = false;
+    sat.noradId          = 0;
+    sat.minEl            = 10;
+    sat.lat              = 0.0;
+    sat.lon              = 0.0;
+    sat.dataUrl          = "";
     dapnet.charset       = 1;                   // la red es alemana: ISO 646 aleman por defecto (los demas caracteres son ASCII)
 }
 

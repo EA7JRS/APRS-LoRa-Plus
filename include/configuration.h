@@ -194,7 +194,7 @@ public:
 };
 
 // Modo de funcionamiento, elegido al arrancar tras el mensaje de bienvenida
-enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8 };
+enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9 };
 
 // Baliza WSPR (modo WSPR): mensaje tipo 1 con el indicativo del perfil de baliza (sin SSID), locator de 4 caracteres y potencia
 class WSPRConfig {
@@ -248,6 +248,15 @@ public:
     bool    monitorAll;                         // mostrar todos los mensajes que se reciban, sean para ti o no
     bool    timeSync;                           // poner el reloj con la hora UTC que difunde DAPNET cuando no hay hora GPS
     int     charset;                            // 0 = ASCII, 1 = aleman ISO 646 (DIN 66003)
+};
+
+// Modo SAT (satelites en 70 cm): prediccion de pasos y Doppler. Los TLE y las frecuencias se descargan por WiFi (la red de Firmware update)
+class SatConfig {
+public:
+    int     noradId;                            // satelite elegido (numero NORAD; 0 = el primero de la lista)
+    int     minEl;                              // elevacion minima de un paso util (grados)
+    double  lat, lon;                           // posicion fija de la estacion cuando no hay GPS (0,0 = sin definir)
+    String  dataUrl;                            // direccion del archivo de datos (vacio = el oficial del proyecto)
 };
 
 // Balizas FT8 y FT4 (modos FT8 y FT4; solo emision, SX1262/SX1268): mensaje estandar con el indicativo del perfil de baliza, ranuras de 15 s (FT8) o 7,5 s (FT4) sincronizadas con el GPS
@@ -343,9 +352,10 @@ public:
     FTConfig                ft;
     LRFHSSConfig            lrfhss;
     DAPNETConfig            dapnet;
+    SatConfig               sat;
     GPSConfig               gps;
     int                     radioPpm1000;       // correccion del oscilador en milesimas de ppm (-50000..50000), global: TX y RX de todos los modos
-    int                     operatingMode;      // modo en curso: MODE_APRS_LORA / MODE_APRS_FSK / MODE_MORSE / MODE_WSPR / MODE_LRFHSS / MODE_DAPNET / MODE_FT8 / MODE_FT4 / MODE_FST4W (MORSE, WSPR, LRFHSS, FT8, FT4 y FST4W solo si se elige a mano en el arranque)
+    int                     operatingMode;      // modo en curso: MODE_APRS_LORA / MODE_APRS_FSK / MODE_MORSE / MODE_WSPR / MODE_LRFHSS / MODE_DAPNET / MODE_FT8 / MODE_FT4 / MODE_FST4W / MODE_SAT (MORSE, WSPR, LRFHSS, FT8, FT4 y FST4W solo si se elige a mano en el arranque)
     int                     savedMode;          // ultimo modo APRS elegido (LoRa o FSK): es el que arranca solo si no se pulsa nada; MORSE nunca se guarda
 
     bool    simplifiedTrackerMode;

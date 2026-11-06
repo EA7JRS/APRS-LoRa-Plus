@@ -47,7 +47,7 @@ namespace SLEEP_Utils {
 
     void gpsSleep() {
         #ifdef HAS_GPS_CTRL
-            if (Config.operatingMode == MODE_WSPR || Config.operatingMode == MODE_LRFHSS || Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W) {            // WSPR, LR-FHSS, FT8 y FT4 necesitan la hora del GPS siempre activa
+            if (Config.operatingMode == MODE_WSPR || Config.operatingMode == MODE_LRFHSS || Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W || Config.operatingMode == MODE_SAT) {            // SAT, WSPR, LR-FHSS, FT8 y FT4 necesitan la hora del GPS siempre activa
                 gpsShouldSleep = false;
                 return;
             }

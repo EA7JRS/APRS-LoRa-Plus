@@ -167,12 +167,13 @@ namespace {
             }
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) out[n++] = ModeOption{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) out[n++] = ModeOption{ MODE_DAPNET, "DAPNET pager" };
+            out[n++] = ModeOption{ MODE_SAT, "Satellites 70cm" };
         #endif
         return n;
     }
 
     bool modeAvailable(int mode) {
-        ModeOption options[10];
+        ModeOption options[12];
         const uint8_t n = listModes(options);
         for (uint8_t i = 0; i < n; i++) if (options[i].mode == mode) return true;
         return false;
@@ -209,7 +210,7 @@ namespace {
         #endif
         doc["mode"] = Config.operatingMode;
         JsonArray modes = doc["modes"].to<JsonArray>();
-        ModeOption options[10];
+        ModeOption options[12];
         const uint8_t n = listModes(options);
         for (uint8_t i = 0; i < n; i++) {
             JsonObject m = modes.add<JsonObject>();

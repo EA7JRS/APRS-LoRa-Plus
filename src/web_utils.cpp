@@ -269,6 +269,17 @@ namespace WEB_Utils {
             Config.dapnet.timeSync   = request->hasParam("dapnet.timeSync", true);
             Config.dapnet.charset    = constrain(getParamIntSafe("dapnet.charset", Config.dapnet.charset), 0, 1);
         }
+        {   // modo SAT
+            Config.sat.minEl = constrain(getParamIntSafe("sat.minEl", Config.sat.minEl), 0, 60);
+            if (request->hasParam("sat.lat", true)) Config.sat.lat = constrain(request->getParam("sat.lat", true)->value().toDouble(), -90.0, 90.0);
+            if (request->hasParam("sat.lon", true)) Config.sat.lon = constrain(request->getParam("sat.lon", true)->value().toDouble(), -180.0, 180.0);
+            if (request->hasParam("sat.dataUrl", true)) {
+                String u = request->getParam("sat.dataUrl", true)->value();
+                u.trim();
+                if (u.length() > 160 || (u.length() && !u.startsWith("https://") && !u.startsWith("http://"))) u = "";
+                Config.sat.dataUrl = u;
+            }
+        }
         if (request->hasParam("radio.freqCorrPpm", true)) {                                  // ppm con hasta 3 decimales -> milesimas
             const double ppm = request->getParam("radio.freqCorrPpm", true)->value().toDouble();
             Config.radioPpm1000 = constrain((int)lround(ppm * 1000.0), -50000, 50000);

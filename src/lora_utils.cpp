@@ -1001,6 +1001,7 @@ namespace LoRa_Utils {
     ReceivedLoRaPacket receivePacket() {
         ReceivedLoRaPacket receivedLoraPacket;
         String packet = "";
+        if (Config.operatingMode == MODE_SAT) { operationDone = false; return receivedLoraPacket; }       // modo SAT (fase 1): solo prediccion, la radio no procesa paquetes
         if (fskMode && fskQueueCount > 0) {         // quedan tramas FSK ya decodificadas de un bloque anterior
             fskPopPacket(receivedLoraPacket);
             if (fskQueueCount > 0) operationDone = true;

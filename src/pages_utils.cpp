@@ -51,6 +51,7 @@
 #include "wmm.h"
 #include "notification_utils.h"
 #include "dapnet_utils.h"
+#include "sat_utils.h"
 #include "station_utils.h"
 #include "sleep_utils.h"
 #include "keypad_fh2.h"
@@ -100,7 +101,7 @@ using namespace PAGES_Core;
 
 namespace {
 
-    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_COUNT };
+    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_COUNT };
 
     // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
     bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
@@ -111,15 +112,16 @@ namespace {
         if (Config.operatingMode == MODE_WSPR || ftMode()) return p == PAGE_WSPR;
         if (Config.operatingMode == MODE_LRFHSS) return p == PAGE_LRF;
         if (Config.operatingMode == MODE_DAPNET) return p == PAGE_DAP;
-        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && (p != PAGE_TEAM || Config.team.watchActive);
+        if (Config.operatingMode == MODE_SAT) return p == PAGE_SAT;
+        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && (p != PAGE_TEAM || Config.team.watchActive);
     }
-    bool aprsMode() { return Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && !ftMode(); }
+    bool aprsMode() { return Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && !ftMode(); }
 
     // Pin del manipulador / teclado FH-2: -1 (sin usar) si es negativo o si lo ocupa la propia placa (Supreme: radio, GPS, IMU, PMU...)
     int cwPin(int pin) { return (pin >= 0 && !POWER_Utils::pinReserved(pin)) ? pin : -1; }
 
     const char* const PAGE_TITLES[PAGE_COUNT] = {
-        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP"
+        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP"
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
@@ -131,7 +133,7 @@ namespace {
         C_COMPASS_TARGET, C_ALT_SPAN, C_ALT_RESET, C_ALT_QNH, C_CLK_ZONE, C_CLK_FORMAT, C_CLK_SYNC, C_ZN_MODE, C_ZN_UP, C_ZN_DN, C_Q_AUTO, C_Q_UP1, C_Q_DN1, C_Q_UP2, C_Q_DN2,
         C_SOS_SEND, C_SOS_CANCEL, C_LORA_PROFILE, C_LORA_POWER, C_LORA_RESET, C_LORA_HEARD, C_PW_SHOW, C_PW_UP, C_PW_DN,
         C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
-        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON,
+        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE,
         C_MODE_CHANGE,
         C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
         C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI, C_SYS_IARU
@@ -243,6 +245,9 @@ namespace {
     Item            dapItems[6];
     char            dapMonLabel[24];
     uint8_t         dapIndex = 0;                // 0 = mensaje mas reciente
+    Item            satItems[6];
+    uint8_t         satView = 0;                 // 0 = ahora (az/el/Doppler), 1 = proximo paso, 2 = frecuencias de los transmisores
+    uint8_t         satTx = 0;                   // transmisor mostrado en la vista de frecuencias
     uint32_t        dapSeen = 0;                 // contador de mensajes ya atendidos
     uint32_t        dapNewMs = 0;                // millis() del ultimo mensaje nuevo
     char            wsprToggleLabel[20];
@@ -335,6 +340,15 @@ namespace {
                 dapItems[5] = Item{"Back", C_BACK};
                 count = 6;
                 return dapItems;
+            case PAGE_SAT:
+                satItems[0] = Item{"Next satellite", C_SAT_NEXT};
+                satItems[1] = Item{"Previous satellite", C_SAT_PREV};
+                satItems[2] = Item{"Change view", C_SAT_VIEW};
+                satItems[3] = Item{"Update TLE (WiFi)", C_SAT_UPDATE};
+                satItems[4] = Item{"Change mode", C_MODE_CHANGE};
+                satItems[5] = Item{"Back", C_BACK};
+                count = 6;
+                return satItems;
             case PAGE_LRF:
                 snprintf(lrfToggleLabel, sizeof(lrfToggleLabel), "Beacon: %s", lrfhssOn ? "ON" : "OFF");
                 lrfItems[0] = Item{lrfToggleLabel, C_LRF_TOGGLE};
@@ -613,6 +627,11 @@ namespace {
                 pagesDrawRect(x, y + 1, 9, 7, on);
                 pagesDrawLine(x + 2, y + 3, x + 6, y + 3, on);
                 pagesDrawLine(x + 2, y + 5, x + 4, y + 5, on);
+                break;
+            case PAGE_SAT:      // satelite: cuerpo con dos paneles solares
+                pagesFillRect(x + 3, y + 3, 3, 3, on);
+                pagesFillRect(x, y + 3, 2, 3, on); pagesFillRect(x + 7, y + 3, 2, 3, on);
+                pagesDrawLine(x + 4, y, x + 4, y + 2, on);
                 break;
             case PAGE_LAST:     // diana
                 pagesDrawCircle(x + 4, y + 4, 4, on); pagesFillCircle(x + 4, y + 4, 1, on);
@@ -2420,6 +2439,7 @@ namespace PAGES_Utils {
     void drawFtPage();                      // idem
     void lrfhssPoll();                      // idem (modo LR-FHSS)
     void dapnetPoll();                      // idem (modo DAPNET)
+    void satPoll();                         // idem (modo SAT)
     void cwBeaconPoll();                    // idem
     void cwKeypadPoll();                    // idem (teclado Yaesu FH-2)
 
@@ -2433,6 +2453,7 @@ namespace PAGES_Utils {
         ftPoll();
         lrfhssPoll();
         dapnetPoll();
+        satPoll();
 
         if (sosState == SOS_COUNTDOWN) {
             uint32_t elapsed = nowMs - sosStartMs;
@@ -2857,6 +2878,96 @@ namespace PAGES_Utils {
             }
         }
         row(5, "%ddBm B%lu M%lu%s", DAPNET_Utils::lastRssi(), (unsigned long)DAPNET_Utils::batches(), (unsigned long)DAPNET_Utils::messages(), DAPNET_Utils::lastTimeMs() ? " T" : "");
+    }
+
+    // ======================= SAT (satelites en 70 cm) =======================
+    void satPoll() {
+        if (Config.operatingMode != MODE_SAT) return;
+        SAT_Utils::loop();
+    }
+
+    // Duracion corta: "12m34s" o "1h05m"
+    void satDuration(char* out, size_t n, double sec) {
+        if (sec < 0) sec = 0;
+        const long s = (long)sec;
+        if (s >= 3600)      snprintf(out, n, "%ldh%02ldm", s / 3600, (s % 3600) / 60);
+        else                snprintf(out, n, "%ldm%02lds", s / 60, s % 60);
+    }
+
+    void satHhmm(char* out, size_t n, double unixT) {
+        const time_t t = (time_t)unixT;
+        snprintf(out, n, "%02d:%02d:%02d", hour(t), minute(t), second(t));
+    }
+
+    void drawSatPage() {
+        const SatCore::Block* b = SAT_Utils::block();
+        const bool upd = SAT_Utils::updateState() == SAT_Utils::UPD_WORKING;
+        header(PAGE_TITLES[PAGE_SAT], upd ? "WIFI" : (SAT_Utils::haveQth() ? "" : "NO POS"));
+        if (SAT_Utils::updateState() == SAT_Utils::UPD_WORKING || SAT_Utils::updateState() == SAT_Utils::UPD_ERROR) {
+            row(0, "TLE update");
+            row(1, "%s", SAT_Utils::updateMessage());
+            if (SAT_Utils::updateState() == SAT_Utils::UPD_ERROR) row(3, "Hold: menu to retry");
+            return;
+        }
+        if (!SAT_Utils::hasData() || !b) {
+            row(0, "No satellite data");
+            row(1, "Hold > Update TLE");
+            row(2, "(needs WiFi set in");
+            row(3, "the WebUI)");
+            if (SAT_Utils::updateState() == SAT_Utils::UPD_OK) row(5, "%s", SAT_Utils::updateMessage());
+            return;
+        }
+        row(0, "%u/%u %.14s", (unsigned)SAT_Utils::selected() + 1, (unsigned)SAT_Utils::count(), b->name);
+        if (!SAT_Utils::haveTime()) { row(1, "Waiting for UTC time"); row(2, "(needs GPS fix)"); return; }
+        if (!SAT_Utils::haveQth())  { row(1, "No position yet"); row(2, "GPS fix or WebUI QTH"); return; }
+
+        SatCore::Look lk;
+        const bool have = SAT_Utils::live(lk);
+        if (satView == 0) {                                  // ahora
+            if (have) {
+                row(1, "Az %03d %-2s El %+3d", (int)lround(lk.azDeg), SatCore::cardinal(lk.azDeg), (int)lround(lk.elDeg));
+                row(2, "Rng %dkm Alt %dkm", (int)lround(lk.rangeKm), (int)lround(lk.altKm));
+                row(3, "Rate %+.2fkm/s", lk.rangeRateKmS);
+                SatCore::Pass ps; bool searching = false;
+                if (SAT_Utils::nextPass(ps, searching)) {
+                    char d[10];
+                    const double t = (double)now();
+                    if (t >= ps.aosUnix && t <= ps.losUnix) { satDuration(d, sizeof(d), ps.losUnix - t); row(4, "LOS in %s max %d", d, (int)lround(ps.maxElDeg)); }
+                    else                                    { satDuration(d, sizeof(d), ps.aosUnix - t); row(4, "AOS in %s max %d", d, (int)lround(ps.maxElDeg)); }
+                } else {
+                    row(4, searching ? "Searching passes..." : "No pass in 36 h");
+                }
+            }
+        } else if (satView == 1) {                           // proximo paso
+            SatCore::Pass ps; bool searching = false;
+            if (SAT_Utils::nextPass(ps, searching)) {
+                char a[10], l[10], d[10];
+                satHhmm(a, sizeof(a), ps.aosUnix); satHhmm(l, sizeof(l), ps.losUnix);
+                satDuration(d, sizeof(d), ps.losUnix - ps.aosUnix);
+                row(1, "AOS %s %s", a, SatCore::cardinal(ps.aosAzDeg));
+                row(2, "LOS %s %s", l, SatCore::cardinal(ps.losAzDeg));
+                row(3, "Max El %d  %s", (int)lround(ps.maxElDeg), d);
+                row(4, "UTC  min El %d", (int)Config.sat.minEl);
+            } else {
+                row(1, searching ? "Searching passes..." : "No pass in 36 h");
+            }
+        } else {                                             // frecuencias
+            if (b->txCount == 0) { row(1, "No 70cm transmitter"); }
+            else {
+                if (satTx >= b->txCount) satTx = 0;
+                const SatCore::Transmitter& t = b->tx[satTx];
+                double rx = 0, tx = 0;
+                SAT_Utils::doppler(t, rx, tx);
+                row(1, "%u/%u %s %.10s", (unsigned)satTx + 1, (unsigned)b->txCount, t.mode, t.desc);
+                const long dn = SatCore::txDownCenter(t), up = SatCore::txUpCenter(t);
+                if (dn) row(2, "DN %.4f", dn / 1e6); else row(2, "DN -");
+                if (dn && rx > 0) row(3, "RX %.4f %+dHz", rx / 1e6, (int)lround(rx - dn));
+                if (up) row(4, "UP %.4f TX %.4f", up / 1e6, tx > 0 ? tx / 1e6 : 0.0);
+                else    row(4, "UP -");
+            }
+        }
+        const double age = SAT_Utils::tleAgeDays();
+        row(5, "TLE %.1fd %s%s", age < 0 ? 0.0 : age, SAT_Utils::dataStamp()[0] ? "" : "", satView == 0 ? "v:now" : (satView == 1 ? "v:pass" : "v:freq"));
     }
 
     // ======================= WSPR =======================
@@ -3749,7 +3860,7 @@ namespace PAGES_Utils {
     }
 
     void show() {
-        if (!pageVisible(page)) { page = (Config.operatingMode == MODE_MORSE) ? PAGE_CW : ((Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : (Config.operatingMode == MODE_LRFHSS ? PAGE_LRF : (Config.operatingMode == MODE_DAPNET ? PAGE_DAP : PAGE_MAIN))); changedPage(); }
+        if (!pageVisible(page)) { page = (Config.operatingMode == MODE_MORSE) ? PAGE_CW : ((Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : (Config.operatingMode == MODE_LRFHSS ? PAGE_LRF : (Config.operatingMode == MODE_DAPNET ? PAGE_DAP : (Config.operatingMode == MODE_SAT ? PAGE_SAT : PAGE_MAIN)))); changedPage(); }
         pagesBegin();
         if (sosState == SOS_COUNTDOWN) {
             drawSosCountdown();
@@ -3770,6 +3881,7 @@ namespace PAGES_Utils {
             case PAGE_WSPR:    if (ftMode()) drawFtPage(); else drawWsprPage(); break;
             case PAGE_LRF:     drawLrfPage();   break;
             case PAGE_DAP:     drawDapPage();   break;
+            case PAGE_SAT:     drawSatPage();   break;
             case PAGE_LAST:    drawLast();      break;
             case PAGE_LIST:    drawList();      break;
             case PAGE_GPS:     drawGps();       break;
@@ -3797,7 +3909,7 @@ namespace PAGES_Utils {
         } else {
         #ifdef BUTTON_PIN
             struct Option { uint8_t mode; const char* label; };
-            Option options[10];
+            Option options[12];
             uint8_t n = 0;
             options[n++] = Option{ MODE_APRS_LORA, "APRS LoRa" };
             if (LoRa_Utils::fskAvailable()) options[n++] = Option{ MODE_APRS_FSK, "APRS FSK 9600" };
@@ -3808,6 +3920,7 @@ namespace PAGES_Utils {
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FST4W, "FST4W beacon" };
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) options[n++] = Option{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) options[n++] = Option{ MODE_DAPNET, "DAPNET pager" };
+            options[n++] = Option{ MODE_SAT, "Satellites 70cm" };
             uint8_t sel = 0;
             for (uint8_t i = 0; i < n; i++) if (options[i].mode == Config.savedMode) sel = i;
             pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -3861,19 +3974,20 @@ namespace PAGES_Utils {
             // MORSE solo se activa si se acepta a mano (pulsacion larga) y no se guarda; sin pulsar nada se arranca el ultimo modo APRS
             uint8_t mode = chosen ? options[sel].mode : (uint8_t)Config.savedMode;
             Config.operatingMode = mode;
-            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
+            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_SAT && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
                 Config.savedMode = mode;
                 Config.writeFile();                                                        // el ultimo modo APRS elegido pasa a ser el predeterminado
             }
         #endif
         }
-        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK) Config.operatingMode = MODE_APRS_LORA;
+        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK) Config.operatingMode = MODE_APRS_LORA;
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
+        if (Config.operatingMode == MODE_SAT) { beaconManualMode = true; page = PAGE_SAT; SAT_Utils::begin(); }               // solo prediccion: sin balizas APRS
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
-                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : "APRS LoRa")));
+                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : "APRS LoRa")));
         return (uint8_t)Config.operatingMode;
     }
 
@@ -4496,6 +4610,24 @@ namespace PAGES_Utils {
                 DAPNET_Utils::clear();
                 dapIndex = 0;
                 showToast("List cleared");
+                break;
+            case C_SAT_NEXT:
+            case C_SAT_PREV: {
+                const int n = SAT_Utils::count();
+                if (n > 0) {
+                    int i = SAT_Utils::selected() + (command == C_SAT_NEXT ? 1 : -1);
+                    if (i >= n) i = 0;
+                    if (i < 0) i = n - 1;
+                    SAT_Utils::select(i);
+                    satTx = 0;
+                }
+                break;
+            }
+            case C_SAT_VIEW:
+                satView = (satView + 1) % 3;
+                break;
+            case C_SAT_UPDATE:
+                showToast(SAT_Utils::updateStart() ? "Updating TLE..." : "Already running");
                 break;
             case C_DAP_MON:
                 Config.dapnet.monitorAll = !Config.dapnet.monitorAll;                         // solo hasta el reinicio (la WebUI lo guarda)
