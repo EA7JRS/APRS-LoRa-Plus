@@ -18,13 +18,14 @@ concurrency:
 jobs:
     publish:
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         steps:
             - uses: actions/checkout@v7
 
             - name: Generate sats.txt
               run: |
                   mkdir -p out
-                  python3 tools/make_sat_data.py out/sats.txt
+                  python3 -u tools/make_sat_data.py out/sats.txt
                   head -c 600 out/sats.txt
                   grep -c '^S|' out/sats.txt
 

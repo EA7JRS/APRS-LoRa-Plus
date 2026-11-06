@@ -31,6 +31,8 @@ SATNOGS_URL = "https://db.satnogs.org/api/transmitters/?format=json"
 BAND_LO, BAND_HI = 420_000_000, 450_000_000
 MAX_CATNR_FALLBACK = 120
 MAX_TX_PER_SAT = 4
+TIME_BUDGET_S = 480                # tiempo maximo de las descargas de respaldo (por satelite)
+START = time.time()
 MAX_BYTES = 56000                  # la particion de datos del tracker es de 192 kB (archivo viejo + nuevo durante la descarga)
 # Frecuencias nominales de la banda L movil de Inmarsat (UIT / planes publicos de frecuencias); el canal concreto depende del satelite y de la region: verificar
 INMARSAT_TX = [
@@ -204,7 +206,8 @@ def main():
         with open(a.transmitters, encoding="utf-8") as f:
             data = json.load(f)
     else:
-        data = json.loads(http_get(SATNOGS_URL, timeout=180))
+        data = json.loads(http_get(SATNOGS_URL, tries=2, timeout=120))
+        print("SatNOGS descargado (%.0f s)" % (time.time() - START), file=sys.stderr)
     tx = transmitters_by_sat(data)
     print("SatNOGS: %d satelites con transmisores activos (70 cm o LoRa)" % len(tx), file=sys.stderr)
 
@@ -236,6 +239,9 @@ def main():
                 tx[n] = ("L", [])
         missing = [n for n in tx if n not in tles][:MAX_CATNR_FALLBACK]
         for n in missing:
+            if time.time() - START > TIME_BUDGET_S:
+                print("aviso: presupuesto de tiempo agotado; faltan TLE", file=sys.stderr)
+                break
             try:
                 tles.update(parse_tles(http_get(CELESTRAK_CAT_URL % n, tries=2, timeout=30)))
             except RuntimeError:
