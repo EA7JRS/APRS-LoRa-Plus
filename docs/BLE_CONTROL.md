@@ -95,9 +95,15 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 {"e":"page","ric":12345,"f":3,"own":true,"bad":false,"age":0,"rssi":-97,"t":"Texto del aviso"}
 ```
 
+Solo en modo SAT, con *Send the rot event* activo (WebUI), cada vez que cambia el objetivo del rotor (y cada 10 s):
+```json
+{"e":"rot","az":123.4,"el":45.0,"trk":true,"sat":"ISS (ZARYA)"}
+```
+`az` / `el` en grados (ya con los desfases de la WebUI), `trk` = el satélite está sobre el horizonte, `sat` = nombre del satélite elegido. La app los retransmite a su rotor (p. ej. un `rotctld`).
+
 ## Modos
 
-`m`: 0 APRS LoRa, 1 APRS FSK, 2 MORSE, 3 WSPR, 4 LR-FHSS, 5 DAPNET, 6 FT8, 7 FT4, 8 FST4W. `info.modes` dice cuáles admite la placa.
+`m`: 0 APRS LoRa, 1 APRS FSK, 2 MORSE, 3 WSPR, 4 LR-FHSS, 5 DAPNET, 6 FT8, 7 FT4, 8 FST4W, 9 SAT (satélites 70 cm). `info.modes` dice cuáles admite la placa.
 
 - APRS LoRa y APRS FSK se guardan en la configuración (modo de arranque por defecto) y el tracker reinicia en ese modo.
 - Los demás se piden para **el siguiente arranque** (memoria RTC, sin escribir la flash): el tracker reinicia directamente en ese modo sin mostrar el menú de selección. El arranque siguiente vuelve al modo APRS guardado, como al elegirlos con el botón.
