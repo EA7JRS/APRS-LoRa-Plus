@@ -37,6 +37,9 @@ namespace SATRX_Utils {
     bool        dopplerOk();                       // false = sin hora o posicion: se escucha la nominal
     float       rssi();                            // dBm (ultima lectura)
     uint32_t    frames();                          // tramas / paquetes / palabras recibidos
+    bool        setExternalHz(uint32_t hz);        // un programa externo (GPredict por CAT) manda la frecuencia ya con Doppler; manda 15 s sobre el calculo propio
+    bool        externalActive();
+    uint32_t    currentDownHz();                   // sintonizada si se escucha; si no, la nominal de la bajada del transmisor elegido
     void        fine(int deltaHz);                 // ajuste fino manual (error del oscilador del satelite)
     int         fineHz();
     void        nextLoraPreset();                  // SF / BW siguientes

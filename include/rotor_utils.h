@@ -23,11 +23,14 @@ namespace ROTOR_Utils {
     bool        actual(float& az, float& el);                   // posicion real que devuelve el rotor (false = no se conoce)
     bool        enabled();
     uint32_t    targetSeq();
-    int         source();                   // fuente activa: 0 satelite, 1 objetivo APRS de la brujula, 2 objetivo fijo (-1 = ninguna activa en este modo)
+    int         source();                   // fuente activa: 0 satelite, 1 objetivo APRS de la brujula, 2 objetivo fijo, 3 programa externo / GPredict (-1 = ninguna activa en este modo)
     const char* targetName();               // nombre del objetivo (satelite, indicativo o nombre guardado)
     void        setAttitude(float pitchDeg, float rollDeg);        // medida del inclinometro del soporte (cabeceo + = morro arriba, alabeo + = lado derecho abajo); caduca a los 2 s
     bool        tiltInfo(float& pitchDeg, float& rollDeg);         // true si la ultima orden se corrigio con esa inclinacion
     bool        mobileInfo(float& absoluteAz, float& headingDeg);   // montaje movil: azimut absoluto y rumbo del vehiculo usados (el azimut ordenado es relativo)
+    void        setExternal(float azDeg, float elDeg);   // un programa externo (GPredict por rotctld) manda el objetivo; manda sobre la fuente elegida mientras llegue (15 s)
+    bool        externalFresh();
+    bool        externalPos(float& azDeg, float& elDeg);   // ultimo acimut / elevacion pedidos por el programa externo
     double      targetDistKm();             // distancia al objetivo terrestre (0 = satelite o desconocida)                // aumenta con cada objetivo nuevo (para los eventos BLE)
 
 }

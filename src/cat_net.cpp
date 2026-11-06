@@ -23,7 +23,11 @@
 #include "configuration.h"
 #include "lora_utils.h"
 #include "cat_proto.h"
+#include "sat_config.h"
+#include "sat_rx.h"
+#include "sat_tx.h"
 #include "sleep_utils.h"
+#include "sat_utils.h"
 #include "fw_update.h"
 #include "logger.h"
 #if KISS_NET_SUPPORTED
@@ -48,9 +52,36 @@ namespace {
     public:
         int rssi = -127;
 
-        uint32_t freqHz() override { return (uint32_t)LoRa_Utils::liveFreqHz(); }
+        uint32_t splitFreq = 0;
+
+        // Modo SAT (GPredict): la frecuencia es la de la bajada del satelite que se escucha; GPredict manda la ya corregida por Doppler
+        static bool satMode() {
+            #ifdef HAS_SAT
+                return Config.operatingMode == MODE_SAT;
+            #else
+                return false;
+            #endif
+        }
+
+        uint32_t freqHz() override {
+            #ifdef HAS_SAT
+                if (satMode()) return SATRX_Utils::currentDownHz();
+            #endif
+            return (uint32_t)LoRa_Utils::liveFreqHz();
+        }
+
+        bool setSplitHz(uint32_t hz) override {
+            if (!satMode()) return false;
+            if (hz < 400000000UL || hz > 510000000UL) return false;
+            splitFreq = hz;                                     // subida del satelite que calcula GPredict: informativa (el tracker precompensa la suya)
+            return true;
+        }
+        uint32_t splitHz() override { return satMode() ? splitFreq : 0; }
 
         bool setFreqHz(uint32_t hz) override {
+            #ifdef HAS_SAT
+                if (satMode()) return SATRX_Utils::setExternalHz(hz);
+            #endif
             const long base = LoRa_Utils::profileFreqHz();
             const long win  = (long)Config.cat.tuneKHz * 1000L;
             if ((long)hz < base - win || (long)hz > base + win) return false;
@@ -66,7 +97,12 @@ namespace {
             return (int)currentLoRaType->signalBandwidth;
         }
 
-        int rssiDbm() override { return rssi; }
+        int rssiDbm() override {
+            #ifdef HAS_SAT
+                if (satMode()) return (int)lroundf(SATRX_Utils::rssi());
+            #endif
+            return rssi;
+        }
         int powerDbm() override { return LoRa_Utils::getPower(); }
 
         bool setPowerDbm(int dbm) override {
@@ -81,6 +117,18 @@ namespace {
         bool pttEnabled() override { return Config.cat.pttBeacon; }
 
         bool triggerBeacon() override {
+            #ifdef HAS_SAT
+                if (satMode()) {                                // PTT = emitir el mensaje configurado hacia el satelite (con todas las seguridades del modo SAT)
+                    const SatCore::Block* b = SAT_Utils::block();
+                    if (!b) return false;
+                    uint8_t idx = SATRX_Utils::active() ? SATRX_Utils::txIndex() : 0;
+                    for (uint8_t k = 0; k < b->txCount; k++) {
+                        const uint8_t i = (uint8_t)((idx + k) % b->txCount);
+                        if (SATTX_Utils::classifyUp(b->tx[i]) != SATRX_Utils::K_NO) { idx = i; break; }
+                    }
+                    return SATTX_Utils::send(idx, Config.sat.txText.c_str());
+                }
+            #endif
             #ifdef HAS_APRS_PAGES
                 PAGES_Utils::requestBeacon();
             #endif
@@ -91,6 +139,7 @@ namespace {
 
         size_t ranges(CatProto::Range* out, size_t max) override {
             if (max == 0) return 0;
+            if (satMode()) { out[0].lo = 400000000UL; out[0].hi = 510000000UL; return 1; }
             const long base = LoRa_Utils::profileFreqHz();
             const long win  = (long)Config.cat.tuneKHz * 1000L;
             out[0].lo = (uint32_t)(base - win);

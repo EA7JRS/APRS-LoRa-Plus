@@ -445,6 +445,56 @@ namespace SAT_Utils {
     UpdateState updateState()   { return updState; }
     const char* updateMessage() { return updMsg; }
 
+    // ---- Subida del archivo desde el movil (BLE) ----
+    namespace { File upFile; bool upOpen = false; size_t upTotal = 0; }
+
+    void dataAbort() {
+        if (upOpen) { upFile.close(); SPIFFS.remove(FILE_TMP); }
+        upOpen = false; upTotal = 0;
+    }
+
+    bool dataBegin(size_t expectedBytes) {
+        if (updState == UPD_WORKING || updTask != nullptr) return false;       // hay una descarga por WiFi en curso
+        dataAbort();
+        if (expectedBytes > MAX_FILE_BYTES || !SPIFFS.begin(true)) return false;
+        upFile = SPIFFS.open(FILE_TMP, "w");
+        if (!upFile) return false;
+        upOpen = true; upTotal = 0;
+        return true;
+    }
+
+    bool dataChunk(const char* text, size_t n) {
+        if (!upOpen) return false;
+        if (upTotal + n > MAX_FILE_BYTES || upFile.write((const uint8_t*)text, n) != n) { dataAbort(); return false; }
+        upTotal += n;
+        return true;
+    }
+
+    bool dataEnd() {
+        if (!upOpen) return false;
+        upFile.close();
+        upOpen = false;
+        const size_t total = upTotal;
+        upTotal = 0;
+        if (total < 200) { SPIFFS.remove(FILE_TMP); setMsg("Empty file"); updState = UPD_ERROR; return false; }
+        File chk = SPIFFS.open(FILE_TMP, "r");
+        bool hasBlock = false;
+        while (chk && chk.available() && !hasBlock) { String l = chk.readStringUntil('\n'); hasBlock = l.startsWith("S|"); }
+        if (chk) chk.close();
+        if (!hasBlock) { SPIFFS.remove(FILE_TMP); setMsg("Unexpected file"); updState = UPD_ERROR; return false; }
+        SPIFFS.remove(FILE_PATH);
+        if (!SPIFFS.rename(FILE_TMP, FILE_PATH)) { setMsg("Cannot save"); updState = UPD_ERROR; return false; }
+        const int keep = sel >= 0 && sel < (int)index.size() ? index[sel].noradId : Config.sat.noradId;
+        buildIndex();
+        for (int i = 0; i < (int)index.size(); i++) if (index[i].noradId == keep) { sel = i; break; }
+        if (sel >= 0) loadBlock(sel);
+        restartSearch();
+        char m[40]; snprintf(m, sizeof(m), "%d satellites (app)", (int)index.size());
+        setMsg(m);
+        updState = UPD_OK;
+        return true;
+    }
+
 }
 
 #else   // sin HAS_SAT: la placa no admite el modo SAT; funciones vacias para que el resto compile igual
@@ -473,6 +523,10 @@ namespace SAT_Utils {
     double tleAgeDays() { return -1.0; }
     const char* dataStamp() { return ""; }
     void doppler(const SatCore::Transmitter&, double& rxHz, double& txHz) { rxHz = txHz = 0.0; }
+    bool dataBegin(size_t) { return false; }
+    bool dataChunk(const char*, size_t) { return false; }
+    bool dataEnd() { return false; }
+    void dataAbort() {}
     bool updateStart() { return false; }
     UpdateState updateState() { return UPD_IDLE; }
     const char* updateMessage() { return ""; }

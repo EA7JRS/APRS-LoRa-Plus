@@ -228,6 +228,8 @@ bool Configuration::writeFile() {
         data["rotor"]["parkAz"]                     = rotor.parkAz;
         data["rotor"]["parkEl"]                     = rotor.parkEl;
         data["rotor"]["bleEvents"]                  = rotor.bleEvents;
+        data["rotor"]["serverEnabled"]              = rotor.serverEnabled;
+        data["rotor"]["serverPort"]                 = rotor.serverPort;
         data["rotor"]["source"]                     = rotor.source;
         data["rotor"]["mount"]                      = rotor.mount;
         data["rotor"]["tilt"]                       = rotor.tilt;
@@ -585,6 +587,9 @@ bool Configuration::readFile() {
         rotor.parkAz         = constrain((int)(data["rotor"]["parkAz"] | rotor.parkAz), 0, 359);
         rotor.parkEl         = constrain((int)(data["rotor"]["parkEl"] | rotor.parkEl), 0, 90);
         rotor.bleEvents      = data["rotor"]["bleEvents"] | rotor.bleEvents;
+        if (data["rotor"]["serverEnabled"].isNull()) needsRewrite = true;
+        rotor.serverEnabled  = data["rotor"]["serverEnabled"] | rotor.serverEnabled;
+        rotor.serverPort     = constrain((int)(data["rotor"]["serverPort"] | rotor.serverPort), 1, 65535);
         rotor.tilt           = constrain((int)(data["rotor"]["tilt"] | rotor.tilt), 0, 1);
         rotor.mount          = constrain((int)(data["rotor"]["mount"] | rotor.mount), 0, 1);
         rotor.source         = constrain((int)(data["rotor"]["source"] | rotor.source), 0, 2);
@@ -946,6 +951,8 @@ void Configuration::setDapnetDefaults() {
     rotor.parkAz         = 0;
     rotor.parkEl         = 0;
     rotor.bleEvents      = true;
+    rotor.serverEnabled  = false;
+    rotor.serverPort     = 4533;
     rotor.source         = 0;
     rotor.mount          = 0;
     rotor.tilt           = 0;

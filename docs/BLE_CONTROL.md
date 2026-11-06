@@ -63,6 +63,11 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 | `att` | `p` (cabeceo, + morro arriba), `r` (alabeo, + lado derecho abajo), grados | medida del inclinómetro del soporte del rotor (modo SAT / rotor); caduca a los 2 s, repetir. Solo se usa con *Tilt compensation* activada en la WebUI; sin respuesta |
 | `satrx` | `on` (true/false), `tx` (índice del transmisor del satélite elegido, 0 por defecto), `fine` (Hz, se suma al ajuste fino) | receptor de satélites (solo modo SAT): empieza / para la escucha con Doppler; responde `ok` (o un `err` con el motivo) y el evento `satrx` |
 | `sattx` | `tx` (índice del transmisor), `txt` (mensaje, 64; si falta, el de la WebUI) | emite hacia el satélite (modo SAT; solo con *Allow transmitting* y las seguridades de `SAT_MODE.md`); bloquea mientras emite; responde `ok` o un `err` con el motivo, y el evento `sattx` |
+| `sat` | | evento `sat` con el estado del modo SAT (también cada 2 s solo en ese modo) |
+| `satlist` | `from` (0), `cnt` (20, máx. 40) | evento `satlist`: `{"e":"satlist","tot":239,"sel":3,"from":0,"items":[{"i":0,"id":25544,"n":"ISS (ZARYA)","c":"U","t":4}]}` (`c`: U 70 cm, L LoRa, G geoestacionario; `t`: transmisores) |
+| `satsel` | `i` (posición en la lista) o `id` (NORAD) | elige el satélite (para la escucha en curso); responde `ok` y el evento `sat` |
+| `sattxlist` | | evento `sattxlist` con los transmisores del satélite elegido: `i`, `m` modo, `b` baudios, `d` descripción, `up` / `dn` Hz nominales, `rx` / `tx` clase (CW, FSK, LoRa, n/a), `rxd` / `txd` Hz con Doppler |
+| `satdata` | `s`:`begin` (+ `n` bytes) · `s`:`c` (+ `d` texto, **máx. 180 caracteres por orden**) · `s`:`end` · `s`:`abort` | sube el archivo `sats.txt` (formato en `SAT_MODE.md`, máx. 64 000 bytes) sin WiFi: espera el `ok` de cada orden antes de mandar la siguiente; con `end` valida, sustituye al archivo y recarga la lista |
 | `tgtlist` | | evento `targets` |
 | `pos` | `lat`, `lon` (grados), `alt` (m), `acc` (precisión en m) | posición GPS del móvil para el modo SAT (ver `SAT_MODE.md`); caduca a los 2 min, así que la app debe repetirla (p. ej. cada 5–10 s) |
 | `reboot` | | reinicia |
@@ -112,6 +117,8 @@ Mientras se escucha un satélite (modo SAT), cada línea recibida (texto CW, tra
 {"e":"satrx","on":true,"k":"FSK","f":437425310,"dop":-3120,"fine":0,"rssi":-104,"n":7,"tx":2,"txt":"EA4XYZ-1>APRS:>telemetry ok"}
 ```
 `k` = CW / FSK / LoRa, `f` = frecuencia sintonizada en Hz (con Doppler), `dop` = Doppler aplicado, `n` = tramas recibidas, `tx` = transmisor; `txt` solo cuando hay una línea nueva (el binario va en hexadecimal tras `x:`). Con `on:false` solo llega `on`.
+
+Evento `sat` (solo modo SAT, cada 2 s y tras `satsel`): `{"e":"sat","ok":true,"n":"ISS (ZARYA)","id":25544,"i":3,"geo":false,"tx":4,"tle":1.2,"pos":"GPS","az":123.4,"el":45.0,"rng":850,"rr":-1.234,"aos":1790000000,"los":1790000600,"max":62}` — `rr` velocidad radial (km/s, + se aleja), `aos`/`los` Unix UTC del paso actual o siguiente.
 
 ## Modos
 

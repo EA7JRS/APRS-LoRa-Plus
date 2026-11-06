@@ -1,6 +1,6 @@
 # Modo SAT (satélites en 70 cm) y control de rotor
 
-*Copyright (c) 2026 Manuel - EA7JRS. Estado: **fases 1 a 3** (predicción, rotor, recepción con Doppler y emisión con precompensación), sin probar en placa.*
+*Copyright (c) 2026 Manuel - EA7JRS. Estado: **fases 1 a 4** (predicción, rotor, recepción con Doppler, emisión con precompensación, GPredict y app), sin probar en placa.*
 
 **Solo en las placas que lo admiten** (con pantalla y no el ESP32 original, p. ej. T-Beam Supreme S3): en las demás no aparece en el menú, ni en la app, ni en la WebUI.
 
@@ -62,7 +62,16 @@ La frecuencia de emisión es la de subida del transmisor con el Doppler del inst
 
 **Secuenciador de conmutación** (WebUI): tres salidas (-1 = sin usar) con su nivel activo — *Preamp pin* (activo mientras se escucha), *PA / relay pin* y *PTT pin* (activos al emitir) — y cuatro tiempos: preamplificador cortado y PA activo → *Lead* → PTT → *Pre* → RF → *Post* → PTT y PA sueltos → *Tail* → preamplificador activo. En reposo (y al arrancar el modo SAT) el preamplificador está activo y PA y PTT sueltos. Los GPIO no mueven un relé ni un preamplificador directamente: usa un transistor o un driver. La radio es semidúplex: se para la escucha, se emite y se vuelve a escuchar.
 
-Las fases siguientes (integración con GPredict) no están hechas.
+
+## GPredict y la app (fase 4)
+
+El tracker habla los dos protocolos de red de Hamlib que usa GPredict. Los dos comparten el WiFi de *Firmware update* (como KISS y CAT) y la lista de direcciones permitidas del CAT. En modo SAT solo se abren esos servidores, no KISS. **No hay autenticación: úsalo en una red de confianza.** Responde en `aprs-lora-plus.local` o por IP.
+
+**Rotor — GPredict manda el acimut y la elevación** (WebUI → *Antenna rotor* → *Accept GPredict / rotctl on WiFi*, puerto 4533). En GPredict: *Preferencias → Interfaces → Añadir*: tipo *rotador*, host = IP del tracker, puerto 4533. En la ventana de *Antenna control* elige esa interfaz, el satélite y pulsa *Engage*. El tracker lo reenvía a su rotor (rotctld por TCP, GS-232 por Bluetooth o la app por BLE) aplicando los desfases, el montaje móvil y la compensación de inclinación; mientras GPredict manda órdenes (se vigila 15 s) la fuente del rotor pasa a *GPredict* (3) y vuelve sola a la elegida en el tracker cuando deja de mandar. El rotor tiene que estar activado en la WebUI (*Enable rotor control*) o *Send the rot event* para la app. Comandos admitidos: `P az el`, `p`, `S`, `K`, `R`, `_`, `\get_info`, `\dump_state`, `q`. Se prueba en PC con `tools/rot_net/test_rot_proto.cpp`.
+
+**Radio — GPredict sintoniza la bajada con su Doppler** (WebUI → *Connectivity → CAT over WiFi*, puerto 4532). En GPredict: interfaz *radio*, tipo *RX only* (o *Duplex TRX* si quieres que también le diga la subida), host = IP del tracker, puerto 4532. En modo SAT, `F` (la frecuencia que GPredict ya ha corregido por Doppler) sintoniza el receptor mientras se está escuchando (menú **Listen**), y manda sobre el cálculo propio durante 15 s tras cada orden; `f` devuelve la frecuencia sintonizada (o la nominal de la bajada si no se escucha). `I` / `i` guardan y devuelven la subida de GPredict (informativa: la emisión usa su propia precompensación). `T 1` (PTT) emite el mensaje de la WebUI solo si está marcado *PTT sends a beacon* en el CAT **y** se cumplen todas las seguridades de la emisión. Rango aceptado: 400–510 MHz.
+
+**App por BLE** (`docs/BLE_CONTROL.md`): evento `sat` (satélite elegido, azimut, elevación, distancia, velocidad radial, próximo paso, edad del TLE) cada 2 s en modo SAT; órdenes `satlist` (lista paginada), `satsel` (elegir por posición o NORAD), `sattxlist` (transmisores con su clase de recepción y emisión y la frecuencia con Doppler), `satrx` y `sattx` (fases 2 y 3), y **`satdata`**: la app descarga `sats.txt` de la rama `satdata` por Internet y se lo sube al tracker por BLE, **sin necesitar WiFi en el tracker**.
 
 ## Control de rotor
 

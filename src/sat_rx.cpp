@@ -49,6 +49,9 @@ namespace SATRX_Utils {
         int            dopHz = 0;
         bool           dopOk = false;
         int            fineOffset = 0;
+        int64_t        extHz = 0;                    // frecuencia pedida por un programa externo (CAT)
+        uint32_t       extAtMs = 0;
+        const uint32_t EXT_MAX_AGE_MS = 15000;
         volatile bool  forceRetune = false;
         int            retuneThrHz = 500;
         uint32_t       lastRetuneMs = 0, lastCalcMs = 0;
@@ -256,6 +259,20 @@ namespace SATRX_Utils {
         return K_NO;
     }
 
+    bool setExternalHz(uint32_t hz) {
+        if (hz < 400000000UL || hz > 510000000UL) return false;
+        extHz = (int64_t)hz;
+        extAtMs = millis() ? millis() : 1;
+        return true;
+    }
+    bool externalActive() { return extAtMs != 0 && millis() - extAtMs < EXT_MAX_AGE_MS; }
+    uint32_t currentDownHz() {
+        if (running) return (uint32_t)rxHz();
+        const SatCore::Block* b = SAT_Utils::block();
+        if (b && b->txCount > 0) return (uint32_t)SatCore::txDownCenter(b->tx[curTx < b->txCount ? curTx : 0]);
+        return 0;
+    }
+
     bool active() { return running; }
     Kind kind() { return running ? curKind : K_NONE; }
     uint8_t txIndex() { return curTx; }
@@ -358,11 +375,12 @@ namespace SATRX_Utils {
         lastCalcMs = now;
         double rx = 0, tx = 0;
         SAT_Utils::doppler(curT, rx, tx);
-        const bool ok = rx > 0;
-        const int64_t want = (int64_t)llround(ok ? rx : (double)nominalHz) + fineOffset;
+        const bool ext = externalActive();
+        const bool ok = ext || rx > 0;
+        const int64_t want = (ext ? extHz : (int64_t)llround(ok ? rx : (double)nominalHz)) + fineOffset;
         portENTER_CRITICAL(&mux);
         dopOk = ok;
-        dopHz = ok ? (int)llround(rx - (double)nominalHz) : 0;
+        dopHz = ext ? (int)(extHz - nominalHz) : (ok ? (int)llround(rx - (double)nominalHz) : 0);
         if (forceRetune || llabs((long long)(want - tunedHz)) >= retuneThrHz) { wantHz = want; forceRetune = false; }
         portEXIT_CRITICAL(&mux);
     }
@@ -406,6 +424,9 @@ namespace SATRX_Utils {
     const char* kindText(Kind) { return "-"; }
     void loraDefaults(const SatCore::Transmitter&, uint8_t&, float&, uint8_t&) {}
     bool available() { return false; }
+    bool setExternalHz(uint32_t) { return false; }
+    bool externalActive() { return false; }
+    uint32_t currentDownHz() { return 0; }
     bool start(uint8_t) { return false; }
     void stop() {}
     bool active() { return false; }

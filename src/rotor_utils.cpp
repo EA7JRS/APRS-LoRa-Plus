@@ -194,6 +194,10 @@ namespace ROTOR_Utils {
             vTaskDelete(nullptr);
         }
 
+        float    extAz = 0, extEl = 0;                      // objetivo pedido por un programa externo (GPredict)
+        uint32_t extAtMs = 0;
+        const uint32_t EXT_MAX_AGE_MS = 15000;
+
         void publish(float az, float el, bool tracking) {
             portENTER_CRITICAL(&mux);
             tgtAz = az; tgtEl = el; tgtTracking = tracking; tgtValid = true;
@@ -222,8 +226,21 @@ namespace ROTOR_Utils {
     }
 
     int source() {
+        if (externalFresh()) return 3;
         if (Config.rotor.source == 0 && Config.operatingMode != MODE_SAT) return -1;
         return Config.rotor.source;
+    }
+    void setExternal(float azDeg, float elDeg) {
+        portENTER_CRITICAL(&mux);
+        extAz = azDeg; extEl = elDeg; extAtMs = millis() ? millis() : 1;
+        portEXIT_CRITICAL(&mux);
+        lastCalcMs = 0;                                    // se calcula en la proxima vuelta
+    }
+    bool externalFresh() { return extAtMs != 0 && millis() - extAtMs < EXT_MAX_AGE_MS; }
+    bool externalPos(float& azDeg, float& elDeg) {
+        if (extAtMs == 0) return false;
+        portENTER_CRITICAL(&mux); azDeg = extAz; elDeg = extEl; portEXIT_CRITICAL(&mux);
+        return true;
     }
     const char* targetName() { return tgtName; }
     void setAttitude(float pitchDeg, float rollDeg) {
@@ -256,7 +273,12 @@ namespace ROTOR_Utils {
         SatCore::Look lk;
         const int src = source();
         if (src < 0) return;                                                       // fuente "satelite" fuera del modo SAT: nada que hacer
-        if (src != 0) {                                                            // objetivo terrestre: estacion APRS de la brujula o objetivo fijo
+        if (src == 3) {                                                            // programa externo (GPredict): acimut / elevacion absolutos
+            portENTER_CRITICAL(&mux); az = extAz; el = extEl; portEXIT_CRITICAL(&mux);
+            tgtDist = 0;
+            snprintf(tgtName, sizeof(tgtName), "GPredict");
+            tracking = el >= 0.0f; el = el > 0.0f ? el : 0.0f; have = true; parked = false;
+        } else if (src != 0) {                                                     // objetivo terrestre: estacion APRS de la brujula o objetivo fijo
             SatCore::Observer o;
             double tLat = 0, tLon = 0, tAlt = 0;
             bool ok = false;
@@ -324,6 +346,9 @@ namespace ROTOR_Utils {
     bool actual(float&, float&) { return false; }
     bool enabled() { return false; }
     uint32_t targetSeq() { return 0; }
+    void setExternal(float, float) {}
+    bool externalFresh() { return false; }
+    bool externalPos(float&, float&) { return false; }
     int  source() { return -1; }
     const char* targetName() { return ""; }
     bool mobileInfo(float&, float&) { return false; }

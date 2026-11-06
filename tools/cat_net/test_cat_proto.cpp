@@ -36,6 +36,9 @@ struct MockRig : Rig {
     bool triggerBeacon() override { beacons++; return true; }
     size_t ranges(Range* o, size_t) override { o[0] = {430000000, 440000000}; return 1; }
     const char* info() override { return "APRS LoRa+ test"; }
+    uint32_t split = 0;
+    bool setSplitHz(uint32_t hz) override { if (hz < 430000000UL || hz > 440000000UL) return false; split = hz; return true; }
+    uint32_t splitHz() override { return split; }
 };
 
 static int failures = 0, checks = 0;
@@ -51,6 +54,12 @@ static std::string ask(Session& s, MockRig& r, const std::string& cmd, bool* clo
 static void tests() {
     MockRig r; Session s;
     check(ask(s, r, "\\chk_vfo\n") == "0\n", "chk_vfo");
+    check(ask(s, r, "i\n") == "0\n" && ask(s, r, "s\n") == "0\nNone\n", "split off by default");
+    check(ask(s, r, "I 437425000\n") == "RPRT 0\n" && r.split == 437425000, "set_split_freq (GPredict uplink)");
+    check(ask(s, r, "i\n") == "437425000\n" && ask(s, r, "s\n") == "1\nVFOB\n", "get_split_freq / vfo with split");
+    check(ask(s, r, "I 145000000\n") == "RPRT -9\n", "set_split_freq refused");
+    check(ask(s, r, "S 1 VFOB\n") == "RPRT 0\n", "set_split_vfo accepted");
+    r.split = 0;
     check(ask(s, r, "f\n") == "434775000\n", "get_freq");
     check(ask(s, r, "F 434900000\n") == "RPRT 0\n" && r.f == 434900000, "set_freq");
     check(ask(s, r, "F 434775000.000000\n") == "RPRT 0\n", "set_freq with decimals");

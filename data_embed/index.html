@@ -926,6 +926,14 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <input type="checkbox" name="rotor.bleEvents" id="rotor.bleEvents" class="form-check-input" checked />
                                     <label for="rotor.bleEvents" class="form-label">Send the <code>rot</code> event (azimuth / elevation) to the Android app by BLE</label>
                                 </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="rotor.serverEnabled" id="rotor.serverEnabled" class="form-check-input" />
+                                    <label for="rotor.serverEnabled" class="form-label">Accept GPredict / <code>rotctl</code> on WiFi (the tracker acts as a <code>rotctld</code> server and forwards azimuth / elevation to its rotor; offsets, vehicle mount and tilt compensation still apply)</label>
+                                </div>
+                                <div class="form-floating col-12 col-md-3 px-0 mb-2">
+                                    <input type="number" class="form-control form-control-sm" name="rotor.serverPort" id="rotor.serverPort" min="1" max="65535" value="4533" />
+                                    <label for="rotor.serverPort">Server port</label>
+                                </div>
                             </div>
                         </div>
 

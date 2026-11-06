@@ -585,6 +585,8 @@ function loadSettings(settings) {
         document.getElementById("rotor.parkAz").value = rot.parkAz ?? 0;
         document.getElementById("rotor.parkEl").value = rot.parkEl ?? 0;
         document.getElementById("rotor.bleEvents").checked = rot.bleEvents ?? true;
+        document.getElementById("rotor.serverEnabled").checked = rot.serverEnabled ?? false;
+        document.getElementById("rotor.serverPort").value = rot.serverPort ?? 4533;
         const sat = settings.sat || {};
         document.getElementById("sat.posSource").value = String(sat.posSource ?? 0);
         document.getElementById("sat.minEl").value = sat.minEl ?? 10;

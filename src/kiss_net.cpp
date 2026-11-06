@@ -18,6 +18,7 @@
 
 #include "kiss_net.h"
 #include "cat_net.h"
+#include "rotor_net.h"
 
 #if KISS_NET_SUPPORTED
 
@@ -57,11 +58,13 @@ namespace {
     uint32_t        lastRetryMs     = 0;
 
     bool wanted() {                                         // el enlace WiFi se mantiene si KISS o CAT estan activados
-        return Config.kissNet.enabled || Config.cat.enabled;
+        return Config.kissNet.enabled || Config.cat.enabled || Config.rotor.serverEnabled;
     }
 
     bool modeOk() {
-        return (Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK) && !Config.wifiAP.active;      // FSK: la misma cabecera y el mismo envio que LoRa (lora_utils)
+        const bool aprs = Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK;
+        const bool sat  = Config.operatingMode == MODE_SAT && (Config.cat.enabled || Config.rotor.serverEnabled);       // modo SAT: solo CAT (GPredict) y servidor de rotor, sin KISS
+        return (aprs || sat) && !Config.wifiAP.active;      // FSK: la misma cabecera y el mismo envio que LoRa (lora_utils)
     }
 
     // KISS data frame received from a client -> radio
@@ -82,7 +85,8 @@ namespace {
         const String ip = WiFi.localIP().toString();
         MDNS.end();
         const bool mdns = MDNS.begin(KISS_HOST);
-        if (Config.kissNet.enabled) {
+        const bool kissOn = Config.kissNet.enabled && Config.operatingMode != MODE_SAT;
+        if (kissOn) {
             server = new WiFiServer((uint16_t)Config.kissNet.tcpPort);
             server->begin();
             server->setNoDelay(true);
@@ -91,9 +95,11 @@ namespace {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "KISS WiFi", "TCP %s:%d%s", ip.c_str(), Config.kissNet.tcpPort, udpOn ? " + UDP" : "");
         }
         if (Config.cat.enabled) CAT_NET::begin();           // CAT (Hamlib) comparte el enlace WiFi y el nombre mDNS
-        const String second = (Config.kissNet.enabled ? "KISS " + String(Config.kissNet.tcpPort) + (udpOn ? "  UDP " + String(Config.kissNet.udpPort) : String("")) : String(""))
-                            + (Config.kissNet.enabled && Config.cat.enabled ? "  " : "") + (Config.cat.enabled ? "CAT " + String(Config.cat.port) : String(""));
-        displayShow(Config.kissNet.enabled ? "KISS WiFi" : "CAT WiFi", "", "IP " + ip, second, "", KISS_HOST, 2500);
+        if (Config.rotor.serverEnabled) ROTOR_NET::begin(); // servidor de rotor (GPredict)
+        String second = kissOn ? "KISS " + String(Config.kissNet.tcpPort) + (udpOn ? "  UDP " + String(Config.kissNet.udpPort) : String("")) : String("");
+        if (Config.cat.enabled)           second += (second.isEmpty() ? "" : "  ") + String("CAT ") + String(Config.cat.port);
+        if (Config.rotor.serverEnabled)   second += (second.isEmpty() ? "" : "  ") + String("ROT ") + String(Config.rotor.serverPort);
+        displayShow(kissOn ? "KISS WiFi" : (Config.cat.enabled ? "CAT WiFi" : "ROTOR WiFi"), "", "IP " + ip, second, "", KISS_HOST, 2500);
     }
 
     void stopSockets() {
@@ -101,6 +107,7 @@ namespace {
         if (server) { server->close(); delete server; server = nullptr; }
         if (udpOn) { udp.stop(); udpOn = false; }
         CAT_NET::end();
+        ROTOR_NET::end();
         MDNS.end();
     }
 
@@ -221,6 +228,7 @@ namespace KISS_NET {
             startSockets();
         }
         CAT_NET::poll();
+        ROTOR_NET::poll();
         if (server == nullptr) return;
         acceptClients();
         uint8_t budget = MAX_FRAMES_PER_POLL;

@@ -290,6 +290,8 @@ public:
     bool    park;                               // ir a la posicion de reposo al terminar el paso
     int     parkAz, parkEl;
     bool    bleEvents;                          // enviar el evento "rot" a la app por BLE
+    bool    serverEnabled;                      // servidor rotctld (Hamlib) por WiFi para GPredict: el tracker reenvia el acimut / elevacion a su rotor
+    int     serverPort;                         // puerto TCP del servidor (4533 por defecto)
     int     tilt;                               // compensacion de cabeceo y alabeo: 0 = no, 1 = con el inclinometro externo (orden BLE "att")
     int     mount;                              // montaje: 0 = fijo (el azimut del rotor va referido al norte), 1 = movil (en un vehiculo: el azimut va relativo al rumbo del vehiculo)
     int     source;                             // que sigue el rotor: 0 = el satelite (modo SAT), 1 = el objetivo APRS de la brujula (GO TO), 2 = un objetivo fijo guardado

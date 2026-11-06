@@ -60,6 +60,8 @@ namespace CatProto {
         virtual bool        triggerBeacon() = 0;
         virtual size_t      ranges(Range* out, size_t max) = 0;     // frecuencias que acepta setFreqHz (para dump_state)
         virtual const char* info() = 0;
+        virtual bool        setSplitHz(uint32_t hz) { (void)hz; return false; }     // frecuencia de emision en split (modo SAT: subida del satelite, informativa)
+        virtual uint32_t    splitHz() { return 0; }
     };
 
     class Session {
@@ -183,6 +185,9 @@ namespace CatProto {
                     case 'v': cmd = "get_vfo"; break;
                     case 'V': cmd = "set_vfo"; break;
                     case 's': cmd = "get_split_vfo"; break;
+                    case 'S': cmd = "set_split_vfo"; break;
+                    case 'I': cmd = "set_split_freq"; break;
+                    case 'i': cmd = "get_split_freq"; break;
                     case '_': cmd = "get_info"; break;
                     case 'q': case 'Q': cmd = "quit"; break;
                     default: rprt(out, E_NIMPL); return false;
@@ -238,8 +243,17 @@ namespace CatProto {
             }
             if (cmd == "get_vfo") { out += "VFOA\n"; return false; }
             if (cmd == "set_vfo") { rprt(out, E_OK); return false; }
-            if (cmd == "get_split_vfo") { out += "0\nNone\n"; return false; }
-            if (cmd == "get_split_freq" || cmd == "get_rit" || cmd == "get_xit") { out += "0\n"; return false; }
+            if (cmd == "get_split_vfo") { out += rig.splitHz() ? "1\nVFOB\n" : "0\nNone\n"; return false; }
+            if (cmd == "set_split_vfo") { rprt(out, E_OK); return false; }
+            if (cmd == "get_split_freq") { snprintf(b, sizeof(b), "%u\n", (unsigned)rig.splitHz()); out += b; return false; }
+            if (cmd == "set_split_freq") {
+                if (k < 1) { rprt(out, E_INVAL); return false; }
+                const double f = atof(t[0].c_str());
+                if (!(f > 0 && f < 4e9)) { rprt(out, E_INVAL); return false; }
+                rprt(out, rig.setSplitHz((uint32_t)llround(f)) ? E_OK : E_REJECTED);
+                return false;
+            }
+            if (cmd == "get_rit" || cmd == "get_xit") { out += "0\n"; return false; }
             if (cmd == "get_lock_mode") { out += "0\nRPRT 0\n"; return false; }       // Hamlib lo pregunta antes de cambiar el modo y espera estas dos lineas
             if (cmd == "set_lock_mode") { rprt(out, E_OK); return false; }
             if (cmd == "get_powerstat") { out += "1\n"; return false; }

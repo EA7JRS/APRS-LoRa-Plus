@@ -419,6 +419,92 @@ namespace {
         #endif
     }
 
+    // ---- Modo SAT para la app: estado, lista, transmisores y subida del archivo de datos ----
+    void sendSat() {
+        #ifdef HAS_SAT
+            const SatCore::Block* b = SAT_Utils::block();
+            JsonDocument doc;
+            doc["e"]   = "sat";
+            doc["ok"]  = SAT_Utils::hasData() && b != nullptr;
+            if (b) {
+                doc["n"]   = b->name;
+                doc["id"]  = b->noradId;
+                doc["i"]   = SAT_Utils::selected();
+                doc["geo"] = SAT_Utils::geo();
+                doc["tx"]  = b->txCount;
+                doc["tle"] = serialized(String(SAT_Utils::tleAgeDays(), 1));
+            }
+            doc["pos"] = SAT_Utils::haveQth() ? SAT_Utils::qthSource() : "";
+            SatCore::Look lk;
+            if (b && SAT_Utils::live(lk)) {
+                doc["az"]  = serialized(String(lk.azDeg, 1));
+                doc["el"]  = serialized(String(lk.elDeg, 1));
+                doc["rng"] = (int)lround(lk.rangeKm);
+                doc["rr"]  = serialized(String(lk.rangeRateKmS, 3));
+                SatCore::Pass ps; bool searching = false;
+                if (!SAT_Utils::geo() && SAT_Utils::nextPass(ps, searching)) {
+                    doc["aos"] = (long)ps.aosUnix; doc["los"] = (long)ps.losUnix; doc["max"] = (int)lround(ps.maxElDeg);
+                }
+            }
+            sendDoc(doc);
+        #endif
+    }
+
+    void checkSat() {
+        #ifdef HAS_SAT
+            if (!connected || !authed || Config.operatingMode != MODE_SAT) return;
+            static uint32_t lastMs = 0;
+            const uint32_t now = millis();
+            if (now - lastMs < 2000) return;
+            lastMs = now;
+            sendSat();
+        #endif
+    }
+
+    void sendSatList(int from, int cnt) {
+        #ifdef HAS_SAT
+            JsonDocument doc;
+            doc["e"]   = "satlist";
+            doc["tot"] = SAT_Utils::count();
+            doc["sel"] = SAT_Utils::selected();
+            doc["from"] = from;
+            JsonArray items = doc["items"].to<JsonArray>();
+            for (int i = from; i < SAT_Utils::count() && (int)items.size() < cnt; i++) {
+                const SAT_Utils::Entry* e = SAT_Utils::at(i);
+                if (!e) break;
+                JsonObject o = items.add<JsonObject>();
+                o["i"] = i; o["id"] = e->noradId; o["n"] = e->name; o["c"] = String(e->cat); o["t"] = e->txCount;
+            }
+            sendDoc(doc);
+        #else
+            (void)from; (void)cnt;
+        #endif
+    }
+
+    void sendSatTx() {
+        #ifdef HAS_SAT
+            const SatCore::Block* b = SAT_Utils::block();
+            JsonDocument doc;
+            doc["e"] = "sattxlist";
+            JsonArray items = doc["items"].to<JsonArray>();
+            if (b) {
+                for (int i = 0; i < b->txCount; i++) {
+                    const SatCore::Transmitter& t = b->tx[i];
+                    JsonObject o = items.add<JsonObject>();
+                    o["i"] = i; o["m"] = t.mode; o["b"] = t.baud; o["d"] = t.desc;
+                    o["up"] = (long long)SatCore::txUpCenter(t); o["dn"] = (long long)SatCore::txDownCenter(t);
+                    o["rx"] = SATRX_Utils::kindText(SATRX_Utils::classify(t));
+                    o["tx"] = SATRX_Utils::kindText(SATTX_Utils::classifyUp(t));
+                    double rx = 0, tx = 0;
+                    SAT_Utils::doppler(t, rx, tx);
+                    if (rx > 0) o["rxd"] = (long long)llround(rx);
+                    if (tx > 0) o["txd"] = (long long)llround(tx);
+                }
+            }
+            sendDoc(doc);
+        #endif
+    }
+
     void sendTargets() {
         JsonDocument doc;
         doc["e"]   = "targets";
@@ -597,6 +683,47 @@ namespace {
                 ev["f"]  = (long)llround(SATTX_Utils::lastHz());
                 ev["n"]  = SATTX_Utils::count();
                 sendDoc(ev);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "sat") == 0) { sendSat(); }
+        else if (strcmp(cmd, "satlist") == 0) { sendSatList(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 20), 1, 40)); }
+        else if (strcmp(cmd, "sattxlist") == 0) { sendSatTx(); }
+        else if (strcmp(cmd, "satsel") == 0) {                    // elige el satelite: i = indice de la lista, o id = numero NORAD
+            #ifdef HAS_SAT
+                int target = -1;
+                if (!doc["i"].isNull()) target = doc["i"] | -1;
+                else if (!doc["id"].isNull()) {
+                    const int want = doc["id"] | 0;
+                    for (int k = 0; k < SAT_Utils::count(); k++) { const SAT_Utils::Entry* e = SAT_Utils::at(k); if (e && e->noradId == want) { target = k; break; } }
+                }
+                if (target < 0 || !SAT_Utils::select(target)) { reply(cmd, id, "no such satellite"); return; }
+                SATRX_Utils::stop();
+                reply(cmd, id);
+                sendSat();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "satdata") == 0) {                   // sube sats.txt desde el movil: s = begin (n = bytes) | c (d = texto) | end | abort
+            #ifdef HAS_SAT
+                const char* st = doc["s"] | "";
+                if (strcmp(st, "begin") == 0) {
+                    if (!SAT_Utils::dataBegin((size_t)(doc["n"] | 0))) { reply(cmd, id, "cannot start (busy or too big)"); return; }
+                } else if (strcmp(st, "c") == 0) {
+                    const char* d = doc["d"] | "";
+                    if (!SAT_Utils::dataChunk(d, strlen(d))) { reply(cmd, id, "chunk refused"); return; }
+                } else if (strcmp(st, "end") == 0) {
+                    if (!SAT_Utils::dataEnd()) { reply(cmd, id, SAT_Utils::updateMessage()); return; }
+                    SATRX_Utils::stop();
+                    reply(cmd, id);
+                    sendSat();
+                    return;
+                } else if (strcmp(st, "abort") == 0) {
+                    SAT_Utils::dataAbort();
+                } else { reply(cmd, id, "bad step"); return; }
+                reply(cmd, id);
             #else
                 reply(cmd, id, "not available");
             #endif
@@ -833,6 +960,7 @@ namespace BLE_Control {
         checkDapnet();
         checkRotor();
         checkSatRx();
+        checkSat();
         if (!connected) return;
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }
