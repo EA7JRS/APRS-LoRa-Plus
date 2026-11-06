@@ -57,6 +57,7 @@
 #include "kiss_net.h"
 #include "cat_net.h"
 #include "iaru_auto.h"
+#include "ble_control.h"
 
 #ifndef PAGES_GYRO_SIGN
     #define PAGES_GYRO_SIGN     -1      // sentido inicial del giroscopio (se corrige solo al girar con la brujula valida)
@@ -2712,6 +2713,14 @@ namespace PAGES_Utils {
         sendCwText(cwExpand(Config.cw.messages[index]));
     }
 
+    // Texto libre enviado desde la app por BLE (EA7JRS)
+    bool cwSendText(const char* text) {
+        String message = text;
+        message.trim();
+        message.toUpperCase();
+        return sendCwText(message);
+    }
+
     // Emite la baliza CW una vez (perfil CW Beacon) y reprograma la siguiente
     void cwBeaconRun(uint32_t minutes) {
         const bool done = sendCwText(cwExpand(Config.cw.beaconText), true);
@@ -3393,6 +3402,70 @@ namespace PAGES_Utils {
         cwDrawPage();
     }
 
+    // Manipulador conectado al movil (app APRS LoRa+, EA7JRS): el movil manda pulsar / soltar con su marca de tiempo y aqui se
+    // reproducen con un retardo fijo (BLE_Control::keyDelayMs) para absorber las variaciones del enlace. Misma salida que
+    // cwKeySession (perfil de Telegrafia, tono local, decodificador en pantalla). Seguridades: portadora como maximo 10 s
+    // seguidos, se suelta si cae el enlace o si el movil deja de mandar, y el boton corta la sesion.
+    void cwRemoteSession() {
+        const bool rf       = Config.cw.keyTx && LoRa_Utils::cwAvailable();
+        const bool tone     = Config.cw.sidetone && Config.notification.buzzerActive;
+        const uint8_t wpm   = (uint8_t)constrain(Config.cw.wpm, (int)CWMorse::WPM_MIN, (int)CWMorse::WPM_MAX);
+        const uint32_t MAX_KEY_DOWN_MS = 10000, IDLE_END_MS = 2500;
+        if (rf) LoRa_Utils::cwSelect(false);
+        CWMorse::Decoder decoder;
+        decoder.begin(wpm, true);                   // se adapta a la velocidad real del operador
+        bool keyed = false, armed = !cwButtonDown(), have = false, synced = false;
+        BLE_Control::KeyEvent event = { 0, 0, false };
+        int32_t offset = 0;                         // instante del tracker = t del movil + offset
+        uint32_t lastActivity = millis(), keyedSince = 0;
+        cwPending[0] = '\0';
+        displayToggle(true);
+        displayTime = millis();
+        auto setKey = [&](bool on, uint32_t now) {
+            if (on == keyed) return;
+            keyed = on;
+            if (rf) LoRa_Utils::cwKey(keyed);
+            if (tone) NOTIFICATION_Utils::sidetone(keyed);
+            if (keyed) { decoder.keyDown(now); keyedSince = now; } else decoder.keyUp(now);
+            snprintf(cwPending, sizeof(cwPending), "%s", decoder.pending());
+        };
+        for (;;) {
+            uint32_t now = millis();
+            if (!have) have = BLE_Control::takeKeyEvent(event);
+            if (have) {
+                // primer evento, o vuelta tras una pausa larga: se fija el desfase con el reloj del movil
+                if (!synced || (!keyed && (int32_t)(event.arrivalMs - lastActivity) > (int32_t)IDLE_END_MS)) {
+                    offset = (int32_t)(event.arrivalMs + BLE_Control::keyDelayMs() - event.t);
+                    synced = true;
+                }
+                const uint32_t due = event.t + (uint32_t)offset;
+                if ((int32_t)(now - due) >= 0) {        // llego tarde (mas que el retardo): se ejecuta ya
+                    setKey(event.down, now);
+                    have = false;
+                    lastActivity = now;
+                }
+            }
+            if (keyed && (now - keyedSince > MAX_KEY_DOWN_MS || !BLE_Control::linkUp())) setKey(false, now);
+            char c = decoder.tick(now);
+            if (c) {
+                cwAppend(c);
+                snprintf(cwPending, sizeof(cwPending), "%s", decoder.pending());
+                if (!keyed && !have) cwDrawPage();
+            }
+            if (keyed) lastActivity = now;
+            if (cwButtonDown()) { if (armed) break; } else armed = true;
+            if (!have && !keyed && now - lastActivity > IDLE_END_MS && decoder.pending()[0] == '\0' && !BLE_Control::keyEventWaiting()) break;
+            if (!BLE_Control::linkUp() && !have && !keyed) break;
+            delay(1);
+        }
+        if (keyed) setKey(false, millis());
+        if (tone) NOTIFICATION_Utils::sidetone(false);
+        if (rf) LoRa_Utils::cwEnd();
+        cwPending[0] = '\0';
+        displayTime = millis();
+        cwDrawPage();
+    }
+
     // Escucha CW por RF: modem FSK de 4,8 kHz y detector de envolvente por RSSI instantaneo (1 kHz). Bloquea el bucle hasta pulsar el boton
     void cwListenSession() {
         if (!LoRa_Utils::cwAvailable()) { showToast("CW: SX126x only"); return; }
@@ -3655,6 +3728,10 @@ namespace PAGES_Utils {
 
     // Seleccion del modo tras el mensaje de bienvenida: pulsacion corta = siguiente, larga = aceptar, 8 s sin pulsar = el ultimo modo usado
     uint8_t selectMode() {
+        const int remoteMode = BLE_Control::takeBootMode();                                // modo pedido desde la app por BLE: sin menu (EA7JRS)
+        if (remoteMode >= 0) {
+            Config.operatingMode = remoteMode;
+        } else {
         #ifdef BUTTON_PIN
             struct Option { uint8_t mode; const char* label; };
             Option options[10];
@@ -3726,6 +3803,7 @@ namespace PAGES_Utils {
                 Config.writeFile();                                                        // el ultimo modo APRS elegido pasa a ser el predeterminado
             }
         #endif
+        }
         if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK) Config.operatingMode = MODE_APRS_LORA;
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }

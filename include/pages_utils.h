@@ -77,6 +77,9 @@ namespace PAGES_Utils {
     bool    emergencyActive();          // emergencia en curso: no se duerme el GPS
     bool    alarmLed(bool& on);         // true: una alarma de emergencia controla el LED (on = fase del parpadeo)
     void    onDigipeat();               // paquete repetido por el digipeater
+    void    sendCw(uint8_t index);      // modo MORSE: emite el mensaje CW guardado numero index (0-4)
+    bool    cwSendText(const char* text);   // modo MORSE: emite un texto libre (app por BLE)
+    void    cwRemoteSession();          // modo MORSE: manipulador conectado al movil (eventos BLE_Control::KeyEvent)
 
 }
 

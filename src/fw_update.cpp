@@ -404,6 +404,75 @@ namespace FW_Update {
         if (ok) reboot(2500);
     }
 
+    // ---- image sent by the APRS LoRa+ app over BLE (EA7JRS) -----------------------------------------------------------
+
+    static mbedtls_sha256_context bleSha;
+    static bool                   bleActive   = false;
+    static size_t                 bleSize     = 0;
+    static char                   bleShaHex[65] = "";
+
+    bool bleBegin(size_t size, const char* sha256Hex, String& error) {
+        if (bleActive) bleAbort();
+        if (stBusy)                          { error = "An on-line update is in progress"; return false; }
+        if (size < 100000)                   { error = "The image is too small to be a firmware"; return false; }
+        if (sha256Hex == nullptr || strlen(sha256Hex) != 64) { error = "Missing SHA-256"; return false; }
+        memset(&up, 0, sizeof(up));
+        snprintf(up.prefix, sizeof(up.prefix), "%s", BOARD_MARKER_PREFIX);
+        up.prefixLen = strlen(up.prefix);
+        up.part = targetPartition();
+        if (!up.part)                        { error = "This board has no second firmware slot: use the USB installer"; return false; }
+        if (size > up.part->size)            { error = "The image does not fit in the firmware slot"; return false; }
+        if (esp_ota_begin(up.part, OTA_WITH_SEQUENTIAL_WRITES, &up.handle) != ESP_OK) { error = "Could not prepare the flash"; return false; }
+        up.started = true;
+        stBusy     = true;                   // no WebUI upload or on-line job meanwhile
+        mbedtls_sha256_init(&bleSha);
+        mbedtls_sha256_starts(&bleSha, 0);
+        snprintf(bleShaHex, sizeof(bleShaHex), "%s", sha256Hex);
+        bleSize   = size;
+        bleActive = true;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Update", "Image from the app: %u bytes", (unsigned)size);
+        return true;
+    }
+
+    bool bleWrite(const uint8_t* data, size_t length, String& error) {
+        if (!bleActive)                      { error = "No update in progress"; return false; }
+        if (up.written + length > bleSize)   { bleAbort(); error = "More data than announced"; return false; }
+        scanForBoardId(data, length);
+        mbedtls_sha256_update(&bleSha, data, length);
+        if (esp_ota_write(up.handle, data, length) != ESP_OK) { bleAbort(); error = "The data is not a valid firmware for this chip"; return false; }
+        up.written += length;
+        return true;
+    }
+
+    size_t bleWritten() { return bleActive ? up.written : 0; }
+
+    bool bleFinish(String& error) {
+        if (!bleActive)                      { error = "No update in progress"; return false; }
+        if (up.written != bleSize)           { bleAbort(); error = "Incomplete image"; return false; }
+        uint8_t digest[32];
+        mbedtls_sha256_finish(&bleSha, digest);
+        mbedtls_sha256_free(&bleSha);
+        bleActive = false;
+        stBusy    = false;
+        char hex[65];
+        for (int i = 0; i < 32; i++) snprintf(hex + 2 * i, 3, "%02x", digest[i]);
+        if (strcasecmp(hex, bleShaHex) != 0) { esp_ota_abort(up.handle); error = "Checksum does not match: the firmware was not installed"; return false; }
+        if (esp_ota_end(up.handle) != ESP_OK) { error = "The firmware image is not valid"; return false; }
+        if (!up.idDone)                      { error = "The image does not say which board it is for"; return false; }
+        if (strcmp(up.id, APRS_BOARD_ID) != 0) { error = String("This firmware is for another board: ") + up.id; return false; }
+        if (esp_ota_set_boot_partition(up.part) != ESP_OK) { error = "Could not activate the new firmware"; return false; }
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Update", "%s", "Image from the app installed");
+        return true;
+    }
+
+    void bleAbort() {
+        if (!bleActive) return;
+        esp_ota_abort(up.handle);
+        mbedtls_sha256_free(&bleSha);
+        bleActive = false;
+        stBusy    = false;
+    }
+
     // ---- routes ------------------------------------------------------------------------------------------------------
 
     static void sendJson(AsyncWebServerRequest* request, const String& body, int code = 200) {
@@ -439,6 +508,16 @@ namespace FW_Update {
         server.on("/api/update/install", HTTP_POST, [](AsyncWebServerRequest* request) {
             sendJson(request, startJob(JOB_INSTALL) ? "{\"started\":true}" : "{\"started\":false}");
         });
+    }
+
+    bool onlineStart(bool install) {
+        if (!stMutex) stMutex = xSemaphoreCreateMutex();
+        return startJob(install ? JOB_INSTALL : JOB_CHECK);
+    }
+
+    String onlineStatus() {
+        if (!stMutex) stMutex = xSemaphoreCreateMutex();
+        return statusJson();
     }
 
     // ---- automatic update at boot --------------------------------------------------------------------------------------
@@ -488,6 +567,13 @@ namespace FW_Update {
         });
     }
     void autoUpdateAtBoot() {}
+    bool   onlineStart(bool) { return false; }
+    String onlineStatus() { return "{\"state\":\"unsupported\",\"message\":\"This board updates only with the USB installer\"}"; }
+    bool   bleBegin(size_t, const char*, String& error) { error = "This board updates only with the USB installer"; return false; }
+    bool   bleWrite(const uint8_t*, size_t, String& error) { error = "No update in progress"; return false; }
+    size_t bleWritten() { return 0; }
+    bool   bleFinish(String& error) { error = "No update in progress"; return false; }
+    void   bleAbort() {}
 
 #endif
 

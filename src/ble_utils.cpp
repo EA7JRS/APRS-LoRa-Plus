@@ -21,11 +21,13 @@
 #include "lora_utils.h"
 #include "kiss_utils.h"
 #include "ble_utils.h"
+#include "ble_control.h"
 #include "display.h"
 #include "logger.h"
 
 #define BLE_CHUNK_SIZE  240
 #define MAX_KISS_BUFFER 1024
+#define BLE_TX_QUEUE    4               // tramas del movil pendientes de emitir (EA7JRS: antes una sola; la segunda pisaba a la primera)
 
 
 // APPLE - APRS.fi app
@@ -47,14 +49,24 @@ extern logging::Logger  logger;
 extern bool             bluetoothConnected;
 extern bool             bluetoothActive;
 
-bool    shouldSendBLEtoLoRa     = false;
-String  BLEToLoRaPacket         = "";
+QueueHandle_t   bleToLoRaQueue  = nullptr;     // String* creados en la tarea de NimBLE y liberados en el bucle principal
 String  kissSerialBuffer        = "";
+
+// Deja una trama del movil para emitir; si la cola esta llena se descarta (la app espera entre tramas)
+static void queueForLoRa(const String& packet) {
+    if (bleToLoRaQueue == nullptr || packet.isEmpty()) return;
+    String* item = new String(packet);
+    if (xQueueSend(bleToLoRaQueue, &item, 0) != pdTRUE) {
+        delete item;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "BLE", "%s", "Tx queue full: frame from the phone dropped");
+    }
+}
 
 
 class MyServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {      // NimBLE-Arduino 2.x signature
         bluetoothConnected = true;
+        BLE_Control::onConnect();
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE", "%s", "BLE Client Connected");
         #ifdef RPC_MicroTracker
             digitalWrite(13, LOW);    // Led BT/BLE
@@ -63,11 +75,16 @@ class MyServerCallbacks : public NimBLEServerCallbacks {
 
     void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
         bluetoothConnected = false;
+        BLE_Control::onDisconnect();
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE", "%s", "BLE client Disconnected, Started Advertising");
         #ifdef RPC_MicroTracker
             digitalWrite(13, HIGH);    // Led BT/BLE
         #endif
         if (!pServer->getAdvertising()->isAdvertising()) pServer->startAdvertising();      // 2.x already re-advertises by default
+    }
+
+    void onMTUChange(uint16_t MTU, NimBLEConnInfo& connInfo) override {
+        BLE_Control::onMtu(MTU);
     }
 };
 
@@ -117,16 +134,16 @@ class MyCallbacks : public NimBLECharacteristicCallbacks {
 
                 if (frame.length() >= 4) {                                                  // FEND | CMD | DATA | FEND
                     bool isDataFrame    = false;
-                    BLEToLoRaPacket     = KISS_Utils::decodeKISS(frame, isDataFrame);
-                    if (isDataFrame) shouldSendBLEtoLoRa = true;
+                    String packet       = KISS_Utils::decodeKISS(frame, isDataFrame);
+                    if (isDataFrame) queueForLoRa(packet);
                 }
             }
         } else {                            // TNC2
             std::string receivedData = pCharacteristic->getValue();
             if (!receivedData.empty()) {
-                BLEToLoRaPacket = String(receivedData.c_str());
-                BLEToLoRaPacket.trim();
-                if (!BLEToLoRaPacket.isEmpty()) shouldSendBLEtoLoRa = true;
+                String packet = String(receivedData.c_str());
+                packet.trim();
+                queueForLoRa(packet);
             }
         }
     }
@@ -143,6 +160,7 @@ namespace BLE_Utils {
         BLEDevice::init(BLEid.c_str());
         pServer = BLEDevice::createServer();
         pServer->setCallbacks(new MyServerCallbacks());
+        if (bleToLoRaQueue == nullptr) bleToLoRaQueue = xQueueCreate(BLE_TX_QUEUE, sizeof(String*));
 
         BLEService *pService = nullptr;
 
@@ -154,12 +172,16 @@ namespace BLE_Utils {
 
         if (pService != nullptr) {
             pCharacteristicRx->setCallbacks(new MyCallbacks());
+            BLE_Control::setup(pServer);                                                    // servicio de control de la app APRS LoRa+ (EA7JRS)
             // NimBLE-Arduino 2.x: NimBLEService::start() is deprecated (no effect); services start with advertising
 
             BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
             pAdvertising->addServiceUUID(useKISS ? SERVICE_UUID_0 : SERVICE_UUID_1);
 
             pServer->getAdvertising()->enableScanResponse(true);
+            // NimBLE-Arduino 2.x no longer advertises the device name by itself: without this the phone sees only the
+            // MAC address. After enableScanResponse() the name goes in the scan response (EA7JRS)
+            pServer->getAdvertising()->setName(std::string(BLEid.c_str()));
             pServer->getAdvertising()->setPreferredParams(0x06, 0x0C);
             pAdvertising->start();
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_DEBUG, "BLE", "%s", "Waiting for BLE central to connect...");
@@ -169,13 +191,14 @@ namespace BLE_Utils {
     }
 
     void sendToLoRa() {
-        if (!shouldSendBLEtoLoRa) return;
+        String* item = nullptr;
+        if (bleToLoRaQueue == nullptr || xQueueReceive(bleToLoRaQueue, &item, 0) != pdTRUE || item == nullptr) return;
+        const String packet = *item;
+        delete item;
 
-        logger.log(logging::LoggerLevel::LOGGER_LEVEL_DEBUG, "BLE Tx", "%s", BLEToLoRaPacket.c_str());
-        displayShow("BLE Tx >>", "", BLEToLoRaPacket, 1000);
-        LoRa_Utils::sendNewPacket(BLEToLoRaPacket);
-        BLEToLoRaPacket = "";
-        shouldSendBLEtoLoRa = false;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_DEBUG, "BLE Tx", "%s", packet.c_str());
+        displayShow("BLE Tx >>", "", packet, 1000);
+        LoRa_Utils::sendNewPacket(packet);
     }
 
     void txToPhoneOverBLE(const String& frame) {
