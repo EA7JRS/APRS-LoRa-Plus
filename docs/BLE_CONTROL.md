@@ -59,6 +59,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 | `ota_abort` | | cancela la actualización en curso |
 | `tgt` | alta: `n` (nombre, 20), `lat`, `lon`, `alt` (m), `f` (Hz), `i` (hueco 0-7; sin él, el primero libre), `sel` (true = elegirlo y seguirlo); `del` (hueco); `sel` (número de hueco, sin `n`); `src` (0-2) | objetivos fijos del rotor (repetidores, balizas...): se guardan en el tracker; responde `ok` y el evento `targets` |
 | `att` | `p` (cabeceo, + morro arriba), `r` (alabeo, + lado derecho abajo), grados | medida del inclinómetro del soporte del rotor (modo SAT / rotor); caduca a los 2 s, repetir. Solo se usa con *Tilt compensation* activada en la WebUI; sin respuesta |
+| `rotext` | `az`, `el` (grados) · `park`:true | objetivo del rotor mandado por un programa externo a través de la app (servidor rotctld del móvil: Look4Sat, GPredict...), igual que el servidor rotctld por WiFi del tracker: manda sobre la fuente elegida mientras se repita (caduca a los 15 s). Solo responde si hay error (`rotor disabled`, `bad position`). `caps.rotor` = rotor activado en la WebUI |
 | `satrx` | `on` (true/false), `tx` (índice del transmisor del satélite elegido, 0 por defecto), `fine` (Hz, se suma al ajuste fino) | receptor de satélites (solo modo SAT): empieza / para la escucha con Doppler; responde `ok` (o un `err` con el motivo) y el evento `satrx` |
 | `sattx` | `tx` (índice del transmisor), `txt` (mensaje, 64; si falta, el de la WebUI) | emite hacia el satélite (modo SAT; solo con *Allow transmitting* y las seguridades de `SAT_MODE.md`); bloquea mientras emite; responde `ok` o un `err` con el motivo, y el evento `sattx` |
 | `sat` | | evento `sat` con el estado del modo SAT (también cada 2 s solo en ese modo) |
@@ -76,7 +77,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 `info`:
 ```json
 {"e":"info","v":1,"fw":"5.3.2","board":"ttgo_t_beam_s3_SUPREME_v3",
- "caps":{"nmea":true,"dapnet":true,"cw":true,"modes":true,"rkey":true,"ota":true,"gpsaid":true},
+ "caps":{"nmea":true,"dapnet":true,"cw":true,"modes":true,"rkey":true,"ota":true,"gpsaid":true,"rotor":true},
  "mode":0,"modes":[{"m":0,"n":"APRS LoRa"},{"m":1,"n":"APRS FSK 9600"},{"m":5,"n":"DAPNET pager"}],
  "profile":0,"profiles":[{"call":"EA7JRS-7","label":"Coche"}],
  "lora":0,"loras":[{"f":433775000,"sf":12,"cr":5,"fsk":false}],
@@ -109,7 +110,7 @@ Solo en modo SAT, con *Send the rot event* activo (WebUI), cada vez que cambia e
 ```json
 {"e":"rot","az":123.4,"el":45.0,"trk":true,"src":0,"name":"ISS (ZARYA)","km":0}
 ```
-`az` / `el` en grados (ya con los desfases de la WebUI), `trk` = sigue un objetivo visible, `src` = fuente (0 satélite, 1 estación APRS de la brújula, 2 objetivo fijo), `name` = nombre del objetivo, `km` = distancia a un objetivo terrestre. La app los retransmite a su rotor (p. ej. un `rotctld`). Con el montaje móvil el `az` ya es relativo al rumbo del vehículo y el evento añade `mob:true`, `abs` (azimut absoluto) y `hdg` (rumbo usado). Fuera del modo SAT el evento solo sale si la fuente es 1 o 2. Evento `targets`: `{"e":"targets","sel":0,"src":2,"items":[{"i":0,"n":"Repetidor X","lat":37.1,"lon":-5.9,"alt":850,"f":145600000}]}`.
+`az` / `el` en grados (ya con los desfases de la WebUI), `trk` = sigue un objetivo visible, `src` = fuente (0 satélite, 1 estación APRS de la brújula, 2 objetivo fijo), `name` = nombre del objetivo, `km` = distancia a un objetivo terrestre. `aaz` / `ael` = posición que devuelve el rotor (si la conoce). La app los retransmite a su rotor (p. ej. un `rotctld`). Con el montaje móvil el `az` ya es relativo al rumbo del vehículo y el evento añade `mob:true`, `abs` (azimut absoluto) y `hdg` (rumbo usado). Fuera del modo SAT el evento solo sale si la fuente es 1 o 2. Evento `targets`: `{"e":"targets","sel":0,"src":2,"items":[{"i":0,"n":"Repetidor X","lat":37.1,"lon":-5.9,"alt":850,"f":145600000}]}`.
 
 Mientras se escucha un satélite (modo SAT), cada línea recibida (texto CW, trama AX.25 en TNC2, paquete LoRa) y cada 5 s:
 ```json

@@ -253,10 +253,12 @@ namespace {
             caps["modes"]  = true;
             caps["rkey"]   = LoRa_Utils::cwAvailable();          // manipulador remoto (orden "k")
             caps["gpsaid"] = GPS_Utils::gpsModule() == 1;        // A-GPS desde la app (orden "gpsaid", receptor u-blox)
+            caps["rotor"]  = ROTOR_Utils::enabled();             // rotor activado en la WebUI (ordenes "rotext", "att", "tgt")
             caps["ota"]    = FW_Update::slotAvailable();         // actualizacion por BLE (orden "ota")
         #else
             caps["rkey"]   = false;
             caps["gpsaid"] = GPS_Utils::gpsModule() == 1;
+            caps["rotor"]  = ROTOR_Utils::enabled();
             caps["ota"]    = FW_Update::slotAvailable();
             caps["dapnet"] = false;
             caps["cw"]     = false;
@@ -661,6 +663,8 @@ namespace {
         if (ROTOR_Utils::mobileInfo(absAz, hdg)) { j.flag("mob", true); j.flt("abs", absAz, 1); j.flt("hdg", hdg, 1); }
         if (ROTOR_Utils::targetName()[0]) j.text("name", ROTOR_Utils::targetName());
         if (ROTOR_Utils::targetDistKm() > 0.0) j.num("km", (int)ROTOR_Utils::targetDistKm());
+        float aa, ae;
+        if (ROTOR_Utils::actual(aa, ae)) { j.flt("aaz", aa, 1); j.flt("ael", ae, 1); }   // posicion que devuelve el rotor
         j.send(sendLine);
     }
 
@@ -963,6 +967,16 @@ namespace {
             if (s >= 0) sensorsEveryMs = s == 0 ? 0 : (uint32_t)max(s, 2) * 1000UL;
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
             reply(cmd, id);
+        }
+        else if (strcmp(cmd, "rotext") == 0) {                    // rotctld del movil (Look4Sat, GPredict...): az, el en grados | park = true; repetir (caduca a los 15 s); solo responde si hay error
+            if (!ROTOR_Utils::enabled()) { reply(cmd, id, "rotor disabled"); return; }
+            if (doc["park"] | false) { ROTOR_Utils::setExternal((float)Config.rotor.parkAz, (float)Config.rotor.parkEl); return; }
+            if (doc["az"].isNull() || doc["el"].isNull()) { reply(cmd, id, "az and el needed"); return; }
+            float az = doc["az"] | 0.0f, el = doc["el"] | 0.0f;
+            if (!isfinite(az) || !isfinite(el) || el < -90.0f || el > 180.0f) { reply(cmd, id, "bad position"); return; }
+            az = fmodf(az, 360.0f); if (az < 0) az += 360.0f;
+            if (el > 90.0f) el = 90.0f;
+            ROTOR_Utils::setExternal(az, el);
         }
         else if (strcmp(cmd, "att") == 0) {                       // inclinometro del soporte del rotor: p = cabeceo (+ morro arriba), r = alabeo (+ lado derecho abajo), grados; repetir cada <2 s
             if (doc["p"].isNull() || doc["r"].isNull()) { reply(cmd, id, "p and r needed"); return; }

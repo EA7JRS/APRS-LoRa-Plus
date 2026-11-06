@@ -24,13 +24,14 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | DAPNET | `dapnet`, evento `page` | sí | sí |
 | Telegrafía: mensajes, texto libre, manipulador remoto | `cw`, `k`, `kcfg` | sí | sí |
 | Modo SAT: estado, lista, selección, receptor, emisión, transmisores, datos | `sat`, `satlist`, `satsel`, `satrx`, `sattx`, `sattxlist`, `satdata`, `pos` | sí | sí |
-| Rotor y objetivos (sin `att`, ver abajo) | evento `rot`, `att`, `tgtlist`, `tgt` | sí | sí |
+| Rotor y objetivos (inclinómetro con los sensores del móvil; repetidores de RepeaterBook como objetivos) | evento `rot`, `att`, `tgtlist`, `tgt` | sí | sí |
+| rotctld desde el móvil: la app manda el apunte a un rotctld de la red (cliente) y acepta Look4Sat / GPredict en el puerto 4533 (servidor) | evento `rot` (`aaz`, `ael`), `rotext` | sí | sí |
 | Actualización de firmware (la app descarga y envía por BLE; el tracker no descarga) | `ota`, `ota_abort` | sí | sí |
 | **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | sí |
 | Espejo de pantalla de cualquier página | `screen` | sí | sí |
 | **Toda la configuración** (WebUI) | `cfgget`, `cfgset` | sí | sí |
 | Sesiones interactivas con el pulsador (escucha CW, entrenador, sintonías WSPR / CW-baliza) | pendiente de orden propia | no | no |
 
-Pendiente en la app: la orden `att` (el móvil como inclinómetro del soporte del rotor) no tiene pantalla porque depende de cómo se monte el móvil (ejes y signos) y hay que fijarlo con el montaje real.
+La orden `att` la manda la app con el móvil sujeto al soporte del rotor (boca arriba, parte de arriba del móvil hacia delante; ajuste de cero en la app). Comprobar los signos con el montaje real.
 
 Pendiente en el firmware: sesiones interactivas (escucha CW y entrenador, sintonía WSPR / CW-baliza) con orden BLE propia y cancelación; espejo de los gráficos (brújula, mapa) como datos.
