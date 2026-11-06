@@ -35,7 +35,8 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | sí |
 | Espejo de pantalla de cualquier página | `screen` | sí | sí |
 | **Toda la configuración** (WebUI) | `cfgget`, `cfgset` | sí | sí |
-| Sesiones interactivas con el pulsador (escucha CW, entrenador, sintonías WSPR / CW-baliza) | pendiente de orden propia | no | no |
+| Escucha CW por RF (texto, nivel, SNR, velocidad) | `cwrx`, evento `cwrx` | sí | sí |
+| Sesiones interactivas con el pulsador (entrenador, sintonías WSPR / CW-baliza) | pendiente de orden propia | no | no |
 
 La orden `att` la manda la app con el móvil sujeto al soporte del rotor (boca arriba, parte de arriba del móvil hacia delante; ajuste de cero en la app). Comprobar los signos con el montaje real.
 

@@ -35,6 +35,11 @@ namespace BLE_Control {
     uint16_t keyDelayMs();                              // retardo de reproduccion pedido por el movil (orden "kcfg")
     bool     linkUp();                                  // movil conectado
 
+    // Escucha CW por RF pedida desde la app (orden "cwrx"): la sesion bloquea el bucle; el texto sale como evento "cwrx" y la
+    // app la para con "cwrx" s=stop, que se mira al llegar (la cola de ordenes no se procesa mientras dura) (EA7JRS)
+    bool     cwRxStopRequested();
+    void     cwRxEvent(bool on, char c, float dbm, float snr, int wpm);
+
 }
 
 #endif

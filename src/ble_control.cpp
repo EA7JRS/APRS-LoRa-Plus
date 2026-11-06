@@ -103,6 +103,7 @@ namespace {
     volatile bool           keyRejected     = false;           // llegaron eventos de manipulador fuera del modo MORSE
     volatile bool           connected       = false;
     volatile bool           authed          = false;           // enlace cifrado y emparejado con PIN
+    volatile bool           cwRxStop        = false;           // la app pide terminar la escucha CW
     volatile bool           nmeaWanted      = false;
     volatile uint16_t       mtu             = 23;
 
@@ -968,6 +969,24 @@ namespace {
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
             reply(cmd, id);
         }
+        else if (strcmp(cmd, "cwrx") == 0) {                      // escucha CW por RF: s = start | stop; texto en el evento "cwrx"
+            #ifdef HAS_APRS_PAGES
+                const char* st = doc["s"] | "";
+                if (strcmp(st, "start") == 0) {
+                    if (!LoRa_Utils::cwAvailable()) { reply(cmd, id, "CW needs an SX126x"); return; }
+                    reply(cmd, id);
+                    cwRxStop = false;
+                    PAGES_Utils::cwListenSession();                      // vuelve al pulsar el boton, con "stop" o a los 10 minutos
+                    cwRxStop = false;
+                    return;
+                }
+                if (strcmp(st, "stop") != 0) { reply(cmd, id, "bad step"); return; }
+                cwRxStop = false;                                        // no habia sesion
+                reply(cmd, id);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
         else if (strcmp(cmd, "rotext") == 0) {                    // rotctld del movil (Look4Sat, GPredict...): az, el en grados | park = true; repetir (caduca a los 15 s); solo responde si hay error
             if (!ROTOR_Utils::enabled()) { reply(cmd, id, "rotor disabled"); return; }
             if (doc["park"] | false) { ROTOR_Utils::setExternal((float)Config.rotor.parkAz, (float)Config.rotor.parkEl); return; }
@@ -1284,7 +1303,10 @@ namespace {
                         Line line;
                         memcpy(line.text, rxBuf, rxLen);
                         line.text[rxLen] = '\0';
-                        if (!keyFastPath(line.text)) xQueueSend(queue, &line, 0);   // cola llena: se pierde la orden (el movil reintenta)
+                        if (!keyFastPath(line.text)) {
+                            if (strstr(line.text, "\"cwrx\"") && strstr(line.text, "\"stop\"")) cwRxStop = true;   // la escucha CW bloquea el bucle: se mira aqui
+                            xQueueSend(queue, &line, 0);   // cola llena: se pierde la orden (el movil reintenta)
+                        }
                     }
                     rxLen = 0;
                     rxOverflow = false;
@@ -1426,6 +1448,19 @@ namespace BLE_Control {
     uint16_t keyDelayMs() { return keyDelay; }
 
     bool linkUp() { return connected; }
+
+    bool cwRxStopRequested() { return cwRxStop; }
+
+    void cwRxEvent(bool on, char c, float dbm, float snr, int wpm) {
+        if (!connected || !authed) return;
+        JW j("cwrx");
+        j.flag("on", on);
+        if (c) { const char t[2] = { c, 0 }; j.text("t", t); }
+        j.flt("dbm", dbm, 0);
+        j.flt("snr", snr, 0);
+        j.num("wpm", wpm);
+        j.send(sendLine);
+    }
 
     int takeBootMode() {
         if (bootModeMagic != BOOT_MODE_MAGIC) return -1;

@@ -3837,6 +3837,7 @@ namespace PAGES_Utils {
         cwRxActive = true;
         cwRxWpm = wpm;
         cwPending[0] = '\0';
+        BLE_Control::cwRxEvent(true, 0, -150.0f, 0.0f, wpm);
         for (;;) {
             uint32_t now = millis();
             float level = LoRa_Utils::cwRxLevel();
@@ -3859,6 +3860,7 @@ namespace PAGES_Utils {
                 cwAppend(c);
                 snprintf(cwPending, sizeof(cwPending), "%s", decoder.pending());
                 dirty = true;
+                BLE_Control::cwRxEvent(true, c, env.level(), env.valid() ? env.peak() - env.noise() : 0.0f, decoder.wpm());   // letra para la app
             }
             // solo se redibuja con la portadora apagada (el dibujo tarda ~25 ms): tras un espacio entre palabras o cada segundo
             if (!keyed && ((dirty && c == ' ') || now - lastDraw > 1000)) {
@@ -3866,6 +3868,7 @@ namespace PAGES_Utils {
                 cwRxSnr = env.valid() ? env.peak() - env.noise() : 0.0f;
                 cwRxWpm = decoder.wpm();
                 cwDrawPage();
+                BLE_Control::cwRxEvent(true, 0, cwRxDbm, cwRxSnr, cwRxWpm);       // nivel para la app, una vez por segundo
                 lastDraw = millis();
                 dirty = false;
                 displayTime = lastDraw;
@@ -3887,6 +3890,7 @@ namespace PAGES_Utils {
                 armed = true;
             }
             if (now - started > 600000UL) break;                     // 10 minutos como maximo
+            if (BLE_Control::cwRxStopRequested()) break;             // la app la para
             delay(1);
         }
         if (tone) NOTIFICATION_Utils::sidetone(false);
@@ -3896,6 +3900,7 @@ namespace PAGES_Utils {
         if (sqChanged) Config.writeFile();                           // el squelch elegido se guarda al salir
         cwRxActive = false;
         cwPending[0] = '\0';
+        BLE_Control::cwRxEvent(false, 0, -150.0f, 0.0f, 0);
         displayTime = millis();
         cwDrawPage();
         showToast("CW RX stopped");
