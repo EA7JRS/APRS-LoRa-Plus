@@ -141,6 +141,26 @@ static void selfTests() {
     CHECK(fabs(dopplerDown(435e6, 7.0) - (435e6 - 435e6 * 7.0 / 299792.458)) < 1.0, "doppler bajada");
     CHECK(fabs(dopplerDown(435e6, 7.0) - 435e6 + 10157.0) < 5.0, "Doppler 435 MHz a 7 km/s = -10,16 kHz (%.1f)", dopplerDown(435e6, 7.0) - 435e6);
     CHECK(fabs(dopplerDown(dopplerUpPre(145.9e6, 5.0), 5.0) - 145.9e6) < 1e-3, "subida compensada");
+    {   // soporte del rotor: rumbo, cabeceo y alabeo
+        double az, el;
+        bodyFrame(100.0, 20.0, 30.0, 0.0, 0.0, az, el);
+        CHECK(fabs(az - 70.0) < 1e-9 && fabs(el - 20.0) < 1e-9, "solo rumbo: az %.6f el %.6f", az, el);
+        bodyFrame(45.0, 0.0, 45.0, 10.0, 0.0, az, el);                  // delante, horizonte, morro 10 grados arriba: el objetivo queda 10 abajo
+        CHECK(fabs(az) < 1e-9 || fabs(az - 360.0) < 1e-9, "cabeceo az %.9f", az);
+        CHECK(fabs(el + 10.0) < 1e-9, "cabeceo el %.9f", el);
+        bodyFrame(135.0, 0.0, 45.0, 0.0, 10.0, az, el);                 // a la derecha, horizonte, lado derecho 10 abajo: el objetivo queda 10 arriba
+        CHECK(fabs(az - 90.0) < 1e-9 && fabs(el - 10.0) < 1e-9, "alabeo az %.6f el %.6f", az, el);
+        bodyFrame(0.0, 90.0, 123.0, 0.0, 0.0, az, el);                 // cenit
+        CHECK(fabs(el - 90.0) < 1e-9, "cenit el %.9f", el);
+        // la rotacion conserva el angulo entre direcciones: dos objetivos a 30 grados siguen a 30 grados
+        double a1, e1, a2, e2;
+        bodyFrame(10.0, 5.0, 77.0, 12.0, -8.0, a1, e1);
+        bodyFrame(40.0, 5.0, 77.0, 12.0, -8.0, a2, e2);
+        const double D2R = 3.14159265358979323846 / 180.0;
+        const double c1 = sin(5 * D2R) * sin(5 * D2R) + cos(5 * D2R) * cos(5 * D2R) * cos(30 * D2R);
+        const double c2 = sin(e1 * D2R) * sin(e2 * D2R) + cos(e1 * D2R) * cos(e2 * D2R) * cos((a2 - a1) * D2R);
+        CHECK(fabs(c1 - c2) < 1e-12, "rotacion ortogonal %.12f %.12f", c1, c2);
+    }
     CHECK(strcmp(cardinal(0), "N") == 0 && strcmp(cardinal(44), "NE") == 0 && strcmp(cardinal(359), "N") == 0 && strcmp(cardinal(181), "S") == 0, "puntos cardinales");
     // TLE incorrecto
     Sat s;

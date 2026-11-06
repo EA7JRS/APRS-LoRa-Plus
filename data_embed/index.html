@@ -870,6 +870,10 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <label for="rotor.mount">Rotor mounting</label>
                                 </div>
                                 <div class="form-floating mb-2">
+                                    <select class="form-select form-select-sm" name="rotor.tilt" id="rotor.tilt"><option value="0" selected>Off (mount assumed level)</option><option value="1">Pitch and roll from an external inclinometer (app, BLE)</option></select>
+                                    <label for="rotor.tilt">Tilt compensation</label>
+                                </div>
+                                <div class="form-floating mb-2">
                                     <select class="form-select form-select-sm" name="rotor.source" id="rotor.source"><option value="0" selected>Satellite (SAT mode)</option><option value="1">APRS station set with GO TO (compass target)</option><option value="2">Fixed target (list below)</option></select>
                                     <label for="rotor.source">What the rotor follows</label>
                                 </div>

@@ -364,6 +364,8 @@ namespace {
         doc["el"] = serialized(String(el, 1));
         doc["trk"] = tracking;
         doc["src"] = ROTOR_Utils::source();
+        float pit, rol;
+        if (ROTOR_Utils::tiltInfo(pit, rol)) { doc["pit"] = serialized(String(pit, 1)); doc["rol"] = serialized(String(rol, 1)); }
         float absAz, hdg;
         if (ROTOR_Utils::mobileInfo(absAz, hdg)) { doc["mob"] = true; doc["abs"] = serialized(String(absAz, 1)); doc["hdg"] = serialized(String(hdg, 1)); }
         if (ROTOR_Utils::targetName()[0]) doc["name"] = ROTOR_Utils::targetName();
@@ -511,6 +513,10 @@ namespace {
             if (s >= 0) sensorsEveryMs = s == 0 ? 0 : (uint32_t)max(s, 2) * 1000UL;
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
             reply(cmd, id);
+        }
+        else if (strcmp(cmd, "att") == 0) {                       // inclinometro del soporte del rotor: p = cabeceo (+ morro arriba), r = alabeo (+ lado derecho abajo), grados; repetir cada <2 s
+            if (doc["p"].isNull() || doc["r"].isNull()) { reply(cmd, id, "p and r needed"); return; }
+            ROTOR_Utils::setAttitude(doc["p"] | 0.0f, doc["r"] | 0.0f);
         }
         else if (strcmp(cmd, "tgtlist") == 0) sendTargets();
         else if (strcmp(cmd, "tgt") == 0) {                       // objetivo fijo para el rotor (repetidor, baliza...): i, n, lat, lon, alt, f | del | sel | src

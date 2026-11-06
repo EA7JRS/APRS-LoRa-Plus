@@ -215,6 +215,7 @@ bool Configuration::writeFile() {
         data["rotor"]["bleEvents"]                  = rotor.bleEvents;
         data["rotor"]["source"]                     = rotor.source;
         data["rotor"]["mount"]                      = rotor.mount;
+        data["rotor"]["tilt"]                       = rotor.tilt;
         data["rotor"]["targetIndex"]                = rotor.targetIndex;
         for (int i = 0; i < RotorConfig::TARGETS; i++) {
             if (rotor.targets[i].name.isEmpty()) continue;
@@ -552,6 +553,7 @@ bool Configuration::readFile() {
         rotor.parkAz         = constrain((int)(data["rotor"]["parkAz"] | rotor.parkAz), 0, 359);
         rotor.parkEl         = constrain((int)(data["rotor"]["parkEl"] | rotor.parkEl), 0, 90);
         rotor.bleEvents      = data["rotor"]["bleEvents"] | rotor.bleEvents;
+        rotor.tilt           = constrain((int)(data["rotor"]["tilt"] | rotor.tilt), 0, 1);
         rotor.mount          = constrain((int)(data["rotor"]["mount"] | rotor.mount), 0, 1);
         rotor.source         = constrain((int)(data["rotor"]["source"] | rotor.source), 0, 2);
         rotor.targetIndex    = constrain((int)(data["rotor"]["targetIndex"] | rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
@@ -903,6 +905,7 @@ void Configuration::setDapnetDefaults() {
     rotor.bleEvents      = true;
     rotor.source         = 0;
     rotor.mount          = 0;
+    rotor.tilt           = 0;
     rotor.targetIndex    = 0;
     for (int i = 0; i < RotorConfig::TARGETS; i++) { rotor.targets[i].name = ""; rotor.targets[i].lat = 0; rotor.targets[i].lon = 0; rotor.targets[i].alt = 0; rotor.targets[i].freqHz = 0; }
     dapnet.charset       = 1;                   // la red es alemana: ISO 646 aleman por defecto (los demas caracteres son ASCII)

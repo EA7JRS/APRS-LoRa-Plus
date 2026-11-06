@@ -244,6 +244,27 @@ namespace SatCore {
     int64_t txUpCenter(const Transmitter& t)   { return t.upLo ? (t.upLo + t.upHi) / 2 : 0; }
     int64_t txDownCenter(const Transmitter& t) { return t.dnLo ? (t.dnLo + t.dnHi) / 2 : 0; }
 
+    void bodyFrame(double azDeg, double elDeg, double hdgDeg, double pitchDeg, double rollDeg, double& azRel, double& elRel) {
+        const double D2R = 3.14159265358979323846 / 180.0;
+        const double a = azDeg * D2R, e = elDeg * D2R, h = hdgDeg * D2R, th = pitchDeg * D2R, ph = rollDeg * D2R;
+        // direccion en ENU
+        const double ve = cos(e) * sin(a), vn = cos(e) * cos(a), vu = sin(e);
+        // ejes horizontales del vehiculo (solo rumbo): delante y derecha
+        const double f1 = vn * cos(h) + ve * sin(h);
+        const double r1 = ve * cos(h) - vn * sin(h);
+        const double u1 = vu;
+        // cabeceo (giro sobre el eje derecho)
+        const double f2 = f1 * cos(th) + u1 * sin(th);
+        const double u2 = -f1 * sin(th) + u1 * cos(th);
+        // alabeo (giro sobre el eje de avance)
+        const double r3 = r1 * cos(ph) - u2 * sin(ph);
+        const double u3 = r1 * sin(ph) + u2 * cos(ph);
+        double az = atan2(r3, f2) / D2R;
+        if (az < 0) az += 360.0;
+        azRel = az;
+        elRel = atan2(u3, sqrt(f2 * f2 + r3 * r3)) / D2R;
+    }
+
     bool targetLook(const Observer& o, double tLat, double tLon, double tAlt, Look& out) {
         const double R = 6371.0, D2R = 3.14159265358979323846 / 180.0;
         const double la1 = o.latDeg * D2R, la2 = tLat * D2R, dlo = (tLon - o.lonDeg) * D2R;

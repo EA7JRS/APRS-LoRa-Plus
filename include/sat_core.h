@@ -44,6 +44,11 @@ namespace SatCore {
     // incluye la diferencia de altura y la curvatura con refraccion estandar (radio efectivo 4/3). Sin velocidad radial.
     bool   targetLook(const Observer& obs, double latDeg, double lonDeg, double altM, Look& out);
 
+    // Pasa una direccion (azimut y elevacion absolutos, norte y horizonte) al sistema de ejes del soporte del rotor: rumbo del vehiculo
+    // (grados, horario desde el norte; 0 en una estacion fija), cabeceo (+ = morro arriba) y alabeo (+ = lado derecho abajo).
+    // Con cabeceo = alabeo = 0 solo resta el rumbo. La elevacion resultante puede ser negativa (el objetivo queda bajo el plano del soporte).
+    void   bodyFrame(double azDeg, double elDeg, double headingDeg, double pitchDeg, double rollDeg, double& azRelDeg, double& elRelDeg);
+
     // Valida el checksum de las dos lineas y las convierte (opmode 'i' = SGP4 mejorado). false si no son un TLE valido.
     bool   parseTle(const char* name, const char* line1, const char* line2, Sat& out);
     double tleAgeDays(const Sat& s, double nowUnix);

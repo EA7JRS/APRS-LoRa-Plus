@@ -50,6 +50,11 @@ namespace ROTOR_Utils {
         float          sentAz = -999, sentEl = -999;
         uint32_t       sentMs = 0;
         bool           parked = false;
+        // actitud del soporte (inclinometro externo, orden BLE "att"): cabeceo + = morro arriba, alabeo + = lado derecho abajo
+        float          attPitch = 0, attRoll = 0;
+        uint32_t       attAtMs = 0;
+        bool           tgtTilt = false;
+        const uint32_t ATT_MAX_AGE_MS = 2000UL;
         float          tgtAbsAz = 0, tgtHdg = 0;
         bool           tgtMobile = false;
         char           tgtName[24] = "";
@@ -221,6 +226,12 @@ namespace ROTOR_Utils {
         return Config.rotor.source;
     }
     const char* targetName() { return tgtName; }
+    void setAttitude(float pitchDeg, float rollDeg) {
+        if (pitchDeg < -90.0f || pitchDeg > 90.0f || rollDeg < -180.0f || rollDeg > 180.0f) return;
+        attPitch = pitchDeg; attRoll = rollDeg;
+        attAtMs = millis() ? millis() : 1;
+    }
+    bool tiltInfo(float& pitchDeg, float& rollDeg) { pitchDeg = attPitch; rollDeg = attRoll; return tgtTilt; }
     bool mobileInfo(float& absoluteAz, float& headingDeg) { absoluteAz = tgtAbsAz; headingDeg = tgtHdg; return tgtMobile; }
     double targetDistKm() { return tgtDist; }
 
@@ -278,14 +289,22 @@ namespace ROTOR_Utils {
         if (!have) return;
         tgtAbsAz = az;
         tgtMobile = Config.rotor.mount == 1;
+        float hdg = 0;
         if (tgtMobile) {                                                           // rotor en un vehiculo: azimut relativo al rumbo del vehiculo
-            float hdg;
             if (!PAGES_Utils::headingForRotor(hdg)) { setState(ST_WAIT, "No heading"); return; }
             tgtHdg = hdg;
+        }
+        // compensacion de cabeceo y alabeo con el inclinometro (si esta activada y la medida es reciente; si no, sin compensar)
+        tgtTilt = Config.rotor.tilt == 1 && attAtMs != 0 && ms - attAtMs < ATT_MAX_AGE_MS;
+        if (tgtTilt) {
+            double ar, er;
+            SatCore::bodyFrame(az, el, hdg, attPitch, attRoll, ar, er);
+            az = (float)ar; el = (float)er;
+        } else {
             az = wrap360(az - hdg);
         }
         az = wrap360(az + Config.rotor.azOffset);
-        el = constrain(el + Config.rotor.elOffset, 0.0f, 90.0f);
+        el = constrain(el + Config.rotor.elOffset, 0.0f, 90.0f);              // bajo el plano del soporte (elevacion < 0) se queda en el horizonte
 
         float da = fabsf(az - sentAz); if (da > 180.0f) da = 360.0f - da;
         const bool moved = sentAz < -900 || da >= step || fabsf(el - sentEl) >= step;
@@ -308,6 +327,8 @@ namespace ROTOR_Utils {
     int  source() { return -1; }
     const char* targetName() { return ""; }
     bool mobileInfo(float&, float&) { return false; }
+    void setAttitude(float, float) {}
+    bool tiltInfo(float&, float&) { return false; }
     double targetDistKm() { return 0.0; }
 }
 

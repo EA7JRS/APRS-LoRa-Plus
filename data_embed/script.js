@@ -570,6 +570,7 @@ function loadSettings(settings) {
             sel.value = String(rot.targetIndex ?? 0);
             document.getElementById("rotor.source").value = String(rot.source ?? 0);
             document.getElementById("rotor.mount").value = String(rot.mount ?? 0);
+            document.getElementById("rotor.tilt").value = String(rot.tilt ?? 0);
         }
         document.getElementById("rotor.enabled").checked = rot.enabled ?? false;
         document.getElementById("rotor.transport").value = String(rot.transport ?? 0);
