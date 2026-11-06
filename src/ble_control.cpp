@@ -298,19 +298,18 @@ namespace {
     }
 
     void sendStatus() {
-        JsonDocument doc;
-        doc["e"]       = "status";
-        doc["mode"]    = Config.operatingMode;
-        doc["profile"] = myBeaconsIndex;
-        doc["lora"]    = loraIndex;
-        doc["digi"]    = digipeaterActive;
-        doc["smart"]   = smartBeaconActive;
-        doc["sos"]     = sosActive;
-        const float v  = batteryVolts();
-        if (v > 0.0f) doc["batt"] = v;
-        doc["up"]      = millis() / 1000UL;
-        doc["bleKiss"] = Config.bluetooth.useKISS;
-        sendDoc(doc);
+        JW j("status");
+        j.num("mode", Config.operatingMode);
+        j.num("profile", myBeaconsIndex);
+        j.num("lora", loraIndex);
+        j.flag("digi", digipeaterActive);
+        j.flag("smart", smartBeaconActive);
+        j.flag("sos", sosActive);
+        const float v = batteryVolts();
+        if (v > 0.0f) j.flt("batt", v);
+        j.unum("up", millis() / 1000UL);
+        j.flag("bleKiss", Config.bluetooth.useKISS);
+        j.send(sendLine);
     }
 
     void sendSensors() {
@@ -380,27 +379,25 @@ namespace {
     }
 
     void sendGnss() {
-        JsonDocument doc;
-        doc["e"] = "gnss";
-        const bool fix = gps.location.isValid() && gps.location.age() < 5000;
-        doc["fix"] = fix;
+        JW j("gnss");
+        j.flag("fix", gps.location.isValid() && gps.location.age() < 5000);
         if (gps.location.isValid()) {
-            doc["lat"] = gps.location.lat();
-            doc["lon"] = gps.location.lng();
-            doc["age"] = gps.location.age();
+            j.flt("lat", gps.location.lat(), 6);
+            j.flt("lon", gps.location.lng(), 6);
+            j.unum("age", gps.location.age());
         }
-        if (gps.altitude.isValid()) doc["alt"] = gps.altitude.meters();
-        doc["spd"] = GPS_Utils::getSpeedKmph();
-        doc["crs"] = GPS_Utils::getCourseDeg();
-        if (gps.satellites.isValid()) doc["sats"] = gps.satellites.value();
-        if (gps.hdop.isValid()) doc["hdop"] = gps.hdop.hdop();
+        if (gps.altitude.isValid()) j.flt("alt", gps.altitude.meters(), 1);
+        j.flt("spd", GPS_Utils::getSpeedKmph(), 1);
+        j.flt("crs", GPS_Utils::getCourseDeg(), 1);
+        if (gps.satellites.isValid()) j.num("sats", gps.satellites.value());
+        if (gps.hdop.isValid()) j.flt("hdop", gps.hdop.hdop(), 1);
         if (gps.date.isValid() && gps.time.isValid() && gps.date.year() >= 2024) {
             char utc[24];
             snprintf(utc, sizeof(utc), "%04u-%02u-%02uT%02u:%02u:%02uZ", (unsigned)gps.date.year(), (unsigned)gps.date.month(), (unsigned)gps.date.day(),
                      (unsigned)gps.time.hour(), (unsigned)gps.time.minute(), (unsigned)gps.time.second());
-            doc["utc"] = utc;
+            j.text("utc", utc);
         }
-        sendDoc(doc);
+        j.send(sendLine);
     }
 
     // ---------------------------------------------------------------- app: acciones, pantalla, mensajes, estaciones, configuracion
@@ -610,25 +607,25 @@ namespace {
         }
     }
 
-    void fillPage(JsonObject o, const DAPNET_Utils::Entry* entry) {
-        o["ric"]  = entry->ric;
-        o["f"]    = entry->func;
-        o["own"]  = entry->own;
-        o["bad"]  = entry->corrupt;
-        o["age"]  = (millis() - entry->atMs) / 1000UL;
-        o["rssi"] = entry->rssi;
-        o["t"]    = entry->text;
+    void putPage(JW& j, const DAPNET_Utils::Entry* entry) {
+        j.unum("ric", entry->ric);
+        j.num("f", entry->func);
+        j.flag("own", entry->own);
+        j.flag("bad", entry->corrupt);
+        j.unum("age", (millis() - entry->atMs) / 1000UL);
+        j.num("rssi", entry->rssi);
+        j.text("t", entry->text);
     }
 
     void sendDapnet() {
-        JsonDocument doc;
-        doc["e"] = "dapnet";
-        JsonArray items = doc["items"].to<JsonArray>();
+        JW j("dapnet");
+        j.arr("items");
         for (uint8_t i = 0; i < DAPNET_Utils::count(); i++) {
             const DAPNET_Utils::Entry* entry = DAPNET_Utils::at(i);
-            if (entry) fillPage(items.add<JsonObject>(), entry);
+            if (entry) { j.obj(); putPage(j, entry); j.endObj(); }
         }
-        sendDoc(doc);
+        j.endArr();
+        j.send(sendLine);
     }
 
     void checkDapnet() {
@@ -639,10 +636,9 @@ namespace {
         if (!grew || Config.operatingMode != MODE_DAPNET) return;
         const DAPNET_Utils::Entry* entry = DAPNET_Utils::at(0);
         if (!entry) return;
-        JsonDocument doc;
-        doc["e"] = "page";
-        fillPage(doc.as<JsonObject>(), entry);
-        sendDoc(doc);
+        JW j("page");
+        putPage(j, entry);
+        j.send(sendLine);
     }
 
     // Rotor (modo SAT): el movil recibe azimut / elevacion cuando cambian y los retransmite al rotor
@@ -801,18 +797,19 @@ namespace {
     }
 
     void sendTargets() {
-        JsonDocument doc;
-        doc["e"]   = "targets";
-        doc["sel"] = Config.rotor.targetIndex;
-        doc["src"] = Config.rotor.source;
-        JsonArray items = doc["items"].to<JsonArray>();
+        JW j("targets");
+        j.num("sel", Config.rotor.targetIndex);
+        j.num("src", Config.rotor.source);
+        j.arr("items");
         for (int i = 0; i < RotorConfig::TARGETS; i++) {
             const RotorConfig::Target& t = Config.rotor.targets[i];
             if (t.name.isEmpty()) continue;
-            JsonObject o = items.add<JsonObject>();
-            o["i"] = i; o["n"] = t.name; o["lat"] = t.lat; o["lon"] = t.lon; o["alt"] = t.alt; o["f"] = t.freqHz;
+            j.obj();
+            j.num("i", i); j.text("n", t.name.c_str()); j.flt("lat", t.lat, 6); j.flt("lon", t.lon, 6); j.num("alt", t.alt); j.num("f", t.freqHz);
+            j.endObj();
         }
-        sendDoc(doc);
+        j.endArr();
+        j.send(sendLine);
     }
 
     // ---------------------------------------------------------------- actualizacion del firmware desde la app
