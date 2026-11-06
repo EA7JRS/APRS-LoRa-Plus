@@ -56,6 +56,7 @@
 #include "keypad_fh2.h"
 #include "kiss_net.h"
 #include "cat_net.h"
+#include "iaru_auto.h"
 
 #ifndef PAGES_GYRO_SIGN
     #define PAGES_GYRO_SIGN     -1      // sentido inicial del giroscopio (se corrige solo al girar con la brujula valida)
@@ -132,7 +133,7 @@ namespace {
         C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON,
         C_MODE_CHANGE,
         C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
-        C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI
+        C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI, C_SYS_IARU
     };
     struct Item { const char* label; Command cmd; };
 
@@ -172,7 +173,7 @@ namespace {
     uint8_t         teamCursor          = 0;
     uint8_t         teamScale           = 0;        // 0 = automatica; 1.. = indice en TEAM_SCALES_KM
     uint8_t         boardView           = 0;        // SYSTEM: 0 = sistema, 1 = vista LINK (conexiones activas; no es una pagina aparte)
-    Item            sysItems[5];                    // submenu de SYSTEM
+    Item            sysItems[6];                    // submenu de SYSTEM
     char            sysBtLabel[24];
     char            sysProtoLabel[24];
     char            sysKissLabel[24];
@@ -394,6 +395,7 @@ namespace {
                     snprintf(sysCatLabel, sizeof(sysCatLabel), "WiFi CAT: %s", Config.cat.enabled ? "ON" : "OFF");
                     sysItems[n++] = Item{sysCatLabel, C_SYS_CATWIFI};
                 #endif
+                sysItems[n++] = Item{"IARU: detect now", C_SYS_IARU};     // region IARU segun el GPS (Config.iaruAuto)
                 sysItems[n++] = Item{"Back", C_BACK};
                 count = n;
                 return sysItems;
@@ -4269,6 +4271,9 @@ namespace PAGES_Utils {
                     }
                     Config.writeFile();
                 #endif
+                break;
+            case C_SYS_IARU:
+                showToast(IARU_Auto::request() ? "IARU: checking..." : "No GPS fix");
                 break;
             case C_TEAM_BROWSE:
                 if (teamCount == 0) { showToast("No callsigns set"); break; }

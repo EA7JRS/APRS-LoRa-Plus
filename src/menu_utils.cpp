@@ -20,6 +20,7 @@
 #include <TinyGPS++.h>
 #include <vector>
 #include "notification_utils.h"
+#include "iaru_auto.h"
 #include "custom_characters.h"
 #include "station_utils.h"
 #include "configuration.h"
@@ -726,6 +727,16 @@ namespace MENU_Utils {
                     displayPopup("APRS LoRa+", "  Power off", "> WiFi AP (config)");
                 #else
                     displayShow(" CONFIG>", "  Turn Tracker Off","> Config. WiFi AP",  "","",lastLine);
+                #endif
+                break;
+
+
+            case 9100:  //  region IARU automatica: confirmar el cambio de frecuencia (Apply / Keep)
+            case 9101:
+                #ifdef HAS_APRS_PAGES
+                    displayPopup(IARU_Auto::title(), String(menuDisplay == 9100 ? "> " : "  ") + IARU_Auto::applyText(), String(menuDisplay == 9101 ? "> " : "  ") + IARU_Auto::keepText());
+                #else
+                    displayShow(" IARU>", IARU_Auto::title(), String(menuDisplay == 9100 ? "> " : "  ") + IARU_Auto::applyText(), String(menuDisplay == 9101 ? "> " : "  ") + IARU_Auto::keepText(), "", lastLine);
                 #endif
                 break;
 

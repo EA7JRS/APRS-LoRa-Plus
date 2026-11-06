@@ -409,6 +409,13 @@ Each profile has an **IARU region** (1, 2, 3) and an **IARU band plan channel** 
 - There is no listen-before-talk (CAD) in FSK.
 - q-constructs (`qAR`…) and lower case in callsigns do not exist in AX.25 and are sent in upper case.
 
+### Automatic IARU region
+The IARU region (1, 2 or 3) can be chosen automatically from the GPS position: **WebUI > Transmission mode > IARU region (auto)**. Off by default. It sets the region, band plan channel and frequency of every profile (LoRa, FSK, FT8 / FT4 / FST4W and the two CW profiles).
+- **When:** *At start-up and on request* (with the region stable for about 20 s) or *also while moving* (when you cross a limit, after 60 s in the new region so it does not flip at a border). On request: the **Detect now** button in the WebUI or **SYSTEM > IARU: detect now** on the tracker screen. A GPS fix is needed.
+- **How:** with *Ask on the tracker screen* a window **IARU region N** opens with **Apply** / **Keep current** (1P switches option, LP accepts; with no answer in 30 s it stays as it is). Without it, the frequency is changed directly. If only the region labels change and no frequency does, it is applied without asking.
+- **Frequencies:** a band plan channel becomes the equivalent channel of the new region (or that region's default channel when there is none: 433.775 MHz for LoRa and FSK, 432.050 MHz for telegraphy). A **Custom** frequency is kept when it fits the amateur allocation of the new region; otherwise it is replaced by the default channel. FT4 and FST4W frequencies outside the new allocation are cleared (they do not transmit until filled in). WSPR, LR-FHSS, DAPNET and the AIS nautical profile are not touched.
+- **Limits:** the ITU ones, simplified (lines A and C and the Region 1 / 3 land border); next to the R1 / R3 land borders they can be off by tens of km. With automatic mode on, a region you set by hand is replaced at the next detection. **National rules always prevail.**
+
 ## 21. MORSE / CW mode
 
 ![MORSE screen: start, next page (stays on MORSE) and submenu](img/morse_modo.png)

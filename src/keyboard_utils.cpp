@@ -21,6 +21,7 @@
 #include <logger.h>
 #include <Wire.h>
 #include "keyboard_utils.h"
+#include "iaru_auto.h"
 #include "gps_utils.h"
 #include "winlink_utils.h"
 #include "station_utils.h"
@@ -155,6 +156,10 @@ namespace KEYBOARD_Utils {
             menuDisplay--;
             if (menuDisplay < 9000) menuDisplay = 9001;
         }
+
+        else if (menuDisplay >= 9100 && menuDisplay <= 9101) {       // region IARU automatica: Apply / Keep
+            menuDisplay = (menuDisplay == 9100) ? 9101 : 9100;
+        }
     }
 
     void downArrow() {
@@ -257,6 +262,10 @@ namespace KEYBOARD_Utils {
         else if (menuDisplay >= 9000 && menuDisplay <= 9001) {
             menuDisplay++;
             if (menuDisplay > 9001) menuDisplay = 9000;
+        }
+
+        else if (menuDisplay >= 9100 && menuDisplay <= 9101) {
+            menuDisplay = (menuDisplay == 9100) ? 9101 : 9100;
         }
     }
 
@@ -585,6 +594,10 @@ namespace KEYBOARD_Utils {
             } else {
                 displayShow("  EXTRAS", "", "     Flashlight", "NOT ACTIVE IN CONFIG!", "", "", 2000);
             }
+        }
+
+        else if (menuDisplay == 9100 || menuDisplay == 9101) {          // region IARU automatica: 9100 = aplicar, 9101 = dejar como esta
+            IARU_Auto::answer(menuDisplay == 9100);
         }
 
         else if (menuDisplay == 9000) {

@@ -55,6 +55,7 @@ namespace LoRa_Utils {
     void changeFreq();
     long profileFreqHz();               // frecuencia (Hz) del perfil activo, sin el ajuste de CAT
     long liveFreqHz();                  // frecuencia (Hz) en uso ahora (la del perfil o la que ha pedido CAT)
+    void retune();                      // aplica de nuevo la frecuencia del perfil activo (tras cambiar la configuracion en caliente: region IARU automatica)
     bool setLiveFreqHz(long hz);        // CAT (Hamlib): cambia la frecuencia en caliente, solo en RAM; false si el perfil la tiene fija
     void syncAisProfile();      // aplica o retira el perfil LoRa AIS segun el perfil de baliza activo
     bool isAisActive();

@@ -88,6 +88,8 @@ bool Configuration::writeFile() {
         data["kissNet"]["allowed"]                  = kissNet.allowed;
         data["nmeaUart"]["txPin"]                   = nmeaUart.txPin;
         data["nmeaUart"]["baud"]                    = nmeaUart.baud;
+        data["iaruAuto"]["mode"]                    = iaruAuto.mode;
+        data["iaruAuto"]["confirm"]                 = iaruAuto.confirm;
         data["cat"]["enabled"]                      = cat.enabled;
         data["cat"]["usb"]                          = cat.usb;
         data["cat"]["port"]                         = cat.port;
@@ -357,6 +359,8 @@ bool Configuration::readFile() {
         nmeaUart.baud               = data["nmeaUart"]["baud"] | NMEA_UART_BAUD_DEFAULT;
         if (nmeaUart.baud != 4800 && nmeaUart.baud != 9600 && nmeaUart.baud != 38400) nmeaUart.baud = NMEA_UART_BAUD_DEFAULT;
         if (data["cat"]["port"].isNull()) needsRewrite = true;
+        iaruAuto.mode               = constrain((int)(data["iaruAuto"]["mode"] | 0), 0, 2);
+        iaruAuto.confirm            = data["iaruAuto"]["confirm"] | true;
         cat.enabled                 = data["cat"]["enabled"] | false;
         cat.usb                     = data["cat"]["usb"] | false;
         cat.port                    = constrain((int)(data["cat"]["port"] | 4532), 1, 65535);
@@ -941,6 +945,8 @@ void Configuration::setDefaultValues() {
     kissNet.allowed                 = "";
     nmeaUart.txPin                  = NMEA_UART_TX_DEFAULT;
     nmeaUart.baud                   = NMEA_UART_BAUD_DEFAULT;
+    iaruAuto.mode                   = 0;
+    iaruAuto.confirm                = true;
     cat.enabled                     = false;
     cat.usb                         = false;
     cat.port                        = 4532;

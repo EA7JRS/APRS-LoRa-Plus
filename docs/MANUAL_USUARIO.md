@@ -405,6 +405,13 @@ Cada perfil tiene **IARU region** (1, 2, 3) y **IARU band plan channel** con los
 - No hay escucha previa (CAD) en FSK.
 - Los q-constructs (`qAR`…) y las minúsculas en indicativos no existen en AX.25 y se transmiten en mayúsculas.
 
+### Región IARU automática
+La región IARU (1, 2 o 3) se puede elegir sola según la posición GPS: **WebUI > Transmission mode > IARU region (auto)**. Apagada por defecto. Pone la región, el canal del plan de bandas y la frecuencia de todos los perfiles (LoRa, FSK, FT8 / FT4 / FST4W y los dos de CW).
+- **Cuándo:** *Al arrancar y bajo petición* (con la región estable unos 20 s) o *también en marcha* (al cruzar un límite, tras 60 s en la región nueva para no oscilar junto a una frontera). Bajo petición: botón **Detect now** de la WebUI o **SYSTEM > IARU: detect now** en la pantalla del tracker. Hace falta fix GPS.
+- **Cómo:** con *Ask on the tracker screen* se abre una ventana **IARU region N** con **Apply** / **Keep current** (1P cambia de opción, LP acepta; si no contestas en 30 s, se queda como está). Sin él, la frecuencia se cambia directamente. Si solo cambian las etiquetas de región y ninguna frecuencia, se aplica sin preguntar.
+- **Frecuencias:** un canal del plan pasa al canal equivalente de la región nueva (o al canal por defecto de esa región si no hay equivalente: 433,775 MHz en LoRa y FSK, 432,050 MHz en telegrafía). Una frecuencia **Custom** se respeta si cabe en la banda de aficionados de la región nueva; si no, se sustituye por el canal por defecto. Las de FT4 y FST4W fuera de la banda nueva se vacían (no emiten hasta que se rellenen). WSPR, LR-FHSS, DAPNET y el perfil nautico AIS no se tocan.
+- **Límites:** los de la UIT simplificados (líneas A y C y la frontera R1/R3 por tierra); junto a las fronteras terrestres entre R1 y R3 pueden fallar decenas de km. Con el modo automático activo, la región que pongas a mano se sustituye en la siguiente detección. **Las normas nacionales prevalecen siempre.**
+
 ## 21. Modo MORSE / CW
 
 ![Pantalla MORSE: inicio, siguiente página (se queda en MORSE) y submenú](img/morse_modo.png)

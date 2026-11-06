@@ -848,6 +848,13 @@ function loadSettings(settings) {
         document.getElementById("nmeaUart.baud").value                  = settings.nmeaUart.baud;
     }
 
+    // IARU REGION (AUTO)
+    if (settings.iaruAuto) {
+        document.getElementById("iaruAuto.mode").value          = String(settings.iaruAuto.mode ?? 0);
+        document.getElementById("iaruAuto.confirm").checked     = settings.iaruAuto.confirm ?? true;
+    }
+    iaruAutoUpdate();
+
     // CAT OVER WIFI
     if (settings.cat) {
         document.getElementById("cat.enabled").checked                  = settings.cat.enabled;
@@ -1098,6 +1105,23 @@ function kissNetUpdate() {
     ["kissNet.tcpPort", "kissNet.udpPort", "kissNet.allowed"].forEach((id) => { document.getElementById(id).disabled = !on; });
 }
 document.getElementById("kissNet.enabled").addEventListener("change", kissNetUpdate);
+
+// IARU region (auto): the confirm switch only matters when the mode is not Off; "Detect now" asks the tracker to check the GPS position
+function iaruAutoUpdate() {
+    const on = document.getElementById("iaruAuto.mode").value !== "0";
+    document.getElementById("iaruAuto.confirm").disabled = !on;
+}
+function iaruStatus(s) {
+    const el = document.getElementById("iaru-status");
+    if (!el) return;
+    const reg = s && s.region ? "Detected: " + IARU_REGIONS[s.region].name : (s && s.fix ? "GPS fix, region not stable yet" : "No GPS fix");
+    el.textContent = reg + (s && s.asking ? " \u2014 waiting for your answer on the tracker screen" : "");
+}
+document.getElementById("iaruAuto.mode").addEventListener("change", iaruAutoUpdate);
+document.getElementById("iaru-detect").addEventListener("click", () => {
+    fetch("/action?type=iaru-detect", { method: "POST" }).then(r => r.json()).then(iaruStatus).catch(() => {});
+});
+fetch("/api/iaru").then(r => r.json()).then(iaruStatus).catch(() => {});
 
 // CAT over WiFi: same behaviour
 function catUpdate() {

@@ -177,6 +177,13 @@ public:
     int     fskFec          = 0;            // protocolo de emision FSK: 0 AX.25, 1 FX.25 (16 bytes de control), 2 FX.25 (32), 3 FX.25 (64), 4 IL2P. La recepcion entiende AX.25 y FX.25 siempre
 };
 
+// Region IARU automatica: la region (1, 2, 3) de todos los perfiles se ajusta sola segun la posicion GPS (plan de bandas incluido)
+class IaruAutoConfig {
+public:
+    int     mode;               // 0 = apagada (por defecto, region a mano en la WebUI), 1 = al arrancar y bajo peticion, 2 = ademas en marcha (al cruzar un limite)
+    bool    confirm;            // true = pide confirmacion en pantalla antes de cambiar una frecuencia; false = la aplica directamente
+};
+
 class PTT {
 public:
     bool    active;
@@ -318,6 +325,7 @@ public:
     TeamConfig              team;
     KissNetConfig           kissNet;
     CatConfig               cat;
+    IaruAutoConfig          iaruAuto;
     NmeaUartConfig          nmeaUart;
     std::vector<Beacon>     beacons;
     Display                 display;

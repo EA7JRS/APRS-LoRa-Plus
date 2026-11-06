@@ -488,6 +488,15 @@ namespace LoRa_Utils {
         return activeFreqHz();
     }
 
+    // Aplica de nuevo la frecuencia del perfil activo (la configuracion cambio en caliente) y rearma la escucha
+    void retune() {
+        if (aisLoraActive) return;
+        catFreqOverrideHz = 0;
+        applyCurrentType();
+        transmitFlag  = true;
+        operationDone = true;
+    }
+
     // CAT: cambia la frecuencia en caliente (no se guarda). Devuelve false si el perfil no lo permite (AIS fijo) o el chip la rechaza
     bool setLiveFreqHz(long hz) {
         if (aisLoraActive || hz <= 0) return false;

@@ -26,6 +26,7 @@
 #include "display.h"
 #include "utils.h"
 #include "fw_update.h"
+#include "iaru_auto.h"
 #include "keypad_fh2.h"
 
 extern Configuration               Config;
@@ -453,6 +454,8 @@ namespace WEB_Utils {
         Config.kissNet.allowed.trim();
         Config.nmeaUart.txPin                   = constrain(getParamIntSafe("nmeaUart.txPin", Config.nmeaUart.txPin), -1, 48);
         { const int b = getParamIntSafe("nmeaUart.baud", Config.nmeaUart.baud); Config.nmeaUart.baud = (b == 4800 || b == 9600 || b == 38400) ? b : 38400; }
+        Config.iaruAuto.mode                    = constrain(getParamIntSafe("iaruAuto.mode", Config.iaruAuto.mode), 0, 2);
+        if (Config.iaruAuto.mode != 0) Config.iaruAuto.confirm = request->hasParam("iaruAuto.confirm", true);     // con el modo apagado el campo no se envia: se conserva
         Config.cat.enabled                      = request->hasParam("cat.enabled", true);
         Config.cat.usb                          = request->hasParam("cat.usb", true);
         Config.cat.port                         = constrain(getParamIntSafe("cat.port", Config.cat.port), 1, 65535);
@@ -535,6 +538,11 @@ namespace WEB_Utils {
             //lastBeaconTx = 0;
 
             request->send(200, "text/plain", "Beacon will be sent in a while");
+        } else if (type == "iaru-detect") {                  // region IARU segun el GPS, bajo peticion: lo evalua el bucle principal
+            IARU_Auto::request();
+            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", IARU_Auto::json());
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
         } else if (type == "reboot") {
             displayToggle(false);
             ESP.restart();
@@ -588,6 +596,11 @@ namespace WEB_Utils {
 
         server.on("/api/pins", HTTP_GET, [](AsyncWebServerRequest *request) {      // GPIO ocupados por la placa (WebUI: guia de pines)
             AsyncWebServerResponse *r = request->beginResponse(200, "application/json", BOARD_PINS::json());
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
+        server.on("/api/iaru", HTTP_GET, [](AsyncWebServerRequest *request) {      // region IARU automatica: estado (modo, fix GPS, region detectada)
+            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", IARU_Auto::json());
             r->addHeader("Cache-Control", "no-store");
             request->send(r);
         });

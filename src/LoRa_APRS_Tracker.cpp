@@ -75,6 +75,7 @@ ____________________________________________________________________*/
 #include "utils.h"
 #include "notification_utils.h"
 #include "fw_update.h"
+#include "iaru_auto.h"
 #include "kiss_net.h"
 #ifdef HAS_TOUCHSCREEN
 #include "touch_utils.h"
@@ -295,6 +296,7 @@ void loop() {
 
     MSG_Utils::ledNotification();
     Utils::checkFlashlight();
+    IARU_Auto::loop();                                              // region IARU automatica segun el GPS (si esta activada)
     STATION_Utils::checkListenedStationsByTimeAndDelete();
 
     lastTx = millis() - lastTxTime;
