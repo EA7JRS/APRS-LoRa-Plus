@@ -519,10 +519,48 @@ namespace GPS_Utils {
 
     // A-GPS desde la app APRS LoRa+ (EA7JRS): la app prepara los mensajes UBX-MGA (hora y posicion del movil, Predictive
     // Orbits de u-blox descargadas con el internet del movil) y aqui solo se escriben tal cual en el puerto del receptor
+    // Sin bloquear el bucle: los datos van a un buffer circular y aidPump() los pasa a la FIFO de la UART segun hay hueco
+    // (a 9600 baudios, el M10 de la Supreme, 135 bytes son 140 ms). Si no caben, la app reintenta ("busy").
+    #ifdef GPS_CONFIG_CONSTELLATIONS
+        static uint8_t aidBuf[1024];
+        static size_t  aidHead = 0, aidLen = 0;
+    #endif
+
+    size_t aidRoom() {
+        #ifdef GPS_CONFIG_CONSTELLATIONS
+            return sizeof(aidBuf) - aidLen;
+        #else
+            return 0;
+        #endif
+    }
+
+    void aidPump() {
+        #ifdef GPS_CONFIG_CONSTELLATIONS
+            while (aidLen > 0) {
+                const int room = gpsSerial.availableForWrite();
+                if (room <= 0) break;
+                size_t n = aidLen;
+                if (n > (size_t)room) n = (size_t)room;
+                if (n > sizeof(aidBuf) - aidHead) n = sizeof(aidBuf) - aidHead;
+                gpsSerial.write(aidBuf + aidHead, n);
+                aidHead = (aidHead + n) % sizeof(aidBuf);
+                aidLen -= n;
+            }
+        #endif
+    }
+
+    void aidClear() {
+        #ifdef GPS_CONFIG_CONSTELLATIONS
+            aidHead = 0; aidLen = 0;
+        #endif
+    }
+
     bool aidWrite(const uint8_t* data, size_t length) {
         #ifdef GPS_CONFIG_CONSTELLATIONS
-            if (gpsModule() != 1 || data == nullptr || length == 0) return false;
-            gpsSerial.write(data, length);
+            if (gpsModule() != 1 || data == nullptr || length == 0 || length > aidRoom()) return false;
+            for (size_t i = 0; i < length; i++) aidBuf[(aidHead + aidLen + i) % sizeof(aidBuf)] = data[i];
+            aidLen += length;
+            aidPump();
             return true;
         #else
             (void)data; (void)length;

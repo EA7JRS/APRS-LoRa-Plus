@@ -60,6 +60,9 @@ namespace GPS_Utils {
     void    reapplyAfterWake();                 // L76K: reconfigura el receptor tras volver a alimentarlo (modo eco)
     bool    gpsConfigurable();                  // true si la placa configura el receptor (GPS_CONFIG_CONSTELLATIONS)
     bool    aidWrite(const uint8_t* data, size_t length);   // A-GPS desde la app: mensajes UBX-MGA en bruto al receptor (solo u-blox) (EA7JRS)
+    size_t  aidRoom();                                       // hueco en el buffer de A-GPS
+    void    aidPump();                                       // pasa el buffer a la UART sin bloquear (cada vuelta del bucle)
+    void    aidClear();
 
     // Constelaciones y SBAS (solo con GPS_CONFIG_CONSTELLATIONS); ajustables en caliente desde la pantalla GPS y guardadas en la configuracion (Config.gps)
     enum : uint8_t { GNSS_GPS = 1, GNSS_GALILEO = 2, GNSS_BEIDOU = 4, GNSS_GLONASS = 8, GNSS_QZSS = 16, GNSS_SBAS = 32 };

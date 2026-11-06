@@ -1034,11 +1034,13 @@ namespace {
                 if (!gpsAidActive) { reply(cmd, id, "no transfer"); return; }
                 uint8_t bin[192];
                 const int n = base64Decode(doc["d"] | "", bin, sizeof(bin));
+                if (n > 0 && (size_t)n > GPS_Utils::aidRoom()) { reply(cmd, id, "busy"); return; }   // la app repite este trozo
                 if (n <= 0 || !GPS_Utils::aidWrite(bin, (size_t)n)) { gpsAidActive = false; reply(cmd, id, "bad data"); return; }
                 gpsAidBytes += (uint32_t)n;
             } else if (strcmp(st, "end") == 0 || strcmp(st, "abort") == 0) {
                 if (gpsAidActive && st[0] == 'e')
                     logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "GPS", "A-GPS from the app: %lu bytes", (unsigned long)gpsAidBytes);
+                if (st[0] == 'a') GPS_Utils::aidClear();
                 gpsAidActive = false;
             } else { reply(cmd, id, "bad step"); return; }
             reply(cmd, id);
@@ -1353,6 +1355,7 @@ namespace BLE_Control {
         if (queue == nullptr) return;
         Line line;
         while (xQueueReceive(queue, &line, 0) == pdTRUE) handle(line.text);
+        GPS_Utils::aidPump();
         if (keyEventWaiting()) {
             #ifdef HAS_APRS_PAGES
                 if (Config.operatingMode == MODE_MORSE && LoRa_Utils::cwAvailable()) {
