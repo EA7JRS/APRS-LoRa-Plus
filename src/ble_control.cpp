@@ -22,6 +22,7 @@
 #include "sat_utils.h"
 #include "rotor_utils.h"
 #include "sat_rx.h"
+#include "sat_tx.h"
 #include "baro_utils.h"
 #include "lora_utils.h"
 #include "gps_utils.h"
@@ -576,6 +577,26 @@ namespace {
                 }
                 reply(cmd, id);
                 sendSatRx(false);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "sattx") == 0) {                     // emision hacia el satelite (modo SAT): tx = indice del transmisor, txt = mensaje (si falta, el de la WebUI). Bloquea mientras emite
+            #ifdef HAS_SAT
+                if (Config.operatingMode != MODE_SAT) { reply(cmd, id, "not in SAT mode"); return; }
+                String text = doc["txt"] | "";
+                text.trim();
+                if (text.isEmpty()) text = Config.sat.txText;
+                if (text.length() > 64) text = text.substring(0, 64);
+                const uint8_t txi = (uint8_t)(doc["tx"] | 0);
+                if (!SATTX_Utils::send(txi, text.c_str())) { reply(cmd, id, SATTX_Utils::message()); return; }
+                reply(cmd, id);
+                JsonDocument ev;
+                ev["e"]  = "sattx";
+                ev["ok"] = true;
+                ev["f"]  = (long)llround(SATTX_Utils::lastHz());
+                ev["n"]  = SATTX_Utils::count();
+                sendDoc(ev);
             #else
                 reply(cmd, id, "not available");
             #endif

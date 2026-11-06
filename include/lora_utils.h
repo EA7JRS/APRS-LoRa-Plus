@@ -39,6 +39,17 @@ struct SatRxParams {
     uint8_t cr;             // LoRa: denominador de la tasa de codigo 5..8
 };
 
+// Modo SAT, fase 3: emision hacia el satelite
+struct SatTxParams {
+    uint8_t kind;           // 0 = CW (portadora manipulada), 1 = FSK / GMSK (AX.25 G3RUH), 2 = LoRa
+    int64_t hz;             // frecuencia de emision inicial (Hz), ya precompensada por Doppler
+    int     baud;           // FSK: baudios
+    uint8_t sf;             // LoRa
+    float   bwKHz;
+    uint8_t cr;
+    int     powerDbm;
+};
+
 namespace LoRa_Utils {
 
     void setFlag();
@@ -66,6 +77,13 @@ namespace LoRa_Utils {
     // Mira si ha llegado algo. Devuelve 0 nada, 1 trama AX.25 (texto TNC2 o volcado hexadecimal en out), 2 paquete LoRa (bytes en out)
     int  satRxPoll(uint8_t* out, size_t outMax, size_t& len, int& rssi, float& snr, int& freqErr);
     void satRxEnd();                                // devuelve el chip al perfil normal
+    // Emision (fase 3). Todo bloquea; el que llama (sat_tx.cpp) ya ha parado la escucha y activado el secuenciador
+    bool satTxBegin(const SatTxParams& p);          // carga el modem y la potencia y deja el chip listo para emitir (sin emitir)
+    bool satTxCarrier(bool on, int64_t hz);         // CW: portadora encendida (en hz) o apagada
+    int  satTxAx25(const char* tnc2);               // FSK: emite una trama UI "ORIGEN>DESTINO:info"; bytes emitidos o -1 si no vale
+    int  satTxLora(const uint8_t* data, size_t len, uint32_t& airMs);   // LoRa: emite la carga util; 0 = bien, o codigo de RadioLib
+    uint32_t satTxLoraAirMs(size_t len);            // duracion en el aire de un paquete LoRa con los parametros cargados
+    void satTxEnd();                                // devuelve el chip al perfil normal
     int  getPower();                    // potencia (dBm) del perfil LoRa activo
     int  powerMin();
     int  powerMax();

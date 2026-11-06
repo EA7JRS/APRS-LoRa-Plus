@@ -312,6 +312,26 @@ namespace WEB_Utils {
             Config.sat.minEl = constrain(getParamIntSafe("sat.minEl", Config.sat.minEl), 0, 60);
             if (request->hasParam("sat.lat", true)) Config.sat.lat = constrain(request->getParam("sat.lat", true)->value().toDouble(), -90.0, 90.0);
             if (request->hasParam("sat.lon", true)) Config.sat.lon = constrain(request->getParam("sat.lon", true)->value().toDouble(), -180.0, 180.0);
+            Config.sat.txEnabled = request->hasParam("sat.txEnabled", true);
+            Config.sat.txMinEl = constrain(getParamIntSafe("sat.txMinEl", Config.sat.txMinEl), 0, 60);
+            Config.sat.txPower = constrain(getParamIntSafe("sat.txPower", Config.sat.txPower), -9, 22);
+            Config.sat.txMinIntervalS = constrain(getParamIntSafe("sat.txMinIntervalS", Config.sat.txMinIntervalS), 5, 3600);
+            if (request->hasParam("sat.txText", true)) {
+                String t = request->getParam("sat.txText", true)->value();
+                t.trim();
+                if (t.length() > 64) t = t.substring(0, 64);
+                Config.sat.txText = t;
+            }
+            Config.sat.lnaPin = constrain(getParamIntSafe("sat.lnaPin", Config.sat.lnaPin), -1, 99);
+            Config.sat.paPin  = constrain(getParamIntSafe("sat.paPin", Config.sat.paPin), -1, 99);
+            Config.sat.pttPin = constrain(getParamIntSafe("sat.pttPin", Config.sat.pttPin), -1, 99);
+            Config.sat.lnaRev = request->hasParam("sat.lnaRev", true);
+            Config.sat.paRev  = request->hasParam("sat.paRev", true);
+            Config.sat.pttRev = request->hasParam("sat.pttRev", true);
+            Config.sat.seqLeadMs = constrain(getParamIntSafe("sat.seqLeadMs", Config.sat.seqLeadMs), 0, 2000);
+            Config.sat.seqPreMs  = constrain(getParamIntSafe("sat.seqPreMs", Config.sat.seqPreMs), 0, 2000);
+            Config.sat.seqPostMs = constrain(getParamIntSafe("sat.seqPostMs", Config.sat.seqPostMs), 0, 2000);
+            Config.sat.seqTailMs = constrain(getParamIntSafe("sat.seqTailMs", Config.sat.seqTailMs), 0, 2000);
             if (request->hasParam("sat.dataUrl", true)) {
                 String u = request->getParam("sat.dataUrl", true)->value();
                 u.trim();

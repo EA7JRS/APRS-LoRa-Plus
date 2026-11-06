@@ -99,8 +99,8 @@ namespace SATRX_Utils {
             out[o] = 0;
         }
 
-        void parseLora(const SatCore::Transmitter& t) {
-            loraSf = 10; loraCr = 5; loraBw = 125.0f; presetIdx = 2;
+        void parseLoraInto(const SatCore::Transmitter& t, uint8_t& loraSf, uint8_t& loraCr, float& loraBw) {
+            loraSf = 10; loraCr = 5; loraBw = 125.0f;
             if (t.baud >= 7800 && t.baud <= 500000) loraBw = t.baud / 1000.0f;       // en los datos de SatNOGS el campo "baud" de LoRa suele ser el ancho de banda (Hz)
             char d[sizeof(t.desc) + 1];
             snprintf(d, sizeof(d), "%s", t.desc);
@@ -122,6 +122,8 @@ namespace SATRX_Utils {
             for (size_t i = 0; i < sizeof(ok) / sizeof(ok[0]); i++) { const float dd = fabsf(ok[i] - loraBw); if (dd < bd) { bd = dd; best = ok[i]; } }
             loraBw = best;
         }
+
+        void parseLora(const SatCore::Transmitter& t) { parseLoraInto(t, loraSf, loraCr, loraBw); presetIdx = 2; }
 
         // ---- tarea de la radio ----
         CWMorse::Envelope   env;
@@ -226,6 +228,8 @@ namespace SATRX_Utils {
     }
 
     bool available() { return LoRa_Utils::satRxAvailable(); }
+
+    void loraDefaults(const SatCore::Transmitter& t, uint8_t& sf, float& bwKHz, uint8_t& cr) { parseLoraInto(t, sf, cr, bwKHz); }
 
     Kind classify(const SatCore::Transmitter& t, const char** why) {
         char m[12];
@@ -400,6 +404,7 @@ namespace SATRX_Utils {
 namespace SATRX_Utils {
     Kind classify(const SatCore::Transmitter&, const char** why) { if (why) *why = ""; return K_NO; }
     const char* kindText(Kind) { return "-"; }
+    void loraDefaults(const SatCore::Transmitter&, uint8_t&, float&, uint8_t&) {}
     bool available() { return false; }
     bool start(uint8_t) { return false; }
     void stop() {}

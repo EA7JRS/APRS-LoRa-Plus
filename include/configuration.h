@@ -259,6 +259,21 @@ public:
     int     minEl;                              // elevacion minima de un paso util (grados)
     double  lat, lon;                           // posicion fija de la estacion cuando no hay GPS (0,0 = sin definir)
     String  dataUrl;                            // direccion del archivo de datos (vacio = el oficial del proyecto)
+    // ---- Fase 3: emision hacia el satelite (apagada por defecto; la responsabilidad de la licencia es del operador) ----
+    bool    txEnabled;                          // permite emitir
+    int     txMinEl;                            // no se emite por debajo de esta elevacion (grados)
+    int     txPower;                            // dBm en el chip (lo limita la placa)
+    int     txMinIntervalS;                     // segundos minimos entre dos emisiones
+    String  txText;                             // mensaje (CW: el texto; FSK: informacion de la trama AX.25 UI; LoRa: la carga util)
+    // Secuenciador de conmutacion para preamplificador / amplificador / equipo externo (-1 = no se usa)
+    int     lnaPin;                             // preamplificador de RX: activo mientras se escucha, se corta antes de emitir
+    int     paPin;                              // rele / amplificador: activo solo durante la emision
+    int     pttPin;                             // PTT de un equipo externo: activo durante la emision
+    bool    lnaRev, paRev, pttRev;              // true = activo a nivel bajo
+    int     seqLeadMs;                          // preamplificador cortado y rele / PA activos -> PTT
+    int     seqPreMs;                           // PTT -> portadora de RF
+    int     seqPostMs;                          // fin de la RF -> PTT suelto
+    int     seqTailMs;                          // PTT suelto y PA desactivado -> preamplificador de nuevo en RX
 };
 
 // Control de rotor de antenas (modo SAT): cliente de rotctld de Hamlib por TCP / WiFi, GS-232 por Bluetooth SPP, o evento BLE para la app

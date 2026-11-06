@@ -775,7 +775,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <h5>
                                     Satellites 70 cm
                                 </h5>
-                                <small>Selected at boot (SELECT MODE &rarr; Satellites 70cm). Pass prediction (SGP4), azimuth / elevation and Doppler for the satellites with an uplink and/or downlink in 70 cm. Orbital elements and frequencies (CelesTrak + SatNOGS) are downloaded from the project by WiFi, using the network set in <em>Firmware update</em>. The position comes from the GPS; with no GPS fix the fixed position below is used. This first version is informative only: it does not transmit or receive.</small>
+                                <small>Selected at boot (SELECT MODE &rarr; Satellites 70cm). Pass prediction (SGP4), azimuth / elevation and Doppler for the satellites with an uplink and/or downlink in 70 cm. Orbital elements and frequencies (CelesTrak + SatNOGS) are downloaded from the project by WiFi, using the network set in <em>Firmware update</em>. The position comes from the GPS; with no GPS fix the fixed position below is used. It can also listen to CW, FSK (AX.25) and LoRa satellites with Doppler correction, and transmit when you enable it below.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="form-floating mb-2">
@@ -799,6 +799,48 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div class="form-floating mb-2">
                                     <input type="text" class="form-control form-control-sm" name="sat.dataUrl" id="sat.dataUrl" maxlength="160" placeholder="https://" />
                                     <label for="sat.dataUrl">Data file address (empty = the project's own)</label>
+                                </div>
+                                <h6 class="mt-3">Transmit to the satellite (uplink)</h6>
+                                <div class="small text-muted mb-2">Off by default. Only 430&ndash;440 MHz, only with the satellite above the minimum elevation, only when you ask for it (menu, or the app); never automatically. The frequency is corrected for Doppler. You are responsible for your licence, the satellite's operating rules and the power you radiate. Needs a real callsign in the active beacon profile. CW sends the text as Morse; FSK sends it as the information field of an AX.25 UI frame from your callsign (<code>CALL&gt;APLRT1:text</code>); LoRa sends it as the payload.</div>
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="sat.txEnabled" id="sat.txEnabled" class="form-check-input" />
+                                    <label for="sat.txEnabled" class="form-label">Allow transmitting to satellites</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-12 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="sat.txMinEl" id="sat.txMinEl" min="0" max="60" step="1" value="15" />
+                                        <label for="sat.txMinEl">TX minimum elevation (&deg;)</label>
+                                    </div>
+                                    <div class="form-floating col-12 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="sat.txPower" id="sat.txPower" min="-9" max="22" step="1" value="10" />
+                                        <label for="sat.txPower">TX power (dBm at the chip)</label>
+                                    </div>
+                                    <div class="form-floating col-12 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="sat.txMinIntervalS" id="sat.txMinIntervalS" min="5" max="3600" step="1" value="30" />
+                                        <label for="sat.txMinIntervalS">Minimum seconds between transmissions</label>
+                                    </div>
+                                </div>
+                                <div class="form-floating mb-2">
+                                    <input type="text" class="form-control form-control-sm" name="sat.txText" id="sat.txText" maxlength="64" />
+                                    <label for="sat.txText">Message (max 64 characters)</label>
+                                </div>
+                                <h6 class="mt-3">Switching sequencer (preamplifier / PA / external PTT)</h6>
+                                <div class="small text-muted mb-2">Sequence: preamp off and PA / relay on &rarr; <em>lead</em> &rarr; PTT on &rarr; <em>pre</em> &rarr; RF &rarr; <em>post</em> &rarr; PTT off, PA off &rarr; <em>tail</em> &rarr; preamp on. -1 = not used. The preamp pin is <em>on while listening</em>. Use a transistor / relay driver: the GPIO cannot power a relay or a preamp directly.</div>
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sat.lnaPin" id="sat.lnaPin" min="-1" max="99" value="-1" /><label for="sat.lnaPin">Preamp pin</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sat.paPin" id="sat.paPin" min="-1" max="99" value="-1" /><label for="sat.paPin">PA / relay pin</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sat.pttPin" id="sat.pttPin" min="-1" max="99" value="-1" /><label for="sat.pttPin">PTT pin</label></div>
+                                    <div class="col-6 col-md-6 px-1 mb-2">
+                                        <div class="form-check form-check-inline"><input type="checkbox" name="sat.lnaRev" id="sat.lnaRev" class="form-check-input" /><label for="sat.lnaRev" class="form-label">Preamp active low</label></div>
+                                        <div class="form-check form-check-inline"><input type="checkbox" name="sat.paRev" id="sat.paRev" class="form-check-input" /><label for="sat.paRev" class="form-label">PA active low</label></div>
+                                        <div class="form-check form-check-inline"><input type="checkbox" name="sat.pttRev" id="sat.pttRev" class="form-check-input" /><label for="sat.pttRev" class="form-label">PTT active low</label></div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sat.seqLeadMs" id="sat.seqLeadMs" min="0" max="2000" value="20" /><label for="sat.seqLeadMs">Lead (ms)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sat.seqPreMs" id="sat.seqPreMs" min="0" max="2000" value="50" /><label for="sat.seqPreMs">Pre (ms)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sat.seqPostMs" id="sat.seqPostMs" min="0" max="2000" value="20" /><label for="sat.seqPostMs">Post (ms)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sat.seqTailMs" id="sat.seqTailMs" min="0" max="2000" value="50" /><label for="sat.seqTailMs">Tail (ms)</label></div>
                                 </div>
                             </div>
                         </div>

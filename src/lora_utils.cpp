@@ -255,6 +255,7 @@ namespace LoRa_Utils {
 
     bool fskMode = false;           // modem actualmente cargado en el chip (false = LoRa, true = FSK)
     bool satRxOn = false;           // modo SAT: el receptor de satelites tiene el chip (nadie mas lo reconfigura)
+    bool satTxOn = false;           // modo SAT: la emision hacia el satelite tiene el chip
 
     // ---- Packet FSK G3RUH (AX.25 a 9600 bd) -------------------------------------------------------------------------
     // Sin palabra de sincronismo, sin preambulo, sin CRC ni whitening del chip: el chip solo mueve bits en bloques de
@@ -419,7 +420,7 @@ namespace LoRa_Utils {
     }
 
     void applyCurrentType() {
-        if (satRxOn) return;                        // el receptor de satelites manda sobre el chip hasta que termine
+        if (satRxOn || satTxOn) return;             // el receptor / emisor de satelites manda sobre el chip hasta que termine
         float freq = radioFreqMHz();
         if (profileIsFsk() != fskMode) {            // cambio de modem LoRa <-> FSK: reinicio completo del chip
             int state = beginModem(freq);
@@ -1045,6 +1046,145 @@ namespace LoRa_Utils {
             satRxOn = false;
             radio.standby();
             fskMode = !profileIsFsk();                      // fuerza la reconfiguracion completa del modem del perfil
+            applyCurrentType();
+            radio.standby();
+        #endif
+        transmitFlag  = true;
+        operationDone = true;
+    }
+
+    // ---- Modo SAT, fase 3: emision hacia el satelite (frecuencia ya precompensada por Doppler) ------------------------------
+    // Copyright (c) 2026 Manuel - EA7JRS. Cada rafaga reinicia el modem; el que llama impone las seguridades (sat_tx.cpp)
+    bool satTxBegin(const SatTxParams& p) {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            satRxOn = false;
+            satKind = p.kind;
+            const float mhz = (float)(((double)p.hz + ppmCorrectionHzExact((long)p.hz)) / 1e6);
+            int state;
+            if (p.kind == 2) {
+                #if defined(RADIO_HAS_XTAL)
+                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0);
+                #else
+                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8);
+                #endif
+                fskMode = false;
+            } else if (p.kind == 1) {
+                const float baud = p.baud / 1000.0f;
+                const float dev  = max(1.0f, p.baud * 0.3f / 1000.0f);
+                #if defined(RADIO_HAS_XTAL)
+                    state = radio.beginFSK(mhz, baud, dev, satFskBandwidth(p.baud), 10, 16, 0.0f);
+                #else
+                    state = radio.beginFSK(mhz, baud, dev, satFskBandwidth(p.baud), 10, 16);
+                #endif
+                fskMode = true;
+            } else {
+                #if defined(RADIO_HAS_XTAL)
+                    state = radio.begin(mhz, 125.0, 9, 7, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0);
+                #else
+                    state = radio.begin(mhz);
+                #endif
+                fskMode = false;
+            }
+            if (state != RADIOLIB_ERR_NONE) {
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SAT Tx", "Modem start failed! State: %d", state);
+                fskMode = !profileIsFsk();
+                return false;
+            }
+            applyBoardRadioSettings();
+            if (p.kind == 2) {
+                radio.setCRC(true);
+            } else if (p.kind == 1) {
+                uint8_t noSync[1] = { 0 };
+                radio.setSyncWord(noSync, 0);
+                radio.setPreambleLength(0);
+                radio.setCRC(0);
+                radio.setWhitening(false);
+                radio.setDataShaping(RADIOLIB_SHAPING_0_5);
+            }
+            satSetHz(p.hz);
+            satTxOn = true;
+            setPower(p.powerDbm);
+            #if defined(TTGO_T_BEAM_1W)
+                radio.setPaRampTime(RADIOLIB_SX126X_PA_RAMP_800U);
+                digitalWrite(RADIO_RXEN, LOW);
+            #endif
+            return true;
+        #else
+            (void)p;
+            return false;
+        #endif
+    }
+
+    bool satTxCarrier(bool on, int64_t hz) {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            if (!satTxOn) return false;
+            if (on) {
+                satSetHz(hz);
+                NOTIFICATION_Utils::lightTx(true);
+                return radio.transmitDirect() == RADIOLIB_ERR_NONE;
+            }
+            radio.standby();
+            NOTIFICATION_Utils::lightTx(false);
+            return true;
+        #else
+            (void)on; (void)hz;
+            return false;
+        #endif
+    }
+
+    int satTxAx25(const char* tnc2) {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            if (!satTxOn || satKind != 1) return -1;
+            uint8_t frame[AX25G3::MAX_FRAME], air[256];
+            const size_t fl = AX25G3::tnc2ToFrame(tnc2, frame, sizeof(frame));
+            if (fl == 0) return -1;
+            const size_t n = AX25G3::g3ruhEncode(frame, fl, air, sizeof(air), G3RUH_LEAD_FLAGS);
+            if (n == 0) return -1;
+            radio.fixedPacketLengthMode((uint8_t)n);
+            NOTIFICATION_Utils::lightTx(true);
+            const int state = radio.transmit(air, n);
+            NOTIFICATION_Utils::lightTx(false);
+            return state == RADIOLIB_ERR_NONE ? (int)n : -1;
+        #else
+            (void)tnc2;
+            return -1;
+        #endif
+    }
+
+    uint32_t satTxLoraAirMs(size_t len) {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            return (uint32_t)(radio.getTimeOnAir(len) / 1000);
+        #else
+            (void)len;
+            return 0;
+        #endif
+    }
+
+    int satTxLora(const uint8_t* data, size_t len, uint32_t& airMs) {
+        airMs = 0;
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            if (!satTxOn || satKind != 2) return -1;
+            airMs = satTxLoraAirMs(len);
+            NOTIFICATION_Utils::lightTx(true);
+            const int state = radio.transmit(data, len);
+            NOTIFICATION_Utils::lightTx(false);
+            return state;
+        #else
+            (void)data; (void)len;
+            return -1;
+        #endif
+    }
+
+    void satTxEnd() {
+        #if defined(HAS_SAT) && (defined(HAS_SX1262) || defined(HAS_SX1268))
+            if (!satTxOn) return;
+            satTxOn = false;
+            radio.standby();
+            NOTIFICATION_Utils::lightTx(false);
+            #if defined(TTGO_T_BEAM_1W)
+                digitalWrite(RADIO_RXEN, HIGH);
+            #endif
+            fskMode = !profileIsFsk();
             applyCurrentType();
             radio.standby();
         #endif

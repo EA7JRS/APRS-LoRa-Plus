@@ -1,6 +1,6 @@
 # Modo SAT (satélites en 70 cm) y control de rotor
 
-*Copyright (c) 2026 Manuel - EA7JRS. Estado: **fases 1 y 2** (predicción, rotor y recepción con Doppler), sin probar en placa.*
+*Copyright (c) 2026 Manuel - EA7JRS. Estado: **fases 1 a 3** (predicción, rotor, recepción con Doppler y emisión con precompensación), sin probar en placa.*
 
 **Solo en las placas que lo admiten** (con pantalla y no el ESP32 original, p. ej. T-Beam Supreme S3): en las demás no aparece en el menú, ni en la app, ni en la WebUI.
 
@@ -45,7 +45,24 @@ En la pantalla de frecuencias (*Change view* → *v:freq*) cada transmisor lleva
 
 Menú del modo SAT: **Listen ON/OFF**, **Next transmitter** (el siguiente que se pueda recibir; si se está escuchando, cambia en caliente), **Fine +100 Hz / -100 Hz** (error del oscilador del satélite; se suma al Doppler), **LoRa SF/BW** y **Clear RX log**. Al cambiar de satélite o de modo la escucha se detiene.
 
-Limitaciones: solo SX1262 / SX1268 (frecuencia 400-510 MHz en esta fase); la radio es semidúplex y en esta fase no emite; el SX1268 no llega a los 401,9 MHz de algún satélite LoRa («Freq/params refused»). Con antena yagi y preamplificador externo la sensibilidad mejora, pero el tracker no controla ni alimenta el preamplificador. BLE: orden `satrx` y evento `satrx` (ver `BLE_CONTROL.md`), con cada línea recibida, para que la app la guarde o la decodifique. Las fases siguientes (emisión con precompensación y PTT, integración con GPredict) no están hechas.
+Limitaciones: solo SX1262 / SX1268 (frecuencia 400-510 MHz en esta fase); la radio es semidúplex y en esta fase no emite; el SX1268 no llega a los 401,9 MHz de algún satélite LoRa («Freq/params refused»). Con antena yagi y preamplificador externo la sensibilidad mejora, pero el tracker no controla ni alimenta el preamplificador. BLE: orden `satrx` y evento `satrx` (ver `BLE_CONTROL.md`), con cada línea recibida, para que la app la guarde o la decodifique. 
+## Emisión con precompensación Doppler y secuenciador (fase 3)
+
+**Apagada por defecto.** Se habilita en la WebUI (*Satellites 70 cm → Transmit to the satellite*). Nunca emite sola: cada emisión la pide el usuario (menú **Send message (TX)** o la orden BLE `sattx`). El mensaje (64 caracteres) se escribe en la WebUI, o lo manda la app.
+
+| Subida del transmisor | Qué se emite |
+|---|---|
+| **CW** | El texto en Morse (velocidad de *CW WPM*); la frecuencia de la portadora se recalcula en cada elemento. Máximo 25 s; el botón la corta |
+| **FSK / GMSK** | Trama AX.25 UI `INDICATIVO>APLRT1:texto` en G3RUH (el indicativo es el del perfil de baliza activo). El texto es el campo de información: puede ser APRS (`>estado`, `:INDICATIVO:mensaje`) |
+| **LoRa** | El texto como carga útil, con SF / BW / CR de la descripción del transmisor (máx. 10 s en el aire) |
+
+La frecuencia de emisión es la de subida del transmisor con el Doppler del instante (`f·(1 + vr/c)`, con la velocidad radial del satélite) y el ajuste de ppm global del tracker. Un transpondedor lineal se emite en el centro de su banda de subida.
+
+**Seguridades** (todas deben cumplirse; la pantalla *TX* dice cuál falla): permiso de la WebUI; un indicativo real en el perfil de baliza (no `NOCALL`); satélite en órbita baja con hora y posición válidas y por encima de la *TX minimum elevation* (15° por defecto; también se corta una emisión larga si baja de ella); subida entre **430 y 440 MHz** (el SX1268 llega a 410–510 MHz, pero el modo SAT no emite fuera de esa banda de aficionados); intervalo mínimo entre emisiones (30 s por defecto); potencia limitada por la placa (*TX power*, 10 dBm por defecto). No se emite en AFSK, FM, BPSK, SSB ni LR-FHSS. La licencia, las normas de uso del satélite (muchos limitan la potencia, el tiempo o los modos) y la potencia radiada con la antena son responsabilidad del operador. Con yagi y amplificador externo hay que ajustar *TX power* para no pasarse.
+
+**Secuenciador de conmutación** (WebUI): tres salidas (-1 = sin usar) con su nivel activo — *Preamp pin* (activo mientras se escucha), *PA / relay pin* y *PTT pin* (activos al emitir) — y cuatro tiempos: preamplificador cortado y PA activo → *Lead* → PTT → *Pre* → RF → *Post* → PTT y PA sueltos → *Tail* → preamplificador activo. En reposo (y al arrancar el modo SAT) el preamplificador está activo y PA y PTT sueltos. Los GPIO no mueven un relé ni un preamplificador directamente: usa un transistor o un driver. La radio es semidúplex: se para la escucha, se emite y se vuelve a escuchar.
+
+Las fases siguientes (integración con GPredict) no están hechas.
 
 ## Control de rotor
 

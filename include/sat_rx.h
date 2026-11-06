@@ -21,6 +21,7 @@ namespace SATRX_Utils {
 
     Kind        classify(const SatCore::Transmitter& t, const char** why = nullptr);    // clase de recepcion de un transmisor
     const char* kindText(Kind k);
+    void        loraDefaults(const SatCore::Transmitter& t, uint8_t& sf, float& bwKHz, uint8_t& cr);   // SF / BW / CR que dice la descripcion del transmisor
     bool        available();                       // true si la placa puede recibir satelites (SX1262 / SX1268 en una placa con modo SAT)
 
     bool        start(uint8_t txIndex);            // empieza a escuchar el transmisor del satelite elegido; false y message() si no se puede
