@@ -253,11 +253,9 @@ namespace {
             caps["modes"]  = true;
             caps["rkey"]   = LoRa_Utils::cwAvailable();          // manipulador remoto (orden "k")
             caps["ota"]    = FW_Update::slotAvailable();         // actualizacion por BLE (orden "ota")
-            caps["wifiUpd"] = FW_UPDATE_SUPPORTED && !Config.fwUpdate.ssid.isEmpty();
         #else
             caps["rkey"]   = false;
             caps["ota"]    = FW_Update::slotAvailable();
-            caps["wifiUpd"] = FW_UPDATE_SUPPORTED && !Config.fwUpdate.ssid.isEmpty();
             caps["dapnet"] = false;
             caps["cw"]     = false;
             caps["modes"]  = false;
@@ -877,13 +875,6 @@ namespace {
         if (now - otaLastMs > OTA_TIMEOUT_MS) otaFail("No data from the phone");
     }
 
-    void sendFwStatus() {
-        JsonDocument doc;
-        if (deserializeJson(doc, FW_Update::onlineStatus()) != DeserializationError::Ok) doc.clear();
-        doc["e"] = "fw";
-        sendDoc(doc);
-    }
-
     // ---------------------------------------------------------------- ordenes
 
     void setMode(int mode, const char* cmd, int id) {
@@ -1183,11 +1174,6 @@ namespace {
         }
         else if (strcmp(cmd, "ota") == 0)       otaBegin(doc, id);
         else if (strcmp(cmd, "ota_abort") == 0) { if (otaActive) { FW_Update::bleAbort(); otaStop(); } reply(cmd, id); }
-        else if (strcmp(cmd, "fwstatus") == 0)  sendFwStatus();
-        else if (strcmp(cmd, "fwcheck") == 0 || strcmp(cmd, "fwinstall") == 0) {
-            if (FW_Update::onlineStart(strcmp(cmd, "fwinstall") == 0)) reply(cmd, id);
-            else reply(cmd, id, Config.fwUpdate.ssid.isEmpty() ? "Set the tracker's WiFi (WebUI: Firmware update) first" : "Busy or not available on this board");
-        }
         else if (strcmp(cmd, "kcfg") == 0) {
             const int d = doc["delay"] | -1;
             if (d < 0 || d > KEY_DELAY_MAX_MS) { reply(cmd, id, "delay 0-1000 ms"); return; }

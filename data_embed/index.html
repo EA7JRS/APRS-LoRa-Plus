@@ -2156,7 +2156,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a.5.5 0 0 1 .5.5v8.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V1.5A.5.5 0 0 1 8 1"/><path d="M2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/></svg>
                                     Firmware update
                                 </h5>
-                                <small>Board and version of this tracker, update from a file or from the internet.</small>
+                                <small>Board and version of this tracker, update from a file, and your WiFi network.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <p class="mb-2" id="fw-info">Reading board information...</p>
@@ -2169,31 +2169,20 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         </div>
                                         <div class="progress mt-2" style="display:none" id="fw-progress-wrap"><div class="progress-bar" id="fw-progress" style="width:0%">0 %</div></div>
                                     </div>
-                                    <hr>
-                                    <p class="mb-2"><strong>Update from the internet</strong><br>
-                                    <small>The tracker joins your WiFi network for a moment (not available while you use its own access point exclusively: save these data, restart, and press the button). It only installs firmware published for this board and checks its checksum.</small></p>
-                                    <div class="row g-2 mb-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label" for="fwUpdate.ssid">WiFi network (SSID)</label>
-                                            <input type="text" class="form-control" id="fwUpdate.ssid" name="fwUpdate.ssid" maxlength="32">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label" for="fwUpdate.password">WiFi password</label>
-                                            <input type="password" class="form-control" id="fwUpdate.password" name="fwUpdate.password" maxlength="63">
-                                        </div>
+                                    <small class="text-body-secondary">To update over the air without a file, use the APRS LoRa+ Android app (Firmware tab): it downloads the new version with the phone's internet and sends it to the tracker over Bluetooth.</small>
+                                </div>
+                                <hr>
+                                <p class="mb-2"><strong>Your WiFi network</strong><br>
+                                <small>Used by KISS over WiFi, the rotor and the satellite data download. The tracker joins it as a client.</small></p>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="fwUpdate.ssid">WiFi network (SSID)</label>
+                                        <input type="text" class="form-control" id="fwUpdate.ssid" name="fwUpdate.ssid" maxlength="32">
                                     </div>
-                                    <div class="form-check form-switch mb-1">
-                                        <input class="form-check-input" type="checkbox" id="fwUpdate.autoCheck" name="fwUpdate.autoCheck">
-                                        <label class="form-check-label" for="fwUpdate.autoCheck">Look for a new version at every start (if that WiFi is in range)</label>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="fwUpdate.password">WiFi password</label>
+                                        <input type="password" class="form-control" id="fwUpdate.password" name="fwUpdate.password" maxlength="63">
                                     </div>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="fwUpdate.autoInstall" name="fwUpdate.autoInstall">
-                                        <label class="form-check-label" for="fwUpdate.autoInstall">Install it automatically (automatic update)</label>
-                                    </div>
-                                    <button type="button" class="btn btn-outline-secondary me-2" id="fw-check">Check for updates</button>
-                                    <button type="button" class="btn btn-outline-primary" id="fw-install" style="display:none">Install new version</button>
-                                    <p class="mt-2 mb-0" id="fw-status"></p>
-                                    <small class="text-body-secondary">Save the configuration before checking if you changed the WiFi data.</small>
                                 </div>
                                 <p class="mb-0 text-body-secondary" id="fw-usb-note" style="display:none"><small>This board has no room for a second copy of the firmware: update it with the USB installer (see the project web page).</small></p>
                             </div>

@@ -80,8 +80,6 @@ bool Configuration::writeFile() {
 
         data["fwUpdate"]["ssid"]                    = fwUpdate.ssid;
         data["fwUpdate"]["password"]                = fwUpdate.password;
-        data["fwUpdate"]["autoCheck"]               = fwUpdate.autoCheck;
-        data["fwUpdate"]["autoInstall"]             = fwUpdate.autoInstall;
         data["kissNet"]["enabled"]                  = kissNet.enabled;
         data["kissNet"]["tcpPort"]                  = kissNet.tcpPort;
         data["kissNet"]["udpPort"]                  = kissNet.udpPort;
@@ -394,11 +392,9 @@ bool Configuration::readFile() {
         wifiAP.active               = data["wifiAP"]["active"] | true;
         wifiAP.password             = data["wifiAP"]["password"] | "1234567890";
 
-        if (data["fwUpdate"]["autoCheck"].isNull()) needsRewrite = true;
+        if (data["fwUpdate"]["ssid"].isNull()) needsRewrite = true;
         fwUpdate.ssid               = data["fwUpdate"]["ssid"] | "";
         fwUpdate.password           = data["fwUpdate"]["password"] | "";
-        fwUpdate.autoCheck          = data["fwUpdate"]["autoCheck"] | false;
-        fwUpdate.autoInstall        = data["fwUpdate"]["autoInstall"] | false;
 
         if (data["kissNet"]["tcpPort"].isNull()) needsRewrite = true;
         kissNet.enabled             = data["kissNet"]["enabled"] | false;
@@ -1083,8 +1079,6 @@ void Configuration::setDefaultValues() {
 
     fwUpdate.ssid                   = "";
     fwUpdate.password               = "";
-    fwUpdate.autoCheck              = false;
-    fwUpdate.autoInstall            = false;
 
     kissNet.enabled                 = false;
     kissNet.tcpPort                 = 8001;

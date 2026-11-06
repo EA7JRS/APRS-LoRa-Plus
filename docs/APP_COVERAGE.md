@@ -24,7 +24,7 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | Telegrafía: mensajes, texto libre, manipulador remoto | `cw`, `k`, `kcfg` | sí | sí |
 | Modo SAT: estado, lista, selección, receptor, emisión, transmisores, datos | `sat`, `satlist`, `satsel`, `satrx`, `sattx`, `sattxlist`, `satdata`, `pos` | sí | sí |
 | Rotor y objetivos (sin `att`, ver abajo) | evento `rot`, `att`, `tgtlist`, `tgt` | sí | sí |
-| Actualización de firmware | `ota`, `fwstatus`, `fwcheck`, `fwinstall` | sí | sí |
+| Actualización de firmware (la app descarga y envía por BLE; el tracker no descarga) | `ota`, `ota_abort` | sí | sí |
 | **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | sí |
 | Espejo de pantalla de cualquier página | `screen` | sí | sí |
 | **Toda la configuración** (WebUI) | `cfgget`, `cfgset` | sí | sí |

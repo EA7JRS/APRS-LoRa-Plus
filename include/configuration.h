@@ -74,10 +74,8 @@ public:
 
 class FwUpdate {
 public:
-    String  ssid;                       // red WiFi (cliente) con internet; vacio = sin comprobacion en linea
+    String  ssid;                       // red WiFi (cliente) de casa: la usan el KISS por WiFi, el rotor y la descarga de satelites (el nombre de la clase es historico)
     String  password;
-    bool    autoCheck;                  // al arrancar, buscar una version nueva (retrasa el arranque unos segundos solo si hay red)
-    bool    autoInstall;                // y, si hay una nueva, instalarla sin preguntar (solo placas con dos ranuras de firmware)
 };
 
 class Beacon {

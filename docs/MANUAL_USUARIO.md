@@ -643,8 +643,7 @@ Estudio de cobertura de todos los modos: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: p
 
 **Desde la WebUI (solo placas con dos copias de firmware: T-Beam S3 Supreme y T-Beam 1W).** Administración > *Firmware update*: arriba verás placa, versión y si admite actualización web.
 - *Archivo*: elige el `.bin` de tu placa y pulsa *Upload and install*. Si es de otra placa, se rechaza.
-- *Internet*: escribe tu red WiFi y contraseña, guarda, pulsa *Check for updates* y después *Install new version*. La placa se conecta a tu WiFi unos segundos (el punto de acceso de configuración puede cortarse un momento).
-- *Automática*: activa «Look for a new version at every start» (y, si quieres, «Install it automatically»). Al encender, antes de arrancar la radio, la placa busca una versión más nueva en tu WiFi; si no hay red, sigue con el arranque normal (espera hasta 10 s). Una instalación automática descarga ~1,5–2 MB y reinicia.
+- *Por internet o Bluetooth*: **lo hace la app Android APRS LoRa+** (pestaña *Firmware*): busca la versión publicada, la descarga con el internet del móvil, comprueba tamaño y SHA-256 y la envía a la placa por Bluetooth. La placa no descarga nada por sí misma (ya no lleva cliente HTTPS: libera unos KB de flash) y no hay actualización automática al arrancar.
 
 Las placas ESP32 clásicas, ESP32-C3, Heltec S3 y T3S3 no tienen sitio para dos copias: se actualizan por USB. Si una actualización dejase la placa sin arrancar, reinstala por USB.
 
@@ -669,7 +668,7 @@ Solo en los modos **APRS LoRa** y **APRS FSK 9600**. Ambas funciones están apag
 
 La placa puede ser un **TNC KISS por WiFi** para programas como **APRSdroid** (probado en Android: en *Connection protocol* elige la opción de TNC por TCP/IP), Xastir o YAAC. Solo en **APRS LoRa** y **APRS FSK 9600**, y en placas **ESP32-S3 / C3** (T-Beam S3 Supreme, etc.); las ESP32 clásicas y la T-Deck no lo incluyen.
 
-1. En la WebUI, Administración → *Firmware update*, escribe la **WiFi** (SSID y contraseña) de tu casa o del **punto de acceso del móvil**; es la misma que usa la actualización por internet.
+1. En la WebUI, Administración → *Firmware update*, escribe la **WiFi** (SSID y contraseña) de tu casa o del **punto de acceso del móvil**; es la que usan el KISS por WiFi, el CAT, el rotor y la descarga de satélites.
 2. Connectivity → **KISS over WiFi**: activa el interruptor (apagado por defecto), elige el **puerto TCP** (8001 por defecto) y, si quieres, un **puerto UDP** (0 = sin UDP). *Allowed addresses* limita quién puede conectar: direcciones separadas por comas, o un prefijo acabado en punto (`192.168.1.` = toda esa red); vacío = cualquiera de la red.
 3. Guarda y reinicia. Al unirse a la WiFi la pantalla muestra durante unos segundos la **IP** y los puertos; también responde como `aprs-lora-plus.local`. En APRSDroid escribe esa IP y el puerto.
 
@@ -683,7 +682,7 @@ La placa puede ser un **TNC KISS por WiFi** para programas como **APRSdroid** (p
 
 La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), así que programas como GPredict, `rigctl` o scripts de Hamlib la ven como una radio: leen la **frecuencia**, el **modo** (APRS LoRa o APRS FSK 9600), el **RSSI** y la **potencia**. **No es una radio de audio**: WSJT-X y fldigi no pueden decodificar ni modular a través de ella; solo pueden seguir la frecuencia o, con *PTT = baliza*, hacer que el tracker emita su baliza APRS. Solo en APRS LoRa y APRS FSK, en placas ESP32-S3 / C3.
 
-1. Pon la WiFi en Administración → *Firmware update* (la misma que usa KISS por WiFi).
+1. Pon la WiFi en Administración → *Firmware update* (la misma que usa KISS por WiFi); el apartado se llama así por historia.
 2. Connectivity → **CAT (Hamlib) over WiFi**: activa el interruptor (apagado por defecto), elige el **puerto TCP** (4532), la **ventana de sintonía** en kHz (0 = el programa no puede cambiar la frecuencia) y, si quieres, las **direcciones permitidas**. *PTT sends an APRS beacon* hace que una orden PTT de Hamlib emita una baliza (apagado por defecto).
 3. Guarda y reinicia (o usa **WiFi CAT: ON/OFF** en el submenú de SYSTEM, que se aplica al momento). KISS y CAT comparten el mismo enlace WiFi y pueden estar activos a la vez.
 4. Desde el ordenador: `rigctl -m 2 -r aprs-lora-plus.local:4532 f` (modelo 2 = *NET rigctl*).

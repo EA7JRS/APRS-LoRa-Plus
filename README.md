@@ -25,7 +25,7 @@ Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KI
 | **Región IARU automática** *(5.3.4, sin probar)* | Deduce la región IARU 1/2/3 del GPS y ajusta canal y frecuencia de los perfiles (LoRa, FSK, FT8/FT4/FST4W, CW), al arrancar, bajo petición o en marcha, con confirmación en pantalla o directa. Manual, apartado 20. |
 | **Control por BLE con PIN** *(5.3.4, sin probar)* | Segundo servicio BLE para la app de Android (estado, sensores, GNSS, DAPNET, NMEA, modo y perfil, manipulador remoto, firmware por BLE) con emparejamiento por PIN. Ver `docs/BLE_CONTROL.md`. |
 | **CW por RF: S-meter y squelch** *(5.3.4, sin probar)* | La escucha CW muestra S-meter, dBm y SNR y tiene squelch ajustable desde el tracker y la WebUI; el zumbador suena con macros, manipulador y entrenador. |
-| **Instalar y actualizar** *(5.3.1, instalador web probado)* | Instalador web por USB que reconoce la placa y la versión instalada, actualización desde la WebUI (archivo o internet) en placas con dos copias de firmware y actualización automática opcional. Ver el manual, apartado 30. |
+| **Instalar y actualizar** *(5.3.1, instalador web probado)* | Instalador web por USB que reconoce la placa y la versión instalada, actualización desde la WebUI (archivo) y desde la app Android (internet del móvil, por Bluetooth) en placas con dos copias de firmware. Ver el manual, apartado 30. |
 | **Identificación de equipos** | Lista oficial aprs-deviceid (tocalls y sufijos Mic-E). |
 
 Detalle completo en [`CHANGELOG.md`](CHANGELOG.md) y en las notas de cada versión ([`docs/releases/`](docs/releases)).

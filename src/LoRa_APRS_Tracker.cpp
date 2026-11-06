@@ -175,7 +175,6 @@ void setup() {
         PAGES_Utils::selectMode();      // APRS LoRa / APRS FSK / MORSE: debe decidirse antes de arrancar la radio
     #endif
 
-    FW_Update::autoUpdateAtBoot();                                 // si esta activado: busca (e instala) una version nueva por tu WiFi
     WIFI_Utils::checkIfWiFiAP();
 
     MSG_Utils::loadNumMessages();

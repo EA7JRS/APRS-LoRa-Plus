@@ -57,8 +57,6 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 | `kcfg` | `delay` (ms, 0-1000) | retardo de reproducción del manipulador remoto (150 ms por defecto; vuelve a 150 al desconectar) |
 | `ota` | `size` (bytes), `sha` (SHA-256 en hexadecimal) | empieza una actualización por BLE; responde `ok` con `block` y `buffer` (ver abajo) |
 | `ota_abort` | | cancela la actualización en curso |
-| `fwcheck` / `fwinstall` | | busca (e instala) la última versión con la WiFi del tracker, como los botones de la WebUI |
-| `fwstatus` | | evento `fw` con el estado de `fwcheck` / `fwinstall` |
 | `tgt` | alta: `n` (nombre, 20), `lat`, `lon`, `alt` (m), `f` (Hz), `i` (hueco 0-7; sin él, el primero libre), `sel` (true = elegirlo y seguirlo); `del` (hueco); `sel` (número de hueco, sin `n`); `src` (0-2) | objetivos fijos del rotor (repetidores, balizas...): se guardan en el tracker; responde `ok` y el evento `targets` |
 | `att` | `p` (cabeceo, + morro arriba), `r` (alabeo, + lado derecho abajo), grados | medida del inclinómetro del soporte del rotor (modo SAT / rotor); caduca a los 2 s, repetir. Solo se usa con *Tilt compensation* activada en la WebUI; sin respuesta |
 | `satrx` | `on` (true/false), `tx` (índice del transmisor del satélite elegido, 0 por defecto), `fine` (Hz, se suma al ajuste fino) | receptor de satélites (solo modo SAT): empieza / para la escucha con Doppler; responde `ok` (o un `err` con el motivo) y el evento `satrx` |
@@ -77,7 +75,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 `info`:
 ```json
 {"e":"info","v":1,"fw":"5.3.2","board":"ttgo_t_beam_s3_SUPREME_v3",
- "caps":{"nmea":true,"dapnet":true,"cw":true,"modes":true,"rkey":true,"ota":true,"wifiUpd":false},
+ "caps":{"nmea":true,"dapnet":true,"cw":true,"modes":true,"rkey":true,"ota":true},
  "mode":0,"modes":[{"m":0,"n":"APRS LoRa"},{"m":1,"n":"APRS FSK 9600"},{"m":5,"n":"DAPNET pager"}],
  "profile":0,"profiles":[{"call":"EA7JRS-7","label":"Coche"}],
  "lora":0,"loras":[{"f":433775000,"sf":12,"cr":5,"fsk":false}],
@@ -166,7 +164,7 @@ El manipulador va conectado al móvil (adaptador USB de teclado, MIDI o serie). 
 4. Con el último byte el tracker comprueba el SHA-256 y que la imagen es de esta placa (como al subirla por la WebUI), la activa, envía `{"e":"ota","off":<size>,"done":true}` y reinicia a los 1,5 s.
 5. Cualquier fallo: `{"e":"err","c":"ota","msg":...}` y la ranura en uso no se toca. También se cancela al desconectar o tras 20 s sin datos.
 
-`fwstatus` → `{"e":"fw","state":"idle|working|uptodate|available|done|error","progress":0-100,"message":"...","latest":"5.3.3","current":"5.3.2","size":1834016}`.
+La actualización por internet es cosa de la app: el tracker no tiene cliente HTTPS (se quitaron `fwcheck`, `fwinstall`, `fwstatus` y el evento `fw`, y `caps.wifiUpd`).
 
 ## Tramas KISS del móvil
 

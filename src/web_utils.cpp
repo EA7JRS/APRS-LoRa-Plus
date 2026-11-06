@@ -518,8 +518,6 @@ namespace WEB_Utils {
         //  Firmware update (5.3.1)
         Config.fwUpdate.ssid                    = getParamStringSafe("fwUpdate.ssid", Config.fwUpdate.ssid);
         Config.fwUpdate.password                = getParamStringSafe("fwUpdate.password", Config.fwUpdate.password);
-        Config.fwUpdate.autoCheck               = request->hasParam("fwUpdate.autoCheck", true);
-        Config.fwUpdate.autoInstall             = Config.fwUpdate.autoCheck && request->hasParam("fwUpdate.autoInstall", true);
 
         //  Group watch and remote emergency
         Config.kissNet.enabled                  = request->hasParam("kissNet.enabled", true);          // con el interruptor apagado los campos van desactivados (no se envian): se conservan los guardados

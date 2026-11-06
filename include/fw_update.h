@@ -34,12 +34,10 @@ namespace FW_Update {
     String infoJson();                      // {"name","version","board","chip","flashSize","ota",...}
     void   printBanner();                   // "APRS-LoRa-Plus: board=... version=..." on the serial port (read by the installer page)
     void   serialPoll();                    // answers the line "APRS-INFO?" with the banner; call it from loop()
-    void   registerRoutes(AsyncWebServer& server);   // /api/info, /api/update (upload), /api/update/check|install|status
-    void   autoUpdateAtBoot();              // if enabled in the configuration: join the WiFi, look for a newer version, install it
+    void   registerRoutes(AsyncWebServer& server);   // /api/info, /api/update (upload of a .bin from the WebUI)
 
-    // From the APRS LoRa+ app over BLE (EA7JRS)
-    bool   onlineStart(bool install);       // the same as the WebUI buttons: check (and install) over the tracker's WiFi; false if busy
-    String onlineStatus();                  // {"state","progress","message","latest","current","size"}
+    // From the APRS LoRa+ app over BLE (EA7JRS). The update from the internet is the app's job: it looks for the new version, downloads
+    // it with the phone's connection and sends it here. The tracker has no HTTPS client for that.
     // Image sent by the phone: written into the free slot, checked against the SHA-256 the phone announces and against the
     // board identity inside the image (like an upload from the WebUI), then activated
     bool   bleBegin(size_t size, const char* sha256Hex, String& error);
