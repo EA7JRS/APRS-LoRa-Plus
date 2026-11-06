@@ -26,7 +26,7 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | Modo SAT: estado, lista, selección, receptor, emisión, transmisores, datos | `sat`, `satlist`, `satsel`, `satrx`, `sattx`, `sattxlist`, `satdata`, `pos` | sí | sí |
 | Rotor y objetivos (inclinómetro con los sensores del móvil; repetidores de RepeaterBook como objetivos) | evento `rot`, `att`, `tgtlist`, `tgt` | sí | sí |
 | rotctld desde el móvil: la app manda el apunte a un rotctld de la red (cliente) y acepta Look4Sat / GPredict en el puerto 4533 (servidor) | evento `rot` (`aaz`, `ael`), `rotext` | sí | sí |
-| Receptores SDR (SDR++ / gqrx por rigctl, SDRconnect por WebSocket, SpyServer de Airspy): sintonía, modo, filtro, ganancia, grabación; siguen el satélite con Doppler, la LoRa del tracker o el objetivo del rotor | solo en la app (eventos `sat`, `sattxlist`, `info`, `status`, `targets`) | — | sí |
+| Receptores SDR (SDR++ / gqrx por rigctl, SDRconnect por WebSocket, SpyServer de Airspy; RTL-SDR por USB con el driver de Android o rtl_tcp, demodulado en la app): sintonía, modo, filtro, ganancia, grabación; siguen el satélite con Doppler, la LoRa del tracker o el objetivo del rotor | solo en la app (eventos `sat`, `sattxlist`, `info`, `status`, `targets`) | — | sí |
 | Actualización de firmware (la app descarga y envía por BLE; el tracker no descarga) | `ota`, `ota_abort` | sí | sí |
 | **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | sí |
 | Espejo de pantalla de cualquier página | `screen` | sí | sí |
