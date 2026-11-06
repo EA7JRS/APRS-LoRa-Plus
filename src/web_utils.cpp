@@ -283,6 +283,27 @@ namespace WEB_Utils {
             Config.rotor.parkAz     = constrain(getParamIntSafe("rotor.parkAz", Config.rotor.parkAz), 0, 359);
             Config.rotor.parkEl     = constrain(getParamIntSafe("rotor.parkEl", Config.rotor.parkEl), 0, 90);
             Config.rotor.bleEvents  = request->hasParam("rotor.bleEvents", true);
+            Config.rotor.source      = constrain(getParamIntSafe("rotor.source", Config.rotor.source), 0, 2);
+            Config.rotor.targetIndex = constrain(getParamIntSafe("rotor.targetIndex", Config.rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
+            for (int i = 0; i < RotorConfig::TARGETS; i++) {
+                char key[24];
+                snprintf(key, sizeof(key), "rotor.t%d.n", i);
+                if (!request->hasParam(key, true)) continue;                                   // fila ausente: se deja como esta
+                String name = request->getParam(key, true)->value();
+                name.trim();
+                if (name.length() > 20) name = name.substring(0, 20);
+                RotorConfig::Target& t = Config.rotor.targets[i];
+                if (name.isEmpty()) { t = RotorConfig::Target{ "", 0.0, 0.0, 0, 0 }; continue; }
+                t.name = name;
+                snprintf(key, sizeof(key), "rotor.t%d.lat", i);
+                t.lat = request->hasParam(key, true) ? constrain(request->getParam(key, true)->value().toDouble(), -90.0, 90.0) : 0.0;
+                snprintf(key, sizeof(key), "rotor.t%d.lon", i);
+                t.lon = request->hasParam(key, true) ? constrain(request->getParam(key, true)->value().toDouble(), -180.0, 180.0) : 0.0;
+                snprintf(key, sizeof(key), "rotor.t%d.alt", i);
+                t.alt = request->hasParam(key, true) ? constrain((int)request->getParam(key, true)->value().toInt(), -500, 9000) : 0;
+                snprintf(key, sizeof(key), "rotor.t%d.f", i);
+                t.freqHz = request->hasParam(key, true) ? (long)lround(request->getParam(key, true)->value().toDouble() * 1e6) : 0L;
+            }
         }
         {   // modo SAT
             Config.sat.posSource = constrain(getParamIntSafe("sat.posSource", Config.sat.posSource), 0, 2);

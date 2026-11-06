@@ -351,7 +351,7 @@ namespace {
 
     // Rotor (modo SAT): el movil recibe azimut / elevacion cuando cambian y los retransmite al rotor
     void checkRotor() {
-        if (!connected || !authed || !Config.rotor.bleEvents || Config.operatingMode != MODE_SAT) return;
+        if (!connected || !authed || !Config.rotor.bleEvents || ROTOR_Utils::source() < 0) return;
         static uint32_t seen = 0;
         const uint32_t s = ROTOR_Utils::targetSeq();
         if (s == seen) return;
@@ -363,8 +363,24 @@ namespace {
         doc["az"] = serialized(String(az, 1));
         doc["el"] = serialized(String(el, 1));
         doc["trk"] = tracking;
-        const SatCore::Block* b = SAT_Utils::block();
-        if (b) doc["sat"] = b->name;
+        doc["src"] = ROTOR_Utils::source();
+        if (ROTOR_Utils::targetName()[0]) doc["name"] = ROTOR_Utils::targetName();
+        if (ROTOR_Utils::targetDistKm() > 0.0) doc["km"] = (int)ROTOR_Utils::targetDistKm();
+        sendDoc(doc);
+    }
+
+    void sendTargets() {
+        JsonDocument doc;
+        doc["e"]   = "targets";
+        doc["sel"] = Config.rotor.targetIndex;
+        doc["src"] = Config.rotor.source;
+        JsonArray items = doc["items"].to<JsonArray>();
+        for (int i = 0; i < RotorConfig::TARGETS; i++) {
+            const RotorConfig::Target& t = Config.rotor.targets[i];
+            if (t.name.isEmpty()) continue;
+            JsonObject o = items.add<JsonObject>();
+            o["i"] = i; o["n"] = t.name; o["lat"] = t.lat; o["lon"] = t.lon; o["alt"] = t.alt; o["f"] = t.freqHz;
+        }
         sendDoc(doc);
     }
 
@@ -493,6 +509,47 @@ namespace {
             if (s >= 0) sensorsEveryMs = s == 0 ? 0 : (uint32_t)max(s, 2) * 1000UL;
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
             reply(cmd, id);
+        }
+        else if (strcmp(cmd, "tgtlist") == 0) sendTargets();
+        else if (strcmp(cmd, "tgt") == 0) {                       // objetivo fijo para el rotor (repetidor, baliza...): i, n, lat, lon, alt, f | del | sel | src
+            #ifdef HAS_SAT
+                bool changed = false;
+                if (!doc["del"].isNull()) {
+                    const int d = doc["del"] | -1;
+                    if (d < 0 || d >= RotorConfig::TARGETS) { reply(cmd, id, "bad slot"); return; }
+                    Config.rotor.targets[d] = RotorConfig::Target{ "", 0.0, 0.0, 0, 0 };
+                    changed = true;
+                }
+                if (!doc["n"].isNull()) {
+                    if (doc["lat"].isNull() || doc["lon"].isNull()) { reply(cmd, id, "lat and lon needed"); return; }
+                    const double lat = doc["lat"] | 0.0, lon = doc["lon"] | 0.0;
+                    if (lat < -90.0 || lat > 90.0 || lon < -180.0 || lon > 180.0) { reply(cmd, id, "bad position"); return; }
+                    int slot = doc["i"] | -1;
+                    if (slot < 0) {                                                           // sin hueco pedido: el primero libre; si no hay, el elegido
+                        slot = Config.rotor.targetIndex;
+                        for (int k = 0; k < RotorConfig::TARGETS; k++) if (Config.rotor.targets[k].name.isEmpty()) { slot = k; break; }
+                    }
+                    if (slot >= RotorConfig::TARGETS) { reply(cmd, id, "bad slot"); return; }
+                    String name = doc["n"] | "";
+                    name.trim();
+                    if (name.length() > 20) name = name.substring(0, 20);
+                    if (name.isEmpty()) { reply(cmd, id, "name needed"); return; }
+                    Config.rotor.targets[slot] = RotorConfig::Target{ name, lat, lon, doc["alt"] | 0, (long)(doc["f"] | 0L) };
+                    if (doc["sel"] | false) { Config.rotor.targetIndex = slot; Config.rotor.source = 2; }
+                    changed = true;
+                } else if (!doc["sel"].isNull()) {
+                    const int s = doc["sel"] | -1;
+                    if (s < 0 || s >= RotorConfig::TARGETS || Config.rotor.targets[s].name.isEmpty()) { reply(cmd, id, "bad slot"); return; }
+                    Config.rotor.targetIndex = s; Config.rotor.source = 2;
+                    changed = true;
+                }
+                if (!doc["src"].isNull()) { Config.rotor.source = constrain((int)(doc["src"] | 0), 0, 2); changed = true; }
+                if (changed) Config.writeFile();
+                reply(cmd, id);
+                sendTargets();
+            #else
+                reply(cmd, id, "not available");
+            #endif
         }
         else if (strcmp(cmd, "pos") == 0) {                       // posicion del movil para el modo SAT: lat, lon, alt (m), acc (m)
             if (doc["lat"].isNull() || doc["lon"].isNull()) { reply(cmd, id, "lat and lon needed"); return; }

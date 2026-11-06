@@ -865,6 +865,13 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         <label for="rotor.parkEl">Park elevation (&deg;)</label>
                                     </div>
                                 </div>
+                                <div class="form-floating mb-2">
+                                    <select class="form-select form-select-sm" name="rotor.source" id="rotor.source"><option value="0" selected>Satellite (SAT mode)</option><option value="1">APRS station set with GO TO (compass target)</option><option value="2">Fixed target (list below)</option></select>
+                                    <label for="rotor.source">What the rotor follows</label>
+                                </div>
+                                <div class="small text-muted mb-1">Fixed targets (up to 8): a repeater, a beacon, a station... The Android app can fill this list by Bluetooth (<code>tgt</code> command), for example from a repeater directory you have access to. Latitude / longitude in decimal degrees (east +), altitude above sea level in metres. A slot with no name is empty.</div>
+                                <div class="mb-2"><select class="form-select form-select-sm w-auto d-inline-block" name="rotor.targetIndex" id="rotor.targetIndex"></select> <span class="small text-muted">selected target</span></div>
+                                <div id="rotor-targets" class="mb-2"></div>
                                 <div class="form-check form-switch">
                                     <input type="checkbox" name="rotor.bleEvents" id="rotor.bleEvents" class="form-check-input" checked />
                                     <label for="rotor.bleEvents" class="form-label">Send the <code>rot</code> event (azimuth / elevation) to the Android app by BLE</label>

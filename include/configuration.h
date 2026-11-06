@@ -275,6 +275,16 @@ public:
     bool    park;                               // ir a la posicion de reposo al terminar el paso
     int     parkAz, parkEl;
     bool    bleEvents;                          // enviar el evento "rot" a la app por BLE
+    int     source;                             // que sigue el rotor: 0 = el satelite (modo SAT), 1 = el objetivo APRS de la brujula (GO TO), 2 = un objetivo fijo guardado
+    int     targetIndex;                        // objetivo fijo elegido (0..ROTOR_TARGETS-1)
+    static const int TARGETS = 8;
+    struct Target {
+        String  name;                           // nombre (repetidor, baliza...)
+        double  lat, lon;
+        int     alt;                            // m
+        long    freqHz;                         // informativo (repetidor)
+    };
+    Target  targets[TARGETS];
 };
 
 // Balizas FT8 y FT4 (modos FT8 y FT4; solo emision, SX1262/SX1268): mensaje estandar con el indicativo del perfil de baliza, ranuras de 15 s (FT8) o 7,5 s (FT4) sincronizadas con el GPS

@@ -17,6 +17,7 @@
 #include "sat_utils.h"
 #include "configuration.h"
 #include "board_pinout.h"
+#include "pages_utils.h"
 
 #ifdef HAS_BT_CLASSIC
     #include <BluetoothSerial.h>
@@ -49,6 +50,8 @@ namespace ROTOR_Utils {
         float          sentAz = -999, sentEl = -999;
         uint32_t       sentMs = 0;
         bool           parked = false;
+        char           tgtName[24] = "";
+        double         tgtDist = 0;
 
         void setState(State s, const char* m) { st = s; snprintf(msg, sizeof(msg), "%s", m); }
 
@@ -205,14 +208,25 @@ namespace ROTOR_Utils {
         return v;
     }
 
+    void ensureTask() {
+        if (task != nullptr || !Config.rotor.enabled || stopTask) return;
+        setState(ST_WAIT, "Starting");
+        if (xTaskCreate(commTask, "rotor", 6144, nullptr, 1, &task) != pdPASS) { task = nullptr; setState(ST_ERROR, "Out of memory"); }
+    }
+
+    int source() {
+        if (Config.rotor.source == 0 && Config.operatingMode != MODE_SAT) return -1;
+        return Config.rotor.source;
+    }
+    const char* targetName() { return tgtName; }
+    double targetDistKm() { return tgtDist; }
+
     void begin() {
         stopTask = true;                                    // por si habia una tarea de una entrada anterior
         for (int i = 0; i < 100 && task != nullptr; i++) delay(50);
         stopTask = false;
         tgtValid = false; parked = false; actOk = false; sentAz = sentEl = -999;
-        if (!Config.rotor.enabled) { setState(ST_OFF, "OFF"); return; }          // sin transporte propio: solo el evento BLE para la app
-        setState(ST_WAIT, "Starting");
-        if (xTaskCreate(commTask, "rotor", 6144, nullptr, 1, &task) != pdPASS) { task = nullptr; setState(ST_ERROR, "Out of memory"); }
+        setState(ST_OFF, "OFF");                                                   // la tarea de comunicacion arranca cuando hay un primer objetivo (ensureTask)
     }
 
     void loop() {
@@ -226,7 +240,27 @@ namespace ROTOR_Utils {
         bool tracking = false, have = false;
 
         SatCore::Look lk;
-        if (SAT_Utils::live(lk) && lk.elDeg >= 0.0) {
+        const int src = source();
+        if (src < 0) return;                                                       // fuente "satelite" fuera del modo SAT: nada que hacer
+        if (src != 0) {                                                            // objetivo terrestre: estacion APRS de la brujula o objetivo fijo
+            SatCore::Observer o;
+            double tLat = 0, tLon = 0, tAlt = 0;
+            bool ok = false;
+            tgtName[0] = '\0';
+            if (!SAT_Utils::observer(o)) return;
+            if (src == 1) {
+                ok = PAGES_Utils::aprsTarget(tLat, tLon, tAlt, tgtName, sizeof(tgtName));
+            } else {
+                const RotorConfig::Target& t = Config.rotor.targets[Config.rotor.targetIndex];
+                if (!t.name.isEmpty()) { ok = true; tLat = t.lat; tLon = t.lon; tAlt = t.alt; snprintf(tgtName, sizeof(tgtName), "%s", t.name.c_str()); }
+            }
+            if (!ok) return;
+            SatCore::targetLook(o, tLat, tLon, tAlt, lk);
+            tgtDist = lk.rangeKm;
+            az = (float)lk.azDeg; el = (float)(lk.elDeg > 0 ? lk.elDeg : 0); tracking = true; have = true;
+        } else if (SAT_Utils::live(lk) && lk.elDeg >= 0.0) {
+            tgtDist = 0;
+            if (SAT_Utils::block()) snprintf(tgtName, sizeof(tgtName), "%s", SAT_Utils::block()->name);
             az = (float)lk.azDeg; el = (float)lk.elDeg; tracking = true; have = true; parked = false;
         } else {
             SatCore::Pass ps; bool searching = false;
@@ -244,7 +278,7 @@ namespace ROTOR_Utils {
 
         float da = fabsf(az - sentAz); if (da > 180.0f) da = 360.0f - da;
         const bool moved = sentAz < -900 || da >= step || fabsf(el - sentEl) >= step;
-        if (moved || ms - sentMs > 10000) publish(az, el, tracking);
+        if (moved || ms - sentMs > 10000) { publish(az, el, tracking); ensureTask(); }
     }
 
 }
@@ -260,6 +294,9 @@ namespace ROTOR_Utils {
     bool actual(float&, float&) { return false; }
     bool enabled() { return false; }
     uint32_t targetSeq() { return 0; }
+    int  source() { return -1; }
+    const char* targetName() { return ""; }
+    double targetDistKm() { return 0.0; }
 }
 
 #endif  // HAS_SAT

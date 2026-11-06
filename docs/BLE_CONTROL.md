@@ -59,6 +59,8 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 | `ota_abort` | | cancela la actualización en curso |
 | `fwcheck` / `fwinstall` | | busca (e instala) la última versión con la WiFi del tracker, como los botones de la WebUI |
 | `fwstatus` | | evento `fw` con el estado de `fwcheck` / `fwinstall` |
+| `tgt` | alta: `n` (nombre, 20), `lat`, `lon`, `alt` (m), `f` (Hz), `i` (hueco 0-7; sin él, el primero libre), `sel` (true = elegirlo y seguirlo); `del` (hueco); `sel` (número de hueco, sin `n`); `src` (0-2) | objetivos fijos del rotor (repetidores, balizas...): se guardan en el tracker; responde `ok` y el evento `targets` |
+| `tgtlist` | | evento `targets` |
 | `pos` | `lat`, `lon` (grados), `alt` (m), `acc` (precisión en m) | posición GPS del móvil para el modo SAT (ver `SAT_MODE.md`); caduca a los 2 min, así que la app debe repetirla (p. ej. cada 5–10 s) |
 | `reboot` | | reinicia |
 
@@ -98,9 +100,9 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 
 Solo en modo SAT, con *Send the rot event* activo (WebUI), cada vez que cambia el objetivo del rotor (y cada 10 s):
 ```json
-{"e":"rot","az":123.4,"el":45.0,"trk":true,"sat":"ISS (ZARYA)"}
+{"e":"rot","az":123.4,"el":45.0,"trk":true,"src":0,"name":"ISS (ZARYA)","km":0}
 ```
-`az` / `el` en grados (ya con los desfases de la WebUI), `trk` = el satélite está sobre el horizonte, `sat` = nombre del satélite elegido. La app los retransmite a su rotor (p. ej. un `rotctld`).
+`az` / `el` en grados (ya con los desfases de la WebUI), `trk` = sigue un objetivo visible, `src` = fuente (0 satélite, 1 estación APRS de la brújula, 2 objetivo fijo), `name` = nombre del objetivo, `km` = distancia a un objetivo terrestre. La app los retransmite a su rotor (p. ej. un `rotctld`). Fuera del modo SAT el evento solo sale si la fuente es 1 o 2. Evento `targets`: `{"e":"targets","sel":0,"src":2,"items":[{"i":0,"n":"Repetidor X","lat":37.1,"lon":-5.9,"alt":850,"f":145600000}]}`.
 
 ## Modos
 

@@ -47,4 +47,16 @@ Se configura en la WebUI (*Antenna rotor*). El tracker apunta el rotor al satél
 
 Limitaciones: acimut de 0 a 359° (rotores de 450° sin tratamiento especial), elevación 0–90°, sin corrección de refracción. Ejemplo para probar sin rotor: `rotctld -m 1 -t 4533` (rotor «dummy» de Hamlib) y mirar `rotctl -m 2 -r IP:4533 p`.
 
+### Objetivos terrestres (estaciones APRS y repetidores)
+
+El rotor no sirve solo para satélites. En *What the rotor follows* se elige:
+
+- **Satélite** (solo en modo SAT).
+- **Estación APRS con GO TO**: el rotor sigue la estación que hayas puesto como destino de la brújula (STATIONS, LAST o GROUP → *GO TO*), con su posición actualizada en vivo cada vez que se oye.
+- **Objetivo fijo**: hasta 8 en la WebUI (nombre, latitud, longitud, altitud, frecuencia) o por BLE desde la app (orden `tgt`). Sirve para un repetidor, una baliza, un nodo de la red...
+
+Fuera del modo SAT aparece la pantalla **ROTOR** (solo con el rotor activado y una fuente terrestre) con el rumbo, la elevación, la distancia y la posición real del rotor si el transporte la devuelve (`rotctld` sí). Rumbo y distancia sobre una Tierra esférica; la elevación incluye la diferencia de altura y la curvatura con refracción estándar (radio efectivo 4/3).
+
+**Repetidores y RepeaterBook.** RepeaterBook Connect solo envía frecuencia, desplazamiento y tono a radios compatibles (con suscripción) y no ofrece ninguna interfaz abierta para terceros; su API exige permiso y prohíbe reutilizar los datos en otros servicios. Por eso el tracker no lleva datos de RepeaterBook: la app Android, con el acceso que tenga el usuario a ese servicio, manda al tracker solo el repetidor elegido (`tgt`). La app aún no lo hace.
+
 **Sin probar con rotor real ni en placa.** El cálculo SGP4, Doppler y pasos sí está comprobado en PC contra las referencias de Vallado y una implementación independiente (`tools/test_sat_core.cpp`).

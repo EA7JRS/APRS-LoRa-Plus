@@ -213,6 +213,16 @@ bool Configuration::writeFile() {
         data["rotor"]["parkAz"]                     = rotor.parkAz;
         data["rotor"]["parkEl"]                     = rotor.parkEl;
         data["rotor"]["bleEvents"]                  = rotor.bleEvents;
+        data["rotor"]["source"]                     = rotor.source;
+        data["rotor"]["targetIndex"]                = rotor.targetIndex;
+        for (int i = 0; i < RotorConfig::TARGETS; i++) {
+            if (rotor.targets[i].name.isEmpty()) continue;
+            data["rotor"]["targets"][i]["n"]        = rotor.targets[i].name;
+            data["rotor"]["targets"][i]["lat"]      = rotor.targets[i].lat;
+            data["rotor"]["targets"][i]["lon"]      = rotor.targets[i].lon;
+            data["rotor"]["targets"][i]["alt"]      = rotor.targets[i].alt;
+            data["rotor"]["targets"][i]["f"]        = rotor.targets[i].freqHz;
+        }
         data["ft"]["ft8FreqHz"]                     = ft.ft8FreqHz;
         data["ft"]["ft4FreqHz"]                     = ft.ft4FreqHz;
         data["ft"]["ft8Region"]                     = ft.ft8Region;
@@ -541,6 +551,16 @@ bool Configuration::readFile() {
         rotor.parkAz         = constrain((int)(data["rotor"]["parkAz"] | rotor.parkAz), 0, 359);
         rotor.parkEl         = constrain((int)(data["rotor"]["parkEl"] | rotor.parkEl), 0, 90);
         rotor.bleEvents      = data["rotor"]["bleEvents"] | rotor.bleEvents;
+        rotor.source         = constrain((int)(data["rotor"]["source"] | rotor.source), 0, 2);
+        rotor.targetIndex    = constrain((int)(data["rotor"]["targetIndex"] | rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
+        for (int i = 0; i < RotorConfig::TARGETS; i++) {
+            JsonVariantConst t = data["rotor"]["targets"][i];
+            rotor.targets[i].name   = t["n"] | "";
+            rotor.targets[i].lat    = constrain((double)(t["lat"] | 0.0), -90.0, 90.0);
+            rotor.targets[i].lon    = constrain((double)(t["lon"] | 0.0), -180.0, 180.0);
+            rotor.targets[i].alt    = constrain((int)(t["alt"] | 0), -500, 9000);
+            rotor.targets[i].freqHz = (long)(t["f"] | 0L);
+        }
         if (data["ft"]["ft8FreqHz"].isNull()) needsRewrite = true;
         setFtDefaults();
         ft.ft8FreqHz     = constrain((int)(data["ft"]["ft8FreqHz"] | ft.ft8FreqHz), 400000000, 480000000);
@@ -879,6 +899,9 @@ void Configuration::setDapnetDefaults() {
     rotor.parkAz         = 0;
     rotor.parkEl         = 0;
     rotor.bleEvents      = true;
+    rotor.source         = 0;
+    rotor.targetIndex    = 0;
+    for (int i = 0; i < RotorConfig::TARGETS; i++) { rotor.targets[i].name = ""; rotor.targets[i].lat = 0; rotor.targets[i].lon = 0; rotor.targets[i].alt = 0; rotor.targets[i].freqHz = 0; }
     dapnet.charset       = 1;                   // la red es alemana: ISO 646 aleman por defecto (los demas caracteres son ASCII)
 }
 

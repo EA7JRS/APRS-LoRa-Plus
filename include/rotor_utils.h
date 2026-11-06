@@ -22,7 +22,10 @@ namespace ROTOR_Utils {
     const char* stateText();                // "OFF", "WiFi...", "Connecting", "OK", mensaje de error...
     bool        actual(float& az, float& el);                   // posicion real que devuelve el rotor (false = no se conoce)
     bool        enabled();
-    uint32_t    targetSeq();                // aumenta con cada objetivo nuevo (para los eventos BLE)
+    uint32_t    targetSeq();
+    int         source();                   // fuente activa: 0 satelite, 1 objetivo APRS de la brujula, 2 objetivo fijo (-1 = ninguna activa en este modo)
+    const char* targetName();               // nombre del objetivo (satelite, indicativo o nombre guardado)
+    double      targetDistKm();             // distancia al objetivo terrestre (0 = satelite o desconocida)                // aumenta con cada objetivo nuevo (para los eventos BLE)
 
 }
 

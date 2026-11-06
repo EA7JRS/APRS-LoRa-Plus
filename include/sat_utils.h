@@ -40,6 +40,7 @@ namespace SAT_Utils {
 
     bool           haveTime();
     bool           haveQth();
+    bool           observer(SatCore::Observer& out);    // posicion actual de la estacion (la misma que usa el modo SAT), para el rotor fuera del modo SAT
     const char*    qthSource();                         // "GPS" tracker, "FUS" fusion tracker + movil, "PHN" movil, "LAST" ultima conocida, "FIX" fija de la WebUI
     void           setPhonePosition(double latDeg, double lonDeg, double altM, float accuracyM);   // posicion del movil (app, orden BLE "pos")
     bool           live(SatCore::Look& out);            // posicion actual respecto a la estacion (false = sin hora, sin posicion o sin satelite)

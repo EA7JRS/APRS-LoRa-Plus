@@ -33,7 +33,7 @@ MAX_CATNR_FALLBACK = 120
 MAX_TX_PER_SAT = 4
 TIME_BUDGET_S = 480                # tiempo maximo de las descargas de respaldo (por satelite)
 START = time.time()
-MAX_BYTES = 56000                  # la particion de datos del tracker es de 192 kB (archivo viejo + nuevo durante la descarga)
+MAX_BYTES = 62000                  # la particion de datos del tracker es de 192 kB (archivo viejo + nuevo durante la descarga)
 # Frecuencias nominales de la banda L movil de Inmarsat (UIT / planes publicos de frecuencias); el canal concreto depende del satelite y de la region: verificar
 INMARSAT_TX = [
     "T|1626500000|1660500000|1525000000|1559000000|L-band|0|0|Inmarsat L-band up/dn",
@@ -169,7 +169,7 @@ def build(tles, tx, geo, stamp):
     entries = []
     for norad, (cat, tl) in tx.items():
         if norad in tles and norad not in geo:
-            entries.append((cat, norad, tl[:MAX_TX_PER_SAT]))
+            entries.append((cat, norad, tl[:MAX_TX_PER_SAT if cat == "L" else 3]))
     for norad in geo:
         if norad in tles:
             entries.append(("G", norad, list(INMARSAT_TX)))

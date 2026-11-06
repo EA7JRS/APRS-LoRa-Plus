@@ -305,6 +305,11 @@ namespace SAT_Utils {
     const SatCore::Block* block() { return satReady ? &blk : nullptr; }
     bool haveTime() { return timeOk(); }
     const char* qthSource() { return qthSrc; }
+    bool observer(SatCore::Observer& out) {
+        qthOk = pickQth();
+        if (qthOk) out = obs;
+        return qthOk;
+    }
     void setPhonePosition(double lat, double lon, double alt, float accuracyM) {
         if (lat < -90.0 || lat > 90.0 || lon < -180.0 || lon > 180.0) return;
         phLat = lat; phLon = lon; phAlt = alt; phAcc = accuracyM;
@@ -460,6 +465,7 @@ namespace SAT_Utils {
     const SatCore::Block* block() { return nullptr; }
     bool haveTime() { return false; }
     bool haveQth() { return false; }
+    bool observer(SatCore::Observer&) { return false; }
     const char* qthSource() { return ""; }
     void setPhonePosition(double, double, double, float) {}
     bool live(SatCore::Look&) { return false; }

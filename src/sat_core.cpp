@@ -244,6 +244,30 @@ namespace SatCore {
     int64_t txUpCenter(const Transmitter& t)   { return t.upLo ? (t.upLo + t.upHi) / 2 : 0; }
     int64_t txDownCenter(const Transmitter& t) { return t.dnLo ? (t.dnLo + t.dnHi) / 2 : 0; }
 
+    bool targetLook(const Observer& o, double tLat, double tLon, double tAlt, Look& out) {
+        const double R = 6371.0, D2R = 3.14159265358979323846 / 180.0;
+        const double la1 = o.latDeg * D2R, la2 = tLat * D2R, dlo = (tLon - o.lonDeg) * D2R;
+        const double sdl = sin(dlo), cdl = cos(dlo);
+        const double y = sdl * cos(la2);
+        const double x = cos(la1) * sin(la2) - sin(la1) * cos(la2) * cdl;
+        double az = atan2(y, x) / D2R;
+        if (az < 0) az += 360.0;
+        // distancia sobre la esfera: formula de Vincenty para la esfera (estable a cualquier distancia)
+        const double a = cos(la2) * sdl;
+        const double b = cos(la1) * sin(la2) - sin(la1) * cos(la2) * cdl;
+        const double c = sin(la1) * sin(la2) + cos(la1) * cos(la2) * cdl;
+        const double ang = atan2(sqrt(a * a + b * b), c);
+        const double d = ang * R;                                   // km
+        const double dh = (tAlt - o.altM) / 1000.0;                 // km
+        out.azDeg = az;
+        out.rangeKm = sqrt(d * d + dh * dh);
+        out.rangeRateKmS = 0.0;
+        out.subLatDeg = tLat; out.subLonDeg = tLon; out.altKm = tAlt / 1000.0;
+        if (d < 0.02) { out.azDeg = 0.0; out.elDeg = dh >= 0 ? 90.0 : -90.0; return true; }
+        out.elDeg = atan2(dh - d * d / (2.0 * R * (4.0 / 3.0)), d) / D2R;
+        return true;
+    }
+
     bool isGeo(const Sat& s) {
         if (!s.valid || s.rec.no_kozai <= 0.0) return false;
         const double periodMin = 6.283185307179586 / s.rec.no_kozai;

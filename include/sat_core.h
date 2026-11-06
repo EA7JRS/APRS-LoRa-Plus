@@ -40,6 +40,10 @@ namespace SatCore {
         double aosAzDeg, losAzDeg;
     };
 
+    // Rumbo, elevacion y distancia a un punto fijo de la Tierra (objetivo terrestre: estacion APRS, repetidor...). Tierra esférica; la elevacion
+    // incluye la diferencia de altura y la curvatura con refraccion estandar (radio efectivo 4/3). Sin velocidad radial.
+    bool   targetLook(const Observer& obs, double latDeg, double lonDeg, double altM, Look& out);
+
     // Valida el checksum de las dos lineas y las convierte (opmode 'i' = SGP4 mejorado). false si no son un TLE valido.
     bool   parseTle(const char* name, const char* line1, const char* line2, Sat& out);
     double tleAgeDays(const Sat& s, double nowUnix);

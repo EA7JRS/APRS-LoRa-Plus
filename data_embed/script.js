@@ -548,6 +548,28 @@ function loadSettings(settings) {
             document.getElementById("freqcal.errHz").value = 0;
         };
         const rot = settings.rotor || {};
+        {   // objetivos fijos del rotor: 8 filas
+            const box = document.getElementById("rotor-targets"), sel = document.getElementById("rotor.targetIndex");
+            const tg = rot.targets || [];
+            box.innerHTML = ""; sel.innerHTML = "";
+            for (let i = 0; i < 8; i++) {
+                const t = tg[i] || {};
+                const row = document.createElement("div");
+                row.className = "row g-1 mb-1";
+                row.innerHTML = '<div class="col-3"><input type="text" class="form-control form-control-sm" name="rotor.t' + i + '.n" maxlength="20" placeholder="Name ' + (i + 1) + '"></div>' +
+                    '<div class="col-3"><input type="number" class="form-control form-control-sm" name="rotor.t' + i + '.lat" min="-90" max="90" step="0.00001" placeholder="Lat"></div>' +
+                    '<div class="col-3"><input type="number" class="form-control form-control-sm" name="rotor.t' + i + '.lon" min="-180" max="180" step="0.00001" placeholder="Lon"></div>' +
+                    '<div class="col-1"><input type="number" class="form-control form-control-sm" name="rotor.t' + i + '.alt" min="-500" max="9000" step="1" placeholder="Alt"></div>' +
+                    '<div class="col-2"><input type="number" class="form-control form-control-sm" name="rotor.t' + i + '.f" min="0" step="0.0001" placeholder="MHz"></div>';
+                box.appendChild(row);
+                const q = n => row.querySelector('[name="rotor.t' + i + '.' + n + '"]');
+                q("n").value = t.n || "";
+                if (t.n) { q("lat").value = t.lat ?? ""; q("lon").value = t.lon ?? ""; q("alt").value = t.alt ?? 0; q("f").value = t.f ? (t.f / 1e6).toFixed(4) : ""; }
+                const o = document.createElement("option"); o.value = String(i); o.textContent = String(i + 1); sel.appendChild(o);
+            }
+            sel.value = String(rot.targetIndex ?? 0);
+            document.getElementById("rotor.source").value = String(rot.source ?? 0);
+        }
         document.getElementById("rotor.enabled").checked = rot.enabled ?? false;
         document.getElementById("rotor.transport").value = String(rot.transport ?? 0);
         document.getElementById("rotor.host").value = rot.host ?? "";

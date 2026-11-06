@@ -103,10 +103,19 @@ using namespace PAGES_Core;
 
 namespace {
 
-    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_COUNT };
+    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_COUNT };
 
     // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
     bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
+
+    // Pagina ROTOR en los modos APRS: solo con el rotor activado y siguiendo un objetivo terrestre (la fuente "satelite" va en el modo SAT)
+    bool rotorPageOn() {
+    #ifdef HAS_SAT
+        return Config.rotor.enabled && Config.rotor.source != 0;
+    #else
+        return false;
+    #endif
+    }
 
     // El modo MORSE tiene una unica pagina (MORSE); los modos APRS tienen las demas y no la de MORSE
     bool pageVisible(uint8_t p) {
@@ -115,7 +124,7 @@ namespace {
         if (Config.operatingMode == MODE_LRFHSS) return p == PAGE_LRF;
         if (Config.operatingMode == MODE_DAPNET) return p == PAGE_DAP;
         if (Config.operatingMode == MODE_SAT) return p == PAGE_SAT;
-        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && (p != PAGE_TEAM || Config.team.watchActive);
+        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && (p != PAGE_ROT || rotorPageOn()) && (p != PAGE_TEAM || Config.team.watchActive);
     }
     bool aprsMode() { return Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && !ftMode(); }
 
@@ -123,7 +132,7 @@ namespace {
     int cwPin(int pin) { return (pin >= 0 && !POWER_Utils::pinReserved(pin)) ? pin : -1; }
 
     const char* const PAGE_TITLES[PAGE_COUNT] = {
-        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP"
+        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP"
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
@@ -135,7 +144,7 @@ namespace {
         C_COMPASS_TARGET, C_ALT_SPAN, C_ALT_RESET, C_ALT_QNH, C_CLK_ZONE, C_CLK_FORMAT, C_CLK_SYNC, C_ZN_MODE, C_ZN_UP, C_ZN_DN, C_Q_AUTO, C_Q_UP1, C_Q_DN1, C_Q_UP2, C_Q_DN2,
         C_SOS_SEND, C_SOS_CANCEL, C_LORA_PROFILE, C_LORA_POWER, C_LORA_RESET, C_LORA_HEARD, C_PW_SHOW, C_PW_UP, C_PW_DN,
         C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
-        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE, C_SAT_CAT,
+        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE, C_SAT_CAT, C_ROT_SOURCE, C_ROT_NEXT, C_ROT_PREV, C_ROT_PARK,
         C_MODE_CHANGE,
         C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
         C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI, C_SYS_IARU
@@ -247,7 +256,9 @@ namespace {
     Item            dapItems[6];
     char            dapMonLabel[24];
     uint8_t         dapIndex = 0;                // 0 = mensaje mas reciente
-    Item            satItems[7];
+    Item            satItems[8];
+    Item            rotItems[5];
+    char            rotSourceLabel[28];
     char            satCatLabel[28];
     uint8_t         satView = 0;                 // 0 = ahora (az/el/Doppler), 1 = proximo paso, 2 = frecuencias de los transmisores
     uint8_t         satTx = 0;                   // transmisor mostrado en la vista de frecuencias
@@ -350,10 +361,19 @@ namespace {
                 snprintf(satCatLabel, sizeof(satCatLabel), "List: %s", SAT_Utils::categoryName());
                 satItems[3] = Item{satCatLabel, C_SAT_CAT};
                 satItems[4] = Item{"Update TLE (WiFi)", C_SAT_UPDATE};
-                satItems[5] = Item{"Change mode", C_MODE_CHANGE};
-                satItems[6] = Item{"Back", C_BACK};
-                count = 7;
+                count = 5;
+                if (Config.rotor.enabled) { snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Rotor: %s", Config.rotor.source == 0 ? "satellite" : (Config.rotor.source == 1 ? "APRS target" : "fixed target")); satItems[count++] = Item{rotSourceLabel, C_ROT_SOURCE}; }
+                satItems[count++] = Item{"Change mode", C_MODE_CHANGE};
+                satItems[count++] = Item{"Back", C_BACK};
                 return satItems;
+            case PAGE_ROT:
+                snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Follow: %s", Config.rotor.source == 1 ? "APRS target" : "fixed target");
+                rotItems[0] = Item{rotSourceLabel, C_ROT_SOURCE};
+                rotItems[1] = Item{"Next fixed target", C_ROT_NEXT};
+                rotItems[2] = Item{"Previous fixed target", C_ROT_PREV};
+                rotItems[3] = Item{"Back", C_BACK};
+                count = 4;
+                return rotItems;
             case PAGE_LRF:
                 snprintf(lrfToggleLabel, sizeof(lrfToggleLabel), "Beacon: %s", lrfhssOn ? "ON" : "OFF");
                 lrfItems[0] = Item{lrfToggleLabel, C_LRF_TOGGLE};
@@ -637,6 +657,11 @@ namespace {
                 pagesFillRect(x + 3, y + 3, 3, 3, on);
                 pagesFillRect(x, y + 3, 2, 3, on); pagesFillRect(x + 7, y + 3, 2, 3, on);
                 pagesDrawLine(x + 4, y, x + 4, y + 2, on);
+                break;
+            case PAGE_ROT:      // antena yagi: mastil y dos elementos
+                pagesDrawLine(x + 4, y, x + 4, y + 8, on);
+                pagesDrawLine(x + 1, y + 2, x + 7, y + 2, on);
+                pagesDrawLine(x + 2, y + 5, x + 6, y + 5, on);
                 break;
             case PAGE_LAST:     // diana
                 pagesDrawCircle(x + 4, y + 4, 4, on); pagesFillCircle(x + 4, y + 4, 1, on);
@@ -2445,6 +2470,7 @@ namespace PAGES_Utils {
     void lrfhssPoll();                      // idem (modo LR-FHSS)
     void dapnetPoll();                      // idem (modo DAPNET)
     void satPoll();                         // idem (modo SAT)
+    void rotorPoll();                       // idem (rotor; cualquier modo)
     void cwBeaconPoll();                    // idem
     void cwKeypadPoll();                    // idem (teclado Yaesu FH-2)
 
@@ -2459,6 +2485,7 @@ namespace PAGES_Utils {
         lrfhssPoll();
         dapnetPoll();
         satPoll();
+        rotorPoll();
 
         if (sosState == SOS_COUNTDOWN) {
             uint32_t elapsed = nowMs - sosStartMs;
@@ -2889,7 +2916,13 @@ namespace PAGES_Utils {
     void satPoll() {
         if (Config.operatingMode != MODE_SAT) return;
         SAT_Utils::loop();
+    }
+
+    // El rotor sigue un objetivo terrestre tambien en los modos APRS (y el satelite solo en el modo SAT)
+    void rotorPoll() {
+    #ifdef HAS_SAT
         ROTOR_Utils::loop();
+    #endif
     }
 
     // Duracion corta: "12m34s" o "1h05m"
@@ -2903,6 +2936,30 @@ namespace PAGES_Utils {
     void satHhmm(char* out, size_t n, double unixT) {
         const time_t t = (time_t)unixT;
         snprintf(out, n, "%02d:%02d:%02d", hour(t), minute(t), second(t));
+    }
+
+    // Pagina ROTOR (modos APRS): objetivo terrestre al que apunta el rotor
+    void drawRotPage() {
+    #ifdef HAS_SAT
+        header(PAGE_TITLES[PAGE_ROT], ROTOR_Utils::stateText());
+        if (Config.rotor.source == 1) row(0, "APRS target (GO TO)");
+        else                          row(0, "Fixed %d/%d", Config.rotor.targetIndex + 1, RotorConfig::TARGETS);
+        const RotorConfig::Target& t = Config.rotor.targets[Config.rotor.targetIndex];
+        if (Config.rotor.source == 2 && t.name.isEmpty()) { row(1, "Slot empty"); row(2, "Set it in WebUI/app"); return; }
+        float az, el; bool trk;
+        if (!ROTOR_Utils::target(az, el, trk)) {
+            row(1, "%s", Config.rotor.source == 1 ? "No target yet" : t.name.c_str());
+            row(2, "%s", Config.rotor.source == 1 ? "STATIONS: GO TO" : "Waiting for position");
+            return;
+        }
+        row(1, "%.20s", ROTOR_Utils::targetName());
+        row(2, "Az %03d El %02d %dkm", (int)lroundf(az) % 360, (int)lroundf(el), (int)lround(ROTOR_Utils::targetDistKm()));
+        float ra, re;
+        if (ROTOR_Utils::actual(ra, re)) row(3, "Rotor %03d/%02d", (int)lroundf(ra) % 360, (int)lroundf(re));
+        else row(3, "Rotor: unknown");
+        if (Config.rotor.source == 2 && t.freqHz > 0) row(4, "Freq %.4f MHz", t.freqHz / 1e6);
+        row(5, "Hold: menu");
+    #endif
     }
 
 #ifdef HAS_SAT
@@ -3579,6 +3636,14 @@ namespace PAGES_Utils {
     // reproducen con un retardo fijo (BLE_Control::keyDelayMs) para absorber las variaciones del enlace. Misma salida que
     // cwKeySession (perfil de Telegrafia, tono local, decodificador en pantalla). Seguridades: portadora como maximo 10 s
     // seguidos, se suelta si cae el enlace o si el movil deja de mandar, y el boton corta la sesion.
+    bool aprsTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize) {
+        const Station* s = compassStation();
+        if (!s || !s->hasPosition) return false;
+        lat = s->lat; lon = s->lon; altM = s->altitude;
+        snprintf(name, nameSize, "%s", s->call);
+        return true;
+    }
+
     void cwRemoteSession() {
         const bool rf       = Config.cw.keyTx && LoRa_Utils::cwAvailable();
         const bool tone     = Config.cw.sidetone && Config.notification.buzzerActive;
@@ -3905,6 +3970,7 @@ namespace PAGES_Utils {
             case PAGE_LRF:     drawLrfPage();   break;
             case PAGE_DAP:     drawDapPage();   break;
             case PAGE_SAT:     drawSatPage();   break;
+            case PAGE_ROT:     drawRotPage();   break;
             case PAGE_LAST:    drawLast();      break;
             case PAGE_LIST:    drawList();      break;
             case PAGE_GPS:     drawGps();       break;
@@ -4012,7 +4078,10 @@ namespace PAGES_Utils {
         #ifndef HAS_SAT
         if (Config.operatingMode == MODE_SAT) Config.operatingMode = MODE_APRS_LORA;                          // modo no disponible en esta placa
         #endif
-        if (Config.operatingMode == MODE_SAT) { beaconManualMode = true; page = PAGE_SAT; SAT_Utils::begin(); ROTOR_Utils::begin(); }               // solo prediccion: sin balizas APRS
+        if (Config.operatingMode == MODE_SAT) { beaconManualMode = true; page = PAGE_SAT; SAT_Utils::begin(); }               // solo prediccion: sin balizas APRS
+        #ifdef HAS_SAT
+        ROTOR_Utils::begin();
+        #endif
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
                    Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : "APRS LoRa")));
@@ -4651,6 +4720,28 @@ namespace PAGES_Utils {
                 satView = (satView + 1) % 3;
                 satTx = 0;
                 break;
+            case C_ROT_SOURCE: {
+                int s = (Config.rotor.source + 1) % 3;
+                if (s == 0 && Config.operatingMode != MODE_SAT) s = 1;           // la fuente "satelite" solo existe en el modo SAT
+                Config.rotor.source = s;
+                Config.writeFile();
+                showToast(s == 0 ? "Rotor: satellite" : (s == 1 ? "Rotor: APRS target" : "Rotor: fixed target"));
+                break;
+            }
+            case C_ROT_NEXT:
+            case C_ROT_PREV: {
+                const int n = RotorConfig::TARGETS;
+                int i = Config.rotor.targetIndex;
+                for (int k = 0; k < n; k++) {
+                    i = (i + (command == C_ROT_NEXT ? 1 : n - 1)) % n;
+                    if (!Config.rotor.targets[i].name.isEmpty()) break;
+                }
+                Config.rotor.targetIndex = i;
+                Config.rotor.source = 2;
+                Config.writeFile();
+                showToast(Config.rotor.targets[i].name.isEmpty() ? "No fixed targets" : Config.rotor.targets[i].name.c_str());
+                break;
+            }
             case C_SAT_CAT: {
                 SAT_Utils::nextCategory();
                 satTx = 0;
