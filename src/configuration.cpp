@@ -17,6 +17,7 @@
  */
 
 #include <ArduinoJson.h>
+#include <cstddef>
 #include <SPIFFS.h>
 #include "configuration.h"
 #include "board_pins.h"
@@ -56,6 +57,74 @@
 // Pin por defecto de LEDs, flash y buzzer: -1 (sin asignar) si lo ocupa la propia placa o no sirve para una salida
 static int defaultPin(int pin) {
     return (POWER_Utils::pinReserved(pin) || BOARD_PINS::inputOnly(pin)) ? -1 : pin;
+}
+
+// ---- Tabla de campos (Manuel - EA7JRS) ----------------------------------------------------------------------------------------------
+// Un registro por ajuste en lugar de dos lineas de ArduinoJson por ajuste (leer y escribir): el mismo JSON con bastante menos codigo.
+// El tipo se deduce del miembro de la clase, asi que no puede desajustarse. El orden de la tabla es el orden del fichero.
+namespace {
+    enum FieldType : uint8_t { FT_BOOL, FT_INT };
+    enum : uint8_t { FF_REQUIRED = 1,       // falta en el fichero -> se reescribe con los valores por defecto (configuraciones antiguas)
+                     FF_PIN      = 2 };     // el valor por defecto es un pin de defaultPin()
+    struct Field {
+        const char* key;
+        uint16_t    offset;
+        FieldType   type;
+        uint8_t     flags;
+        int16_t     def;
+    };
+    template <typename T> struct FType;
+    template <> struct FType<bool> { static constexpr FieldType v = FT_BOOL; };
+    template <> struct FType<int>  { static constexpr FieldType v = FT_INT; };
+    #define FIELD(cls, key, flags, def) { #key, (uint16_t)offsetof(cls, key), FType<decltype(cls::key)>::v, (uint8_t)(flags), (int16_t)(def) }
+
+    void writeFields(JsonDocument& data, const char* section, const void* base, const Field* f, size_t n) {
+        JsonObject o = data[section].to<JsonObject>();
+        for (size_t i = 0; i < n; i++) {
+            const char* p = (const char*)base + f[i].offset;
+            if (f[i].type == FT_BOOL) o[f[i].key] = *(const bool*)p;
+            else                      o[f[i].key] = *(const int*)p;
+        }
+    }
+
+    // Devuelve true si falta algun campo obligatorio (hay que reescribir el fichero)
+    bool readFields(const JsonDocument& data, const char* section, void* base, const Field* f, size_t n) {
+        const JsonObjectConst o = data[section].as<JsonObjectConst>();
+        bool rewrite = false;
+        for (size_t i = 0; i < n; i++) {
+            const JsonVariantConst v = o[f[i].key];
+            if ((f[i].flags & FF_REQUIRED) && v.isNull()) rewrite = true;
+            const int def = (f[i].flags & FF_PIN) ? defaultPin(f[i].def) : (int)f[i].def;
+            char* p = (char*)base + f[i].offset;
+            if (f[i].type == FT_BOOL) *(bool*)p = v | (def != 0);
+            else                      *(int*)p  = v | def;
+        }
+        return rewrite;
+    }
+
+    const Field kNotificationFields[] = {
+        FIELD(Notification, ledTx,            FF_REQUIRED,            false),
+        FIELD(Notification, ledTxPin,         FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_TX),
+        FIELD(Notification, ledMessage,       FF_REQUIRED,            false),
+        FIELD(Notification, ledMessagePin,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_MESSAGE),
+        FIELD(Notification, ledRxBeacon,      0,                      false),
+        FIELD(Notification, flashEmergency,   0,                      false),
+        FIELD(Notification, ledTxCw,          0,                      false),
+        FIELD(Notification, ledRxCw,          0,                      false),
+        FIELD(Notification, flashCw,          0,                      false),
+        FIELD(Notification, buzzerActive,     FF_REQUIRED,            false),
+        FIELD(Notification, buzzerPinTone,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_BUZZER_TONE),
+        FIELD(Notification, buzzerPinVcc,     FF_REQUIRED | FF_PIN,   NOTIF_DEF_BUZZER_VCC),
+        FIELD(Notification, bootUpBeep,       FF_REQUIRED,            false),
+        FIELD(Notification, txBeep,           FF_REQUIRED,            false),
+        FIELD(Notification, messageRxBeep,    FF_REQUIRED,            false),
+        FIELD(Notification, stationBeep,      FF_REQUIRED,            false),
+        FIELD(Notification, lowBatteryBeep,   FF_REQUIRED,            false),
+        FIELD(Notification, shutDownBeep,     FF_REQUIRED,            false),
+        FIELD(Notification, bellRings,        FF_REQUIRED,            true),
+        FIELD(Notification, ledFlashlight,    FF_REQUIRED,            false),
+        FIELD(Notification, ledFlashlightPin, FF_REQUIRED | FF_PIN,   NOTIF_DEF_FLASHLIGHT),
+    };
 }
 
 extern logging::Logger logger;
@@ -307,27 +376,7 @@ bool Configuration::writeFile() {
 
         data["winlink"]["password"]                 = winlink.password;
 
-        data["notification"]["ledTx"]               = notification.ledTx;
-        data["notification"]["ledTxPin"]            = notification.ledTxPin;
-        data["notification"]["ledMessage"]          = notification.ledMessage;
-        data["notification"]["ledMessagePin"]       = notification.ledMessagePin;
-        data["notification"]["ledRxBeacon"]         = notification.ledRxBeacon;
-        data["notification"]["flashEmergency"]      = notification.flashEmergency;
-        data["notification"]["ledTxCw"]             = notification.ledTxCw;
-        data["notification"]["ledRxCw"]             = notification.ledRxCw;
-        data["notification"]["flashCw"]             = notification.flashCw;
-        data["notification"]["buzzerActive"]        = notification.buzzerActive;
-        data["notification"]["buzzerPinTone"]       = notification.buzzerPinTone;
-        data["notification"]["buzzerPinVcc"]        = notification.buzzerPinVcc;
-        data["notification"]["bootUpBeep"]          = notification.bootUpBeep;
-        data["notification"]["txBeep"]              = notification.txBeep;
-        data["notification"]["messageRxBeep"]       = notification.messageRxBeep;
-        data["notification"]["stationBeep"]         = notification.stationBeep;
-        data["notification"]["lowBatteryBeep"]      = notification.lowBatteryBeep;
-        data["notification"]["shutDownBeep"]        = notification.shutDownBeep;
-        data["notification"]["bellRings"]           = notification.bellRings;
-        data["notification"]["ledFlashlight"]       = notification.ledFlashlight;
-        data["notification"]["ledFlashlightPin"]    = notification.ledFlashlightPin;
+        writeFields(data, "notification", &notification, kNotificationFields, sizeof(kNotificationFields) / sizeof(kNotificationFields[0]));
 
         data["pttTrigger"]["active"]                = ptt.active;
         data["pttTrigger"]["reverse"]               = ptt.reverse;
@@ -743,43 +792,7 @@ bool Configuration::readFile() {
         if (data["winlink"]["password"].isNull()) needsRewrite = true;
         winlink.password                = data["winlink"]["password"] | "NOPASS";
 
-        if (data["notification"]["ledTx"].isNull() ||
-            data["notification"]["ledTxPin"].isNull() ||
-            data["notification"]["ledMessage"].isNull() ||
-            data["notification"]["ledMessagePin"].isNull() ||
-            data["notification"]["buzzerActive"].isNull() ||
-            data["notification"]["buzzerPinTone"].isNull() ||
-            data["notification"]["buzzerPinVcc"].isNull() ||
-            data["notification"]["bootUpBeep"].isNull() ||
-            data["notification"]["txBeep"].isNull() ||
-            data["notification"]["messageRxBeep"].isNull() ||
-            data["notification"]["stationBeep"].isNull() ||
-            data["notification"]["lowBatteryBeep"].isNull() ||
-            data["notification"]["shutDownBeep"].isNull() ||
-            data["notification"]["bellRings"].isNull() ||
-            data["notification"]["ledFlashlight"].isNull() ||
-            data["notification"]["ledFlashlightPin"].isNull()) needsRewrite = true;
-        notification.ledTx              = data["notification"]["ledTx"] | false;
-        notification.ledTxPin           = data["notification"]["ledTxPin"] | defaultPin(NOTIF_DEF_LED_TX);
-        notification.ledMessage         = data["notification"]["ledMessage"] | false;
-        notification.ledRxBeacon        = data["notification"]["ledRxBeacon"] | false;
-        notification.flashEmergency     = data["notification"]["flashEmergency"] | false;
-        notification.ledTxCw            = data["notification"]["ledTxCw"] | false;
-        notification.ledRxCw            = data["notification"]["ledRxCw"] | false;
-        notification.flashCw            = data["notification"]["flashCw"] | false;
-        notification.ledMessagePin      = data["notification"]["ledMessagePin"] | defaultPin(NOTIF_DEF_LED_MESSAGE);
-        notification.buzzerActive       = data["notification"]["buzzerActive"] | false;
-        notification.buzzerPinTone      = data["notification"]["buzzerPinTone"] | defaultPin(NOTIF_DEF_BUZZER_TONE);
-        notification.buzzerPinVcc       = data["notification"]["buzzerPinVcc"] | defaultPin(NOTIF_DEF_BUZZER_VCC);
-        notification.bootUpBeep         = data["notification"]["bootUpBeep"] | false;
-        notification.txBeep             = data["notification"]["txBeep"] | false;
-        notification.messageRxBeep      = data["notification"]["messageRxBeep"] | false;
-        notification.stationBeep        = data["notification"]["stationBeep"] | false;
-        notification.lowBatteryBeep     = data["notification"]["lowBatteryBeep"] | false;
-        notification.shutDownBeep       = data["notification"]["shutDownBeep"] | false;
-        notification.bellRings          = data["notification"]["bellRings"] | true;
-        notification.ledFlashlight      = data["notification"]["ledFlashlight"] | false;
-        notification.ledFlashlightPin   = data["notification"]["ledFlashlightPin"] | defaultPin(NOTIF_DEF_FLASHLIGHT);
+        if (readFields(data, "notification", &notification, kNotificationFields, sizeof(kNotificationFields) / sizeof(kNotificationFields[0]))) needsRewrite = true;
 
         if (data["pttTrigger"]["active"].isNull() ||
             data["pttTrigger"]["reverse"].isNull() ||
