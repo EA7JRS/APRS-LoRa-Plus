@@ -23,6 +23,9 @@
 #include "cw_morse.h"
 #include "notification_utils.h"
 
+extern Configuration    Config;
+extern logging::Logger  logger;
+
 namespace SATRX_Utils {
 
     namespace {
