@@ -19,6 +19,7 @@ namespace SAT_Utils {
         int32_t  noradId;
         char     name[22];
         uint8_t  txCount;
+        char     cat;                       // 'U' 70 cm, 'L' LoRa / LR-FHSS / TinyGS, 'G' geoestacionario
     };
 
     enum UpdateState : uint8_t { UPD_IDLE, UPD_WORKING, UPD_OK, UPD_ERROR };
@@ -30,6 +31,11 @@ namespace SAT_Utils {
     const Entry*   at(int index);
     int            selected();                          // indice del satelite elegido (-1 = ninguno)
     bool           select(int index);                   // lo carga y lo guarda en la configuracion
+    bool           inCategory(const Entry& e);          // segun la categoria elegida (Config.sat.category: 0 todas, 1 70 cm, 2 LoRa / LR-FHSS / TinyGS, 3 geoestacionarios)
+    int            step(int direction);                 // siguiente (+1) o anterior (-1) satelite de la categoria; -1 si no hay ninguno
+    const char*    categoryName();
+    int            nextCategory();                      // pasa a la categoria siguiente, elige el primer satelite de ella y la guarda
+    bool           geo();                               // el satelite elegido es geoestacionario (sin pasos)
     const SatCore::Block* block();                      // TLE y transmisores del satelite elegido
 
     bool           haveTime();

@@ -73,7 +73,7 @@ namespace SatCore {
     // (0 = sin dato; las lineas que empiezan por # son comentarios)
     const int MAX_TX = 6;
     struct Transmitter {
-        long upLo, upHi, dnLo, dnHi;        // Hz; un solo valor fijo si Lo == Hi; un transpondedor lineal si difieren
+        int64_t upLo, upHi, dnLo, dnHi;     // Hz (64 bits: hasta la banda L y los 2,4 GHz); un solo valor fijo si Lo == Hi; un transpondedor lineal si difieren
         char mode[10];
         int  baud;
         bool invert;
@@ -81,6 +81,7 @@ namespace SatCore {
     };
     struct Block {
         int  noradId;
+        char cat;                           // 'U' = 70 cm (valor por defecto), 'L' = LoRa / LR-FHSS / TinyGS, 'G' = geoestacionario (Inmarsat...)
         char name[25];
         char line1[72], line2[72];
         Transmitter tx[MAX_TX];
@@ -90,8 +91,9 @@ namespace SatCore {
     size_t parseBlock(const char* text, size_t len, Block& out);
     bool   parseTxLine(const char* line, Transmitter& t);
     bool   txIn70cm(const Transmitter& t);                                         // sube o baja dentro de 420-450 MHz
-    long   txDownCenter(const Transmitter& t);
-    long   txUpCenter(const Transmitter& t);
+    int64_t txDownCenter(const Transmitter& t);
+    int64_t txUpCenter(const Transmitter& t);
+    bool   isGeo(const Sat& s);                                                    // periodo cercano a un dia sideral: no tiene pasos, esta fija en el cielo (o nunca sale)
 
     // Utilidades
     double unixFromCivil(int year, int mon, int day, int hour, int minute, double sec);

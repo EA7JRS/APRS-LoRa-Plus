@@ -13,6 +13,11 @@
 #define asin satAsin
 #define acos satAcos
 #define tan satTan
+#define sin satSin
+#define cos satCos
+#define atan2 satAtan2
+#define sqrt satSqrt
+#define floor satFloor
 
 namespace SatCore {
 
@@ -218,10 +223,10 @@ namespace SatCore {
         const char* end = line + strlen(line);
         const char* p = line + 2;
         char f[40];
-        long v[4];
+        int64_t v[4];
         for (int i = 0; i < 4; i++) {
             p = nextField(p, end, f, sizeof(f));
-            v[i] = atol(f);
+            v[i] = (int64_t)atoll(f);
             if (p == nullptr) return false;
         }
         t.upLo = v[0]; t.upHi = v[1] < v[0] ? v[0] : v[1]; t.dnLo = v[2]; t.dnHi = v[3] < v[2] ? v[2] : v[3];
@@ -234,8 +239,14 @@ namespace SatCore {
         return true;
     }
 
-    long txUpCenter(const Transmitter& t)   { return t.upLo ? (t.upLo + t.upHi) / 2 : 0; }
-    long txDownCenter(const Transmitter& t) { return t.dnLo ? (t.dnLo + t.dnHi) / 2 : 0; }
+    int64_t txUpCenter(const Transmitter& t)   { return t.upLo ? (t.upLo + t.upHi) / 2 : 0; }
+    int64_t txDownCenter(const Transmitter& t) { return t.dnLo ? (t.dnLo + t.dnHi) / 2 : 0; }
+
+    bool isGeo(const Sat& s) {
+        if (!s.valid || s.rec.no_kozai <= 0.0) return false;
+        const double periodMin = 6.283185307179586 / s.rec.no_kozai;
+        return periodMin > 1400.0 && periodMin < 1480.0;
+    }
 
     bool txIn70cm(const Transmitter& t) {
         return (t.upLo >= 420000000L && t.upLo <= 450000000L) || (t.dnLo >= 420000000L && t.dnLo <= 450000000L);
@@ -257,7 +268,9 @@ namespace SatCore {
         char f[16];
         p = nextField(p, end, f, sizeof(f));
         out.noradId = atoi(f);
-        if (p) nextField(p, end, out.name, sizeof(out.name));
+        out.cat = 'U';
+        if (p) p = nextField(p, end, out.name, sizeof(out.name));
+        if (p) { nextField(p, end, f, sizeof(f)); if (f[0] == 'U' || f[0] == 'L' || f[0] == 'G') out.cat = f[0]; }
         while (i < len && text[i] != '\n') i++;
         if (i < len) i++;
         // lineas del bloque hasta la proxima "S|"

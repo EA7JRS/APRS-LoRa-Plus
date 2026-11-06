@@ -134,7 +134,7 @@ namespace {
         C_COMPASS_TARGET, C_ALT_SPAN, C_ALT_RESET, C_ALT_QNH, C_CLK_ZONE, C_CLK_FORMAT, C_CLK_SYNC, C_ZN_MODE, C_ZN_UP, C_ZN_DN, C_Q_AUTO, C_Q_UP1, C_Q_DN1, C_Q_UP2, C_Q_DN2,
         C_SOS_SEND, C_SOS_CANCEL, C_LORA_PROFILE, C_LORA_POWER, C_LORA_RESET, C_LORA_HEARD, C_PW_SHOW, C_PW_UP, C_PW_DN,
         C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
-        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE,
+        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE, C_SAT_CAT,
         C_MODE_CHANGE,
         C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
         C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI, C_SYS_IARU
@@ -246,7 +246,8 @@ namespace {
     Item            dapItems[6];
     char            dapMonLabel[24];
     uint8_t         dapIndex = 0;                // 0 = mensaje mas reciente
-    Item            satItems[6];
+    Item            satItems[7];
+    char            satCatLabel[28];
     uint8_t         satView = 0;                 // 0 = ahora (az/el/Doppler), 1 = proximo paso, 2 = frecuencias de los transmisores
     uint8_t         satTx = 0;                   // transmisor mostrado en la vista de frecuencias
     uint32_t        dapSeen = 0;                 // contador de mensajes ya atendidos
@@ -345,10 +346,12 @@ namespace {
                 satItems[0] = Item{"Next satellite", C_SAT_NEXT};
                 satItems[1] = Item{"Previous satellite", C_SAT_PREV};
                 satItems[2] = Item{"Change view", C_SAT_VIEW};
-                satItems[3] = Item{"Update TLE (WiFi)", C_SAT_UPDATE};
-                satItems[4] = Item{"Change mode", C_MODE_CHANGE};
-                satItems[5] = Item{"Back", C_BACK};
-                count = 6;
+                snprintf(satCatLabel, sizeof(satCatLabel), "List: %s", SAT_Utils::categoryName());
+                satItems[3] = Item{satCatLabel, C_SAT_CAT};
+                satItems[4] = Item{"Update TLE (WiFi)", C_SAT_UPDATE};
+                satItems[5] = Item{"Change mode", C_MODE_CHANGE};
+                satItems[6] = Item{"Back", C_BACK};
+                count = 7;
                 return satItems;
             case PAGE_LRF:
                 snprintf(lrfToggleLabel, sizeof(lrfToggleLabel), "Beacon: %s", lrfhssOn ? "ON" : "OFF");
@@ -2931,18 +2934,25 @@ namespace PAGES_Utils {
                 row(2, "Rng %dkm Alt %dkm", (int)lround(lk.rangeKm), (int)lround(lk.altKm));
                 row(3, "Rate %+.2fkm/s", lk.rangeRateKmS);
                 SatCore::Pass ps; bool searching = false;
-                if (SAT_Utils::nextPass(ps, searching)) {
+                if (SAT_Utils::geo()) {
+                    row(4, "%s", lk.elDeg >= 0 ? "GEO: fixed in sky" : "GEO: below horizon");
+                } else if (SAT_Utils::nextPass(ps, searching)) {
                     char d[10];
                     const double t = (double)now();
                     if (t >= ps.aosUnix && t <= ps.losUnix) { satDuration(d, sizeof(d), ps.losUnix - t); row(4, "LOS in %s max %d", d, (int)lround(ps.maxElDeg)); }
                     else                                    { satDuration(d, sizeof(d), ps.aosUnix - t); row(4, "AOS in %s max %d", d, (int)lround(ps.maxElDeg)); }
                 } else {
-                    row(4, searching ? "Searching passes..." : "No pass in 36 h");
+                    row(4, "%s", searching ? "Searching passes..." : "No pass in 36 h");
                 }
             }
         } else if (satView == 1) {                           // proximo paso
             SatCore::Pass ps; bool searching = false;
-            if (SAT_Utils::nextPass(ps, searching)) {
+            if (SAT_Utils::geo()) {
+                row(1, "Geostationary");
+                row(2, "No passes: fixed");
+                row(3, "Az %03d El %+3d", have ? (int)lround(lk.azDeg) : 0, have ? (int)lround(lk.elDeg) : 0);
+                row(4, "Freqs: v:freq view");
+            } else if (SAT_Utils::nextPass(ps, searching)) {
                 char a[10], l[10], d[10];
                 satHhmm(a, sizeof(a), ps.aosUnix); satHhmm(l, sizeof(l), ps.losUnix);
                 satDuration(d, sizeof(d), ps.losUnix - ps.aosUnix);
@@ -2951,17 +2961,17 @@ namespace PAGES_Utils {
                 row(3, "Max El %d  %s", (int)lround(ps.maxElDeg), d);
                 row(4, "UTC  min El %d", (int)Config.sat.minEl);
             } else {
-                row(1, searching ? "Searching passes..." : "No pass in 36 h");
+                row(1, "%s", searching ? "Searching passes..." : "No pass in 36 h");
             }
         } else {                                             // frecuencias
-            if (b->txCount == 0) { row(1, "No 70cm transmitter"); }
+            if (b->txCount == 0) { row(1, "No transmitter data"); }
             else {
                 if (satTx >= b->txCount) satTx = 0;
                 const SatCore::Transmitter& t = b->tx[satTx];
                 double rx = 0, tx = 0;
                 SAT_Utils::doppler(t, rx, tx);
                 row(1, "%u/%u %s %.10s", (unsigned)satTx + 1, (unsigned)b->txCount, t.mode, t.desc);
-                const long dn = SatCore::txDownCenter(t), up = SatCore::txUpCenter(t);
+                const int64_t dn = SatCore::txDownCenter(t), up = SatCore::txUpCenter(t);
                 if (dn) row(2, "DN %.4f", dn / 1e6); else row(2, "DN -");
                 if (dn && rx > 0) row(3, "RX %.4f %+dHz", rx / 1e6, (int)lround(rx - dn));
                 if (up) row(4, "UP %.4f TX %.4f", up / 1e6, tx > 0 ? tx / 1e6 : 0.0);
@@ -4621,19 +4631,23 @@ namespace PAGES_Utils {
                 break;
             case C_SAT_NEXT:
             case C_SAT_PREV: {
-                const int n = SAT_Utils::count();
-                if (n > 0) {
-                    int i = SAT_Utils::selected() + (command == C_SAT_NEXT ? 1 : -1);
-                    if (i >= n) i = 0;
-                    if (i < 0) i = n - 1;
-                    SAT_Utils::select(i);
-                    satTx = 0;
-                }
+                const int i = SAT_Utils::step(command == C_SAT_NEXT ? 1 : -1);
+                if (i >= 0) { SAT_Utils::select(i); satTx = 0; }
+                else showToast("No satellite in this list");
                 break;
             }
             case C_SAT_VIEW:
+                if (satView == 2 && SAT_Utils::block() && satTx + 1 < SAT_Utils::block()->txCount) { satTx++; break; }          // en la vista de frecuencias recorre los transmisores
                 satView = (satView + 1) % 3;
+                satTx = 0;
                 break;
+            case C_SAT_CAT: {
+                SAT_Utils::nextCategory();
+                satTx = 0;
+                char t[28]; snprintf(t, sizeof(t), "List: %s", SAT_Utils::categoryName());
+                showToast(t);
+                break;
+            }
             case C_SAT_UPDATE:
                 showToast(SAT_Utils::updateStart() ? "Updating TLE..." : "Already running");
                 break;

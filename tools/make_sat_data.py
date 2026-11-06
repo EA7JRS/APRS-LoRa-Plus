@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Genera sats.txt para el modo SAT del tracker: TLE (CelesTrak) + frecuencias de 70 cm (SatNOGS DB).
 
-Solo incluye satelites con TLE y con un transmisor activo cuya subida o bajada cae en 420-450 MHz.
+Categorias (3er campo de la linea S|):
+    U  70 cm: transmisor activo cuya subida o bajada cae en 420-450 MHz (valor por defecto)
+    L  LoRa / LR-FHSS / TinyGS: transmisor activo con modo LoRa o LR-FHSS en cualquier banda (433, 868, 915 MHz, 2,4 GHz...), y los LACUNASAT
+    G  geoestacionarios (Inmarsat): seguimiento y frecuencias nominales de la banda L (para SDR u otros equipos); el tracker no los recibe
 Formato (ver include/sat_core.h):
-    S|<norad>|<nombre>
+    S|<norad>|<nombre>|<categoria>
     1 ...
     2 ...
     T|<subida_min>|<subida_max>|<bajada_min>|<bajada_max>|<modo>|<baudios>|<inversor>|<descripcion>
@@ -26,7 +29,17 @@ CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle
 CELESTRAK_CAT_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=tle"
 SATNOGS_URL = "https://db.satnogs.org/api/transmitters/?format=json"
 BAND_LO, BAND_HI = 420_000_000, 450_000_000
-MAX_CATNR_FALLBACK = 60
+MAX_CATNR_FALLBACK = 120
+MAX_TX_PER_SAT = 4
+MAX_BYTES = 56000                  # la particion de datos del tracker es de 192 kB (archivo viejo + nuevo durante la descarga)
+# Frecuencias nominales de la banda L movil de Inmarsat (UIT / planes publicos de frecuencias); el canal concreto depende del satelite y de la region: verificar
+INMARSAT_TX = [
+    "T|1626500000|1660500000|1525000000|1559000000|L-band|0|0|Inmarsat L-band up/dn",
+    "T|0|0|1537100000|1537100000|STD-C|600|0|STD-C TDM (verify)",
+    "T|0|0|1541450000|1541450000|STD-C|600|0|STD-C TDM (verify)",
+]
+NAME_QUERIES = {"INMARSAT": "G", "LACUNASAT": "L", "LACUNA": "L"}
+NAME_URL = "https://celestrak.org/NORAD/elements/gp.php?NAME=%s&FORMAT=tle"
 UA = "APRS-LoRa-Plus-satdata/1.0 (+https://github.com/EA7JRS/APRS-LoRa-Plus)"
 
 
@@ -93,8 +106,24 @@ def in_band(hz):
     return BAND_LO <= hz <= BAND_HI
 
 
+def is_lora(mode):
+    m = (mode or "").lower().replace("_", "").replace(" ", "")
+    return "lora" in m or "lrfhss" in m or "lr-fhss" in m or "fhss" in m
+
+
+def mean_motion(l2):
+    try:
+        return float(l2[52:63])
+    except ValueError:
+        return 0.0
+
+
+def is_geo_tle(l2):
+    return 0.99 < mean_motion(l2) < 1.01
+
+
 def transmitters_by_sat(data):
-    """Lista de transmisores de SatNOGS -> {norad: [linea T|...]} solo activos y de 70 cm"""
+    """Lista de transmisores de SatNOGS -> {norad: (categoria, [linea T|...])}: solo activos, de 70 cm o con modo LoRa / LR-FHSS"""
     if isinstance(data, dict):
         data = data.get("results", [])
     res = {}
@@ -115,32 +144,52 @@ def transmitters_by_sat(data):
             uh = ul
         if dl and not dh:
             dh = dl
-        if not (in_band(ul) or in_band(dl)):
-            continue
         mode = str(pick(t, "mode") or "").replace("|", "/")[:9]
+        lora = is_lora(mode)
+        if not (in_band(ul) or in_band(dl) or lora):
+            continue
         baud = num(pick(t, "baud"))
         inv = 1 if pick(t, "invert") else 0
         desc = str(pick(t, "description") or "").replace("|", "/").replace("\n", " ")[:25]
-        res.setdefault(norad, []).append("T|%d|%d|%d|%d|%s|%d|%d|%s" % (ul, uh, dl, dh, mode, baud, inv, desc))
+        cat, lines = res.get(norad, ("U", []))
+        if lora:
+            cat = "L"
+        lines.append("T|%d|%d|%d|%d|%s|%d|%d|%s" % (ul, uh, dl, dh, mode, baud, inv, desc))
+        res[norad] = (cat, lines)
     return res
 
 
-def build(tles, tx, stamp):
-    lines = ["# APRS LoRa+ satellites (70 cm) %s" % stamp,
-             "# TLE: CelesTrak. Transmitters: SatNOGS DB (CC BY-SA 4.0)."]
-    count = 0
-    for norad in sorted(tx, key=lambda n: tles[n][0].upper() if n in tles else ""):
-        if norad not in tles:
-            continue
+def build(tles, tx, geo, stamp):
+    """tx: {norad: (cat, [T|...])}; geo: {norad} de satelites de solo seguimiento. Prioridad ante el limite de tamano: G, L, U"""
+    head = ["# APRS LoRa+ satellites (70 cm, LoRa, GEO) %s" % stamp,
+            "# TLE: CelesTrak. Transmitters: SatNOGS DB (CC BY-SA 4.0)."]
+    entries = []
+    for norad, (cat, tl) in tx.items():
+        if norad in tles and norad not in geo:
+            entries.append((cat, norad, tl[:MAX_TX_PER_SAT]))
+    for norad in geo:
+        if norad in tles:
+            entries.append(("G", norad, list(INMARSAT_TX)))
+    prio = {"G": 0, "L": 1, "U": 2}
+    entries.sort(key=lambda e: (prio[e[0]], tles[e[1]][0].upper()))
+    out, size, count, dropped = [], sum(len(x) + 1 for x in head), 0, 0
+    for cat, norad, tl in entries:
         name, l1, l2 = tles[norad]
         name = name.replace("|", "/") or str(norad)
-        lines.append("S|%d|%s" % (norad, name))
-        lines.append(l1)
-        lines.append(l2)
-        # los de mas banda ancha primero: maximo 6 por satelite
-        for t in tx[norad][:6]:
-            lines.append(t)
+        block = ["S|%d|%s|%s" % (norad, name, cat), l1, l2] + tl
+        n = sum(len(x) + 1 for x in block)
+        if size + n > MAX_BYTES:
+            dropped += 1
+            continue
+        out.append((cat, name.upper(), block))
+        size += n
         count += 1
+    if dropped:
+        print("aviso: %d satelites sin sitio (limite %d bytes)" % (dropped, MAX_BYTES), file=sys.stderr)
+    out.sort(key=lambda e: (prio[e[0]], e[1]))
+    lines = list(head)
+    for _, _, block in out:
+        lines.extend(block)
     return "\n".join(lines) + "\n", count
 
 
@@ -157,7 +206,7 @@ def main():
     else:
         data = json.loads(http_get(SATNOGS_URL, timeout=180))
     tx = transmitters_by_sat(data)
-    print("SatNOGS: %d satelites con transmisores activos en 70 cm" % len(tx), file=sys.stderr)
+    print("SatNOGS: %d satelites con transmisores activos (70 cm o LoRa)" % len(tx), file=sys.stderr)
 
     tles = {}
     if a.tle is not None:
@@ -172,6 +221,19 @@ def main():
                 tles.update(got)
             except RuntimeError as e:
                 print("aviso: grupo %s no disponible (%s)" % (g, e), file=sys.stderr)
+        extra = {}
+        for q, c in NAME_QUERIES.items():
+            try:
+                got = parse_tles(http_get(NAME_URL % q, tries=2, timeout=30))
+                print("CelesTrak NAME=%-10s %4d TLE" % (q, len(got)), file=sys.stderr)
+                for n, v in got.items():
+                    extra[n] = c
+                tles.update(got)
+            except RuntimeError as e:
+                print("aviso: busqueda %s no disponible (%s)" % (q, e), file=sys.stderr)
+        for n, c in extra.items():
+            if c == "L" and n not in tx:
+                tx[n] = ("L", [])
         missing = [n for n in tx if n not in tles][:MAX_CATNR_FALLBACK]
         for n in missing:
             try:
@@ -179,8 +241,12 @@ def main():
             except RuntimeError:
                 pass
             time.sleep(0.4)
+    # Inmarsat y demas geoestacionarios de la busqueda por nombre (periodo ~ 1 dia sideral): solo seguimiento
+    geo = {n for n, c in (extra if a.tle is None else {}).items() if c == "G" and n in tles and is_geo_tle(tles[n][2])}
+    if a.tle is not None:
+        geo = {n for n, v in tles.items() if "INMARSAT" in v[0].upper() and is_geo_tle(v[2])}
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
-    text, count = build(tles, tx, stamp)
+    text, count = build(tles, tx, geo, stamp)
     if count < 3:
         print("ERROR: solo %d satelites; no se publica" % count, file=sys.stderr)
         return 1

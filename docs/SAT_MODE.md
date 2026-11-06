@@ -13,6 +13,16 @@ Se elige en **SELECT MODE → Satellites 70cm** (y desde la app por BLE: modo 9)
 
 Pantalla **SATELLITE** (pulsación larga → submenú): *Next / Previous satellite*, *Change view* (ahora / próximo paso / frecuencias), *Update TLE (WiFi)*.
 
+## Categorías: 70 cm, LoRa / LR-FHSS / TinyGS e Inmarsat
+
+El submenú tiene *List: All / 70cm / LoRa/TinyGS / GEO/Inmarsat* para filtrar la lista:
+
+- **70cm**: satélites con subida o bajada en 420–450 MHz.
+- **LoRa/TinyGS**: transmisores SatNOGS con modo LoRa o LR-FHSS en cualquier banda (433, 868, 915 MHz, 2,4 GHz...) y los LACUNASAT. Sirve para saber cuándo pasa un satélite TinyGS o de LR-FHSS (el tracker solo *emite* LR-FHSS; la recepción de estos satélites la hace tu estación TinyGS).
+- **GEO/Inmarsat**: satélites geoestacionarios (periodo ≈ 1 día sideral). **Solo seguimiento**: no hay pasos, la pantalla da su azimut/elevación fijos (o «below horizon») y sirven para apuntar una antena o un rotor. Las frecuencias que se muestran (banda L: bajada 1525–1559 MHz, subida 1626,5–1660,5 MHz, y los canales STD-C 1537,10 y 1541,45 MHz) son **nominales, para sintonizar un SDR u otro equipo**; el canal concreto depende del satélite y de la región: verifícalo. El tracker no recibe ni emite en banda L.
+
+Las frecuencias se guardan con 64 bits (la banda L y los 2,4 GHz no caben en 32).
+
 ## Datos orbitales
 
 El tracker descarga por WiFi (la red de *Firmware update* de la WebUI) el archivo `sats.txt` y lo guarda en la memoria flash. Lo genera cada día un workflow de GitHub (`.github/workflows/satdata.yml`, `tools/make_sat_data.py`) y lo publica en la rama `satdata` del repositorio. La dirección se puede cambiar en la WebUI (*Data file address*). Los TLE envejecen: la precisión baja pasados unos días; la pantalla muestra su edad.

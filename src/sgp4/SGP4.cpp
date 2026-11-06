@@ -70,6 +70,11 @@
 #define asin satAsin
 #define acos satAcos
 #define tan satTan
+#define sin satSin
+#define cos satCos
+#define atan2 satAtan2
+#define sqrt satSqrt
+#define floor satFloor
 
 #define pi 3.14159265358979323846
 

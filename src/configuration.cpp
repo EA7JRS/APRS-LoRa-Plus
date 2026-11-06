@@ -195,6 +195,7 @@ bool Configuration::writeFile() {
         data["dapnet"]["charset"]                   = dapnet.charset;
         data["sat"]["noradId"]                      = sat.noradId;
         data["sat"]["minEl"]                        = sat.minEl;
+        data["sat"]["category"]                     = sat.category;
         data["sat"]["lat"]                          = sat.lat;
         data["sat"]["lon"]                          = sat.lon;
         data["sat"]["dataUrl"]                      = sat.dataUrl;
@@ -519,6 +520,7 @@ bool Configuration::readFile() {
         dapnet.charset       = constrain((int)(data["dapnet"]["charset"] | dapnet.charset), 0, 1);
         if (data["sat"]["minEl"].isNull()) needsRewrite = true;
         sat.noradId          = data["sat"]["noradId"] | sat.noradId;
+        sat.category         = constrain((int)(data["sat"]["category"] | sat.category), 0, 3);
         sat.minEl            = constrain((int)(data["sat"]["minEl"] | sat.minEl), 0, 60);
         sat.lat              = constrain((double)(data["sat"]["lat"] | sat.lat), -90.0, 90.0);
         sat.lon              = constrain((double)(data["sat"]["lon"] | sat.lon), -180.0, 180.0);
@@ -857,6 +859,7 @@ void Configuration::setDapnetDefaults() {
     dapnet.timeSync      = false;
     sat.noradId          = 0;
     sat.minEl            = 10;
+    sat.category         = 0;
     sat.lat              = 0.0;
     sat.lon              = 0.0;
     sat.dataUrl          = "";

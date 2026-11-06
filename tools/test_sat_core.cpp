@@ -124,8 +124,8 @@ static int catalogMode(const char* path) {
         Sat s;
         const bool ok = parseTle(b.name, b.line1, b.line2, s) && s.noradId == b.noradId;
         if (ok) good++;
-        printf("%6d %-24s TLE %s  tx=%d", b.noradId, b.name, ok ? "ok" : "MAL", b.txCount);
-        for (int i = 0; i < b.txCount; i++) printf("  [%s up %ld dn %ld %s %d%s '%s' 70cm=%d]", b.tx[i].mode, txUpCenter(b.tx[i]), txDownCenter(b.tx[i]), b.tx[i].invert ? "inv" : "", b.tx[i].baud, "", b.tx[i].desc, (int)txIn70cm(b.tx[i]));
+        printf("%6d %-24s cat=%c geo=%d TLE %s  tx=%d", b.noradId, b.name, b.cat, ok ? (int)isGeo(s) : -1, ok ? "ok" : "MAL", b.txCount);
+        for (int i = 0; i < b.txCount; i++) printf("  [%s up %lld dn %lld %s %d%s '%s' 70cm=%d]", b.tx[i].mode, (long long)txUpCenter(b.tx[i]), (long long)txDownCenter(b.tx[i]), b.tx[i].invert ? "inv" : "", b.tx[i].baud, "", b.tx[i].desc, (int)txIn70cm(b.tx[i]));
         printf("\n");
     }
     CHECK(blocks > 0 && good == blocks, "catalogo: %d bloques, %d TLE validos", blocks, good);

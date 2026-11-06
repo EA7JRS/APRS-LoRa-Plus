@@ -30,8 +30,8 @@ namespace SAT_Utils {
 
         const char*  FILE_PATH       = "/sats.txt";
         const char*  FILE_TMP        = "/sats.tmp";
-        const size_t MAX_FILE_BYTES  = 90000;
-        const int    MAX_ENTRIES     = 160;
+        const size_t MAX_FILE_BYTES  = 64000;          // la particion de datos es de 192 kB y durante la descarga conviven el archivo viejo y el nuevo
+        const int    MAX_ENTRIES     = 300;
 
         std::vector<Entry> index;
         int                sel       = -1;
@@ -52,6 +52,8 @@ namespace SAT_Utils {
         SatCore::Pass       passFound;
         bool                passValid  = false;
         bool                searching  = false;
+        bool                geoSat     = false;
+        uint32_t            retryAtMs  = 0;                       // sin paso en el horizonte de busqueda: se vuelve a intentar mas tarde
         double              searchQthLat = 999, searchQthLon = 999;
 
         // descarga
@@ -114,9 +116,16 @@ namespace SAT_Utils {
                     if ((int)index.size() >= MAX_ENTRIES) { open = false; break; }
                     memset(&cur, 0, sizeof(cur));
                     cur.offset = pos;
+                    cur.cat = 'U';
                     int p2 = line.indexOf('|', 2);
                     cur.noradId = line.substring(2, p2 > 0 ? p2 : line.length()).toInt();
-                    if (p2 > 0) { String n = line.substring(p2 + 1); n.trim(); snprintf(cur.name, sizeof(cur.name), "%s", n.c_str()); }
+                    if (p2 > 0) {
+                        int p3 = line.indexOf('|', p2 + 1);
+                        String n = line.substring(p2 + 1, p3 > 0 ? p3 : line.length());
+                        n.trim();
+                        snprintf(cur.name, sizeof(cur.name), "%s", n.c_str());
+                        if (p3 > 0 && p3 + 1 < (int)line.length() && (line[p3 + 1] == 'L' || line[p3 + 1] == 'G')) cur.cat = line[p3 + 1];
+                    }
                     open = true;
                 } else if (open && line[0] == 'T' && line[1] == '|') {
                     cur.txCount++;
@@ -146,7 +155,10 @@ namespace SAT_Utils {
             passValid = false;
             searching = false;
             lookOk    = false;
+            geoSat    = satReady && SatCore::isGeo(sat);
+            retryAtMs = 0;
             if (!satReady || !timeOk() || !qthOk) return;
+            if (geoSat) return;                                  // geoestacionario: sin pasos, solo posicion fija en el cielo
             SatCore::passSearchStart(search, nowUnix(), 36.0 * 3600.0, (double)Config.sat.minEl);
             searchQthLat = obs.latDeg;
             searchQthLon = obs.lonDeg;
@@ -254,6 +266,48 @@ namespace SAT_Utils {
     bool haveQth()  { return qthOk; }
     const char* dataStamp() { return stamp; }
 
+    bool geo() { return geoSat; }
+
+    bool inCategory(const Entry& e) {
+        switch (Config.sat.category) {
+            case 1:  return e.cat == 'U';
+            case 2:  return e.cat == 'L';
+            case 3:  return e.cat == 'G';
+            default: return true;
+        }
+    }
+
+    const char* categoryName() {
+        switch (Config.sat.category) {
+            case 1:  return "70cm";
+            case 2:  return "LoRa/TinyGS";
+            case 3:  return "GEO/Inmarsat";
+            default: return "All";
+        }
+    }
+
+    int step(int direction) {
+        const int n = (int)index.size();
+        if (n == 0) return -1;
+        int i = sel < 0 ? (direction > 0 ? -1 : 0) : sel;
+        for (int k = 0; k < n; k++) {
+            i = (i + (direction >= 0 ? 1 : -1) + n) % n;
+            if (inCategory(index[i])) return i;
+        }
+        return -1;
+    }
+
+    int nextCategory() {
+        Config.sat.category = (Config.sat.category + 1) % 4;
+        if (sel < 0 || sel >= (int)index.size() || !inCategory(index[sel])) {
+            const int i = step(1);
+            if (i >= 0) select(i); else Config.writeFile();
+        } else {
+            Config.writeFile();
+        }
+        return Config.sat.category;
+    }
+
     bool select(int i) {
         if (i < 0 || i >= (int)index.size()) return false;
         sel = i;
@@ -285,7 +339,7 @@ namespace SAT_Utils {
     void doppler(const SatCore::Transmitter& t, double& rxHz, double& txHz) {
         rxHz = txHz = 0.0;
         if (!lookOk) return;
-        const long dn = SatCore::txDownCenter(t), up = SatCore::txUpCenter(t);
+        const int64_t dn = SatCore::txDownCenter(t), up = SatCore::txUpCenter(t);
         if (dn) rxHz = SatCore::dopplerDown((double)dn, lastLook.rangeRateKmS);
         if (up) txHz = SatCore::dopplerUpPre((double)up, lastLook.rangeRateKmS);
     }
@@ -305,7 +359,7 @@ namespace SAT_Utils {
                 if (!hadQth || fabs(obs.latDeg - searchQthLat) > 0.5 || fabs(obs.lonDeg - searchQthLon) > 0.5) restartSearch();
                 // el paso previsto ya termino: se busca el siguiente
                 if (passValid && nowUnix() > passFound.losUnix + 5.0) restartSearch();
-                if (!passValid && !searching) restartSearch();
+                if (!passValid && !searching && !geoSat && (retryAtMs == 0 || (int32_t)(ms - retryAtMs) >= 0)) restartSearch();
             } else {
                 lookOk = false;
             }
@@ -318,7 +372,7 @@ namespace SAT_Utils {
             while (searching && micros() - t0 < 6000 && guard++ < 8) {
                 const int ph = SatCore::passSearchAdvance(search, sat, obs, 1);
                 if (ph == 2) { passFound = search.pass; passValid = true; searching = false; }
-                else if (ph >= 3) { passValid = false; searching = false; }
+                else if (ph >= 3) { passValid = false; searching = false; retryAtMs = ms + 1800000UL; if (retryAtMs == 0) retryAtMs = 1; }
             }
         }
     }
