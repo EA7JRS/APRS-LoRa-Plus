@@ -29,6 +29,8 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | Receptores SDR (SDR++ / gqrx por rigctl, SDRconnect por WebSocket, SpyServer de Airspy; RTL-SDR por USB con el driver de Android o rtl_tcp, demodulado en la app): sintonía, modo, filtro, ganancia, grabación; siguen el satélite con Doppler, la LoRa del tracker o el objetivo del rotor | solo en la app (eventos `sat`, `sattxlist`, `info`, `status`, `targets`) | — | sí |
 | Voz digital DMR, D-STAR, YSF/C4FM, P25 fase 1 y 2, NXDN, dPMR, M17 (dsd-fme + mbelib dentro de la app, con su receptor RTL-SDR) | solo en la app | — | sí |
 | Identificación de señales (base SigID de Artemis / sigidwiki, actualizable; búsqueda por frecuencia del SDR) | solo en la app | — | sí |
+| Recepción en la app de las balizas del tracker: APRS FSK G3RUH (hecho), CW (pestaña Modes); FT8/FT4, WSPR, FST4W, APRS LoRa y LR-FHSS en curso | solo en la app | — | parcial |
+| Modos de texto al estilo fldigi (CW, RTTY, BPSK; más en curso) | solo en la app | — | parcial |
 | Actualización de firmware (la app descarga y envía por BLE; el tracker no descarga) | `ota`, `ota_abort` | sí | sí |
 | **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | sí |
 | Espejo de pantalla de cualquier página | `screen` | sí | sí |
