@@ -138,18 +138,29 @@ namespace {
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
+        // Lista de ordenes del submenu; el nombre en minusculas (sin C_) es el que usa la app por BLE (orden "act")
+    #define COMMAND_LIST(X) \
+        X(BACK) X(BEACON) X(BEACON_MODE) X(PROFILE) X(MENU) X(DISPLAY_OFF) X(GPS) X(LAST_NEXT) X(LAST_PREV) X(LAST_VIEW) X(GOTO) X(LIST_BROWSE) \
+        X(LIST_SORT) X(LIST_FILTER) X(LIST_CLEAR) X(COMPASS_NEXT) X(COMPASS_MODE) X(COMPASS_NORTH) X(COMPASS_DECL) X(COMPASS_RESET) X(DECL_MODE) \
+        X(DECL_UP1) X(DECL_DN1) X(DECL_UP2) X(DECL_DN2) X(GPS_COORD) X(GPS_UNITS) X(GPS_SBAS) X(GPS_GNSS) X(G_GPS) X(G_GAL) X(G_BDS) X(G_GLO) \
+        X(G_QZSS) X(MSG_OPEN) X(MSG_BROWSE) X(MSG_READALL) X(MSG_DELALL) X(MSG_REPLY) X(MSG_QUICK) X(MSG_DELETE) X(COMPASS_TARGET) X(ALT_SPAN) \
+        X(ALT_RESET) X(ALT_QNH) X(CLK_ZONE) X(CLK_FORMAT) X(CLK_SYNC) X(ZN_MODE) X(ZN_UP) X(ZN_DN) X(Q_AUTO) X(Q_UP1) X(Q_DN1) X(Q_UP2) X(Q_DN2) \
+        X(SOS_SEND) X(SOS_CANCEL) X(LORA_PROFILE) X(LORA_POWER) X(LORA_RESET) X(LORA_HEARD) X(PW_SHOW) X(PW_UP) X(PW_DN) X(QUICK0) X(QUICK1) \
+        X(QUICK2) X(QUICK3) X(QUICK4) X(QUICK5) X(QUICK6) X(QUICK7) X(CW0) X(CW1) X(CW2) X(CW3) X(CW4) X(CW_LISTEN) X(CW_SQUELCH) X(CW_TRAIN_LISTEN) \
+        X(CW_TRAIN_KEY) X(CW_CLEAR) X(CW_BEACON) X(WSPR_TOGGLE) X(LRF_TOGGLE) X(WSPR_TUNE) X(CWB_NOW) X(CWB_TUNE) X(DAP_OLDER) X(DAP_NEWER) \
+        X(DAP_CLEAR) X(DAP_MON) X(SAT_NEXT) X(SAT_PREV) X(SAT_VIEW) X(SAT_UPDATE) X(SAT_CAT) X(SATRX_TOGGLE) X(SATRX_TX) X(SATRX_FINE_UP) \
+        X(SATRX_FINE_DN) X(SATRX_LORA) X(SATRX_CLEAR) X(SATTX_SEND) X(ROT_SOURCE) X(ROT_NEXT) X(ROT_PREV) X(ROT_PARK) X(MODE_CHANGE) X(TEAM_BROWSE) \
+        X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
+        X(SYS_IARU)
     enum Command : uint8_t {
-        C_BACK, C_BEACON, C_BEACON_MODE, C_PROFILE, C_MENU, C_DISPLAY_OFF, C_GPS, C_LAST_NEXT, C_LAST_PREV, C_LAST_VIEW, C_GOTO, C_LIST_BROWSE, C_LIST_SORT, C_LIST_FILTER, C_LIST_CLEAR,
-        C_COMPASS_NEXT, C_COMPASS_MODE, C_COMPASS_NORTH, C_COMPASS_DECL, C_COMPASS_RESET, C_DECL_MODE, C_DECL_UP1, C_DECL_DN1, C_DECL_UP2, C_DECL_DN2,
-        C_GPS_COORD, C_GPS_UNITS, C_GPS_SBAS, C_GPS_GNSS, C_G_GPS, C_G_GAL, C_G_BDS, C_G_GLO, C_G_QZSS,
-        C_MSG_OPEN, C_MSG_BROWSE, C_MSG_READALL, C_MSG_DELALL, C_MSG_REPLY, C_MSG_QUICK, C_MSG_DELETE,
-        C_COMPASS_TARGET, C_ALT_SPAN, C_ALT_RESET, C_ALT_QNH, C_CLK_ZONE, C_CLK_FORMAT, C_CLK_SYNC, C_ZN_MODE, C_ZN_UP, C_ZN_DN, C_Q_AUTO, C_Q_UP1, C_Q_DN1, C_Q_UP2, C_Q_DN2,
-        C_SOS_SEND, C_SOS_CANCEL, C_LORA_PROFILE, C_LORA_POWER, C_LORA_RESET, C_LORA_HEARD, C_PW_SHOW, C_PW_UP, C_PW_DN,
-        C_QUICK0, C_QUICK1, C_QUICK2, C_QUICK3, C_QUICK4, C_QUICK5, C_QUICK6, C_QUICK7,
-        C_CW0, C_CW1, C_CW2, C_CW3, C_CW4, C_CW_LISTEN, C_CW_SQUELCH, C_CW_TRAIN_LISTEN, C_CW_TRAIN_KEY, C_CW_CLEAR, C_CW_BEACON, C_WSPR_TOGGLE, C_LRF_TOGGLE, C_WSPR_TUNE, C_CWB_NOW, C_CWB_TUNE, C_DAP_OLDER, C_DAP_NEWER, C_DAP_CLEAR, C_DAP_MON, C_SAT_NEXT, C_SAT_PREV, C_SAT_VIEW, C_SAT_UPDATE, C_SAT_CAT, C_SATRX_TOGGLE, C_SATRX_TX, C_SATRX_FINE_UP, C_SATRX_FINE_DN, C_SATRX_LORA, C_SATRX_CLEAR, C_SATTX_SEND, C_ROT_SOURCE, C_ROT_NEXT, C_ROT_PREV, C_ROT_PARK,
-        C_MODE_CHANGE,
-        C_TEAM_BROWSE, C_TEAM_RADAR, C_TEAM_LIST, C_TEAM_AUTO, C_TEAM_QUICK, C_TEAM_PING, C_TEAM_GOTO,
-        C_SYS_BT, C_SYS_BTPROTO, C_SYS_KISSWIFI, C_SYS_CATWIFI, C_SYS_IARU
+    #define X(n) C_##n,
+        COMMAND_LIST(X)
+    #undef X
+    };
+    static const char* const COMMAND_NAMES[] = {
+    #define X(n) #n,
+        COMMAND_LIST(X)
+    #undef X
     };
     struct Item { const char* label; Command cmd; };
 
@@ -605,6 +616,14 @@ namespace {
     uint32_t stillSinceMs = 0;                  // desde cuando el equipo esta parado (0 = en movimiento o desconocido)
     bool     vsStopped = false;                 // parado el tiempo suficiente: la velocidad vertical se muestra como 0
 
+    // Espejo de la pantalla: ultimo texto dibujado con row()/header(), para la app Android (BLE screen) (Manuel - EA7JRS)
+    const uint8_t MIRROR_ROWS = 8;
+    char          mirrorRows[MIRROR_ROWS][24] = {};
+    char          mirrorTitle[24] = "";
+    char          mirrorRight[12] = "";
+    uint8_t       mirrorPage = 0;
+    uint32_t      mirrorMs = 0;
+
     void row(uint8_t r, const char* format, ...) {
         char line[28];
         va_list args;
@@ -612,6 +631,7 @@ namespace {
         vsnprintf(line, sizeof(line), format, args);
         va_end(args);
         line[rowLimit] = '\0';              // 21 columnas de 6 px caben en 128 px (17 si hay un icono a la derecha)
+        if (r < MIRROR_ROWS) snprintf(mirrorRows[r], sizeof(mirrorRows[r]), "%s", line);
         text(0, ROW_Y0 + r * ROW_PITCH, line);
     }
 
@@ -638,6 +658,8 @@ namespace {
 
     // Cabecera: % de bateria a la izquierda, titulo centrado, derecha libre
     void header(const char* title, const char* right = nullptr) {
+        snprintf(mirrorTitle, sizeof(mirrorTitle), "%s", title);
+        snprintf(mirrorRight, sizeof(mirrorRight), "%s", right ? right : "");
         pagesFillRect(0, 0, 128, 9, true);
         pagesText(2, 1, batteryText(), 1, true);
         pagesText((128 - 6 * (int)strlen(title)) / 2, 1, title, 1, true);
@@ -1297,9 +1319,12 @@ namespace {
         logDirtyMs = millis();
     }
 
+    uint32_t msgChangeSeq = 0;           // sube con cada cambio del registro de mensajes (evento BLE msg)
+
     void touchLog() {
         logDirty = true;
         logDirtyMs = millis();
+        msgChangeSeq++;
     }
 
     void showToast(const char* message) {
@@ -4044,6 +4069,11 @@ namespace PAGES_Utils {
     void show() {
         if (!pageVisible(page)) { page = (Config.operatingMode == MODE_MORSE) ? PAGE_CW : ((Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : (Config.operatingMode == MODE_LRFHSS ? PAGE_LRF : (Config.operatingMode == MODE_DAPNET ? PAGE_DAP : (Config.operatingMode == MODE_SAT ? PAGE_SAT : PAGE_MAIN)))); changedPage(); }
         pagesBegin();
+        memset(mirrorRows, 0, sizeof(mirrorRows));
+        mirrorTitle[0] = '\0';
+        mirrorRight[0] = '\0';
+        mirrorPage = page;
+        mirrorMs = millis();
         if (sosState == SOS_COUNTDOWN) {
             drawSosCountdown();
             pagesFlush();
@@ -4504,6 +4534,8 @@ namespace PAGES_Utils {
         showToast(toast);
     }
 
+    static int execute(Command command, bool remote);
+
     int longPress() {
         if (sosState == SOS_COUNTDOWN) { sosCancel(); return PAGES_CMD_NONE; }
         if (alarmShown) {                            // LP: silencia y va hacia la estacion (COMPASS con objetivo)
@@ -4537,7 +4569,12 @@ namespace PAGES_Utils {
         }
         uint8_t count;
         const Item* items = itemsFor(page, count);
-        Command command = items[submenuSel < count ? submenuSel : 0].cmd;
+        return execute(items[submenuSel < count ? submenuSel : 0].cmd, false);
+    }
+
+    // Ejecuta un comando de menu. remote = true: viene de BLE (act), sin navegar submenus
+    static int execute(Command command, bool remote) {
+        (void)remote;
         if (command == C_GPS_GNSS) {                             // segundo nivel: constelaciones
             submenuId = SM_GNSS;
             submenuSel = 0;
@@ -5025,6 +5062,122 @@ namespace PAGES_Utils {
                 break;
         }
         return PAGES_CMD_NONE;
+    }
+
+    // ---- Control remoto por BLE (app Android): cualquier comando de menu por nombre (Manuel - EA7JRS) ----
+
+    // Comandos que no se ejecutan en remoto: abren submenus (navegacion), son sesiones interactivas con el pulsador
+    // o reinician el equipo; tienen su propio comando BLE (mode, cw, wspr...) o no tienen sentido sin pantalla
+    static bool remoteBlocked(Command c) {
+        switch (c) {
+            case C_BACK: case C_MENU: case C_MODE_CHANGE: case C_MSG_REPLY:
+            case C_GPS_GNSS: case C_CLK_ZONE: case C_LORA_POWER: case C_ALT_QNH: case C_COMPASS_DECL:
+            case C_MSG_QUICK: case C_TEAM_QUICK:
+            case C_CW_LISTEN: case C_CW_TRAIN_LISTEN: case C_CW_TRAIN_KEY: case C_WSPR_TUNE: case C_CWB_TUNE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool pageHasCommand(uint8_t p, Command c) {
+        uint8_t count = 0;
+        const Item* items = itemsFor(p, count);
+        for (uint8_t i = 0; i < count; i++) if (items[i].cmd == c) return true;
+        return false;
+    }
+
+    // Ejecuta el comando "name" (como en COMMAND_NAMES, sin mayusculas obligatorias). Devuelve un PAGES_CMD_* (>= 0)
+    // o -1 con *error rellenado
+    int remoteAct(const char* name, const char** error) {
+        static const char* const NONE = "";
+        *error = NONE;
+        int found = -1;
+        for (uint8_t i = 0; i < sizeof(COMMAND_NAMES) / sizeof(COMMAND_NAMES[0]); i++) {
+            if (strcasecmp(COMMAND_NAMES[i], name) == 0) { found = i; break; }
+        }
+        if (found < 0) { *error = "accion desconocida"; return -1; }
+        Command command = (Command)found;
+        if (remoteBlocked(command)) { *error = "no disponible por BLE"; return -1; }
+        if (sosState == SOS_COUNTDOWN && command != C_SOS_CANCEL) { *error = "cuenta atras SOS en curso"; return -1; }
+        const bool leaf = (command >= C_G_GPS && command <= C_G_QZSS) || (command >= C_ZN_MODE && command <= C_ZN_DN) ||
+                          (command >= C_PW_SHOW && command <= C_PW_DN) || (command >= C_Q_AUTO && command <= C_Q_DN2) ||
+                          (command >= C_DECL_MODE && command <= C_DECL_DN2);
+        const uint8_t savedId = submenuId;
+        submenuId = SM_PAGE;                                      // las listas de pagina, no un segundo nivel
+        bool ok = leaf || pageHasCommand(page, command);
+        if (!ok) {
+            for (uint8_t p = 0; p < PAGE_COUNT && !ok; p++) {
+                if (!pageVisible(p) || p == page) continue;
+                if (pageHasCommand(p, command)) { page = p; ok = true; }
+            }
+        }
+        submenuId = savedId;
+        if (!ok) { *error = "no disponible en este modo"; return -1; }
+        submenuOpen = false;
+        submenuId = SM_PAGE;
+        return execute(command, true);
+    }
+
+    void forEachAction(void (*callback)(uint8_t page, const char* pageTitle, const char* name, const char* label, bool allowed, void* ctx), void* ctx) {
+        const uint8_t savedId = submenuId;
+        submenuId = SM_PAGE;
+        for (uint8_t p = 0; p < PAGE_COUNT; p++) {
+            if (!pageVisible(p)) continue;
+            uint8_t count = 0;
+            const Item* items = itemsFor(p, count);
+            for (uint8_t i = 0; i < count; i++) {
+                const Command c = items[i].cmd;
+                if (c == C_BACK) continue;
+                callback(p, PAGE_TITLES[p], COMMAND_NAMES[c], items[i].label, !remoteBlocked(c), ctx);
+            }
+        }
+        submenuId = savedId;
+    }
+
+    // Datos para la app: mensajes APRS y estaciones escuchadas (Manuel - EA7JRS)
+    uint32_t    msgSeq()      { return msgChangeSeq; }
+    uint8_t     msgCount()    { return msgLog.count(); }
+    uint8_t     msgUnread()   { return msgLog.unread(); }
+    const PAGES_Core::MsgEntry* msgAt(uint8_t position) { return msgLog.byRecent(position); }
+    uint8_t     msgStateAt(uint8_t position) {
+        const MsgEntry* e = msgLog.byRecent(position);
+        return e ? (uint8_t)MessageLog::stateOf(*e) : 0;
+    }
+    uint8_t     heardCount()  { return heard.count(); }
+    uint32_t    heardPackets() { return heard.totalPackets(); }
+    const PAGES_Core::Station* heardAt(uint8_t position) { return heard.byRecent(position); }
+    int         sendMessage(const char* to, const char* text, bool wantAck) {
+        int ackId = MSG_Utils::addToOutputBuffer(wantAck ? 1 : 0, String(to), String(text));
+        if (wantAck) {
+            if (ackId <= 0) return -1;                  // ya estaba en la cola
+            onMessageSent(to, text, (uint16_t)ackId);
+        } else {
+            onMessageSent(to, text, 0);
+        }
+        return ackId;
+    }
+
+    bool        iaqValue(float& index, const char** label) {
+        if (!iaq.ready()) return false;
+        index = iaq.index();
+        *label = iaq.label();
+        return true;
+    }
+
+    uint8_t     screenPage()  { return mirrorPage; }
+    const char* screenTitle() { return mirrorTitle; }
+    const char* screenRight() { return mirrorRight; }
+    const char* screenRow(uint8_t r) { return r < MIRROR_ROWS ? mirrorRows[r] : ""; }
+    uint8_t     screenRows()  { return MIRROR_ROWS; }
+    uint32_t    screenAgeMs() { return mirrorMs ? millis() - mirrorMs : 0xFFFFFFFFUL; }
+    uint8_t     currentPage() { return page; }
+    uint8_t     pageCount()   { return PAGE_COUNT; }
+    const char* pageTitleOf(uint8_t p) { return p < PAGE_COUNT ? PAGE_TITLES[p] : ""; }
+    bool        selectPage(uint8_t p) {
+        if (p >= PAGE_COUNT || !pageVisible(p)) return false;
+        if (page != p) { page = p; submenuOpen = false; submenuId = SM_PAGE; changedPage(); }
+        return true;
     }
 
     bool wantsFastRefresh() {

@@ -23,6 +23,7 @@
 #include <Arduino.h>
 #include <APRSPacketLib.h>
 #include "display.h"            // puede anular HAS_APRS_PAGES en pantallas TFT
+#include "pages_core.h"
 
 #ifdef HAS_APRS_PAGES
 
@@ -81,6 +82,29 @@ namespace PAGES_Utils {
     bool    cwSendText(const char* text);   // modo MORSE: emite un texto libre (app por BLE)
     bool    headingForRotor(float& trueHeadingDeg);   // rumbo verdadero del vehiculo: curso GPS en marcha; parado, magnetometro; si no hay, el ultimo curso (30 s)
     bool    aprsTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize);   // estacion APRS elegida como destino de la brujula (GO TO) con posicion; para el rotor
+    // Control remoto completo por BLE (app Android): cualquier opcion de menu por nombre y espejo de la pantalla
+    int     remoteAct(const char* name, const char** error);    // devuelve un PAGES_CMD_* o -1 con *error
+    void    forEachAction(void (*callback)(uint8_t page, const char* pageTitle, const char* name, const char* label, bool allowed, void* ctx), void* ctx);
+    uint8_t     currentPage();
+    uint8_t     pageCount();
+    const char* pageTitleOf(uint8_t page);
+    bool        selectPage(uint8_t page);
+    uint32_t    msgSeq();               // sube con cada cambio del registro de mensajes
+    uint8_t     msgCount();
+    uint8_t     msgUnread();
+    const PAGES_Core::MsgEntry* msgAt(uint8_t position);    // 0 = el mas reciente
+    uint8_t     msgStateAt(uint8_t position);               // PAGES_Core::MsgState
+    uint8_t     heardCount();
+    uint32_t    heardPackets();
+    const PAGES_Core::Station* heardAt(uint8_t position);   // 0 = la mas reciente
+    int         sendMessage(const char* to, const char* text, bool wantAck);   // encola un mensaje APRS; devuelve el ackId (0 sin ack) o -1 si ya estaba en cola
+    bool        iaqValue(float& index, const char** label);     // calidad del aire estimada (BME680); false si aun no hay
+    uint8_t     screenPage();           // pagina de la ultima pantalla dibujada
+    const char* screenTitle();
+    const char* screenRight();
+    const char* screenRow(uint8_t r);
+    uint8_t     screenRows();
+    uint32_t    screenAgeMs();
     void    cwRemoteSession();          // modo MORSE: manipulador conectado al movil (eventos BLE_Control::KeyEvent)
 
 }

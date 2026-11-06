@@ -30,6 +30,9 @@
 #include "mag_utils.h"
 #include "wx_utils.h"
 #include "fw_update.h"
+#include "power_utils.h"
+#include "sleep_utils.h"
+#include <SPIFFS.h>
 #include "freertos/stream_buffer.h"
 #ifdef FAN_CTRL_PIN
     #include "thermal_utils.h"
@@ -72,6 +75,7 @@ extern bool             digipeaterActive;
 extern bool             smartBeaconActive;
 extern bool             sosActive;
 extern bool             batteryConnected;
+extern bool             displayState;
 
 // Modo pedido para el siguiente arranque: sobrevive a ESP.restart() (no al apagado) sin escribir la flash
 RTC_NOINIT_ATTR uint32_t    bootModeMagic;
@@ -289,6 +293,48 @@ namespace {
         #ifdef FAN_CTRL_PIN
             doc["boardTemp"] = THERMAL_Utils::getTemperature();
         #endif
+        // Resto de sensores y de la alimentacion (la app los muestra todos) (Manuel - EA7JRS)
+        WX_Utils::Reading reading;
+        if (WX_Utils::getReading(reading) && reading.valid) {
+            doc["wxSensor"] = WX_Utils::sensorName();
+            if (reading.hasGas) doc["gas"] = reading.gasKohm;
+        }
+        #ifdef HAS_APRS_PAGES
+            float iaqIndex = 0;
+            const char* iaqLabel = "";
+            if (PAGES_Utils::iaqValue(iaqIndex, &iaqLabel)) { doc["iaq"] = iaqIndex; doc["iaqLabel"] = iaqLabel; }
+        #endif
+        if (IMU_Utils::isReady()) {
+            float x = 0, y = 0, z = 0;
+            IMU_Utils::getAccelG(x, y, z);
+            JsonArray a = doc["accel"].to<JsonArray>(); a.add(x); a.add(y); a.add(z);
+            IMU_Utils::getGyroDps(x, y, z);
+            JsonArray g = doc["gyro"].to<JsonArray>(); g.add(x); g.add(y); g.add(z);
+            doc["flat"] = IMU_Utils::isFlat();
+        }
+        if (MAG_Utils::isReady()) {
+            doc["magCal"]   = MAG_Utils::isCalibrated();
+            doc["magAlign"] = MAG_Utils::isAligned();
+            if (MAG_Utils::isAligned()) doc["magOff"] = MAG_Utils::alignmentOffset();
+        }
+        doc["charging"] = POWER_Utils::isCharging();
+        const float vbus = POWER_Utils::getVbusVoltage();
+        if (vbus > 0.0f) doc["vbus"] = vbus;
+        const float pmuT = POWER_Utils::getPmuTemperature();
+        if (!isnan(pmuT)) doc["pmuTemp"] = pmuT;
+        #if defined(HAS_AXP192) || defined(HAS_AXP2101)
+            doc["battMa"] = POWER_Utils::getBatteryChargeDischargeCurrent();
+        #endif
+        if (batteryConnected) {
+            #ifdef HAS_AXP2101
+                String pct = POWER_Utils::getBatteryInfoCurrent();
+            #else
+                String pct = BATTERY_Utils::getPercentVoltageBattery(batteryVolts());
+            #endif
+            pct.trim();
+            doc["battPct"] = pct.toInt();
+        }
+        doc["heap"] = ESP.getFreeHeap();
         sendDoc(doc);
     }
 
@@ -314,6 +360,243 @@ namespace {
             doc["utc"] = utc;
         }
         sendDoc(doc);
+    }
+
+    // ---------------------------------------------------------------- app: acciones, pantalla, mensajes, estaciones, configuracion
+
+    uint32_t screenEveryMs = 0, screenLastMs = 0;
+    uint32_t msgSeen = 0;
+
+    void sendScreen() {
+        #ifdef HAS_APRS_PAGES
+            JsonDocument doc;
+            doc["e"]    = "screen";
+            doc["p"]    = PAGES_Utils::screenPage();
+            doc["cur"]  = PAGES_Utils::currentPage();
+            doc["t"]    = PAGES_Utils::screenTitle();
+            doc["r"]    = PAGES_Utils::screenRight();
+            doc["age"]  = PAGES_Utils::screenAgeMs();
+            doc["on"]   = displayState;
+            JsonArray rows = doc["rows"].to<JsonArray>();
+            for (uint8_t i = 0; i < PAGES_Utils::screenRows(); i++) rows.add(PAGES_Utils::screenRow(i));
+            sendDoc(doc);
+        #endif
+    }
+
+    #ifdef HAS_APRS_PAGES
+    struct ActCtx { JsonDocument* doc; JsonArray items; int page; };
+
+    void flushActList(ActCtx* c) {
+        if (c->page >= 0) sendDoc(*c->doc);
+        c->doc->clear();
+    }
+
+    void actCallback(uint8_t page, const char* pageTitle, const char* name, const char* label, bool allowed, void* ctx) {
+        ActCtx* c = (ActCtx*)ctx;
+        if ((int)page != c->page) {
+            flushActList(c);
+            c->page = page;
+            (*c->doc)["e"]  = "actlist";
+            (*c->doc)["p"]  = page;
+            (*c->doc)["pt"] = pageTitle;
+            c->items = (*c->doc)["items"].to<JsonArray>();
+        }
+        JsonObject o = c->items.add<JsonObject>();
+        o["n"] = name;
+        o["l"] = label;
+        if (!allowed) o["ok"] = false;
+    }
+    #endif
+
+    void sendActList() {
+        #ifdef HAS_APRS_PAGES
+            JsonDocument doc;
+            ActCtx ctx{&doc, JsonArray(), -1};
+            PAGES_Utils::forEachAction(actCallback, &ctx);
+            flushActList(&ctx);
+            JsonDocument end;
+            end["e"] = "actlist";
+            end["end"] = true;
+            end["pages"] = PAGES_Utils::pageCount();
+            sendDoc(end);
+        #endif
+    }
+
+    void fillMsg(JsonObject o, uint8_t position) {
+        #ifdef HAS_APRS_PAGES
+            const PAGES_Core::MsgEntry* m = PAGES_Utils::msgAt(position);
+            if (!m) return;
+            o["i"]  = position;
+            o["d"]  = String(m->dir);
+            o["ep"] = m->epoch;
+            o["st"] = PAGES_Utils::msgStateAt(position);       // 0 sin leer, 1 leido, 2 enviado, 3 esperando ack, 4 con ack, 5 fallido
+            if (m->ackId) o["ack"] = m->ackId;
+            o["c"]  = m->call;
+            o["t"]  = m->text;
+        #else
+            (void)o; (void)position;
+        #endif
+    }
+
+    void sendMsgs(int from, int cnt) {
+        #ifdef HAS_APRS_PAGES
+            JsonDocument doc;
+            doc["e"]      = "msgs";
+            doc["tot"]    = PAGES_Utils::msgCount();
+            doc["unread"] = PAGES_Utils::msgUnread();
+            doc["from"]   = from;
+            JsonArray items = doc["items"].to<JsonArray>();
+            for (int i = from; i < PAGES_Utils::msgCount() && (int)items.size() < cnt; i++) fillMsg(items.add<JsonObject>(), (uint8_t)i);
+            sendDoc(doc);
+        #else
+            (void)from; (void)cnt;
+        #endif
+    }
+
+    // Cambio en el registro de mensajes (llega, se envia, confirmacion, leido): se avisa con el mas reciente
+    void checkMsgs() {
+        #ifdef HAS_APRS_PAGES
+            const uint32_t seq = PAGES_Utils::msgSeq();
+            if (seq == msgSeen) return;
+            msgSeen = seq;
+            if (!connected || !authed) return;
+            JsonDocument doc;
+            doc["e"]      = "msg";
+            doc["tot"]    = PAGES_Utils::msgCount();
+            doc["unread"] = PAGES_Utils::msgUnread();
+            if (PAGES_Utils::msgCount() > 0) fillMsg(doc.as<JsonObject>(), 0);
+            sendDoc(doc);
+        #endif
+    }
+
+    void sendHeard(int from, int cnt) {
+        #ifdef HAS_APRS_PAGES
+            JsonDocument doc;
+            doc["e"]    = "heard";
+            doc["tot"]  = PAGES_Utils::heardCount();
+            doc["pkts"] = PAGES_Utils::heardPackets();
+            doc["from"] = from;
+            JsonArray items = doc["items"].to<JsonArray>();
+            const uint32_t now = millis();
+            for (int i = from; i < PAGES_Utils::heardCount() && (int)items.size() < cnt; i++) {
+                const PAGES_Core::Station* st = PAGES_Utils::heardAt((uint8_t)i);
+                if (!st) break;
+                JsonObject o = items.add<JsonObject>();
+                o["c"]   = st->call;
+                o["sym"] = String(st->symbol) + String(st->table);
+                o["k"]   = PAGES_Core::kindName(st->kind);
+                if (st->hasPosition) { o["lat"] = st->lat; o["lon"] = st->lon; }
+                o["alt"] = st->altitude;
+                o["spd"] = st->speed;
+                o["crs"] = st->course;
+                o["rssi"] = st->rssi;
+                o["snr"] = st->snr;
+                o["age"] = (now - st->lastMs) / 1000UL;
+                o["n"]   = st->packets;
+                if (st->device[0])  o["dev"] = st->device;
+                if (st->path[0])    o["path"] = st->path;
+                if (st->comment[0]) o["cmt"] = st->comment;
+                if (st->status[0])  o["sts"] = st->status;
+                if (st->wx.valid) {
+                    JsonObject w = o["wx"].to<JsonObject>();
+                    if (st->wx.tempC != PAGES_Core::WX_NA)       w["t"] = st->wx.tempC;
+                    if (st->wx.humidity != PAGES_Core::WX_NA)    w["h"] = st->wx.humidity;
+                    if (st->wx.pressureHpa != PAGES_Core::WX_NA) w["p"] = st->wx.pressureHpa;
+                    if (st->wx.windDir != PAGES_Core::WX_NA)     w["wd"] = st->wx.windDir;
+                    if (st->wx.windKmh != PAGES_Core::WX_NA)     w["ws"] = st->wx.windKmh;
+                    if (st->wx.gustKmh != PAGES_Core::WX_NA)     w["wg"] = st->wx.gustKmh;
+                    if (st->wx.rainMm10 != PAGES_Core::WX_NA)    w["r"] = st->wx.rainMm10;
+                }
+            }
+            sendDoc(doc);
+        #else
+            (void)from; (void)cnt;
+        #endif
+    }
+
+    // Configuracion completa de /tracker_conf.json: se lee por secciones y se escribe con un parche (cfgset)
+    bool cfgSecret(const char* key) {
+        String k = key;
+        k.toLowerCase();
+        return k.indexOf("password") >= 0 || k.indexOf("passcode") >= 0 || k.indexOf("token") >= 0 || k.indexOf("secret") >= 0 || k == "controlpin";
+    }
+
+    void cfgRedact(JsonVariant v) {
+        if (v.is<JsonObject>()) {
+            for (JsonPair kv : v.as<JsonObject>()) {
+                if (cfgSecret(kv.key().c_str()) && !kv.value().isNull()) kv.value().set("***");
+                else cfgRedact(kv.value());
+            }
+        } else if (v.is<JsonArray>()) {
+            for (JsonVariant e : v.as<JsonArray>()) cfgRedact(e);
+        }
+    }
+
+    void sendCfg(const char* section, int id) {
+        File f = SPIFFS.open("/tracker_conf.json", "r");
+        if (!f) { reply("cfgget", id, "no config file"); return; }
+        JsonDocument all;
+        const DeserializationError err = deserializeJson(all, f);
+        f.close();
+        if (err) { reply("cfgget", id, "config unreadable"); return; }
+        JsonDocument doc;
+        doc["e"] = "cfg";
+        if (id >= 0) doc["id"] = id;
+        if (section == nullptr || section[0] == '\0') {
+            JsonArray names = doc["sections"].to<JsonArray>();
+            for (JsonPair kv : all.as<JsonObject>()) names.add(kv.key().c_str());
+        } else {
+            if (all[section].isNull()) { reply("cfgget", id, "no such section"); return; }
+            doc["k"] = section;
+            doc["v"] = all[section];
+            cfgRedact(doc["v"]);
+        }
+        sendDoc(doc);
+    }
+
+    String  cfgPatchText;
+    String  cfgPatchKey;
+    bool    cfgPatchOpen = false;
+    bool    cfgReboot    = true;
+
+    // Mezcla objeto con objeto (los valores "***" de los secretos se ignoran); matrices y escalares sustituyen
+    void cfgMerge(JsonVariant dst, JsonVariantConst src) {
+        if (src.is<JsonObjectConst>() && dst.is<JsonObject>()) {
+            for (JsonPairConst kv : src.as<JsonObjectConst>()) {
+                const char* key = kv.key().c_str();
+                if (cfgSecret(key) && kv.value().is<const char*>() && strcmp(kv.value().as<const char*>(), "***") == 0) continue;
+                if (kv.value().is<JsonObjectConst>() && dst[key].is<JsonObject>()) cfgMerge(dst[key], kv.value());
+                else dst[key].set(kv.value());
+            }
+        } else {
+            dst.set(src);
+        }
+    }
+
+    const char* cfgApply() {
+        JsonDocument patch;
+        if (deserializeJson(patch, cfgPatchText)) return "patch is not valid JSON";
+        File f = SPIFFS.open("/tracker_conf.json", "r");
+        if (!f) return "no config file";
+        JsonDocument all;
+        const DeserializationError err = deserializeJson(all, f);
+        f.close();
+        if (err) return "config unreadable";
+        if (cfgPatchKey.isEmpty()) {                               // parche de varias secciones a la vez
+            if (!patch.is<JsonObject>()) return "patch must be an object";
+            cfgMerge(all.as<JsonVariant>(), patch.as<JsonVariantConst>());
+        } else {
+            if (all[cfgPatchKey].isNull()) return "no such section";
+            cfgMerge(all[cfgPatchKey].as<JsonVariant>(), patch.as<JsonVariantConst>());
+        }
+        File out = SPIFFS.open("/tracker_conf.tmp", "w");
+        if (!out) return "cannot write";
+        const size_t written = serializeJson(all, out);
+        out.close();
+        if (written == 0) { SPIFFS.remove("/tracker_conf.tmp"); return "nothing written"; }
+        SPIFFS.remove("/tracker_conf.json");
+        if (!SPIFFS.rename("/tracker_conf.tmp", "/tracker_conf.json")) return "could not replace the config file";
+        return nullptr;
     }
 
     void fillPage(JsonObject o, const DAPNET_Utils::Entry* entry) {
@@ -642,6 +925,8 @@ namespace {
         else if (strcmp(cmd, "sub") == 0) {
             const int s = doc["sensors"] | -1;
             const int g = doc["gnss"] | -1;
+            const int sc = doc["screen"] | -1;
+            if (sc >= 0) screenEveryMs = sc == 0 ? 0 : (uint32_t)max(sc, 1) * 1000UL;
             if (s >= 0) sensorsEveryMs = s == 0 ? 0 : (uint32_t)max(s, 2) * 1000UL;
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
             reply(cmd, id);
@@ -772,6 +1057,86 @@ namespace {
         else if (strcmp(cmd, "pos") == 0) {                       // posicion del movil para el modo SAT: lat, lon, alt (m), acc (m)
             if (doc["lat"].isNull() || doc["lon"].isNull()) { reply(cmd, id, "lat and lon needed"); return; }
             SAT_Utils::setPhonePosition(doc["lat"] | 0.0, doc["lon"] | 0.0, doc["alt"] | 0.0, doc["acc"] | 0.0f);
+            reply(cmd, id);
+        }
+        else if (strcmp(cmd, "actlist") == 0) sendActList();
+        else if (strcmp(cmd, "act") == 0) {                       // cualquier opcion de los menus del equipo, por nombre (ver actlist)
+            #ifdef HAS_APRS_PAGES
+                const char* name = doc["a"] | "";
+                const char* error = "";
+                const int result = PAGES_Utils::remoteAct(name, &error);
+                if (result < 0) { reply(cmd, id, error); return; }
+                if (result == PAGES_CMD_BEACON) {
+                    PAGES_Utils::requestBeacon();
+                    sendUpdate = true;
+                } else if (result == PAGES_CMD_PROFILE) {
+                    setProfile(myBeaconsSize > 0 ? (myBeaconsIndex + 1) % myBeaconsSize : -1, cmd, id);
+                    return;
+                } else if (result == PAGES_CMD_DISPLAY_OFF) {
+                    displayToggle(false);
+                    displayState = false;
+                } else if (result == PAGES_CMD_GPS) {
+                    SLEEP_Utils::toggleGpsManual();
+                }
+                reply(cmd, id);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "screen") == 0) {                    // espejo de la pantalla; p = pagina a mostrar (opcional), every = segundos para enviarla sola (0 = no)
+            #ifdef HAS_APRS_PAGES
+                const int p = doc["p"] | -1;
+                if (p >= 0 && !PAGES_Utils::selectPage((uint8_t)p)) { reply(cmd, id, "page not available"); return; }
+                const int every = doc["every"] | -1;
+                if (every >= 0) screenEveryMs = every == 0 ? 0 : (uint32_t)max(every, 1) * 1000UL;
+                if (p >= 0 || every >= 0) reply(cmd, id);
+                sendScreen();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "msgs") == 0) sendMsgs(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 10), 1, 20));
+        else if (strcmp(cmd, "msg") == 0) {                       // envia un mensaje APRS: to, t, ack (true = pide confirmacion)
+            #ifdef HAS_APRS_PAGES
+                const char* to = doc["to"] | "";
+                const char* text = doc["t"] | "";
+                if (!aprsMode(Config.operatingMode)) { reply(cmd, id, "only in APRS modes"); return; }
+                if (strlen(to) < 3 || strlen(to) > 9 || strlen(text) == 0 || strlen(text) > 67) { reply(cmd, id, "bad callsign or text (max 67)"); return; }
+                const int ack = PAGES_Utils::sendMessage(to, text, doc["ack"] | true);
+                if (ack < 0) { reply(cmd, id, "already queued"); return; }
+                JsonDocument r;
+                r["e"] = "ok"; r["c"] = cmd; if (id >= 0) r["id"] = id; r["ack"] = ack;
+                sendDoc(r);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "heard") == 0) sendHeard(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 6), 1, 12));
+        else if (strcmp(cmd, "cfgget") == 0) sendCfg(doc["k"] | "", id);
+        else if (strcmp(cmd, "cfgset") == 0) {                    // parche de configuracion: s = begin (k = seccion, reboot) | c (d = texto JSON) | end
+            const char* st = doc["s"] | "";
+            if (strcmp(st, "begin") == 0) {
+                cfgPatchText = "";
+                cfgPatchKey  = doc["k"] | "";
+                cfgReboot    = doc["reboot"] | true;
+                cfgPatchOpen = true;
+            } else if (strcmp(st, "c") == 0) {
+                const char* d = doc["d"] | "";
+                if (!cfgPatchOpen || cfgPatchText.length() + strlen(d) > 12000) { cfgPatchOpen = false; reply(cmd, id, "chunk refused"); return; }
+                cfgPatchText += d;
+            } else if (strcmp(st, "end") == 0) {
+                if (!cfgPatchOpen) { reply(cmd, id, "no patch open"); return; }
+                cfgPatchOpen = false;
+                const char* error = cfgApply();
+                cfgPatchText = "";
+                if (error) { reply(cmd, id, error); return; }
+                reply(cmd, id);
+                if (cfgReboot) restartAtMs = millis() + 800;
+                return;
+            } else if (strcmp(st, "abort") == 0) {
+                cfgPatchOpen = false;
+                cfgPatchText = "";
+            } else { reply(cmd, id, "bad step"); return; }
             reply(cmd, id);
         }
         else if (strcmp(cmd, "mode") == 0)    setMode(doc["m"] | -1, cmd, id);
@@ -927,6 +1292,9 @@ namespace BLE_Control {
         nmeaWanted     = false;
         sensorsEveryMs = 0;
         gnssEveryMs    = 0;
+        screenEveryMs  = 0;
+        cfgPatchOpen   = false;
+        cfgPatchText   = "";
     }
 
     void loop() {
@@ -961,10 +1329,12 @@ namespace BLE_Control {
         checkRotor();
         checkSatRx();
         checkSat();
+        checkMsgs();
         if (!connected) return;
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }
         if (gnssEveryMs && now - gnssLastMs >= gnssEveryMs)          { gnssLastMs = now; sendGnss(); }
+        if (screenEveryMs && now - screenLastMs >= screenEveryMs)    { screenLastMs = now; sendScreen(); }
     }
 
     void nmea(const char* text, size_t length) {
