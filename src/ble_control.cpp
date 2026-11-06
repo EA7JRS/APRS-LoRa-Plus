@@ -252,9 +252,11 @@ namespace {
             caps["cw"]     = LoRa_Utils::cwAvailable();
             caps["modes"]  = true;
             caps["rkey"]   = LoRa_Utils::cwAvailable();          // manipulador remoto (orden "k")
+            caps["gpsaid"] = GPS_Utils::gpsModule() == 1;        // A-GPS desde la app (orden "gpsaid", receptor u-blox)
             caps["ota"]    = FW_Update::slotAvailable();         // actualizacion por BLE (orden "ota")
         #else
             caps["rkey"]   = false;
+            caps["gpsaid"] = GPS_Utils::gpsModule() == 1;
             caps["ota"]    = FW_Update::slotAvailable();
             caps["dapnet"] = false;
             caps["cw"]     = false;
@@ -875,6 +877,37 @@ namespace {
         if (now - otaLastMs > OTA_TIMEOUT_MS) otaFail("No data from the phone");
     }
 
+    // ---------------------------------------------------------------- A-GPS desde la app (EA7JRS)
+
+    bool     gpsAidActive = false;
+    uint32_t gpsAidBytes  = 0;
+
+    // Base64 estandar (con o sin relleno '='): devuelve los bytes escritos en out, o -1 si el texto no es valido o no cabe
+    int base64Decode(const char* in, uint8_t* out, size_t outMax) {
+        uint32_t acc = 0;
+        int bits = 0;
+        size_t n = 0;
+        for (const char* p = in; *p; p++) {
+            const char c = *p;
+            int v;
+            if (c >= 'A' && c <= 'Z') v = c - 'A';
+            else if (c >= 'a' && c <= 'z') v = c - 'a' + 26;
+            else if (c >= '0' && c <= '9') v = c - '0' + 52;
+            else if (c == '+') v = 62;
+            else if (c == '/') v = 63;
+            else if (c == '=') break;
+            else return -1;
+            acc = (acc << 6) | (uint32_t)v;
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                if (n >= outMax) return -1;
+                out[n++] = (uint8_t)(acc >> bits);
+            }
+        }
+        return (int)n;
+    }
+
     // ---------------------------------------------------------------- ordenes
 
     void setMode(int mode, const char* cmd, int id) {
@@ -990,6 +1023,25 @@ namespace {
             #else
                 reply(cmd, id, "not available");
             #endif
+        }
+        else if (strcmp(cmd, "gpsaid") == 0) {                    // A-GPS: s = begin | c (d = UBX en base64, <= 180 caracteres) | end | abort
+            const char* st = doc["s"] | "";
+            if (GPS_Utils::gpsModule() != 1) { reply(cmd, id, "the GNSS receiver is not a u-blox"); return; }
+            if (strcmp(st, "begin") == 0) {
+                gpsAidBytes = 0;
+                gpsAidActive = true;
+            } else if (strcmp(st, "c") == 0) {
+                if (!gpsAidActive) { reply(cmd, id, "no transfer"); return; }
+                uint8_t bin[192];
+                const int n = base64Decode(doc["d"] | "", bin, sizeof(bin));
+                if (n <= 0 || !GPS_Utils::aidWrite(bin, (size_t)n)) { gpsAidActive = false; reply(cmd, id, "bad data"); return; }
+                gpsAidBytes += (uint32_t)n;
+            } else if (strcmp(st, "end") == 0 || strcmp(st, "abort") == 0) {
+                if (gpsAidActive && st[0] == 'e')
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "GPS", "A-GPS from the app: %lu bytes", (unsigned long)gpsAidBytes);
+                gpsAidActive = false;
+            } else { reply(cmd, id, "bad step"); return; }
+            reply(cmd, id);
         }
         else if (strcmp(cmd, "satdata") == 0) {                   // sube sats.txt desde el movil: s = begin (n = bytes) | c (d = texto) | end | abort
             #ifdef HAS_SAT

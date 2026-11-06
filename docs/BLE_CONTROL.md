@@ -65,6 +65,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 | `satlist` | `from` (0), `cnt` (20, máx. 40) | evento `satlist`: `{"e":"satlist","tot":239,"sel":3,"from":0,"items":[{"i":0,"id":25544,"n":"ISS (ZARYA)","c":"U","t":4}]}` (`c`: U 70 cm, L LoRa, G geoestacionario; `t`: transmisores) |
 | `satsel` | `i` (posición en la lista) o `id` (NORAD) | elige el satélite (para la escucha en curso); responde `ok` y el evento `sat` |
 | `sattxlist` | | evento `sattxlist` con los transmisores del satélite elegido: `i`, `m` modo, `b` baudios, `d` descripción, `up` / `dn` Hz nominales, `rx` / `tx` clase (CW, FSK, LoRa, n/a), `rxd` / `txd` Hz con Doppler |
+| `gpsaid` | `s`:`begin` · `s`:`c` (+ `d` = mensajes UBX en **base64**, máx. 180 caracteres por orden) · `s`:`end` · `s`:`abort` | A-GPS del receptor u-blox (`caps.gpsaid`): el tracker escribe los bytes tal cual en el puerto del GNSS. La app manda primero UBX-MGA-INI-TIME_UTC y MGA-INI-POS_LLH (hora y posición del móvil) y, si hay cuenta de u-blox, las Predictive Orbits (UBX-MGA-ANO...) descargadas con el internet del móvil. Espera el `ok` de cada orden |
 | `satdata` | `s`:`begin` (+ `n` bytes) · `s`:`c` (+ `d` texto, **máx. 180 caracteres por orden**) · `s`:`end` · `s`:`abort` | sube el archivo `sats.txt` (formato en `SAT_MODE.md`, máx. 64 000 bytes) sin WiFi: espera el `ok` de cada orden antes de mandar la siguiente; con `end` valida, sustituye al archivo y recarga la lista |
 | `tgtlist` | | evento `targets` |
 | `pos` | `lat`, `lon` (grados), `alt` (m), `acc` (precisión en m) | posición GPS del móvil para el modo SAT (ver `SAT_MODE.md`); caduca a los 2 min, así que la app debe repetirla (p. ej. cada 5–10 s) |
@@ -75,7 +76,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 `info`:
 ```json
 {"e":"info","v":1,"fw":"5.3.2","board":"ttgo_t_beam_s3_SUPREME_v3",
- "caps":{"nmea":true,"dapnet":true,"cw":true,"modes":true,"rkey":true,"ota":true},
+ "caps":{"nmea":true,"dapnet":true,"cw":true,"modes":true,"rkey":true,"ota":true,"gpsaid":true},
  "mode":0,"modes":[{"m":0,"n":"APRS LoRa"},{"m":1,"n":"APRS FSK 9600"},{"m":5,"n":"DAPNET pager"}],
  "profile":0,"profiles":[{"call":"EA7JRS-7","label":"Coche"}],
  "lora":0,"loras":[{"f":433775000,"sf":12,"cr":5,"fsk":false}],

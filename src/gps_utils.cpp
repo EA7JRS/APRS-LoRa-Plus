@@ -517,6 +517,19 @@ namespace GPS_Utils {
         return gpsModule() == 2;
     }
 
+    // A-GPS desde la app APRS LoRa+ (EA7JRS): la app prepara los mensajes UBX-MGA (hora y posicion del movil, Predictive
+    // Orbits de u-blox descargadas con el internet del movil) y aqui solo se escriben tal cual en el puerto del receptor
+    bool aidWrite(const uint8_t* data, size_t length) {
+        #ifdef GPS_CONFIG_CONSTELLATIONS
+            if (gpsModule() != 1 || data == nullptr || length == 0) return false;
+            gpsSerial.write(data, length);
+            return true;
+        #else
+            (void)data; (void)length;
+            return false;
+        #endif
+    }
+
     #ifndef GPS_CONFIG_CONSTELLATIONS
     uint8_t antennaStatus() { return 0; }
     void    reapplyAfterWake() {}
