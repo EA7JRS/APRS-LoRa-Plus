@@ -10,9 +10,6 @@
 #ifdef HAS_SAT
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
 #include <SPIFFS.h>
 #include <TinyGPS++.h>
 #include <TimeLib.h>
@@ -25,10 +22,6 @@
 extern Configuration    Config;
 extern logging::Logger  logger;
 extern TinyGPSPlus      gps;
-
-#ifndef SAT_DATA_URL
-    #define SAT_DATA_URL "https://raw.githubusercontent.com/EA7JRS/APRS-LoRa-Plus/satdata/sats.txt"
-#endif
 
 namespace SAT_Utils {
 
@@ -62,10 +55,9 @@ namespace SAT_Utils {
         uint32_t            retryAtMs  = 0;                       // sin paso en el horizonte de busqueda: se vuelve a intentar mas tarde
         double              searchQthLat = 999, searchQthLon = 999;
 
-        // descarga
+        // archivo de datos recibido de la app (el tracker no descarga nada: lo hace la app)
         volatile UpdateState updState = UPD_IDLE;
         char                 updMsg[48] = "";
-        TaskHandle_t         updTask = nullptr;
 
         double nowUnix() { return (double)::now(); }
 
@@ -204,82 +196,6 @@ namespace SAT_Utils {
             searchQthLat = obs.latDeg;
             searchQthLon = obs.lonDeg;
             searching = true;
-        }
-
-        // ---- descarga ----
-        void updateTask(void*) {
-            const bool alreadyOnline = WiFi.status() == WL_CONNECTED;
-            wifi_mode_t before = WiFi.getMode();
-            bool ok = false;
-            do {
-                if (!alreadyOnline) {
-                    if (Config.fwUpdate.ssid.isEmpty()) { setMsg("Set WiFi in the WebUI"); break; }
-                    setMsg("Joining WiFi");
-                    WiFi.mode((before == WIFI_MODE_AP || before == WIFI_MODE_APSTA) ? WIFI_MODE_APSTA : WIFI_MODE_STA);
-                    WiFi.begin(Config.fwUpdate.ssid.c_str(), Config.fwUpdate.password.c_str());
-                    const uint32_t t0 = millis();
-                    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) delay(100);
-                    if (WiFi.status() != WL_CONNECTED) { setMsg("WiFi: could not join"); break; }
-                }
-                setMsg("Downloading");
-                // Datos publicos y sin secretos (TLE y frecuencias): se acepta el certificado sin validar para no depender de la fecha ni del almacen de CA
-                WiFiClientSecure client;
-                client.setInsecure();
-                HTTPClient http;
-                http.setTimeout(15000);
-                http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-                String url = Config.sat.dataUrl.isEmpty() ? String(SAT_DATA_URL) : Config.sat.dataUrl;
-                if (!http.begin(client, url)) { setMsg("Bad URL"); break; }
-                const int code = http.GET();
-                if (code != 200) { char m[40]; snprintf(m, sizeof(m), "Server answered %d", code); setMsg(m); http.end(); break; }
-                if (!SPIFFS.begin(true)) { setMsg("No flash storage"); http.end(); break; }
-                File f = SPIFFS.open(FILE_TMP, "w");
-                if (!f) { setMsg("Cannot write"); http.end(); break; }
-                WiFiClient* stream = http.getStreamPtr();
-                uint8_t buf[512];
-                size_t total = 0;
-                const uint32_t t1 = millis();
-                bool bad = false;
-                while ((http.connected() || stream->available()) && millis() - t1 < 60000) {
-                    const size_t av = stream->available();
-                    if (av == 0) { delay(10); continue; }
-                    const size_t n = stream->readBytes(buf, av < sizeof(buf) ? av : sizeof(buf));
-                    total += n;
-                    if (total > MAX_FILE_BYTES) { bad = true; break; }
-                    if (f.write(buf, n) != n) { bad = true; break; }
-                }
-                f.close();
-                http.end();
-                if (bad || total < 200) { SPIFFS.remove(FILE_TMP); setMsg(bad ? "File too large" : "Empty answer"); break; }
-                // comprobacion minima: hay al menos un bloque "S|"
-                File chk = SPIFFS.open(FILE_TMP, "r");
-                bool hasBlock = false;
-                while (chk && chk.available() && !hasBlock) { String l = chk.readStringUntil('\n'); hasBlock = l.startsWith("S|"); }
-                if (chk) chk.close();
-                if (!hasBlock) { SPIFFS.remove(FILE_TMP); setMsg("Unexpected file"); break; }
-                SPIFFS.remove(FILE_PATH);
-                if (!SPIFFS.rename(FILE_TMP, FILE_PATH)) { setMsg("Cannot save"); break; }
-                ok = true;
-            } while (false);
-
-            if (!alreadyOnline) {                                  // deja el WiFi como estaba
-                WiFi.disconnect(false);
-                if (before == WIFI_MODE_AP || before == WIFI_MODE_APSTA) WiFi.mode(WIFI_MODE_AP); else WiFi.mode(WIFI_MODE_NULL);
-            }
-            if (ok) {
-                const int keep = sel >= 0 && sel < (int)index.size() ? index[sel].noradId : Config.sat.noradId;
-                buildIndex();
-                for (int i = 0; i < (int)index.size(); i++) if (index[i].noradId == keep) { sel = i; break; }
-                if (sel >= 0) loadBlock(sel);
-                restartSearch();
-                char m[40]; snprintf(m, sizeof(m), "%d satellites", (int)index.size());
-                setMsg(m);
-                updState = UPD_OK;
-            } else {
-                updState = UPD_ERROR;
-            }
-            updTask = nullptr;
-            vTaskDelete(nullptr);
         }
 
     }
@@ -429,19 +345,6 @@ namespace SAT_Utils {
         }
     }
 
-    bool updateStart() {
-        if (updState == UPD_WORKING || updTask != nullptr) return false;
-        updState = UPD_WORKING;
-        setMsg("Starting");
-        if (xTaskCreate(updateTask, "satupd", 12288, nullptr, 1, &updTask) != pdPASS) {
-            updState = UPD_ERROR;
-            setMsg("Out of memory");
-            updTask = nullptr;
-            return false;
-        }
-        return true;
-    }
-
     UpdateState updateState()   { return updState; }
     const char* updateMessage() { return updMsg; }
 
@@ -454,7 +357,7 @@ namespace SAT_Utils {
     }
 
     bool dataBegin(size_t expectedBytes) {
-        if (updState == UPD_WORKING || updTask != nullptr) return false;       // hay una descarga por WiFi en curso
+        if (updState == UPD_WORKING) return false;
         dataAbort();
         if (expectedBytes > MAX_FILE_BYTES || !SPIFFS.begin(true)) return false;
         upFile = SPIFFS.open(FILE_TMP, "w");
@@ -527,7 +430,6 @@ namespace SAT_Utils {
     bool dataChunk(const char*, size_t) { return false; }
     bool dataEnd() { return false; }
     void dataAbort() {}
-    bool updateStart() { return false; }
     UpdateState updateState() { return UPD_IDLE; }
     const char* updateMessage() { return ""; }
 }

@@ -592,7 +592,6 @@ function loadSettings(settings) {
         document.getElementById("sat.minEl").value = sat.minEl ?? 10;
         document.getElementById("sat.lat").value = sat.lat ?? 0;
         document.getElementById("sat.lon").value = sat.lon ?? 0;
-        document.getElementById("sat.dataUrl").value = sat.dataUrl ?? "";
         document.getElementById("sat.txEnabled").checked = sat.txEnabled ?? false;
         document.getElementById("sat.txMinEl").value = sat.txMinEl ?? 15;
         document.getElementById("sat.txPower").value = sat.txPower ?? 10;

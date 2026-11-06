@@ -796,10 +796,6 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         <label for="sat.lon">Fixed longitude (&deg;, east +)</label>
                                     </div>
                                 </div>
-                                <div class="form-floating mb-2">
-                                    <input type="text" class="form-control form-control-sm" name="sat.dataUrl" id="sat.dataUrl" maxlength="160" placeholder="https://" />
-                                    <label for="sat.dataUrl">Data file address (empty = the project's own)</label>
-                                </div>
                                 <h6 class="mt-3">Transmit to the satellite (uplink)</h6>
                                 <div class="small text-muted mb-2">Off by default. Only 430&ndash;440 MHz, only with the satellite above the minimum elevation, only when you ask for it (menu, or the app); never automatically. The frequency is corrected for Doppler. You are responsible for your licence, the satellite's operating rules and the power you radiate. Needs a real callsign in the active beacon profile. CW sends the text as Morse; FSK sends it as the information field of an AX.25 UI frame from your callsign (<code>CALL&gt;APLRT1:text</code>); LoRa sends it as the payload.</div>
                                 <div class="form-check form-switch mb-2">

@@ -13,7 +13,7 @@ Se elige en **SELECT MODE → Satellites 70cm** (y desde la app por BLE: modo 9)
 - Posición de la estación (*Station position* en la WebUI; la pantalla muestra la fuente arriba a la derecha): **GPS del tracker como referencia** (`GPS`; sin fix, la del móvil `PHN`), **fusión** del GPS del tracker y del móvil (`FUS`: media ponderada por la inversa de la varianza; precisión del tracker ≈ HDOP × 5 m, la del móvil la manda la app) o **solo el móvil**. La posición del móvil la envía la app por BLE con la orden `pos` (ver `BLE_CONTROL.md`) y caduca a los 2 minutos. Si no hay ninguna: última posición conocida (`LAST`) y, si no, la fija de la WebUI (`FIX`).
 - Hora: UTC del GPS. Sin hora válida no se calcula nada.
 
-Pantalla **SATELLITE** (pulsación larga → submenú): *Next / Previous satellite*, *Change view* (ahora / próximo paso / frecuencias), *Update TLE (WiFi)*.
+Pantalla **SATELLITE** (pulsación larga → submenú): *Next / Previous satellite*, *Change view* (ahora / próximo paso / frecuencias). El archivo de satélites lo envía la app (ver más abajo).
 
 ## Categorías: 70 cm, LoRa / LR-FHSS / TinyGS e Inmarsat
 
@@ -27,7 +27,7 @@ Las frecuencias se guardan con 64 bits (la banda L y los 2,4 GHz no caben en 32)
 
 ## Datos orbitales
 
-El tracker descarga por WiFi (la red de *Firmware update* de la WebUI) el archivo `sats.txt` y lo guarda en la memoria flash. Lo genera cada día un workflow de GitHub (`.github/workflows/satdata.yml`, `tools/make_sat_data.py`) y lo publica en la rama `satdata` del repositorio. La dirección se puede cambiar en la WebUI (*Data file address*). Los TLE envejecen: la precisión baja pasados unos días; la pantalla muestra su edad.
+El archivo `sats.txt` lo **envía la app Android** (pestaña SAT: lo descarga con el internet del móvil, o lo lee de un archivo, y lo sube por BLE con `satdata`); el tracker lo guarda en la memoria flash y ya no lleva cliente HTTP ni descarga nada por sí mismo. Lo genera cada día un workflow de GitHub (`.github/workflows/satdata.yml`, `tools/make_sat_data.py`) y lo publica en la rama `satdata` del repositorio; la dirección de descarga se cambia en la app. Los TLE envejecen: la precisión baja pasados unos días; la pantalla muestra su edad.
 
 Formato (texto, un bloque por satélite): `S|norad|nombre`, las dos líneas del TLE y `T|subidaMin|subidaMax|bajadaMin|bajadaMax|modo|baudios|inversor|descripción` por transmisor (Hz; 0 = sin dato).
 

@@ -53,7 +53,6 @@ namespace SAT_Utils {
     void           doppler(const SatCore::Transmitter& t, double& rxHz, double& txHz);
 
     // Descarga del archivo de datos por WiFi (la red de Administracion > Firmware update)
-    bool           updateStart();                       // false si ya hay una en curso
     // Subida del archivo de datos desde el movil por BLE (sin WiFi): begin -> chunk... -> end (valida, sustituye al actual y recarga la lista)
     bool           dataBegin(size_t expectedBytes);
     bool           dataChunk(const char* text, size_t n);

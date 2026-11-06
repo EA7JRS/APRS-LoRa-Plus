@@ -148,7 +148,7 @@ namespace {
         X(SOS_SEND) X(SOS_CANCEL) X(LORA_PROFILE) X(LORA_POWER) X(LORA_RESET) X(LORA_HEARD) X(PW_SHOW) X(PW_UP) X(PW_DN) X(QUICK0) X(QUICK1) \
         X(QUICK2) X(QUICK3) X(QUICK4) X(QUICK5) X(QUICK6) X(QUICK7) X(CW0) X(CW1) X(CW2) X(CW3) X(CW4) X(CW_LISTEN) X(CW_SQUELCH) X(CW_TRAIN_LISTEN) \
         X(CW_TRAIN_KEY) X(CW_CLEAR) X(CW_BEACON) X(WSPR_TOGGLE) X(LRF_TOGGLE) X(WSPR_TUNE) X(CWB_NOW) X(CWB_TUNE) X(DAP_OLDER) X(DAP_NEWER) \
-        X(DAP_CLEAR) X(DAP_MON) X(SAT_NEXT) X(SAT_PREV) X(SAT_VIEW) X(SAT_UPDATE) X(SAT_CAT) X(SATRX_TOGGLE) X(SATRX_TX) X(SATRX_FINE_UP) \
+        X(DAP_CLEAR) X(DAP_MON) X(SAT_NEXT) X(SAT_PREV) X(SAT_VIEW) X(SAT_CAT) X(SATRX_TOGGLE) X(SATRX_TX) X(SATRX_FINE_UP) \
         X(SATRX_FINE_DN) X(SATRX_LORA) X(SATRX_CLEAR) X(SATTX_SEND) X(ROT_SOURCE) X(ROT_NEXT) X(ROT_PREV) X(ROT_PARK) X(MODE_CHANGE) X(TEAM_BROWSE) \
         X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
         X(SYS_IARU)
@@ -374,8 +374,7 @@ namespace {
                 satItems[2] = Item{"Change view", C_SAT_VIEW};
                 snprintf(satCatLabel, sizeof(satCatLabel), "List: %s", SAT_Utils::categoryName());
                 satItems[3] = Item{satCatLabel, C_SAT_CAT};
-                satItems[4] = Item{"Update TLE (WiFi)", C_SAT_UPDATE};
-                count = 5;
+                count = 4;
             #ifdef HAS_SAT
                 if (SATRX_Utils::available()) {
                     snprintf(satListenLabel, sizeof(satListenLabel), "Listen: %s", SATRX_Utils::active() ? "ON" : "OFF");
@@ -3008,20 +3007,13 @@ namespace PAGES_Utils {
 #ifdef HAS_SAT
     void drawSatPage() {
         const SatCore::Block* b = SAT_Utils::block();
-        const bool upd = SAT_Utils::updateState() == SAT_Utils::UPD_WORKING;
-        header(PAGE_TITLES[PAGE_SAT], upd ? "WIFI" : (SAT_Utils::haveQth() ? SAT_Utils::qthSource() : "NO POS"));
-        if (SAT_Utils::updateState() == SAT_Utils::UPD_WORKING || SAT_Utils::updateState() == SAT_Utils::UPD_ERROR) {
-            row(0, "TLE update");
-            row(1, "%s", SAT_Utils::updateMessage());
-            if (SAT_Utils::updateState() == SAT_Utils::UPD_ERROR) row(3, "Hold: menu to retry");
-            return;
-        }
+        header(PAGE_TITLES[PAGE_SAT], SAT_Utils::haveQth() ? SAT_Utils::qthSource() : "NO POS");
         if (!SAT_Utils::hasData() || !b) {
             row(0, "No satellite data");
-            row(1, "Hold > Update TLE");
-            row(2, "(needs WiFi set in");
-            row(3, "the WebUI)");
-            if (SAT_Utils::updateState() == SAT_Utils::UPD_OK) row(5, "%s", SAT_Utils::updateMessage());
+            row(1, "Send it from the");
+            row(2, "Android app");
+            row(3, "(SAT tab)");
+            if (SAT_Utils::updateState() == SAT_Utils::UPD_ERROR) row(5, "%s", SAT_Utils::updateMessage());
             return;
         }
         row(0, "%u/%u %.14s", (unsigned)SAT_Utils::selected() + 1, (unsigned)SAT_Utils::count(), b->name);
@@ -4934,9 +4926,6 @@ namespace PAGES_Utils {
                 showToast(t);
                 break;
             }
-            case C_SAT_UPDATE:
-                showToast(SAT_Utils::updateStart() ? "Updating TLE..." : "Already running");
-                break;
             case C_DAP_MON:
                 Config.dapnet.monitorAll = !Config.dapnet.monitorAll;                         // solo hasta el reinicio (la WebUI lo guarda)
                 showToast(Config.dapnet.monitorAll ? "Monitor all ON" : "Monitor all OFF");

@@ -256,7 +256,6 @@ public:
     int     posSource;                          // posicion de la estacion: 0 = GPS del tracker (referencia; sin fix, el movil), 1 = fusion tracker + movil, 2 = solo el movil
     int     minEl;                              // elevacion minima de un paso util (grados)
     double  lat, lon;                           // posicion fija de la estacion cuando no hay GPS (0,0 = sin definir)
-    String  dataUrl;                            // direccion del archivo de datos (vacio = el oficial del proyecto)
     // ---- Fase 3: emision hacia el satelite (apagada por defecto; la responsabilidad de la licencia es del operador) ----
     bool    txEnabled;                          // permite emitir
     int     txMinEl;                            // no se emite por debajo de esta elevacion (grados)

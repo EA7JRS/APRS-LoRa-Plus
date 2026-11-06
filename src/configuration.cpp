@@ -197,7 +197,6 @@ bool Configuration::writeFile() {
         data["sat"]["posSource"]                    = sat.posSource;
         data["sat"]["lat"]                          = sat.lat;
         data["sat"]["lon"]                          = sat.lon;
-        data["sat"]["dataUrl"]                      = sat.dataUrl;
         data["sat"]["txEnabled"]                    = sat.txEnabled;
         data["sat"]["txMinEl"]                      = sat.txMinEl;
         data["sat"]["txPower"]                      = sat.txPower;
@@ -551,7 +550,6 @@ bool Configuration::readFile() {
         sat.minEl            = constrain((int)(data["sat"]["minEl"] | sat.minEl), 0, 60);
         sat.lat              = constrain((double)(data["sat"]["lat"] | sat.lat), -90.0, 90.0);
         sat.lon              = constrain((double)(data["sat"]["lon"] | sat.lon), -180.0, 180.0);
-        sat.dataUrl          = data["sat"]["dataUrl"] | "";
         if (data["sat"]["txEnabled"].isNull()) needsRewrite = true;
         sat.txEnabled        = data["sat"]["txEnabled"] | sat.txEnabled;
         sat.txMinEl          = constrain((int)(data["sat"]["txMinEl"] | sat.txMinEl), 0, 60);
@@ -922,7 +920,6 @@ void Configuration::setDapnetDefaults() {
     sat.posSource        = 0;
     sat.lat              = 0.0;
     sat.lon              = 0.0;
-    sat.dataUrl          = "";
     sat.txEnabled        = false;
     sat.txMinEl          = 15;
     sat.txPower          = 10;

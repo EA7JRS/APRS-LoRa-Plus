@@ -334,12 +334,6 @@ namespace WEB_Utils {
             Config.sat.seqPreMs  = constrain(getParamIntSafe("sat.seqPreMs", Config.sat.seqPreMs), 0, 2000);
             Config.sat.seqPostMs = constrain(getParamIntSafe("sat.seqPostMs", Config.sat.seqPostMs), 0, 2000);
             Config.sat.seqTailMs = constrain(getParamIntSafe("sat.seqTailMs", Config.sat.seqTailMs), 0, 2000);
-            if (request->hasParam("sat.dataUrl", true)) {
-                String u = request->getParam("sat.dataUrl", true)->value();
-                u.trim();
-                if (u.length() > 160 || (u.length() && !u.startsWith("https://") && !u.startsWith("http://"))) u = "";
-                Config.sat.dataUrl = u;
-            }
         }
         if (request->hasParam("radio.freqCorrPpm", true)) {                                  // ppm con hasta 3 decimales -> milesimas
             const double ppm = request->getParam("radio.freqCorrPpm", true)->value().toDouble();
