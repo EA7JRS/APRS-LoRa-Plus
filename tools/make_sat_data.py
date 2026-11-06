@@ -24,7 +24,7 @@ import time
 import urllib.request
 import urllib.error
 
-CELESTRAK_GROUPS = ["amateur", "cubesat", "satnogs", "weather", "stations", "science", "engineering"]
+CELESTRAK_GROUPS = ["amateur", "cubesat", "satnogs", "weather", "stations", "science", "engineering", "active"]       # "active" es grande (~10 000 TLE) pero evita cientos de consultas por satelite
 CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"
 CELESTRAK_CAT_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=tle"
 SATNOGS_URL = "https://db.satnogs.org/api/transmitters/?format=json"
@@ -40,7 +40,8 @@ INMARSAT_TX = [
     "T|0|0|1537100000|1537100000|STD-C|600|0|STD-C TDM (verify)",
     "T|0|0|1541450000|1541450000|STD-C|600|0|STD-C TDM (verify)",
 ]
-NAME_QUERIES = {"INMARSAT": "G", "LACUNASAT": "L", "LACUNA": "L"}
+NAME_QUERIES = {"INMARSAT": "G"}
+LORA_NAMES = ("LACUNA",)           # satelites LR-FHSS / LoRa que SatNOGS puede no marcar con modo LoRa
 NAME_URL = "https://celestrak.org/NORAD/elements/gp.php?NAME=%s&FORMAT=tle"
 UA = "APRS-LoRa-Plus-satdata/1.0 (+https://github.com/EA7JRS/APRS-LoRa-Plus)"
 
@@ -219,7 +220,7 @@ def main():
     else:
         for g in CELESTRAK_GROUPS:
             try:
-                got = parse_tles(http_get(CELESTRAK_URL % g))
+                got = parse_tles(http_get(CELESTRAK_URL % g, timeout=120))
                 print("CelesTrak %-12s %4d TLE" % (g, len(got)), file=sys.stderr)
                 tles.update(got)
             except RuntimeError as e:
@@ -234,8 +235,8 @@ def main():
                 tles.update(got)
             except RuntimeError as e:
                 print("aviso: busqueda %s no disponible (%s)" % (q, e), file=sys.stderr)
-        for n, c in extra.items():
-            if c == "L" and n not in tx:
+        for n, v in tles.items():
+            if any(k in v[0].upper() for k in LORA_NAMES) and n not in tx:
                 tx[n] = ("L", [])
         missing = [n for n in tx if n not in tles][:MAX_CATNR_FALLBACK]
         for n in missing:
