@@ -32,6 +32,7 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | Recepción en la app de las balizas del tracker: APRS FSK G3RUH, CW, FT8, FT4, WSPR y FST4W (120 / 300 / 900 / 1800 s; receptor RTL-SDR o micrófono); APRS LoRa la reciben otros trackers conectados como receptores; LR-FHSS no (el SX1262 solo emite) | solo en la app | — | sí |
 | Varios trackers como receptores a la vez (Bluetooth KISS o KISS TCP por WiFi) | KISS | sí | sí |
 | Spots de lo recibido: FT8, FT4 y CW a PSK Reporter; WSPR y FST4W a WSPRnet; pasarela UDP de WSJT-X (GridTracker, JTAlert, RBN Aggregator); puerto telnet tipo CW Skimmer para el RBN (vía RBN Aggregator); CW de la app y de la escucha CW del tracker | `cwrx` (`f`) | — | sí |
+| Libro de guardia en la app (QSO a mano y de CW, sin APRS; importar ADIF de qFT8) y confirmación: QRZ.com (API), LoTW (firmado en la app con el certificado .p12 de TQSL), eQSL, World Radio League (UDP de WSJT-X a su programa y vía QRZ); ADIF para qFT8 u otros; descarga de confirmaciones de LoTW, QRZ y eQSL | — (frecuencia CW de `cwrx`) | — | sí |
 | Modos de texto al estilo fldigi (CW, RTTY, BPSK; más en curso) | solo en la app | — | parcial |
 | Actualización de firmware (la app descarga y envía por BLE; el tracker no descarga) | `ota`, `ota_abort` | sí | sí |
 | **Cualquier opción de menú del equipo** (mensajes, brújula, SOS, reloj, altímetro, GPS, LoRa, CW, WSPR, DAPNET, rotor, equipos, SYSTEM...) | `actlist`, `act` | sí | sí |
