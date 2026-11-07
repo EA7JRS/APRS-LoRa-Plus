@@ -298,6 +298,8 @@ namespace WEB_Utils {
                 Config.rotor.followFilter = f.substring(0, 80);
             }
             Config.rotor.followMaxMin = constrain(getParamIntSafe("rotor.followMaxMin", Config.rotor.followMaxMin), 1, 720);
+            Config.rotor.predict      = request->hasParam("rotor.predict", true);
+            Config.rotor.predictMaxS  = constrain(getParamIntSafe("rotor.predictMaxS", Config.rotor.predictMaxS), 10, 1800);
             Config.rotor.targetIndex = constrain(getParamIntSafe("rotor.targetIndex", Config.rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
             for (int i = 0; i < RotorConfig::TARGETS; i++) {
                 char key[24];

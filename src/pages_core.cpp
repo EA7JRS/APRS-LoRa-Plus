@@ -183,6 +183,7 @@ namespace PAGES_Core {
             s.altitude = (int16_t)altitude;
             s.speed    = (int16_t)speed;
             s.course   = (int16_t)course;
+            s.posMs    = nowMs;
             if (symbol != '\0' && symbol != ' ') { s.symbol = symbol; s.table = table; }
             s.kind = classify(type, s.symbol, speed, true);
         } else if (isNew) {

@@ -300,6 +300,8 @@ bool Configuration::writeFile() {
         data["rotor"]["source"]                     = rotor.source;
         data["rotor"]["followFilter"]               = rotor.followFilter;
         data["rotor"]["followMaxMin"]               = rotor.followMaxMin;
+        data["rotor"]["predict"]                    = rotor.predict;
+        data["rotor"]["predictMaxS"]                = rotor.predictMaxS;
         data["rotor"]["mount"]                      = rotor.mount;
         data["rotor"]["tilt"]                       = rotor.tilt;
         data["rotor"]["targetIndex"]                = rotor.targetIndex;
@@ -644,6 +646,8 @@ bool Configuration::readFile() {
         }
         rotor.followFilter   = data["rotor"]["followFilter"] | rotor.followFilter;
         rotor.followMaxMin   = constrain((int)(data["rotor"]["followMaxMin"] | rotor.followMaxMin), 1, 720);
+        rotor.predict        = data["rotor"]["predict"] | rotor.predict;
+        rotor.predictMaxS    = constrain((int)(data["rotor"]["predictMaxS"] | rotor.predictMaxS), 10, 1800);
         rotor.targetIndex    = constrain((int)(data["rotor"]["targetIndex"] | rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
         for (int i = 0; i < RotorConfig::TARGETS; i++) {
             JsonVariantConst t = data["rotor"]["targets"][i];
@@ -970,6 +974,8 @@ void Configuration::setDapnetDefaults() {
     rotor.source         = 0;
     rotor.followFilter   = "";
     rotor.followMaxMin   = 30;
+    rotor.predict        = true;
+    rotor.predictMaxS    = 300;
     rotor.mount          = 0;
     rotor.tilt           = 0;
     rotor.targetIndex    = 0;

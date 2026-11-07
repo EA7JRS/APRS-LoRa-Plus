@@ -295,6 +295,8 @@ public:
                                                 // 4 = la ultima estacion APRS oida con posicion (LoRa o FSK), 5 = la ultima baliza CW con locator. Calculo desde el GPS del tracker
     String  followFilter;                       // fuente 4: indicativos que se siguen ("EA7JRS", "EA7JRS-9", "EA7*"; vacio = todos)
     int     followMaxMin;                       // fuente 4: antiguedad maxima de la estacion (minutos)
+    bool    predict;                            // fuentes 1 y 4: estimar la posicion actual de una estacion en movimiento (velocidad y rumbo de su ultima posicion)
+    int     predictMaxS;                        // tope de la estimacion (segundos desde la ultima posicion)
     int     targetIndex;                        // objetivo fijo elegido (0..ROTOR_TARGETS-1)
     static const int TARGETS = 8;
     struct Target {

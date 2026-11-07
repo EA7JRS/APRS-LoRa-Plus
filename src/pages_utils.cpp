@@ -3767,11 +3767,21 @@ namespace PAGES_Utils {
         return false;
     }
 
+    // Posicion de una estacion para el rotor: la ultima recibida o, si se mueve y esta activada la estimacion, donde estara ahora
+    // segun la velocidad y el rumbo de esa posicion (Copyright (C) 2026 Manuel - EA7JRS). true si es estimada
+    static bool rotorStationPos(const Station* s, double& lat, double& lon) {
+        lat = s->lat; lon = s->lon;
+        if (!Config.rotor.predict || s->posMs == 0) return false;
+        const double dt = (double)(millis() - s->posMs) / 1000.0;
+        return RotorFollow::predict(s->lat, s->lon, s->speed, s->course, dt, Config.rotor.predictMaxS, 3.0, lat, lon);
+    }
+
     bool aprsTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize) {
         const Station* s = compassStation();
         if (!s || !s->hasPosition) return false;
-        lat = s->lat; lon = s->lon; altM = s->altitude;
-        snprintf(name, nameSize, "%s", s->call);
+        const bool est = rotorStationPos(s, lat, lon);
+        altM = s->altitude;
+        snprintf(name, nameSize, est ? "%s~" : "%s", s->call);      // "~" = posicion estimada
         return true;
     }
 
@@ -3785,8 +3795,9 @@ namespace PAGES_Utils {
             if (!s) break;
             if (now - s->lastMs > maxAge) break;                                    // la lista va de la mas reciente a la mas antigua
             if (!s->hasPosition || !RotorFollow::callMatches(s->call, Config.rotor.followFilter.c_str())) continue;
-            lat = s->lat; lon = s->lon; altM = s->altitude;
-            snprintf(name, nameSize, "%s", s->call);
+            const bool est = rotorStationPos(s, lat, lon);
+            altM = s->altitude;
+            snprintf(name, nameSize, est ? "%s~" : "%s", s->call);
             return true;
         }
         return false;

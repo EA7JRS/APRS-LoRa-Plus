@@ -81,6 +81,7 @@ namespace PAGES_Core {
         int16_t     rssi;
         float       snr;
         uint32_t    lastMs;
+        uint32_t    posMs;          // instante de la ultima posicion (para estimar donde esta ahora una estacion en movimiento)
         uint16_t    packets;
         char        device[18];     // equipo (por tocall o por Mic-E); vacio = desconocido
         char        path[22];       // camino del ultimo paquete, p. ej. "WIDE1-1*"

@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 namespace RotorFollow {
 
@@ -55,6 +56,23 @@ namespace RotorFollow {
             case SRC_CW_BEACON:   return "CW beacon";
         }
         return "?";
+    }
+
+    // Estacion en movimiento: posicion estimada ahora a partir de su ultima posicion, su velocidad (km/h) y su rumbo (grados),
+    // dtS segundos despues (como mucho maxS; por debajo de minSpeedKmh se considera parada). false = sin estimacion (queda la ultima)
+    inline bool predict(double lat, double lon, double speedKmh, double courseDeg, double dtS, double maxS, double minSpeedKmh,
+                        double& pLat, double& pLon) {
+        pLat = lat; pLon = lon;
+        if (!(speedKmh >= minSpeedKmh) || speedKmh > 1500.0 || !(dtS > 0) || courseDeg < 0 || courseDeg > 360) return false;
+        if (dtS > maxS) dtS = maxS;
+        const double R = 6371.0, D2R = 3.14159265358979323846 / 180.0;
+        const double d = speedKmh * dtS / 3600.0 / R;                    // angulo recorrido sobre la esfera
+        const double brg = courseDeg * D2R, la1 = lat * D2R, lo1 = lon * D2R;
+        const double la2 = asin(sin(la1) * cos(d) + cos(la1) * sin(d) * cos(brg));
+        double lo2 = lo1 + atan2(sin(brg) * sin(d) * cos(la1), cos(d) - sin(la1) * sin(la2));
+        pLat = la2 / D2R;
+        pLon = fmod(lo2 / D2R + 540.0, 360.0) - 180.0;
+        return true;
     }
 
     // Locator Maidenhead de 4, 6 u 8 caracteres -> centro del cuadro. false si no es un locator

@@ -68,6 +68,15 @@ int main() {
     CHECK(validSource(0) && validSource(4) && validSource(5) && !validSource(3) && !validSource(6));
     CHECK(nextSource(SRC_FIXED, false) == SRC_LAST_HEARD && nextSource(SRC_CW_BEACON, false) == SRC_APRS_TARGET && nextSource(SRC_CW_BEACON, true) == SRC_SAT);
 
+    // Estimacion de una estacion en movimiento: 60 km/h al norte durante 60 s = 1 km (0,008993 grados de latitud)
+    double pl, po;
+    CHECK(predict(37.0, -6.0, 60, 0, 60, 300, 3, pl, po)); NEAR(pl, 37.008993, 1e-5); NEAR(po, -6.0, 1e-9);
+    CHECK(predict(37.0, -6.0, 36, 90, 100, 300, 3, pl, po)); NEAR(pl, 37.0, 1e-5); NEAR(po, -6.0 + 1.0 / (111.195 * cos(37.0 * M_PI / 180.0)), 1e-4);
+    CHECK(predict(37.0, -6.0, 60, 0, 3600, 300, 3, pl, po)); NEAR(pl, 37.0 + 5.0 / 111.195, 1e-4);        // tope de 300 s: 5 km
+    CHECK(!predict(37.0, -6.0, 2, 0, 60, 300, 3, pl, po) && pl == 37.0 && po == -6.0);                      // parada (< 3 km/h)
+    CHECK(!predict(37.0, -6.0, 60, 0, 0, 300, 3, pl, po));
+    CHECK(predict(0.0, 179.99, 100, 90, 60, 300, 3, pl, po) && po < -179.9);                                // cruza el antimeridiano
+
     // \dump_state con el protocolo 1 de Hamlib 4.x (netrotctl espera "done")
     Dummy d;
     RotProto::Session s;

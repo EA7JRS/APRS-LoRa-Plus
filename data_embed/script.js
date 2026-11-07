@@ -571,6 +571,8 @@ function loadSettings(settings) {
             document.getElementById("rotor.source").value = String(rot.source ?? 0);
             document.getElementById("rotor.followFilter").value = rot.followFilter ?? "";
             document.getElementById("rotor.followMaxMin").value = rot.followMaxMin ?? 30;
+            document.getElementById("rotor.predict").checked = rot.predict ?? true;
+            document.getElementById("rotor.predictMaxS").value = rot.predictMaxS ?? 300;
             document.getElementById("rotor.mount").value = String(rot.mount ?? 0);
             document.getElementById("rotor.tilt").value = String(rot.tilt ?? 0);
         }
