@@ -38,7 +38,7 @@ jobs:
                   echo "=== project objects"
                   for o in $(find $B/src -name '*.o'); do echo "$($T/${{ matrix.target.tool }}-size $o | tail -1 | awk '{print $1}') $o"; done | sort -rn | head -15
                   echo "=== all project objects"
-                  for o in $(find $B/src -name '*.o'); do echo "$($T/${{ matrix.target.tool }}-size $o | tail -1 | awk '{print $1}') $o"; done | sort -rn | sed 's|.*/src/||'
+                  for o in $(find $B/src -name '*.o'); do echo "$($T/${{ matrix.target.tool }}-size $o | tail -1 | awk '{print $1}') $o"; done | sort -rn | sed 's|^\([0-9]*\) .*/src/|\1 |'
                   echo "=== linked symbols by group (bytes in the final image)"
                   $T/${{ matrix.target.tool }}-nm --size-sort -S -C $B/firmware.elf > /tmp/syms.txt
                   python3 - <<'PY'
