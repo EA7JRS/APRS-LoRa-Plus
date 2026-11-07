@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <SPIFFS.h>
 #include "configuration.h"
+#include "rotor_follow.h"
 #include "board_pins.h"
 #include "power_utils.h"
 #include "board_pinout.h"
@@ -350,7 +351,11 @@ namespace {
         FC(RotorConfig, serverPort,    FF_KEEP, 0, 1, 65535),
         FC(RotorConfig, tilt,          FF_KEEP, 0, 0, 1),
         FC(RotorConfig, mount,         FF_KEEP, 0, 0, 1),
-        FC(RotorConfig, source,        FF_KEEP, 0, 0, 2),
+        FB(RotorConfig, source,        FF_KEEP, 0),                                 // se valida al leer (RotorFollow::validSource)
+        FS(RotorConfig, followFilter,  FF_KEEP | FF_NOREAD, ""),                    // se lee a mano: un valor que no es texto no cambia nada
+        FC(RotorConfig, followMaxMin,  FF_KEEP, 0, 1, 720),
+        FB(RotorConfig, predict,       FF_KEEP, 0),
+        FC(RotorConfig, predictMaxS,   FF_KEEP, 0, 10, 1800),
         FC(RotorConfig, targetIndex,   FF_KEEP, 0, 0, RotorConfig::TARGETS - 1),
     };
     const Field kRotorTargetFields[] = {
@@ -640,6 +645,8 @@ bool Configuration::readFile() {
         if (sat.txText.length() > 64) sat.txText = sat.txText.substring(0, 64);
 
         READ("rotor", rotor, kRotorFields);
+        if (!RotorFollow::validSource(rotor.source)) rotor.source = 0;
+        rotor.followFilter = data["rotor"]["followFilter"] | rotor.followFilter;
         for (int i = 0; i < RotorConfig::TARGETS; i++) readFields(data["rotor"]["targets"][i], &rotor.targets[i], kRotorTargetFields, NFIELDS(kRotorTargetFields));
 
         setFtDefaults();
@@ -871,6 +878,10 @@ void Configuration::setDapnetDefaults() {
     rotor.serverEnabled  = false;
     rotor.serverPort     = 4533;
     rotor.source         = 0;
+    rotor.followFilter   = "";
+    rotor.followMaxMin   = 30;
+    rotor.predict        = true;
+    rotor.predictMaxS    = 300;
     rotor.mount          = 0;
     rotor.tilt           = 0;
     rotor.targetIndex    = 0;

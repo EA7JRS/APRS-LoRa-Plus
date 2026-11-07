@@ -291,7 +291,12 @@ public:
     int     serverPort;                         // puerto TCP del servidor (4533 por defecto)
     int     tilt;                               // compensacion de cabeceo y alabeo: 0 = no, 1 = con el inclinometro externo (orden BLE "att")
     int     mount;                              // montaje: 0 = fijo (el azimut del rotor va referido al norte), 1 = movil (en un vehiculo: el azimut va relativo al rumbo del vehiculo)
-    int     source;                             // que sigue el rotor: 0 = el satelite (modo SAT), 1 = el objetivo APRS de la brujula (GO TO), 2 = un objetivo fijo guardado
+    int     source;                             // que sigue el rotor (include/rotor_follow.h): 0 = el satelite (modo SAT), 1 = el objetivo APRS de la brujula (GO TO), 2 = un objetivo fijo guardado,
+                                                // 4 = la ultima estacion APRS oida con posicion (LoRa o FSK), 5 = la ultima baliza CW con locator. Calculo desde el GPS del tracker
+    String  followFilter;                       // fuente 4: indicativos que se siguen ("EA7JRS", "EA7JRS-9", "EA7*"; vacio = todos)
+    int     followMaxMin;                       // fuente 4: antiguedad maxima de la estacion (minutos)
+    bool    predict;                            // fuentes 1 y 4: estimar la posicion actual de una estacion en movimiento (velocidad y rumbo de su ultima posicion)
+    int     predictMaxS;                        // tope de la estimacion (segundos desde la ultima posicion)
     int     targetIndex;                        // objetivo fijo elegido (0..ROTOR_TARGETS-1)
     static const int TARGETS = 8;
     struct Target {
