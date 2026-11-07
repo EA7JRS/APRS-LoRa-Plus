@@ -18,6 +18,7 @@
  */
 
 #include "pages_utils.h"
+#include "logo_splash.h"
 
 #ifdef HAS_APRS_PAGES
 
@@ -4219,14 +4220,9 @@ namespace PAGES_Utils {
         pagesText(2, 1, "EA7JRS", 1, false);
         pagesText(128 - 2 - 6 * (int)version.length(), 1, version.c_str(), 1, false);
         pagesText(128 - 2 - 6 * (int)bare.length(), 10, bare.c_str(), 1, false);
-        // logo: antena con ondas
-        pagesFillCircle(64, 21, 2, true);
-        pagesFillTriangle(64, 24, 59, 42, 69, 42, true);
-        pagesText(53, 17, "(", 2, false);
-        pagesText(63, 17, ")", 2, false);
-        pagesText(40, 17, "(", 2, false);
-        pagesText(76, 17, ")", 2, false);
-        pagesText(4, 47, "APRS LoRa+", 2, false);
+        // logo APRS LoRa+ (pin con L+ y ondas) centrado, y el nombre debajo
+        pagesBitmap2((128 - LOGO_SPLASH_W) / 2, 12, LOGO_SPLASH_W, LOGO_SPLASH_H, LOGO_SPLASH);
+        pagesText((128 - 6 * 10) / 2, 52, "APRS LoRa+", 1, false);
         pagesFlush();
     }
 

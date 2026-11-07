@@ -49,6 +49,7 @@ void displayPopup(const String& title, const String& line1, const String& line2,
     void    pagesDrawCircle(int x, int y, int r, bool on);
     void    pagesFillCircle(int x, int y, int r, bool on);
     void    pagesFillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, bool on);
+    void    pagesBitmap2(int x, int y, int w, int h, const uint8_t* data);        // 2 bits por pixel (0 fondo, 1..3 capas); en color cada capa con su color
     void    pagesText(int x, int y, const char* text, uint8_t size, bool inverted);   // fuente 6x8 por tamano; inverted = negro sobre blanco
 #endif
 

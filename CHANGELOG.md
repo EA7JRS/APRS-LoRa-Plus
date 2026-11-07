@@ -1,6 +1,7 @@
 # Changelog
 
 ## Próxima versión — en desarrollo (aún sin publicar)
+- **Nuevo logo en la pantalla de bienvenida:** pin con L+ y tres ondas (`include/logo_splash.h`, 33×36 px a 2 bits; originales vectoriales en `docs/logo/`), centrado y con «APRS LoRa+» debajo. En pantallas monocromas se enciende entero; en las de color cada capa (ondas, pin, L+) lleva su color, **provisional** (verdes de la paleta del proyecto y blanco). Nuevo primitivo `pagesBitmap2`. Sin probar en placa.
 - **Escucha CW desde la app:** orden BLE `cwrx` (start / stop) y evento `cwrx` con cada letra, el nivel, el SNR y la velocidad; la sesión es la misma que *Listen CW (RF)* del menú. Sin probar en placa.
 - **Rotor desde la app:** orden BLE `rotext` (acimut / elevación de un programa externo a través del servidor rotctld del móvil: Look4Sat, GPredict...; igual que el servidor rotctld por WiFi) y `caps.rotor`. El evento `rot` lleva además la posición real del rotor (`aaz`, `ael`) cuando se conoce. Sin probar en placa.
 - **GPS u-blox M10 a 115200 baudios:** al arrancar, el tracker sube el puerto del receptor de 9600 a 115200 (CFG-UART1-BAUDRATE en RAM + BBR) y solo se queda si llegan frases NMEA válidas; la velocidad se guarda para el siguiente arranque y, si el receptor vuelve a 9600, se detecta sola. Buffer de recepción del GPS de 2 KB en todas las placas (antes 256 bytes: se perdían frases cuando el bucle se paraba). El A-GPS de la app entra unas 12 veces más rápido. Sin probar en placa.

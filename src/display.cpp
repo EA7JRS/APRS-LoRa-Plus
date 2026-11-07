@@ -694,6 +694,18 @@ void displayShow(const String& header, const String& line1, const String& line2,
         sprite.fillTriangle(PAGES_X(x0), PAGES_Y(y0), PAGES_X(x1), PAGES_Y(y1), PAGES_X(x2), PAGES_Y(y2), PAGES_COLOR(on));
     }
 
+    // Mapa de bits de 2 bits por pixel (0 fondo, 1..3 capas). En color: ondas, pin y L+ con su color (RGB565, provisional)
+    void pagesBitmap2(int x, int y, int w, int h, const uint8_t* data) {
+        static const uint16_t layerColor[4] = {0x0000, 0x1D63, 0x1482, 0xFFFF};
+        for (int j = 0; j < h; j++) {
+            for (int i = 0; i < w; i++) {
+                uint16_t n = (uint16_t)(j * w + i);
+                uint8_t v = (pgm_read_byte(data + (n >> 2)) >> ((n & 3) * 2)) & 3;
+                if (v) sprite.fillRect(PAGES_X(x + i), PAGES_Y(y + j), PAGES_SCALE, PAGES_SCALE, layerColor[v]);
+            }
+        }
+    }
+
     void pagesText(int x, int y, const char* text, uint8_t size, bool inverted) {
         sprite.setTextFont(0);
         sprite.setTextSize(size * PAGES_SCALE);
@@ -738,6 +750,16 @@ void displayShow(const String& header, const String& line1, const String& line2,
 
     void pagesFillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, bool on) {
         display.fillTriangle(x0, y0, x1, y1, x2, y2, on ? 1 : 0);
+    }
+
+    // Mapa de bits de 2 bits por pixel (0 fondo, 1..3 capas): en monocromo se enciende todo lo que no es fondo
+    void pagesBitmap2(int x, int y, int w, int h, const uint8_t* data) {
+        for (int j = 0; j < h; j++) {
+            for (int i = 0; i < w; i++) {
+                uint16_t n = (uint16_t)(j * w + i);
+                if ((pgm_read_byte(data + (n >> 2)) >> ((n & 3) * 2)) & 3) display.drawPixel(x + i, y + j, 1);
+            }
+        }
     }
 
     void pagesText(int x, int y, const char* text, uint8_t size, bool inverted) {
