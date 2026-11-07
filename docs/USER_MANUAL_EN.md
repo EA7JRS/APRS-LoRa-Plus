@@ -1,8 +1,8 @@
-# LoRa APRS Tracker V5.2.1 — User Manual
+# LoRa APRS Tracker V5.3.5 — User Manual
 
 **Reference board:** LilyGO T-Beam S3 Supreme (ESP32-S3, SX1262, u-blox M10 GPS, 128×64 OLED)
 **Base:** CA2RXU LoRa APRS Tracker V4.0.1, with the T-Beam S3 Supreme improvements and the APRS screen interface by EA7JRS.
-**New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
+**New in 5.3.4 and 5.3.5:** sections 34 and 35. **New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
 **Related documents:** `QUICK_GUIDE_EN.md` (two pages), `releases/RELEASE_5.1.0.md` (release notes), `APRS_PANTALLAS_TRACKER.md` (technical notes and test status, in Spanish).
 
 > The images in this manual are **simulated screenshots** (drawn by a 128×64 simulator running the same screen code); they are not photos of the real board.
@@ -698,6 +698,26 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - A frequency change requested over CAT lives in RAM only: it is not saved and is dropped when the profile changes. The AIS profile has a fixed frequency.
 - The mode does not change live (it is chosen at start-up).
 - Full protocol for anyone writing their own client or a Hamlib *backend*: `docs/CAT_HAMLIB.md`. Tested on a PC with `rigctl` 4.6.5; untested on the board.
+
+## 34. BLE control, RF CW and automatic IARU region (5.3.4)
+
+- **BLE control for the Android app** (APRS LoRa+): a second BLE service next to KISS (which does not change). Status, sensors, GNSS, DAPNET, NMEA, mode and profile change, beacon, messages, CW text and remote key. **It requires PIN pairing** (WebUI → Bluetooth → *Control PIN*, default 123456: change it; changing it forgets the paired phones). Details: `docs/BLE_CONTROL.md`.
+- **RF CW listening:** the first line shows S-meter (S9 = −93 dBm), dBm and SNR; adjustable **squelch** (OFF, −120 to −70 dBm). While listening, short press = next squelch and long press (0.7 s) = exit. The buzzer sounds with macros, FH-2, key, trainer and remote key.
+- **Automatic IARU region:** works out region 1/2/3 from the GPS and sets region, channel and frequency of the LoRa, FSK, FT8 / FT4 / FST4W and CW profiles. Off by default (WebUI → Transmission mode → *IARU region (auto)*); at boot, on request or while running, with *Apply / Keep current* confirmation or directly.
+- **BLE KISS:** the tracker advertises its name again and queues up to 4 frames from the phone.
+- Not tested on the board.
+
+## 35. SAT mode, rotor, Android app and less flash (5.3.5)
+
+- **SAT mode** (*Satellites 70cm*, SELECT MODE or BLE): satellite list (70 cm, LoRa / LR-FHSS / TinyGS and Inmarsat), azimuth, elevation, distance, next pass and Doppler. Reception with Doppler (CW, FSK / GMSK, LoRa), transmission with pre-compensation (off by default, only on request and with a real callsign) and a preamp / PA / PTT sequencer. The satellite file (`sats.txt`) is sent by the **Android app** over BLE; the tracker no longer downloads it. Details: `docs/SAT_MODE.md`.
+- **Rotor:** `rotctld` client (TCP), GS-232 over Bluetooth SPP and a BLE event for the app. It follows a satellite, the GO TO station, a fixed target (up to 8), **the last APRS station heard with a position** (LoRa or FSK, with callsign filter and speed / course prediction) or **the last CW beacon with a locator**. Azimuth and elevation are computed from the tracker's GPS. WebUI → *Antenna rotor*. The tracker's `rotctld` server serves GPredict.
+- **Android app:** controls every function over BLE and shows all the data. **Firmware is updated from the app** (the phone's internet and BLE, boards with a second slot): the tracker no longer has an HTTPS client or WiFi update. The WebUI keeps uploading a `.bin` file. CW listening (`cwrx`), A-GPS for the u-blox M10 and the rotor from the app.
+- **u-blox M10 GPS:** the receiver port goes up to 115200 baud at boot (back to 9600 if no valid sentences arrive).
+- **Green Rx LED** on by default for beacons and CW (only if the pin is assigned; on the Supreme, IO21).
+- **Splash screen** with the new logo (pin with L+ and three waves).
+- **Less flash:** the configuration is read and written with a field table and the WebUI is lighter (trimmed Bootstrap, shorter help texts). The T-Beam Supreme goes from 91.1 % to 85.2 % of its application partition.
+- **Web installer** with Tracker, Rotor and Gateway launchers (`#rotor`, `#gateway`), all with the same version.
+- Not tested on the board.
 
 ## Appendix A — Button map per page
 

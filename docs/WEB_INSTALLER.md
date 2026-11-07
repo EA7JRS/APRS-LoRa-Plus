@@ -6,7 +6,7 @@ Dirección: **https://ea7jrs.github.io/APRS-LoRa-Plus/** (enlaces directos: `#ro
 
 ## Misma versión en todo el proyecto
 
-Tracker, rotor, gateway y app llevan **el mismo número de versión** (ahora 5.3.4) y se publican juntos. Cada lanzador muestra la versión de su dispositivo y el aviso de versión nueva compara con la instalada.
+Tracker, rotor, gateway y app llevan **el mismo número de versión** (ahora 5.3.5) y se publican juntos. Cada lanzador muestra la versión de su dispositivo y el aviso de versión nueva compara con la instalada.
 
 ## Cómo se forma el sitio
 
@@ -24,7 +24,7 @@ Orden para publicar una versión: release del rotor y del gateway (`vX.Y.Z`) →
 
 `web-site-<dispositivo>.zip` contiene, con rutas relativas:
 
-- `latest.json`: `{"device":"rotor","version":"5.3.4","boards":{"<placa>":{"version","chip","ota","uf2"?}}}`
+- `latest.json`: `{"device":"rotor","version":"5.3.5","boards":{"<placa>":{"version","chip","ota","uf2"?}}}`
 - `manifests/<placa>.json`: manifiesto de ESP Web Tools (rutas `../firmware/<placa>/…`)
 - `firmware/<placa>/…`: imágenes (`bootloader.bin`, `partitions.bin`, `boot_app0.bin`, `firmware.bin`) o `firmware.uf2` (RP2350: el instalador ofrece la descarga y explica BOOTSEL)
 - `ota/<placa>.json`: tamaño y SHA-256 (los usa la app Android)
