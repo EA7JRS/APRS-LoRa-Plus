@@ -62,68 +62,393 @@ static int defaultPin(int pin) {
 // ---- Tabla de campos (Manuel - EA7JRS) ----------------------------------------------------------------------------------------------
 // Un registro por ajuste en lugar de dos lineas de ArduinoJson por ajuste (leer y escribir): el mismo JSON con bastante menos codigo.
 // El tipo se deduce del miembro de la clase, asi que no puede desajustarse. El orden de la tabla es el orden del fichero.
+// Lo que necesita logica propia (combinaciones validas, listas de valores permitidos...) se comprueba despues de leer cada grupo.
 namespace {
-    enum FieldType : uint8_t { FT_BOOL, FT_INT };
+    enum FieldType : uint8_t { FT_BOOL, FT_INT, FT_LONG, FT_U8, FT_U16, FT_U32, FT_FLT, FT_DBL, FT_STR };
     enum : uint8_t { FF_REQUIRED = 1,       // falta en el fichero -> se reescribe con los valores por defecto (configuraciones antiguas)
-                     FF_PIN      = 2 };     // el valor por defecto es un pin de defaultPin()
+                     FF_PIN      = 2,       // el valor por defecto es un pin de defaultPin()
+                     FF_KEEP     = 4,       // lo que falta en el fichero conserva el valor que ya tiene el miembro (los set*Defaults)
+                     FF_CLAMP    = 8,       // se limita a [lo, hi]
+                     FF_RESET    = 16,      // fuera de [lo, hi] -> valor por defecto
+                     FF_NOREAD   = 32 };    // solo se escribe: la lectura la hace el codigo del grupo
     struct Field {
         const char* key;
         uint16_t    offset;
-        FieldType   type;
+        uint8_t     type;
         uint8_t     flags;
-        int16_t     def;
+        int32_t     lo, hi;
+        union { int32_t def; const char* sdef; };       // enteros y logicos; decimales en milesimas; cadenas
+        constexpr Field(const char* k, uint16_t o, uint8_t t, uint8_t f, int32_t d, int32_t l, int32_t h)
+            : key(k), offset(o), type(t), flags(f), lo(l), hi(h), def(d) {}
+        constexpr Field(const char* k, uint16_t o, uint8_t t, uint8_t f, const char* d)
+            : key(k), offset(o), type(t), flags(f), lo(0), hi(0), sdef(d) {}
     };
     template <typename T> struct FType;
-    template <> struct FType<bool> { static constexpr FieldType v = FT_BOOL; };
-    template <> struct FType<int>  { static constexpr FieldType v = FT_INT; };
-    #define FIELD(cls, key, flags, def) { #key, (uint16_t)offsetof(cls, key), FType<decltype(cls::key)>::v, (uint8_t)(flags), (int16_t)(def) }
+    template <> struct FType<bool>     { static constexpr uint8_t v = FT_BOOL; };
+    template <> struct FType<int>      { static constexpr uint8_t v = FT_INT; };
+    template <> struct FType<long>     { static constexpr uint8_t v = FT_LONG; };
+    template <> struct FType<uint8_t>  { static constexpr uint8_t v = FT_U8; };
+    template <> struct FType<uint16_t> { static constexpr uint8_t v = FT_U16; };
+    template <> struct FType<uint32_t> { static constexpr uint8_t v = FT_U32; };
+    template <> struct FType<float>    { static constexpr uint8_t v = FT_FLT; };
+    template <> struct FType<double>   { static constexpr uint8_t v = FT_DBL; };
+    template <> struct FType<String>   { static constexpr uint8_t v = FT_STR; };
+    #define FLD(cls, jkey, member, flags, def, lo, hi)  Field(jkey, (uint16_t)offsetof(cls, member), FType<decltype(cls::member)>::v, (uint8_t)(flags), (int32_t)(def), (int32_t)(lo), (int32_t)(hi))
+    #define FB(cls, key, flags, def)                    FLD(cls, #key, key, flags, def, 0, 0)                           // sin limites
+    #define FC(cls, key, flags, def, lo, hi)            FLD(cls, #key, key, (flags) | FF_CLAMP, def, lo, hi)            // limitado a [lo, hi]
+    #define FR(cls, key, flags, def, lo, hi)            FLD(cls, #key, key, (flags) | FF_RESET, def, lo, hi)            // fuera de [lo, hi] -> def
+    #define FS(cls, key, flags, str)                    Field(#key, (uint16_t)offsetof(cls, key), FT_STR, (uint8_t)(flags), (const char*)(str))
+    #define NFIELDS(t)                                  (sizeof(t) / sizeof((t)[0]))
 
-    void writeFields(JsonDocument& data, const char* section, const void* base, const Field* f, size_t n) {
-        JsonObject o = data[section].to<JsonObject>();
+    void writeFields(JsonObject o, const void* base, const Field* f, size_t n) {
         for (size_t i = 0; i < n; i++) {
             const char* p = (const char*)base + f[i].offset;
-            if (f[i].type == FT_BOOL) o[f[i].key] = *(const bool*)p;
-            else                      o[f[i].key] = *(const int*)p;
+            switch (f[i].type) {
+                case FT_BOOL: o[f[i].key] = *(const bool*)p;      break;
+                case FT_INT:  o[f[i].key] = *(const int*)p;       break;
+                case FT_LONG: o[f[i].key] = *(const long*)p;      break;
+                case FT_U8:   o[f[i].key] = *(const uint8_t*)p;   break;
+                case FT_U16:  o[f[i].key] = *(const uint16_t*)p;  break;
+                case FT_U32:  o[f[i].key] = *(const uint32_t*)p;  break;
+                case FT_FLT:  o[f[i].key] = *(const float*)p;     break;
+                case FT_DBL:  o[f[i].key] = *(const double*)p;    break;
+                default:      o[f[i].key] = *(const String*)p;    break;
+            }
         }
     }
 
     // Devuelve true si falta algun campo obligatorio (hay que reescribir el fichero)
-    bool readFields(const JsonDocument& data, const char* section, void* base, const Field* f, size_t n) {
-        const JsonObjectConst o = data[section].as<JsonObjectConst>();
+    bool readFields(JsonVariantConst o, void* base, const Field* f, size_t n) {
         bool rewrite = false;
         for (size_t i = 0; i < n; i++) {
-            const JsonVariantConst v = o[f[i].key];
-            if ((f[i].flags & FF_REQUIRED) && v.isNull()) rewrite = true;
-            const int def = (f[i].flags & FF_PIN) ? defaultPin(f[i].def) : (int)f[i].def;
-            char* p = (char*)base + f[i].offset;
-            if (f[i].type == FT_BOOL) *(bool*)p = v | (def != 0);
-            else                      *(int*)p  = v | def;
+            const Field& d = f[i];
+            const JsonVariantConst v = o[d.key];
+            if ((d.flags & FF_REQUIRED) && v.isNull()) rewrite = true;
+            if (d.flags & FF_NOREAD) continue;
+            char* p = (char*)base + d.offset;
+            const bool keep = d.flags & FF_KEEP;
+            switch (d.type) {
+                case FT_BOOL: *(bool*)p = v | (keep ? *(bool*)p : d.def != 0); break;
+                case FT_FLT:  *(float*)p = v | (keep ? *(float*)p : d.def / 1000.0f); break;
+                case FT_DBL: {
+                    double x = v | (keep ? *(double*)p : (double)d.def);
+                    *(double*)p = (d.flags & FF_CLAMP) ? constrain(x, (double)d.lo, (double)d.hi) : x;
+                    break;
+                }
+                case FT_STR:
+                    if (keep) { if (!v.isNull()) *(String*)p = v.as<String>(); }
+                    else      *(String*)p = v | d.sdef;
+                    break;
+                default: {                                                  // enteros
+                    int cur = 0;
+                    if (keep) {
+                        switch (d.type) {
+                            case FT_LONG: cur = (int)*(long*)p;     break;
+                            case FT_U8:   cur = *(uint8_t*)p;       break;
+                            case FT_U16:  cur = *(uint16_t*)p;      break;
+                            case FT_U32:  cur = (int)*(uint32_t*)p; break;
+                            default:      cur = *(int*)p;           break;
+                        }
+                    }
+                    const int def = keep ? cur : ((d.flags & FF_PIN) ? defaultPin(d.def) : (int)d.def);
+                    int x = v | def;                                    // long e int miden lo mismo en el ESP32
+                    if (d.flags & FF_CLAMP) x = constrain(x, (int)d.lo, (int)d.hi);
+                    else if ((d.flags & FF_RESET) && (x < d.lo || x > d.hi)) x = def;
+                    switch (d.type) {
+                        case FT_LONG: *(long*)p     = x;           break;
+                        case FT_U8:   *(uint8_t*)p  = (uint8_t)x;  break;
+                        case FT_U16:  *(uint16_t*)p = (uint16_t)x; break;
+                        case FT_U32:  *(uint32_t*)p = (uint32_t)x; break;
+                        default:      *(int*)p      = x;           break;
+                    }
+                    break;
+                }
+            }
         }
         return rewrite;
     }
 
+    const Field kWifiApFields[] = {
+        FB(WiFiAP, active,   FF_REQUIRED, true),
+        FS(WiFiAP, password, FF_REQUIRED, "1234567890"),
+    };
+    const Field kFwUpdateFields[] = {
+        FS(FwUpdate, ssid,     FF_REQUIRED, ""),
+        FS(FwUpdate, password, 0,           ""),
+    };
+    const Field kKissNetFields[] = {
+        FB(KissNetConfig, enabled, 0,           false),
+        FC(KissNetConfig, tcpPort, FF_REQUIRED, 8001, 1, 65535),
+        FC(KissNetConfig, udpPort, 0,           0,    0, 65535),
+        FS(KissNetConfig, allowed, 0,           ""),
+    };
+    const Field kNmeaUartFields[] = {
+        FC(NmeaUartConfig, txPin, 0,           NMEA_UART_TX_DEFAULT, -1, 48),
+        FB(NmeaUartConfig, baud,  FF_REQUIRED, NMEA_UART_BAUD_DEFAULT),
+    };
+    const Field kIaruAutoFields[] = {
+        FC(IaruAutoConfig, mode,    0, 0, 0, 2),
+        FB(IaruAutoConfig, confirm, 0, true),
+    };
+    const Field kCatFields[] = {
+        FB(CatConfig, enabled,   0,           false),
+        FB(CatConfig, usb,       0,           false),
+        FC(CatConfig, port,      FF_REQUIRED, 4532, 1, 65535),
+        FS(CatConfig, allowed,   0,           ""),
+        FB(CatConfig, pttBeacon, 0,           false),
+        FC(CatConfig, tuneKHz,   0,           0, 0, 500),
+    };
+    const Field kTeamFields[] = {
+        FB(TeamConfig, watchActive, FF_REQUIRED, false),
+        FS(TeamConfig, watchCalls,  0,           ""),
+        FC(TeamConfig, timeoutMin,  0,           10, 1, 120),
+        FC(TeamConfig, maxKm,       0,           0,  0, 500),
+        FB(TeamConfig, pollSec,     0,           0),                                // 0 o 60..3600: se comprueba al leer
+        FB(TeamConfig, eaiActive,   0,           false),
+        FS(TeamConfig, eaiCalls,    0,           ""),
+        FS(TeamConfig, eaiCode,     0,           ""),
+        FC(TeamConfig, eaiMinutes,  0,           30, 1, 50),
+    };
+    const Field kBeaconFields[] = {
+        FS(Beacon, callsign,           0, "NOCALL-7"),
+        FS(Beacon, symbol,             0, "["),
+        FS(Beacon, overlay,            0, "/"),
+        FS(Beacon, micE,               0, ""),
+        FS(Beacon, comment,            0, ""),
+        FB(Beacon, smartBeaconActive,  0, true),
+        FB(Beacon, smartBeaconSetting, 0, 0),
+        FB(Beacon, gpsEcoMode,         0, false),
+        FS(Beacon, profileLabel,       0, ""),
+        FS(Beacon, status,             0, ""),
+        FB(Beacon, aisProfile,         0, false),
+        FB(Beacon, aisVesselType,      0, 0),
+        FS(Beacon, aisName,            0, ""),
+        FB(Beacon, aisMmsi,            0, 0),
+        FB(Beacon, aisLength,          0, 0),
+        FB(Beacon, aisBeam,            0, 0),
+        FB(Beacon, aisDraft,           0, 0),
+    };
+    const Field kDisplayFields[] = {
+        FB(Display, ecoMode,    FF_REQUIRED, false),
+        FB(Display, timeout,    FF_REQUIRED, 4),
+        FB(Display, turn180,    FF_REQUIRED, false),
+        FB(Display, showSymbol, FF_REQUIRED, true),
+    };
+    #ifdef HAS_BT_CLASSIC
+        #define BT_USE_KISS_DEFAULT false
+    #else
+        #define BT_USE_KISS_DEFAULT true      // true = KISS, false = TNC2
+    #endif
+    const Field kBluetoothFields[] = {
+        FB(BLUETOOTH, active,     FF_REQUIRED, false),
+        FS(BLUETOOTH, deviceName, FF_REQUIRED, "LoRaTracker"),
+        FB(BLUETOOTH, useBLE,     FF_REQUIRED, false),                              // sin Bluetooth clasico queda fijo en BLE
+        FB(BLUETOOTH, useKISS,    FF_REQUIRED, BT_USE_KISS_DEFAULT),
+        FC(BLUETOOTH, controlPin, 0,           123456, 0, 999999),
+    };
+    const Field kCwFields[] = {                                                     // los valores que faltan parten de setCwDefaults()
+        FC(CWConfig, wpm,           FF_REQUIRED | FF_KEEP, 0, 5, 40),
+        FC(CWConfig, keyMode,       FF_REQUIRED | FF_KEEP, 0, 0, 2),
+        FB(CWConfig, keyPin,        FF_KEEP, 0),
+        FB(CWConfig, dahPin,        FF_KEEP, 0),
+        FB(CWConfig, swapPaddles,   FF_KEEP, 0),
+        FB(CWConfig, keypadPin,     FF_KEEP, 0),
+        FB(CWConfig, keyTx,         FF_KEEP, 0),
+        FB(CWConfig, sidetone,      FF_KEEP, 0),
+        FC(CWConfig, trainerLevel,  FF_REQUIRED | FF_KEEP, 0, 2, 41),
+        FC(CWConfig, trainerGapWpm, FF_KEEP, 0, 0, 40),
+        FC(CWConfig, squelchDbm,    FF_KEEP, 0, -130, 0),
+        FC(CWConfig, beaconMin,     FF_REQUIRED | FF_KEEP, 0, 0, 240),
+        FB(CWConfig, beaconFreq,    0, 0),                                          // 0 = se completa con el perfil CW al terminar de leer
+        FB(CWConfig, beaconPower,   0, 0),
+        FC(CWConfig, beaconRegion,  0, 1, 1, 3),
+        FB(CWConfig, keyFreq,       0, 0),
+        FB(CWConfig, keyPower,      0, 0),
+        FC(CWConfig, keyRegion,     0, 1, 1, 3),
+        FS(CWConfig, beaconText,    FF_KEEP, ""),
+    };
+    const Field kGpsFields[] = {                                                    // los valores que faltan parten de setGpsDefaults()
+        FB(GPSConfig, gnssMask,        FF_REQUIRED | FF_KEEP, 0),                   // combinaciones validas: se comprueba al leer
+        FB(GPSConfig, assistNow,       FF_KEEP, 0),
+        FB(GPSConfig, dynModel,        FF_KEEP, 0),
+        FC(GPSConfig, rateMs,          FF_KEEP, 0, 200, 10000),                     // 200-250 ms solo los aplica el L76K; el M10 se limita a 500 ms
+        FC(GPSConfig, minElev,         FF_KEEP, 0, 0, 30),
+        FC(GPSConfig, staticHoldCms,   FF_KEEP, 0, 0, 255),
+        FC(GPSConfig, staticHoldDistM, FF_KEEP, 0, 0, 1000),
+        FB(GPSConfig, sbasDiffCorr,    FF_KEEP, 0),
+        FB(GPSConfig, sbasRanging,     FF_KEEP, 0),
+        FB(GPSConfig, sbasIntegrity,   FF_KEEP, 0),
+        FB(GPSConfig, ppsEnabled,      FF_KEEP, 0),
+        FC(GPSConfig, ppsFreqHz,       FF_KEEP, 0, 1, 10),
+        FC(GPSConfig, ppsLenMs,        FF_KEEP, 0, 1, 500),
+        FB(GPSConfig, ppsRising,       FF_KEEP, 0),
+        FC(GPSConfig, ppsCableDelayNs, FF_KEEP, 0, -32000, 32000),
+        FC(GPSConfig, ppsUserDelayNs,  FF_KEEP, 0, -1000000, 1000000),
+        FB(GPSConfig, cnMask,          FF_REQUIRED | FF_KEEP, 0),
+        FB(GPSConfig, nmeaLean,        FF_REQUIRED | FF_KEEP, 0),
+    };
+    const Field kWsprFields[] = {                                                   // los valores que faltan parten de setWsprDefaults()
+        FC(WSPRConfig, freqHz,       FF_REQUIRED | FF_KEEP, 0, 400000000, 480000000),
+        FC(WSPRConfig, corrHz,       FF_KEEP, 0, -5000, 5000),
+        FB(WSPRConfig, useGlobalPpm, FF_REQUIRED, false),
+        FC(WSPRConfig, powerDbm,     FF_KEEP, 0, 0, 20),
+        FC(WSPRConfig, intervalMin,  FF_KEEP, 0, 2, 60),
+        FS(WSPRConfig, locator,      0, ""),
+        FB(WSPRConfig, dither,       FF_KEEP, 0),
+        FB(WSPRConfig, screenOff,    FF_KEEP, 0),
+        FC(WSPRConfig, driftTenths,  FF_KEEP, 0, -200, 200),
+        FB(WSPRConfig, perPower,     FF_KEEP, 0),
+    };
+    const Field kDapnetFields[] = {                                                 // los valores que faltan parten de setDapnetDefaults()
+        FC(DAPNETConfig, freqHz,        FF_REQUIRED | FF_KEEP, 0, 400000000, 480000000),
+        FB(DAPNETConfig, baud,          FF_KEEP, 0),
+        FC(DAPNETConfig, devTenthsKHz,  FF_KEEP, 0, 20, 80),
+        FB(DAPNETConfig, rxBwTenthsKHz, FF_KEEP, 0),
+        FS(DAPNETConfig, rics,          0, ""),
+        FB(DAPNETConfig, monitorAll,    FF_KEEP, 0),
+        FB(DAPNETConfig, timeSync,      FF_KEEP, 0),
+        FC(DAPNETConfig, charset,       FF_KEEP, 0, 0, 1),
+    };
+    const Field kSatFields[] = {                                                    // los valores que faltan parten de setDapnetDefaults()
+        FB(SatConfig, noradId,        FF_KEEP, 0),
+        FC(SatConfig, category,       FF_KEEP, 0, 0, 3),
+        FC(SatConfig, posSource,      FF_KEEP, 0, 0, 2),
+        FC(SatConfig, minEl,          FF_REQUIRED | FF_KEEP, 0, 0, 60),
+        FC(SatConfig, lat,            FF_KEEP, 0, -90, 90),
+        FC(SatConfig, lon,            FF_KEEP, 0, -180, 180),
+        FB(SatConfig, txEnabled,      FF_REQUIRED | FF_KEEP, 0),
+        FC(SatConfig, txMinEl,        FF_KEEP, 0, 0, 60),
+        FC(SatConfig, txPower,        FF_KEEP, 0, -9, 22),
+        FC(SatConfig, txMinIntervalS, FF_KEEP, 0, 5, 3600),
+        FS(SatConfig, txText,         0, ""),
+        FC(SatConfig, lnaPin,         FF_KEEP, 0, -1, 99),
+        FC(SatConfig, paPin,          FF_KEEP, 0, -1, 99),
+        FC(SatConfig, pttPin,         FF_KEEP, 0, -1, 99),
+        FB(SatConfig, lnaRev,         FF_KEEP, 0),
+        FB(SatConfig, paRev,          FF_KEEP, 0),
+        FB(SatConfig, pttRev,         FF_KEEP, 0),
+        FC(SatConfig, seqLeadMs,      FF_KEEP, 0, 0, 2000),
+        FC(SatConfig, seqPreMs,       FF_KEEP, 0, 0, 2000),
+        FC(SatConfig, seqPostMs,      FF_KEEP, 0, 0, 2000),
+        FC(SatConfig, seqTailMs,      FF_KEEP, 0, 0, 2000),
+    };
+    const Field kRotorFields[] = {                                                  // los valores que faltan parten de setDapnetDefaults()
+        FB(RotorConfig, enabled,       FF_REQUIRED | FF_KEEP, 0),
+        FC(RotorConfig, transport,     FF_KEEP, 0, 0, 1),
+        FS(RotorConfig, host,          0, ""),
+        FC(RotorConfig, port,          FF_KEEP, 0, 1, 65535),
+        FS(RotorConfig, btName,        0, ""),
+        FC(RotorConfig, stepTenths,    FF_KEEP, 0, 1, 100),
+        FC(RotorConfig, preSec,        FF_KEEP, 0, 0, 600),
+        FC(RotorConfig, azOffset,      FF_KEEP, 0, -180, 180),
+        FC(RotorConfig, elOffset,      FF_KEEP, 0, -90, 90),
+        FB(RotorConfig, park,          FF_KEEP, 0),
+        FC(RotorConfig, parkAz,        FF_KEEP, 0, 0, 359),
+        FC(RotorConfig, parkEl,        FF_KEEP, 0, 0, 90),
+        FB(RotorConfig, bleEvents,     FF_KEEP, 0),
+        FB(RotorConfig, serverEnabled, FF_REQUIRED | FF_KEEP, 0),
+        FC(RotorConfig, serverPort,    FF_KEEP, 0, 1, 65535),
+        FC(RotorConfig, tilt,          FF_KEEP, 0, 0, 1),
+        FC(RotorConfig, mount,         FF_KEEP, 0, 0, 1),
+        FC(RotorConfig, source,        FF_KEEP, 0, 0, 2),
+        FC(RotorConfig, targetIndex,   FF_KEEP, 0, 0, RotorConfig::TARGETS - 1),
+    };
+    const Field kRotorTargetFields[] = {
+        Field("n",   (uint16_t)offsetof(RotorConfig::Target, name),   FT_STR,  0,        ""),
+        Field("lat", (uint16_t)offsetof(RotorConfig::Target, lat),    FT_DBL,  FF_CLAMP, 0, -90,   90),
+        Field("lon", (uint16_t)offsetof(RotorConfig::Target, lon),    FT_DBL,  FF_CLAMP, 0, -180,  180),
+        Field("alt", (uint16_t)offsetof(RotorConfig::Target, alt),    FT_INT,  FF_CLAMP, 0, -500,  9000),
+        Field("f",   (uint16_t)offsetof(RotorConfig::Target, freqHz), FT_LONG, 0,        0, 0,     0),
+    };
+    const Field kFtFields[] = {                                                     // los valores que faltan parten de setFtDefaults()
+        FC(FTConfig, ft8FreqHz,  FF_REQUIRED | FF_KEEP, 0, 400000000, 480000000),
+        FB(FTConfig, ft4FreqHz,  FF_KEEP, 0),                                       // 0 o 400-480 MHz: se comprueba al leer
+        FC(FTConfig, ft8Region,  FF_KEEP, 0, 1, 3),
+        FC(FTConfig, ft4Region,  FF_KEEP, 0, 1, 3),
+        FB(FTConfig, fstFreqHz,  FF_KEEP, 0),
+        FC(FTConfig, fstRegion,  FF_KEEP, 0, 1, 3),
+        FB(FTConfig, fstSeconds, FF_KEEP, 0),                                       // 120 o 300
+        FC(FTConfig, fstEvery,   FF_KEEP, 0, 2, 240),
+        FC(FTConfig, corrHz,     FF_KEEP, 0, -5000, 5000),
+        FC(FTConfig, powerDbm,   FF_KEEP, 0, 0, 22),
+        FC(FTConfig, everyCycles, FF_KEEP, 0, 2, 240),
+        FS(FTConfig, locator,    0, ""),
+        FS(FTConfig, text,       0, ""),
+        FB(FTConfig, screenOff,  FF_KEEP, 0),
+    };
+    const Field kLrfhssFields[] = {                                                 // los valores que faltan parten de setLrfhssDefaults()
+        FB(LRFHSSConfig, enabled,     FF_KEEP, 0),
+        FC(LRFHSSConfig, freqHz,      FF_REQUIRED | FF_KEEP, 0, 400000000, 480000000),
+        FC(LRFHSSConfig, bwIdx,       FF_KEEP, 0, 0, 9),
+        FC(LRFHSSConfig, crIdx,       FF_KEEP, 0, 0, 3),
+        FB(LRFHSSConfig, narrowGrid,  FF_KEEP, 0),
+        FC(LRFHSSConfig, powerDbm,    FF_KEEP, 0, -9, 22),
+        FC(LRFHSSConfig, intervalMin, FF_KEEP, 0, 2, 60),
+        FS(LRFHSSConfig, locator,     0, ""),
+        FB(LRFHSSConfig, locatorLen,  FF_KEEP, 0),                                  // 4, 6 u 8: se comprueba al leer
+    };
+    const Field kLoraFields[] = {
+        FB(LoraType, frequency,       0, 433775000),
+        FB(LoraType, spreadingFactor, 0, 12),
+        FB(LoraType, signalBandwidth, 0, 125000),
+        FB(LoraType, codingRate4,     0, 5),
+        FB(LoraType, power,           0, 20),
+        FB(LoraType, ais,             0, false),
+        FB(LoraType, fsk,             0, false),
+        FB(LoraType, fskBitRate,      0, 9600),                                     // decimales en milesimas
+        FB(LoraType, fskFreqDev,      0, 3000),
+        FB(LoraType, fskRxBandwidth,  0, 39000),
+        FR(LoraType, iaruRegion,      0, 1, 1, 3),
+        FB(LoraType, fskFrequency,    FF_REQUIRED, 0),
+        FB(LoraType, fskPower,        FF_REQUIRED, 0),
+        FC(LoraType, fskShaping,      0, 1, 0, 4),
+        FC(LoraType, fskFec,          0, 0, 0, 4),
+        FB(LoraType, fskIaruRegion,   FF_NOREAD, 1),                                // por defecto la region del perfil LoRa: la lee el codigo
+    };
+    const Field kBatteryFields[] = {
+        FB(Battery, sendVoltage,        FF_REQUIRED, false),
+        FB(Battery, voltageAsTelemetry, FF_REQUIRED, false),
+        FB(Battery, sendVoltageAlways,  FF_REQUIRED, false),
+        FB(Battery, monitorVoltage,     FF_REQUIRED, false),
+        FB(Battery, sleepVoltage,       FF_REQUIRED, 2900),
+    };
+    const Field kTelemetryFields[] = {
+        FB(Telemetry, active,                FF_REQUIRED, false),
+        FB(Telemetry, sendTelemetry,         FF_REQUIRED, false),
+        FB(Telemetry, temperatureCorrection, FF_REQUIRED, 0),
+    };
+    const Field kWinlinkFields[] = {
+        FS(Winlink, password, FF_REQUIRED, "NOPASS"),
+    };
+    const Field kPttFields[] = {
+        FB(PTT, active,    FF_REQUIRED, false),
+        FB(PTT, reverse,   FF_REQUIRED, false),
+        FB(PTT, preDelay,  FF_REQUIRED, 0),
+        FB(PTT, postDelay, FF_REQUIRED, 0),
+        FB(PTT, io_pin,    FF_REQUIRED, 4),
+    };
     const Field kNotificationFields[] = {
-        FIELD(Notification, ledTx,            FF_REQUIRED,            false),
-        FIELD(Notification, ledTxPin,         FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_TX),
-        FIELD(Notification, ledMessage,       FF_REQUIRED,            false),
-        FIELD(Notification, ledMessagePin,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_MESSAGE),
-        FIELD(Notification, ledRxBeacon,      0,                      true),
-        FIELD(Notification, flashEmergency,   0,                      false),
-        FIELD(Notification, ledTxCw,          0,                      false),
-        FIELD(Notification, ledRxCw,          0,                      true),
-        FIELD(Notification, flashCw,          0,                      false),
-        FIELD(Notification, buzzerActive,     FF_REQUIRED,            false),
-        FIELD(Notification, buzzerPinTone,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_BUZZER_TONE),
-        FIELD(Notification, buzzerPinVcc,     FF_REQUIRED | FF_PIN,   NOTIF_DEF_BUZZER_VCC),
-        FIELD(Notification, bootUpBeep,       FF_REQUIRED,            false),
-        FIELD(Notification, txBeep,           FF_REQUIRED,            false),
-        FIELD(Notification, messageRxBeep,    FF_REQUIRED,            false),
-        FIELD(Notification, stationBeep,      FF_REQUIRED,            false),
-        FIELD(Notification, lowBatteryBeep,   FF_REQUIRED,            false),
-        FIELD(Notification, shutDownBeep,     FF_REQUIRED,            false),
-        FIELD(Notification, bellRings,        FF_REQUIRED,            true),
-        FIELD(Notification, ledFlashlight,    FF_REQUIRED,            false),
-        FIELD(Notification, ledFlashlightPin, FF_REQUIRED | FF_PIN,   NOTIF_DEF_FLASHLIGHT),
+        FB(Notification, ledTx,            FF_REQUIRED,            false),
+        FB(Notification, ledTxPin,         FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_TX),
+        FB(Notification, ledMessage,       FF_REQUIRED,            false),
+        FB(Notification, ledMessagePin,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_MESSAGE),
+        FB(Notification, ledRxBeacon,      0,                      true),
+        FB(Notification, flashEmergency,   0,                      false),
+        FB(Notification, ledTxCw,          0,                      false),
+        FB(Notification, ledRxCw,          0,                      true),
+        FB(Notification, flashCw,          0,                      false),
+        FB(Notification, buzzerActive,     FF_REQUIRED,            false),
+        FB(Notification, buzzerPinTone,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_BUZZER_TONE),
+        FB(Notification, buzzerPinVcc,     FF_REQUIRED | FF_PIN,   NOTIF_DEF_BUZZER_VCC),
+        FB(Notification, bootUpBeep,       FF_REQUIRED,            false),
+        FB(Notification, txBeep,           FF_REQUIRED,            false),
+        FB(Notification, messageRxBeep,    FF_REQUIRED,            false),
+        FB(Notification, stationBeep,      FF_REQUIRED,            false),
+        FB(Notification, lowBatteryBeep,   FF_REQUIRED,            false),
+        FB(Notification, shutDownBeep,     FF_REQUIRED,            false),
+        FB(Notification, bellRings,        FF_REQUIRED,            true),
+        FB(Notification, ledFlashlight,    FF_REQUIRED,            false),
+        FB(Notification, ledFlashlightPin, FF_REQUIRED | FF_PIN,   NOTIF_DEF_FLASHLIGHT),
     };
 }
 
@@ -143,246 +468,56 @@ bool Configuration::writeFile() {
         return false;
     }
     try {
-
-        data["wifiAP"]["active"]                    = wifiAP.active;
-        data["wifiAP"]["password"]                  = wifiAP.password;
-
-        data["fwUpdate"]["ssid"]                    = fwUpdate.ssid;
-        data["fwUpdate"]["password"]                = fwUpdate.password;
-        data["kissNet"]["enabled"]                  = kissNet.enabled;
-        data["kissNet"]["tcpPort"]                  = kissNet.tcpPort;
-        data["kissNet"]["udpPort"]                  = kissNet.udpPort;
-        data["kissNet"]["allowed"]                  = kissNet.allowed;
-        data["nmeaUart"]["txPin"]                   = nmeaUart.txPin;
-        data["nmeaUart"]["baud"]                    = nmeaUart.baud;
-        data["iaruAuto"]["mode"]                    = iaruAuto.mode;
-        data["iaruAuto"]["confirm"]                 = iaruAuto.confirm;
-        data["cat"]["enabled"]                      = cat.enabled;
-        data["cat"]["usb"]                          = cat.usb;
-        data["cat"]["port"]                         = cat.port;
-        data["cat"]["allowed"]                      = cat.allowed;
-        data["cat"]["pttBeacon"]                    = cat.pttBeacon;
-        data["cat"]["tuneKHz"]                      = cat.tuneKHz;
-        data["team"]["watchActive"]                 = team.watchActive;
-        data["team"]["watchCalls"]                  = team.watchCalls;
-        data["team"]["timeoutMin"]                  = team.timeoutMin;
-        data["team"]["maxKm"]                       = team.maxKm;
-        data["team"]["pollSec"]                     = team.pollSec;
-        data["team"]["eaiActive"]                   = team.eaiActive;
-        data["team"]["eaiCalls"]                    = team.eaiCalls;
-        data["team"]["eaiCode"]                     = team.eaiCode;
-        data["team"]["eaiMinutes"]                  = team.eaiMinutes;
+        writeFields(data["wifiAP"].to<JsonObject>(),       &wifiAP,       kWifiApFields,       NFIELDS(kWifiApFields));
+        writeFields(data["fwUpdate"].to<JsonObject>(),     &fwUpdate,     kFwUpdateFields,     NFIELDS(kFwUpdateFields));
+        writeFields(data["kissNet"].to<JsonObject>(),      &kissNet,      kKissNetFields,      NFIELDS(kKissNetFields));
+        writeFields(data["nmeaUart"].to<JsonObject>(),     &nmeaUart,     kNmeaUartFields,     NFIELDS(kNmeaUartFields));
+        writeFields(data["iaruAuto"].to<JsonObject>(),     &iaruAuto,     kIaruAutoFields,     NFIELDS(kIaruAutoFields));
+        writeFields(data["cat"].to<JsonObject>(),          &cat,          kCatFields,          NFIELDS(kCatFields));
+        writeFields(data["team"].to<JsonObject>(),         &team,         kTeamFields,         NFIELDS(kTeamFields));
 
         for (int i = 0; i < beacons.size(); i++) {
             beacons[i].callsign.trim();
             beacons[i].callsign.toUpperCase();
-            data["beacons"][i]["callsign"]              = beacons[i].callsign;
-            data["beacons"][i]["symbol"]                = beacons[i].symbol;
-            data["beacons"][i]["overlay"]               = beacons[i].overlay;
-            data["beacons"][i]["micE"]                  = beacons[i].micE;
-            data["beacons"][i]["comment"]               = beacons[i].comment;
-            data["beacons"][i]["smartBeaconActive"]     = beacons[i].smartBeaconActive;
-            data["beacons"][i]["smartBeaconSetting"]    = beacons[i].smartBeaconSetting;
-            data["beacons"][i]["gpsEcoMode"]            = beacons[i].gpsEcoMode;
-            data["beacons"][i]["profileLabel"]          = beacons[i].profileLabel;
-            data["beacons"][i]["status"]                = beacons[i].status;
-            data["beacons"][i]["aisProfile"]            = beacons[i].aisProfile;
-            data["beacons"][i]["aisVesselType"]         = beacons[i].aisVesselType;
-            data["beacons"][i]["aisName"]               = beacons[i].aisName;
-            data["beacons"][i]["aisMmsi"]               = beacons[i].aisMmsi;
-            data["beacons"][i]["aisLength"]             = beacons[i].aisLength;
-            data["beacons"][i]["aisBeam"]               = beacons[i].aisBeam;
-            data["beacons"][i]["aisDraft"]              = beacons[i].aisDraft;
+            writeFields(data["beacons"][i].to<JsonObject>(), &beacons[i], kBeaconFields, NFIELDS(kBeaconFields));
         }
 
-        data["display"]["ecoMode"]                  = display.ecoMode;
-        data["display"]["timeout"]                  = display.timeout;
-        data["display"]["turn180"]                  = display.turn180;
-        data["display"]["showSymbol"]               = display.showSymbol;
-
-        data["bluetooth"]["active"]                 = bluetooth.active;
-        data["bluetooth"]["deviceName"]             = bluetooth.deviceName;
-        #ifdef HAS_BT_CLASSIC
-            data["bluetooth"]["useBLE"]             = bluetooth.useBLE;
-        #else
+        writeFields(data["display"].to<JsonObject>(),      &display,      kDisplayFields,      NFIELDS(kDisplayFields));
+        writeFields(data["bluetooth"].to<JsonObject>(),    &bluetooth,    kBluetoothFields,    NFIELDS(kBluetoothFields));
+        #ifndef HAS_BT_CLASSIC
             data["bluetooth"]["useBLE"]             = true; // fixed as BLE
         #endif
-        data["bluetooth"]["useKISS"]                = bluetooth.useKISS;
-        data["bluetooth"]["controlPin"]             = bluetooth.controlPin;
 
         data["operatingMode"]                       = savedMode;
         data["radioPpm1000"]                        = radioPpm1000;
-        data["cw"]["wpm"]                           = cw.wpm;
-        data["cw"]["keyMode"]                       = cw.keyMode;
-        data["cw"]["keyPin"]                        = cw.keyPin;
-        data["cw"]["dahPin"]                        = cw.dahPin;
-        data["cw"]["swapPaddles"]                   = cw.swapPaddles;
-        data["cw"]["keypadPin"]                     = cw.keypadPin;
+        writeFields(data["cw"].to<JsonObject>(),           &cw,           kCwFields,           NFIELDS(kCwFields));
         for (int i = 0; i < CW_MESSAGE_COUNT; i++) data["cw"]["keypadMv"][i] = cw.keypadMv[i];
-        data["cw"]["keyTx"]                         = cw.keyTx;
-        data["cw"]["sidetone"]                      = cw.sidetone;
-        data["cw"]["trainerLevel"]                  = cw.trainerLevel;
-        data["cw"]["trainerGapWpm"]                 = cw.trainerGapWpm;
-        data["cw"]["squelchDbm"]                    = cw.squelchDbm;
-        data["gps"]["gnssMask"]                     = gps.gnssMask;
-        data["gps"]["assistNow"]                    = gps.assistNow;
-        data["gps"]["dynModel"]                     = gps.dynModel;
-        data["gps"]["rateMs"]                       = gps.rateMs;
-        data["gps"]["minElev"]                      = gps.minElev;
-        data["gps"]["staticHoldCms"]                = gps.staticHoldCms;
-        data["gps"]["staticHoldDistM"]              = gps.staticHoldDistM;
-        data["gps"]["sbasDiffCorr"]                 = gps.sbasDiffCorr;
-        data["gps"]["sbasRanging"]                  = gps.sbasRanging;
-        data["gps"]["sbasIntegrity"]                = gps.sbasIntegrity;
-        data["gps"]["ppsEnabled"]                   = gps.ppsEnabled;
-        data["gps"]["ppsFreqHz"]                    = gps.ppsFreqHz;
-        data["gps"]["ppsLenMs"]                     = gps.ppsLenMs;
-        data["gps"]["ppsRising"]                    = gps.ppsRising;
-        data["gps"]["ppsCableDelayNs"]              = gps.ppsCableDelayNs;
-        data["gps"]["ppsUserDelayNs"]               = gps.ppsUserDelayNs;
-        data["gps"]["cnMask"]                       = gps.cnMask;
-        data["gps"]["nmeaLean"]                     = gps.nmeaLean;
-        data["wspr"]["freqHz"]                      = wspr.freqHz;
-        data["wspr"]["corrHz"]                      = wspr.corrHz;
-        data["wspr"]["useGlobalPpm"]                = wspr.useGlobalPpm;
-        data["wspr"]["powerDbm"]                    = wspr.powerDbm;
-        data["wspr"]["intervalMin"]                 = wspr.intervalMin;
-        data["wspr"]["locator"]                     = wspr.locator;
-        data["wspr"]["dither"]                      = wspr.dither;
-        data["wspr"]["screenOff"]                   = wspr.screenOff;
-        data["wspr"]["driftTenths"]                 = wspr.driftTenths;
-        data["wspr"]["perPower"]                    = wspr.perPower;
-        data["dapnet"]["freqHz"]                    = dapnet.freqHz;
-        data["dapnet"]["baud"]                      = dapnet.baud;
-        data["dapnet"]["devTenthsKHz"]              = dapnet.devTenthsKHz;
-        data["dapnet"]["rxBwTenthsKHz"]             = dapnet.rxBwTenthsKHz;
-        data["dapnet"]["rics"]                      = dapnet.rics;
-        data["dapnet"]["monitorAll"]                = dapnet.monitorAll;
-        data["dapnet"]["timeSync"]                  = dapnet.timeSync;
-        data["dapnet"]["charset"]                   = dapnet.charset;
-        data["sat"]["noradId"]                      = sat.noradId;
-        data["sat"]["minEl"]                        = sat.minEl;
-        data["sat"]["category"]                     = sat.category;
-        data["sat"]["posSource"]                    = sat.posSource;
-        data["sat"]["lat"]                          = sat.lat;
-        data["sat"]["lon"]                          = sat.lon;
-        data["sat"]["txEnabled"]                    = sat.txEnabled;
-        data["sat"]["txMinEl"]                      = sat.txMinEl;
-        data["sat"]["txPower"]                      = sat.txPower;
-        data["sat"]["txMinIntervalS"]               = sat.txMinIntervalS;
-        data["sat"]["txText"]                       = sat.txText;
-        data["sat"]["lnaPin"]                       = sat.lnaPin;
-        data["sat"]["paPin"]                        = sat.paPin;
-        data["sat"]["pttPin"]                       = sat.pttPin;
-        data["sat"]["lnaRev"]                       = sat.lnaRev;
-        data["sat"]["paRev"]                        = sat.paRev;
-        data["sat"]["pttRev"]                       = sat.pttRev;
-        data["sat"]["seqLeadMs"]                    = sat.seqLeadMs;
-        data["sat"]["seqPreMs"]                     = sat.seqPreMs;
-        data["sat"]["seqPostMs"]                    = sat.seqPostMs;
-        data["sat"]["seqTailMs"]                    = sat.seqTailMs;
-        data["rotor"]["enabled"]                    = rotor.enabled;
-        data["rotor"]["transport"]                  = rotor.transport;
-        data["rotor"]["host"]                       = rotor.host;
-        data["rotor"]["port"]                       = rotor.port;
-        data["rotor"]["btName"]                     = rotor.btName;
-        data["rotor"]["stepTenths"]                 = rotor.stepTenths;
-        data["rotor"]["preSec"]                     = rotor.preSec;
-        data["rotor"]["azOffset"]                   = rotor.azOffset;
-        data["rotor"]["elOffset"]                   = rotor.elOffset;
-        data["rotor"]["park"]                       = rotor.park;
-        data["rotor"]["parkAz"]                     = rotor.parkAz;
-        data["rotor"]["parkEl"]                     = rotor.parkEl;
-        data["rotor"]["bleEvents"]                  = rotor.bleEvents;
-        data["rotor"]["serverEnabled"]              = rotor.serverEnabled;
-        data["rotor"]["serverPort"]                 = rotor.serverPort;
-        data["rotor"]["source"]                     = rotor.source;
-        data["rotor"]["mount"]                      = rotor.mount;
-        data["rotor"]["tilt"]                       = rotor.tilt;
-        data["rotor"]["targetIndex"]                = rotor.targetIndex;
-        for (int i = 0; i < RotorConfig::TARGETS; i++) {
-            if (rotor.targets[i].name.isEmpty()) continue;
-            data["rotor"]["targets"][i]["n"]        = rotor.targets[i].name;
-            data["rotor"]["targets"][i]["lat"]      = rotor.targets[i].lat;
-            data["rotor"]["targets"][i]["lon"]      = rotor.targets[i].lon;
-            data["rotor"]["targets"][i]["alt"]      = rotor.targets[i].alt;
-            data["rotor"]["targets"][i]["f"]        = rotor.targets[i].freqHz;
-        }
-        data["ft"]["ft8FreqHz"]                     = ft.ft8FreqHz;
-        data["ft"]["ft4FreqHz"]                     = ft.ft4FreqHz;
-        data["ft"]["ft8Region"]                     = ft.ft8Region;
-        data["ft"]["ft4Region"]                     = ft.ft4Region;
-        data["ft"]["fstFreqHz"]                     = ft.fstFreqHz;
-        data["ft"]["fstRegion"]                     = ft.fstRegion;
-        data["ft"]["fstSeconds"]                    = ft.fstSeconds;
-        data["ft"]["fstEvery"]                      = ft.fstEvery;
-        data["ft"]["corrHz"]                        = ft.corrHz;
-        data["ft"]["powerDbm"]                      = ft.powerDbm;
-        data["ft"]["everyCycles"]                   = ft.everyCycles;
-        data["ft"]["locator"]                       = ft.locator;
-        data["ft"]["text"]                          = ft.text;
-        data["ft"]["screenOff"]                     = ft.screenOff;
-        data["lrfhss"]["enabled"]                   = lrfhss.enabled;
-        data["lrfhss"]["freqHz"]                    = lrfhss.freqHz;
-        data["lrfhss"]["bwIdx"]                     = lrfhss.bwIdx;
-        data["lrfhss"]["crIdx"]                     = lrfhss.crIdx;
-        data["lrfhss"]["narrowGrid"]                = lrfhss.narrowGrid;
-        data["lrfhss"]["powerDbm"]                  = lrfhss.powerDbm;
-        data["lrfhss"]["intervalMin"]               = lrfhss.intervalMin;
-        data["lrfhss"]["locator"]                   = lrfhss.locator;
-        data["lrfhss"]["locatorLen"]                = lrfhss.locatorLen;
+        for (int i = 0; i < CW_MESSAGE_COUNT; i++) data["cw"]["messages"][i] = cw.messages[i];
+        writeFields(data["gps"].to<JsonObject>(),          &gps,          kGpsFields,          NFIELDS(kGpsFields));
+        writeFields(data["wspr"].to<JsonObject>(),         &wspr,         kWsprFields,         NFIELDS(kWsprFields));
         for (int i = 0; i < 7; i++) {
             data["wspr"]["ppCorrHz"][i]             = wspr.ppCorrHz[i];
             data["wspr"]["ppDriftTenths"][i]        = wspr.ppDriftTenths[i];
         }
-        data["cw"]["beaconMin"]                     = cw.beaconMin;
-        data["cw"]["beaconFreq"]                    = cw.beaconFreq;
-        data["cw"]["beaconPower"]                   = cw.beaconPower;
-        data["cw"]["beaconRegion"]                  = cw.beaconRegion;
-        data["cw"]["keyFreq"]                       = cw.keyFreq;
-        data["cw"]["keyPower"]                      = cw.keyPower;
-        data["cw"]["keyRegion"]                     = cw.keyRegion;
-        data["cw"]["beaconText"]                    = cw.beaconText;
-        for (int i = 0; i < CW_MESSAGE_COUNT; i++) data["cw"]["messages"][i] = cw.messages[i];
+        writeFields(data["dapnet"].to<JsonObject>(),       &dapnet,       kDapnetFields,       NFIELDS(kDapnetFields));
+        writeFields(data["sat"].to<JsonObject>(),          &sat,          kSatFields,          NFIELDS(kSatFields));
+        writeFields(data["rotor"].to<JsonObject>(),        &rotor,        kRotorFields,        NFIELDS(kRotorFields));
+        for (int i = 0; i < RotorConfig::TARGETS; i++) {
+            if (rotor.targets[i].name.isEmpty()) continue;
+            writeFields(data["rotor"]["targets"][i].to<JsonObject>(), &rotor.targets[i], kRotorTargetFields, NFIELDS(kRotorTargetFields));
+        }
+        writeFields(data["ft"].to<JsonObject>(),           &ft,           kFtFields,           NFIELDS(kFtFields));
+        writeFields(data["lrfhss"].to<JsonObject>(),       &lrfhss,       kLrfhssFields,       NFIELDS(kLrfhssFields));
 
         for (int i = 0; i < loraTypes.size(); i++) {
-            data["lora"][i]["frequency"]                = loraTypes[i].frequency;
-            data["lora"][i]["spreadingFactor"]          = loraTypes[i].spreadingFactor;
-            data["lora"][i]["signalBandwidth"]          = loraTypes[i].signalBandwidth;
-            data["lora"][i]["codingRate4"]              = loraTypes[i].codingRate4;
-            data["lora"][i]["power"]                    = loraTypes[i].power;
-            data["lora"][i]["ais"]                      = loraTypes[i].ais;
-            data["lora"][i]["fsk"]                      = loraTypes[i].fsk;
-            data["lora"][i]["fskBitRate"]               = loraTypes[i].fskBitRate;
-            data["lora"][i]["fskFreqDev"]               = loraTypes[i].fskFreqDev;
-            data["lora"][i]["fskRxBandwidth"]           = loraTypes[i].fskRxBandwidth;
-            data["lora"][i]["iaruRegion"]               = loraTypes[i].iaruRegion;
-            data["lora"][i]["fskFrequency"]             = loraTypes[i].fskFrequency;
-            data["lora"][i]["fskPower"]                 = loraTypes[i].fskPower;
-            data["lora"][i]["fskShaping"]               = loraTypes[i].fskShaping;
-            data["lora"][i]["fskFec"]                   = loraTypes[i].fskFec;
-            data["lora"][i]["fskIaruRegion"]            = loraTypes[i].fskIaruRegion;
+            writeFields(data["lora"][i].to<JsonObject>(), &loraTypes[i], kLoraFields, NFIELDS(kLoraFields));
         }
 
-        data["battery"]["sendVoltage"]              = battery.sendVoltage;
-        data["battery"]["voltageAsTelemetry"]       = battery.voltageAsTelemetry;
-        data["battery"]["sendVoltageAlways"]        = battery.sendVoltageAlways;
-        data["battery"]["monitorVoltage"]           = battery.monitorVoltage;
-        data["battery"]["sleepVoltage"]             = battery.sleepVoltage;
-
-        data["telemetry"]["active"]                 = telemetry.active;
-        data["telemetry"]["sendTelemetry"]          = telemetry.sendTelemetry;
-        data["telemetry"]["temperatureCorrection"]  = telemetry.temperatureCorrection;
-
-        data["winlink"]["password"]                 = winlink.password;
-
-        writeFields(data, "notification", &notification, kNotificationFields, sizeof(kNotificationFields) / sizeof(kNotificationFields[0]));
-
-        data["pttTrigger"]["active"]                = ptt.active;
-        data["pttTrigger"]["reverse"]               = ptt.reverse;
-        data["pttTrigger"]["preDelay"]              = ptt.preDelay;
-        data["pttTrigger"]["postDelay"]             = ptt.postDelay;
-        data["pttTrigger"]["io_pin"]                = ptt.io_pin;
+        writeFields(data["battery"].to<JsonObject>(),      &battery,      kBatteryFields,      NFIELDS(kBatteryFields));
+        writeFields(data["telemetry"].to<JsonObject>(),    &telemetry,    kTelemetryFields,    NFIELDS(kTelemetryFields));
+        writeFields(data["winlink"].to<JsonObject>(),      &winlink,      kWinlinkFields,      NFIELDS(kWinlinkFields));
+        writeFields(data["notification"].to<JsonObject>(), &notification, kNotificationFields, NFIELDS(kNotificationFields));
+        writeFields(data["pttTrigger"].to<JsonObject>(),   &ptt,          kPttFields,          NFIELDS(kPttFields));
 
         data["other"]["simplifiedTrackerMode"]      = simplifiedTrackerMode;
         data["other"]["sendCommentAfterXBeacons"]   = sendCommentAfterXBeacons;
@@ -435,290 +570,93 @@ bool Configuration::readFile() {
             return writeFile();
         }
 
-        if (data["wifiAP"]["active"].isNull() ||
-            data["wifiAP"]["password"].isNull()) needsRewrite = true;
-        wifiAP.active               = data["wifiAP"]["active"] | true;
-        wifiAP.password             = data["wifiAP"]["password"] | "1234567890";
-
-        if (data["fwUpdate"]["ssid"].isNull()) needsRewrite = true;
-        fwUpdate.ssid               = data["fwUpdate"]["ssid"] | "";
-        fwUpdate.password           = data["fwUpdate"]["password"] | "";
-
-        if (data["kissNet"]["tcpPort"].isNull()) needsRewrite = true;
-        kissNet.enabled             = data["kissNet"]["enabled"] | false;
-        kissNet.tcpPort             = constrain((int)(data["kissNet"]["tcpPort"] | 8001), 1, 65535);
-        kissNet.udpPort             = constrain((int)(data["kissNet"]["udpPort"] | 0), 0, 65535);
-        kissNet.allowed             = data["kissNet"]["allowed"] | "";
-        if (data["nmeaUart"]["baud"].isNull()) needsRewrite = true;
-        nmeaUart.txPin              = constrain((int)(data["nmeaUart"]["txPin"] | NMEA_UART_TX_DEFAULT), -1, 48);
-        nmeaUart.baud               = data["nmeaUart"]["baud"] | NMEA_UART_BAUD_DEFAULT;
+        #define READ(section, obj, table)   if (readFields(data[section], &(obj), table, NFIELDS(table))) needsRewrite = true
+        READ("wifiAP",   wifiAP,   kWifiApFields);
+        READ("fwUpdate", fwUpdate, kFwUpdateFields);
+        READ("kissNet",  kissNet,  kKissNetFields);
+        READ("nmeaUart", nmeaUart, kNmeaUartFields);
         if (nmeaUart.baud != 4800 && nmeaUart.baud != 9600 && nmeaUart.baud != 38400) nmeaUart.baud = NMEA_UART_BAUD_DEFAULT;
-        if (data["cat"]["port"].isNull()) needsRewrite = true;
-        iaruAuto.mode               = constrain((int)(data["iaruAuto"]["mode"] | 0), 0, 2);
-        iaruAuto.confirm            = data["iaruAuto"]["confirm"] | true;
-        cat.enabled                 = data["cat"]["enabled"] | false;
-        cat.usb                     = data["cat"]["usb"] | false;
-        cat.port                    = constrain((int)(data["cat"]["port"] | 4532), 1, 65535);
-        cat.allowed                 = data["cat"]["allowed"] | "";
-        cat.pttBeacon               = data["cat"]["pttBeacon"] | false;
-        cat.tuneKHz                 = constrain((int)(data["cat"]["tuneKHz"] | 0), 0, 500);
-        if (data["team"]["watchActive"].isNull()) needsRewrite = true;
-        team.watchActive            = data["team"]["watchActive"] | false;
-        team.watchCalls             = data["team"]["watchCalls"] | "";
-        team.timeoutMin             = constrain((int)(data["team"]["timeoutMin"] | 10), 1, 120);
-        team.maxKm                  = constrain((int)(data["team"]["maxKm"] | 0), 0, 500);
-        team.pollSec                = (int)(data["team"]["pollSec"] | 0);
+        READ("iaruAuto", iaruAuto, kIaruAutoFields);
+        READ("cat",      cat,      kCatFields);
+        READ("team",     team,     kTeamFields);
         if (team.pollSec != 0) team.pollSec = constrain(team.pollSec, 60, 3600);
-        team.eaiActive              = data["team"]["eaiActive"] | false;
-        team.eaiCalls               = data["team"]["eaiCalls"] | "";
-        team.eaiCode                = data["team"]["eaiCode"] | "";
-        team.eaiMinutes             = constrain((int)(data["team"]["eaiMinutes"] | 30), 1, 50);
 
         JsonArray BeaconsArray = data["beacons"];
         for (int i = 0; i < BeaconsArray.size(); i++) {
             Beacon bcn;
-
-            bcn.callsign                = BeaconsArray[i]["callsign"] | "NOCALL-7";
+            readFields(BeaconsArray[i], &bcn, kBeaconFields, NFIELDS(kBeaconFields));
             bcn.callsign.toUpperCase();
-            bcn.symbol                  = BeaconsArray[i]["symbol"] | "[";
-            bcn.overlay                 = BeaconsArray[i]["overlay"] | "/";
-            bcn.micE                    = BeaconsArray[i]["micE"] | "";
-            bcn.comment                 = BeaconsArray[i]["comment"] | "";
-            bcn.status                  = BeaconsArray[i]["status"] | "";
-            bcn.smartBeaconActive       = BeaconsArray[i]["smartBeaconActive"] | true;
-            bcn.smartBeaconSetting      = BeaconsArray[i]["smartBeaconSetting"] | 0;
-            bcn.gpsEcoMode              = BeaconsArray[i]["gpsEcoMode"] | false;
-            bcn.profileLabel            = BeaconsArray[i]["profileLabel"] | "";
-            bcn.aisProfile              = BeaconsArray[i]["aisProfile"] | false;
-            bcn.aisVesselType           = BeaconsArray[i]["aisVesselType"] | 0;
-            bcn.aisName                 = BeaconsArray[i]["aisName"] | "";
-            bcn.aisMmsi                 = BeaconsArray[i]["aisMmsi"] | 0;
-            bcn.aisLength               = BeaconsArray[i]["aisLength"] | 0;
-            bcn.aisBeam                 = BeaconsArray[i]["aisBeam"] | 0;
-            bcn.aisDraft                = BeaconsArray[i]["aisDraft"] | 0.0f;
             if (bcn.aisProfile) enforceAisBeacon(bcn);
             beacons.push_back(bcn);
         }
 
-        if (data["display"]["ecoMode"].isNull() ||
-            data["display"]["timeout"].isNull() ||
-            data["display"]["turn180"].isNull() ||
-            data["display"]["showSymbol"].isNull()) needsRewrite = true;
-        display.ecoMode                 = data["display"]["ecoMode"] | false;
-        display.timeout                 = data["display"]["timeout"] | 4;
-        display.turn180                 = data["display"]["turn180"] | false;
-        display.showSymbol              = data["display"]["showSymbol"] | true;
+        READ("display",  display,  kDisplayFields);
 
-        if (data["bluetooth"]["active"].isNull() ||
-            data["bluetooth"]["deviceName"].isNull() ||
-            data["bluetooth"]["useBLE"].isNull() ||
-            data["bluetooth"]["useKISS"].isNull()) needsRewrite = true;
+        READ("bluetooth", bluetooth, kBluetoothFields);
+        #ifndef HAS_BT_CLASSIC
+            bluetooth.useBLE = true;    // fixed as BLE
+        #endif
         if (data["operatingMode"].isNull()) needsRewrite = true;
-        if (data["radioPpm1000"].isNull() || data["wspr"]["useGlobalPpm"].isNull()) needsRewrite = true;
+        if (data["radioPpm1000"].isNull()) needsRewrite = true;
         if (!data["radioPpm1000"].isNull()) radioPpm1000 = constrain((int)(data["radioPpm1000"] | 0), -50000, 50000);
         else                                radioPpm1000 = constrain((int)(data["radioPpm100"] | 0) * 10, -50000, 50000);          // configuraciones de 5.2.11 (centesimas de ppm)
         savedMode = constrain((int)(data["operatingMode"] | (int)MODE_APRS_LORA), (int)MODE_APRS_LORA, (int)MODE_APRS_FSK);   // MORSE nunca arranca solo
         operatingMode = savedMode;
-        if (data["cw"]["wpm"].isNull() || data["cw"]["messages"].isNull()) needsRewrite = true;
+
+        if (data["cw"]["messages"].isNull()) needsRewrite = true;
         setCwDefaults();
-        cw.wpm = constrain((int)(data["cw"]["wpm"] | cw.wpm), 5, 40);
-        if (data["cw"]["keyMode"].isNull()) needsRewrite = true;
-        cw.keyMode      = constrain((int)(data["cw"]["keyMode"] | cw.keyMode), 0, 2);
-        cw.keyPin       = data["cw"]["keyPin"] | cw.keyPin;
-        cw.dahPin       = data["cw"]["dahPin"] | cw.dahPin;
-        cw.swapPaddles  = data["cw"]["swapPaddles"] | cw.swapPaddles;
-        cw.keypadPin    = data["cw"]["keypadPin"] | cw.keypadPin;
+        READ("cw", cw, kCwFields);
         for (int i = 0; i < CW_MESSAGE_COUNT; i++) cw.keypadMv[i] = data["cw"]["keypadMv"][i] | cw.keypadMv[i];
-        cw.keyTx        = data["cw"]["keyTx"] | cw.keyTx;
-        cw.sidetone     = data["cw"]["sidetone"] | cw.sidetone;
-        if (data["cw"]["trainerLevel"].isNull()) needsRewrite = true;
-        cw.trainerLevel  = constrain((int)(data["cw"]["trainerLevel"] | cw.trainerLevel), 2, 41);
-        cw.trainerGapWpm = constrain((int)(data["cw"]["trainerGapWpm"] | cw.trainerGapWpm), 0, 40);
-        cw.squelchDbm    = constrain((int)(data["cw"]["squelchDbm"] | cw.squelchDbm), -130, 0);
         if (cw.squelchDbm > -40) cw.squelchDbm = 0;
-        if (data["gps"]["gnssMask"].isNull()) needsRewrite = true;
-        setGpsDefaults();
-        {
-            int mask = data["gps"]["gnssMask"] | gps.gnssMask;
-            const bool okMask = (mask > 0 && mask < 64) && !(((mask & 16) || (mask & 32)) && !(mask & 1)) && !((mask & 4) && (mask & 8)) && (mask & 15) != 0;
-            gps.gnssMask = okMask ? mask : gps.gnssMask;               // combinacion no valida en el M10: se conserva la de fabrica
+        for (int i = 0; i < CW_MESSAGE_COUNT; i++) {
+            if (!data["cw"]["messages"][i].isNull()) cw.messages[i] = data["cw"]["messages"][i].as<String>();
         }
-        gps.assistNow       = data["gps"]["assistNow"] | gps.assistNow;
-        gps.dynModel        = data["gps"]["dynModel"] | gps.dynModel;
+
+        setGpsDefaults();
+        const int factoryMask = gps.gnssMask;
+        READ("gps", gps, kGpsFields);
+        {
+            const int mask = gps.gnssMask;
+            const bool okMask = (mask > 0 && mask < 64) && !(((mask & 16) || (mask & 32)) && !(mask & 1)) && !((mask & 4) && (mask & 8)) && (mask & 15) != 0;
+            if (!okMask) gps.gnssMask = factoryMask;               // combinacion no valida en el M10: se conserva la de fabrica
+        }
         if (!(gps.dynModel == 0 || (gps.dynModel >= 2 && gps.dynModel <= 9))) gps.dynModel = 0;
-        gps.rateMs          = constrain((int)(data["gps"]["rateMs"] | gps.rateMs), 200, 10000);        // 200-250 ms solo los aplica el L76K; el M10 se limita a 500 ms
-        gps.minElev         = constrain((int)(data["gps"]["minElev"] | gps.minElev), 0, 30);
-        gps.staticHoldCms   = constrain((int)(data["gps"]["staticHoldCms"] | gps.staticHoldCms), 0, 255);
-        gps.staticHoldDistM = constrain((int)(data["gps"]["staticHoldDistM"] | gps.staticHoldDistM), 0, 1000);
-        gps.sbasDiffCorr    = data["gps"]["sbasDiffCorr"] | gps.sbasDiffCorr;
-        gps.sbasRanging     = data["gps"]["sbasRanging"] | gps.sbasRanging;
-        gps.sbasIntegrity   = data["gps"]["sbasIntegrity"] | gps.sbasIntegrity;
-        gps.ppsEnabled      = data["gps"]["ppsEnabled"] | gps.ppsEnabled;
-        gps.ppsFreqHz       = constrain((int)(data["gps"]["ppsFreqHz"] | gps.ppsFreqHz), 1, 10);
-        gps.ppsLenMs        = constrain((int)(data["gps"]["ppsLenMs"] | gps.ppsLenMs), 1, 500);
-        gps.ppsRising       = data["gps"]["ppsRising"] | gps.ppsRising;
-        gps.ppsCableDelayNs = constrain((int)(data["gps"]["ppsCableDelayNs"] | gps.ppsCableDelayNs), -32000, 32000);
-        gps.ppsUserDelayNs  = constrain((int)(data["gps"]["ppsUserDelayNs"] | gps.ppsUserDelayNs), -1000000, 1000000);
-        if (data["gps"]["cnMask"].isNull() || data["gps"]["nmeaLean"].isNull()) needsRewrite = true;
-        gps.cnMask          = data["gps"]["cnMask"] | gps.cnMask;
         gps.cnMask         &= 13;                                       // solo GPS (1), BeiDou (4) y GLONASS (8)
         if (gps.cnMask == 0) gps.cnMask = 5;                            // GPS + BeiDou: valor de fabrica del L76K
-        gps.nmeaLean        = data["gps"]["nmeaLean"] | gps.nmeaLean;
-        if (data["wspr"]["freqHz"].isNull()) needsRewrite = true;
+
         setWsprDefaults();
-        wspr.freqHz      = constrain((int)(data["wspr"]["freqHz"] | wspr.freqHz), 400000000, 480000000);
-        wspr.corrHz      = constrain((int)(data["wspr"]["corrHz"] | wspr.corrHz), -5000, 5000);
-        wspr.useGlobalPpm = data["wspr"]["useGlobalPpm"] | false;
-        wspr.powerDbm    = constrain((int)(data["wspr"]["powerDbm"] | wspr.powerDbm), 0, 20);
-        wspr.intervalMin = constrain((int)(data["wspr"]["intervalMin"] | wspr.intervalMin), 2, 60);
-        wspr.locator     = data["wspr"]["locator"] | "";
-        wspr.dither      = data["wspr"]["dither"] | wspr.dither;
-        wspr.screenOff   = data["wspr"]["screenOff"] | wspr.screenOff;
-        wspr.driftTenths = constrain((int)(data["wspr"]["driftTenths"] | wspr.driftTenths), -200, 200);
-        wspr.perPower    = data["wspr"]["perPower"] | wspr.perPower;
+        READ("wspr", wspr, kWsprFields);
         for (int i = 0; i < 7; i++) {                                       // sin tabla guardada: cada potencia parte de los valores generales
             wspr.ppCorrHz[i]       = constrain((int)(data["wspr"]["ppCorrHz"][i] | wspr.corrHz), -5000, 5000);
             wspr.ppDriftTenths[i]  = constrain((int)(data["wspr"]["ppDriftTenths"][i] | wspr.driftTenths), -200, 200);
         }
-        if (data["dapnet"]["freqHz"].isNull()) needsRewrite = true;
+
         setDapnetDefaults();
-        dapnet.freqHz        = constrain((int)(data["dapnet"]["freqHz"] | dapnet.freqHz), 400000000, 480000000);
-        dapnet.baud          = (int)(data["dapnet"]["baud"] | dapnet.baud);
+        READ("dapnet", dapnet, kDapnetFields);
         if (dapnet.baud != 512 && dapnet.baud != 1200 && dapnet.baud != 2400) dapnet.baud = 1200;
-        dapnet.devTenthsKHz  = constrain((int)(data["dapnet"]["devTenthsKHz"] | dapnet.devTenthsKHz), 20, 80);
-        dapnet.rxBwTenthsKHz = (int)(data["dapnet"]["rxBwTenthsKHz"] | dapnet.rxBwTenthsKHz);
         if (dapnet.rxBwTenthsKHz != 117 && dapnet.rxBwTenthsKHz != 146 && dapnet.rxBwTenthsKHz != 195 && dapnet.rxBwTenthsKHz != 234 && dapnet.rxBwTenthsKHz != 293) dapnet.rxBwTenthsKHz = 146;
-        dapnet.rics          = data["dapnet"]["rics"] | "";
-        dapnet.monitorAll    = data["dapnet"]["monitorAll"] | dapnet.monitorAll;
-        dapnet.timeSync      = data["dapnet"]["timeSync"] | dapnet.timeSync;
-        dapnet.charset       = constrain((int)(data["dapnet"]["charset"] | dapnet.charset), 0, 1);
-        if (data["sat"]["minEl"].isNull()) needsRewrite = true;
-        sat.noradId          = data["sat"]["noradId"] | sat.noradId;
-        sat.posSource        = constrain((int)(data["sat"]["posSource"] | sat.posSource), 0, 2);
-        sat.category         = constrain((int)(data["sat"]["category"] | sat.category), 0, 3);
-        sat.minEl            = constrain((int)(data["sat"]["minEl"] | sat.minEl), 0, 60);
-        sat.lat              = constrain((double)(data["sat"]["lat"] | sat.lat), -90.0, 90.0);
-        sat.lon              = constrain((double)(data["sat"]["lon"] | sat.lon), -180.0, 180.0);
-        if (data["sat"]["txEnabled"].isNull()) needsRewrite = true;
-        sat.txEnabled        = data["sat"]["txEnabled"] | sat.txEnabled;
-        sat.txMinEl          = constrain((int)(data["sat"]["txMinEl"] | sat.txMinEl), 0, 60);
-        sat.txPower          = constrain((int)(data["sat"]["txPower"] | sat.txPower), -9, 22);
-        sat.txMinIntervalS   = constrain((int)(data["sat"]["txMinIntervalS"] | sat.txMinIntervalS), 5, 3600);
-        sat.txText           = data["sat"]["txText"] | "";
+
+        READ("sat", sat, kSatFields);
         if (sat.txText.length() > 64) sat.txText = sat.txText.substring(0, 64);
-        sat.lnaPin           = constrain((int)(data["sat"]["lnaPin"] | sat.lnaPin), -1, 99);
-        sat.paPin            = constrain((int)(data["sat"]["paPin"] | sat.paPin), -1, 99);
-        sat.pttPin           = constrain((int)(data["sat"]["pttPin"] | sat.pttPin), -1, 99);
-        sat.lnaRev           = data["sat"]["lnaRev"] | sat.lnaRev;
-        sat.paRev            = data["sat"]["paRev"] | sat.paRev;
-        sat.pttRev           = data["sat"]["pttRev"] | sat.pttRev;
-        sat.seqLeadMs        = constrain((int)(data["sat"]["seqLeadMs"] | sat.seqLeadMs), 0, 2000);
-        sat.seqPreMs         = constrain((int)(data["sat"]["seqPreMs"] | sat.seqPreMs), 0, 2000);
-        sat.seqPostMs        = constrain((int)(data["sat"]["seqPostMs"] | sat.seqPostMs), 0, 2000);
-        sat.seqTailMs        = constrain((int)(data["sat"]["seqTailMs"] | sat.seqTailMs), 0, 2000);
-        if (data["rotor"]["enabled"].isNull()) needsRewrite = true;
-        rotor.enabled        = data["rotor"]["enabled"] | rotor.enabled;
-        rotor.transport      = constrain((int)(data["rotor"]["transport"] | rotor.transport), 0, 1);
-        rotor.host           = data["rotor"]["host"] | "";
-        rotor.port           = constrain((int)(data["rotor"]["port"] | rotor.port), 1, 65535);
-        rotor.btName         = data["rotor"]["btName"] | "";
-        rotor.stepTenths     = constrain((int)(data["rotor"]["stepTenths"] | rotor.stepTenths), 1, 100);
-        rotor.preSec         = constrain((int)(data["rotor"]["preSec"] | rotor.preSec), 0, 600);
-        rotor.azOffset       = constrain((int)(data["rotor"]["azOffset"] | rotor.azOffset), -180, 180);
-        rotor.elOffset       = constrain((int)(data["rotor"]["elOffset"] | rotor.elOffset), -90, 90);
-        rotor.park           = data["rotor"]["park"] | rotor.park;
-        rotor.parkAz         = constrain((int)(data["rotor"]["parkAz"] | rotor.parkAz), 0, 359);
-        rotor.parkEl         = constrain((int)(data["rotor"]["parkEl"] | rotor.parkEl), 0, 90);
-        rotor.bleEvents      = data["rotor"]["bleEvents"] | rotor.bleEvents;
-        if (data["rotor"]["serverEnabled"].isNull()) needsRewrite = true;
-        rotor.serverEnabled  = data["rotor"]["serverEnabled"] | rotor.serverEnabled;
-        rotor.serverPort     = constrain((int)(data["rotor"]["serverPort"] | rotor.serverPort), 1, 65535);
-        rotor.tilt           = constrain((int)(data["rotor"]["tilt"] | rotor.tilt), 0, 1);
-        rotor.mount          = constrain((int)(data["rotor"]["mount"] | rotor.mount), 0, 1);
-        rotor.source         = constrain((int)(data["rotor"]["source"] | rotor.source), 0, 2);
-        rotor.targetIndex    = constrain((int)(data["rotor"]["targetIndex"] | rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
-        for (int i = 0; i < RotorConfig::TARGETS; i++) {
-            JsonVariantConst t = data["rotor"]["targets"][i];
-            rotor.targets[i].name   = t["n"] | "";
-            rotor.targets[i].lat    = constrain((double)(t["lat"] | 0.0), -90.0, 90.0);
-            rotor.targets[i].lon    = constrain((double)(t["lon"] | 0.0), -180.0, 180.0);
-            rotor.targets[i].alt    = constrain((int)(t["alt"] | 0), -500, 9000);
-            rotor.targets[i].freqHz = (long)(t["f"] | 0L);
-        }
-        if (data["ft"]["ft8FreqHz"].isNull()) needsRewrite = true;
+
+        READ("rotor", rotor, kRotorFields);
+        for (int i = 0; i < RotorConfig::TARGETS; i++) readFields(data["rotor"]["targets"][i], &rotor.targets[i], kRotorTargetFields, NFIELDS(kRotorTargetFields));
+
         setFtDefaults();
-        ft.ft8FreqHz     = constrain((int)(data["ft"]["ft8FreqHz"] | ft.ft8FreqHz), 400000000, 480000000);
-        ft.ft4FreqHz     = (int)(data["ft"]["ft4FreqHz"] | ft.ft4FreqHz);
+        READ("ft", ft, kFtFields);
         if (ft.ft4FreqHz != 0) ft.ft4FreqHz = constrain(ft.ft4FreqHz, 400000000, 480000000);
-        ft.ft8Region     = constrain((int)(data["ft"]["ft8Region"] | ft.ft8Region), 1, 3);
-        ft.ft4Region     = constrain((int)(data["ft"]["ft4Region"] | ft.ft4Region), 1, 3);
-        ft.fstFreqHz     = (int)(data["ft"]["fstFreqHz"] | ft.fstFreqHz);
         if (ft.fstFreqHz != 0) ft.fstFreqHz = constrain(ft.fstFreqHz, 400000000, 480000000);
-        ft.fstRegion     = constrain((int)(data["ft"]["fstRegion"] | ft.fstRegion), 1, 3);
-        ft.fstSeconds    = ((int)(data["ft"]["fstSeconds"] | ft.fstSeconds) == 300) ? 300 : 120;
-        ft.fstEvery      = constrain((int)(data["ft"]["fstEvery"] | ft.fstEvery), 2, 240);
-        ft.corrHz        = constrain((int)(data["ft"]["corrHz"] | ft.corrHz), -5000, 5000);
-        ft.powerDbm      = constrain((int)(data["ft"]["powerDbm"] | ft.powerDbm), 0, 22);
-        ft.everyCycles   = constrain((int)(data["ft"]["everyCycles"] | ft.everyCycles), 2, 240);
-        ft.locator       = data["ft"]["locator"] | "";
-        ft.text          = data["ft"]["text"] | "";
-        ft.screenOff     = data["ft"]["screenOff"] | ft.screenOff;
-        if (data["lrfhss"]["freqHz"].isNull()) needsRewrite = true;
+        ft.fstSeconds = (ft.fstSeconds == 300) ? 300 : 120;
+
         setLrfhssDefaults();
-        lrfhss.enabled     = data["lrfhss"]["enabled"] | lrfhss.enabled;
-        lrfhss.freqHz      = constrain((int)(data["lrfhss"]["freqHz"] | lrfhss.freqHz), 400000000, 480000000);
-        lrfhss.bwIdx       = constrain((int)(data["lrfhss"]["bwIdx"] | lrfhss.bwIdx), 0, 9);
-        lrfhss.crIdx       = constrain((int)(data["lrfhss"]["crIdx"] | lrfhss.crIdx), 0, 3);
-        lrfhss.narrowGrid  = data["lrfhss"]["narrowGrid"] | lrfhss.narrowGrid;
-        lrfhss.powerDbm    = constrain((int)(data["lrfhss"]["powerDbm"] | lrfhss.powerDbm), -9, 22);
-        lrfhss.intervalMin = constrain((int)(data["lrfhss"]["intervalMin"] | lrfhss.intervalMin), 2, 60);
-        lrfhss.locator     = data["lrfhss"]["locator"] | "";
-        lrfhss.locatorLen  = (int)(data["lrfhss"]["locatorLen"] | lrfhss.locatorLen);
+        READ("lrfhss", lrfhss, kLrfhssFields);
         if (lrfhss.locatorLen != 4 && lrfhss.locatorLen != 8) lrfhss.locatorLen = 6;
-        if (data["cw"]["beaconMin"].isNull()) needsRewrite = true;
-        cw.beaconMin    = constrain((int)(data["cw"]["beaconMin"] | cw.beaconMin), 0, 240);
-        cw.beaconFreq   = data["cw"]["beaconFreq"] | 0L;                    // 0 = se completa con el perfil LoRa 1 al terminar de leer
-        cw.beaconPower  = data["cw"]["beaconPower"] | 0;
-        cw.beaconRegion = constrain((int)(data["cw"]["beaconRegion"] | 1), 1, 3);
-        cw.keyFreq      = data["cw"]["keyFreq"] | 0L;
-        cw.keyPower     = data["cw"]["keyPower"] | 0;
-        cw.keyRegion    = constrain((int)(data["cw"]["keyRegion"] | 1), 1, 3);
-        if (!data["cw"]["beaconText"].isNull()) cw.beaconText = data["cw"]["beaconText"].as<String>();
-        for (int i = 0; i < CW_MESSAGE_COUNT; i++) {
-            if (!data["cw"]["messages"][i].isNull()) cw.messages[i] = data["cw"]["messages"][i].as<String>();
-        }
-        bluetooth.active                = data["bluetooth"]["active"] | false;
-        bluetooth.deviceName            = data["bluetooth"]["deviceName"] | "LoRaTracker";
-        #ifdef HAS_BT_CLASSIC
-            bluetooth.useBLE            = data["bluetooth"]["useBLE"] | false;
-            bluetooth.useKISS           = data["bluetooth"]["useKISS"] | false;
-        #else
-            bluetooth.useBLE            = true;    // fixed as BLE
-            bluetooth.useKISS           = data["bluetooth"]["useKISS"] | true;    // true=KISS,  false=TNC2
-        #endif
-        bluetooth.controlPin            = constrain((int)(data["bluetooth"]["controlPin"] | 123456), 0, 999999);
 
         JsonArray LoraTypesArray = data["lora"];
         for (int j = 0; j < LoraTypesArray.size(); j++) {
             LoraType loraType;
 
-            loraType.frequency          = LoraTypesArray[j]["frequency"] | 433775000;
-            loraType.spreadingFactor    = LoraTypesArray[j]["spreadingFactor"] | 12;
-            loraType.signalBandwidth    = LoraTypesArray[j]["signalBandwidth"] | 125000;
-            loraType.codingRate4        = LoraTypesArray[j]["codingRate4"] | 5;
-            loraType.power              = LoraTypesArray[j]["power"] | 20;
-            loraType.ais                = LoraTypesArray[j]["ais"] | false;
-            loraType.fsk                = LoraTypesArray[j]["fsk"] | false;
-            loraType.fskBitRate         = LoraTypesArray[j]["fskBitRate"] | 9.6f;
-            loraType.fskFreqDev         = LoraTypesArray[j]["fskFreqDev"] | 3.0f;
-            loraType.fskRxBandwidth     = LoraTypesArray[j]["fskRxBandwidth"] | 39.0f;
-            loraType.iaruRegion         = LoraTypesArray[j]["iaruRegion"] | 1;
-            if (loraType.iaruRegion < 1 || loraType.iaruRegion > 3) loraType.iaruRegion = 1;
-            if (LoraTypesArray[j]["fskFrequency"].isNull() || LoraTypesArray[j]["fskPower"].isNull()) needsRewrite = true;
-            loraType.fskFrequency       = LoraTypesArray[j]["fskFrequency"] | 0L;
-            loraType.fskPower           = LoraTypesArray[j]["fskPower"] | 0;
-            loraType.fskShaping         = constrain((int)(LoraTypesArray[j]["fskShaping"] | 1), 0, 4);
-            loraType.fskFec             = constrain((int)(LoraTypesArray[j]["fskFec"] | 0), 0, 4);
+            if (readFields(LoraTypesArray[j], &loraType, kLoraFields, NFIELDS(kLoraFields))) needsRewrite = true;
             loraType.fskIaruRegion      = LoraTypesArray[j]["fskIaruRegion"] | loraType.iaruRegion;
             if (loraType.fskIaruRegion < 1 || loraType.fskIaruRegion > 3) loraType.fskIaruRegion = 1;
             if (loraType.fskFrequency <= 0) loraType.fskFrequency = loraType.frequency;     // configuraciones anteriores: el FSK parte del perfil LoRa
@@ -771,39 +709,12 @@ bool Configuration::readFile() {
         if (cw.keyFreq    == 433775000L) { cw.keyFreq    = 432050000L; needsRewrite = true; }
         wspr.freqHz = 432301500;                            // la frecuencia WSPR es fija
 
-        if (data["battery"]["sendVoltage"].isNull() ||
-            data["battery"]["voltageAsTelemetry"].isNull() ||
-            data["battery"]["sendVoltageAlways"].isNull() ||
-            data["battery"]["monitorVoltage"].isNull() ||
-            data["battery"]["sleepVoltage"].isNull()) needsRewrite = true;
-        battery.sendVoltage             = data["battery"]["sendVoltage"] | false;
-        battery.voltageAsTelemetry      = data["battery"]["voltageAsTelemetry"] | false;
-        battery.sendVoltageAlways       = data["battery"]["sendVoltageAlways"] | false;
-        battery.monitorVoltage          = data["battery"]["monitorVoltage"] | false;
-        battery.sleepVoltage            = data["battery"]["sleepVoltage"] | 2.9;
-
-        if (data["telemetry"]["active"].isNull() ||
-            data["telemetry"]["sendTelemetry"].isNull() ||
-            data["telemetry"]["temperatureCorrection"].isNull()) needsRewrite = true;
-        telemetry.active                = data["telemetry"]["active"] | false;
-        telemetry.sendTelemetry         = data["telemetry"]["sendTelemetry"] | false;
-        telemetry.temperatureCorrection = data["telemetry"]["temperatureCorrection"] | 0.0;
-
-        if (data["winlink"]["password"].isNull()) needsRewrite = true;
-        winlink.password                = data["winlink"]["password"] | "NOPASS";
-
-        if (readFields(data, "notification", &notification, kNotificationFields, sizeof(kNotificationFields) / sizeof(kNotificationFields[0]))) needsRewrite = true;
-
-        if (data["pttTrigger"]["active"].isNull() ||
-            data["pttTrigger"]["reverse"].isNull() ||
-            data["pttTrigger"]["preDelay"].isNull() ||
-            data["pttTrigger"]["postDelay"].isNull() ||
-            data["pttTrigger"]["io_pin"].isNull()) needsRewrite = true;
-        ptt.active                      = data["pttTrigger"]["active"] | false;
-        ptt.reverse                     = data["pttTrigger"]["reverse"] | false;
-        ptt.preDelay                    = data["pttTrigger"]["preDelay"] | 0;
-        ptt.postDelay                   = data["pttTrigger"]["postDelay"] | 0;
-        ptt.io_pin                      = data["pttTrigger"]["io_pin"] | 4;
+        READ("battery",   battery,   kBatteryFields);
+        READ("telemetry", telemetry, kTelemetryFields);
+        READ("winlink",   winlink,   kWinlinkFields);
+        READ("notification", notification, kNotificationFields);
+        READ("pttTrigger", ptt,      kPttFields);
+        #undef READ
 
         if (data["other"]["simplifiedTrackerMode"].isNull() ||
             data["other"]["sendCommentAfterXBeacons"].isNull() ||
