@@ -82,7 +82,8 @@ namespace PAGES_Utils {
     bool    cwSendText(const char* text);   // modo MORSE: emite un texto libre (app por BLE)
     void    cwListenSession();              // escucha CW por RF (boton o app por BLE); bloquea hasta salir
     bool    headingForRotor(float& trueHeadingDeg);   // rumbo verdadero del vehiculo: curso GPS en marcha; parado, magnetometro; si no hay, el ultimo curso (30 s)
-    bool    aprsTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize);   // estacion APRS elegida como destino de la brujula (GO TO) con posicion; para el rotor
+    bool    aprsTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize);
+    bool    lastHeardTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize);    // rotor, fuente 4: ultima estacion oida con posicion (filtro y antiguedad de la WebUI)   // estacion APRS elegida como destino de la brujula (GO TO) con posicion; para el rotor
     // Control remoto completo por BLE (app Android): cualquier opcion de menu por nombre y espejo de la pantalla
     int     remoteAct(const char* name, const char** error);    // devuelve un PAGES_CMD_* o -1 con *error
     void    forEachAction(void (*callback)(uint8_t page, const char* pageTitle, const char* name, const char* label, bool allowed, void* ctx), void* ctx);

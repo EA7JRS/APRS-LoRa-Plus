@@ -99,6 +99,10 @@ El rotor no sirve solo para satélites. En *What the rotor follows* se elige:
 - **Satélite** (solo en modo SAT).
 - **Estación APRS con GO TO**: el rotor sigue la estación que hayas puesto como destino de la brújula (STATIONS, LAST o GROUP → *GO TO*), con su posición actualizada en vivo cada vez que se oye.
 - **Objetivo fijo**: hasta 8 en la WebUI (nombre, latitud, longitud, altitud, frecuencia) o por BLE desde la app (orden `tgt`). Sirve para un repetidor, una baliza, un nodo de la red...
+- **Última estación APRS oída** (fuente 4): la estación más reciente con posición recibida por APRS LoRa o APRS FSK, sin tener que hacer *GO TO*. Filtro de indicativos (*callsigns to follow*: `EA7JRS` = cualquier SSID, `EA7JRS-9` = solo esa, `EA7*` = prefijo; vacío = todas) y antigüedad máxima (*Max. age*, 30 min por defecto). Si nadie cumple, el rotor se queda donde estaba.
+- **Última baliza CW** (fuente 5): en el modo MORSE, durante *Listen CW (RF)*, el tracker busca en el texto decodificado el indicativo tras `DE` y un locator Maidenhead de 4, 6 u 8 caracteres (`VVV DE ED7YAA IM76HR`) y el rotor apunta al centro de ese cuadro (con 6 caracteres el error es de unos 2–3 km). Funciona en las placas con escucha CW por RF (SX1262 / SX1268). La baliza queda como objetivo hasta que se decodifica otra.
+
+En todas las fuentes terrestres el acimut, la elevación y la distancia se calculan desde la **posición GPS del propio tracker** (*Satellites 70 cm → Station position*: GPS del tracker por defecto; el móvil solo entra sin fix o si se elige la fusión).
 
 Fuera del modo SAT aparece la pantalla **ROTOR** (solo con el rotor activado y una fuente terrestre) con el rumbo, la elevación, la distancia y la posición real del rotor si el transporte la devuelve (`rotctld` sí). Rumbo y distancia sobre una Tierra esférica; la elevación incluye la diferencia de altura y la curvatura con refracción estándar (radio efectivo 4/3).
 

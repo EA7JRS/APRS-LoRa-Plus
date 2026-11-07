@@ -55,6 +55,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "rotor_utils.h"
+#include "rotor_follow.h"
 #include "sat_rx.h"
 #include "sat_tx.h"
 #include "station_utils.h"
@@ -390,12 +391,12 @@ namespace {
                     }
                 }
             #endif
-                if (Config.rotor.enabled) { snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Rotor: %s", Config.rotor.source == 0 ? "satellite" : (Config.rotor.source == 1 ? "APRS target" : "fixed target")); satItems[count++] = Item{rotSourceLabel, C_ROT_SOURCE}; }
+                if (Config.rotor.enabled) { snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Rotor: %s", RotorFollow::sourceName(Config.rotor.source)); satItems[count++] = Item{rotSourceLabel, C_ROT_SOURCE}; }
                 satItems[count++] = Item{"Change mode", C_MODE_CHANGE};
                 satItems[count++] = Item{"Back", C_BACK};
                 return satItems;
             case PAGE_ROT:
-                snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Follow: %s", Config.rotor.source == 1 ? "APRS target" : "fixed target");
+                snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Follow: %s", RotorFollow::sourceName(Config.rotor.source));
                 rotItems[0] = Item{rotSourceLabel, C_ROT_SOURCE};
                 rotItems[1] = Item{"Next fixed target", C_ROT_NEXT};
                 rotItems[2] = Item{"Previous fixed target", C_ROT_PREV};
@@ -2671,6 +2672,21 @@ namespace PAGES_Utils {
         for (size_t i = 0; i < text.length(); i++) cwAppend(text[i]);
     }
 
+    // Rotor, fuente 5 (Copyright (C) 2026 Manuel - EA7JRS): tras cada palabra recibida por RF se busca indicativo + locator de una
+    // baliza ("VVV DE ED7YAA IM76HR"); si cambia, el rotor apunta al centro del cuadro desde el GPS del tracker
+    void cwBeaconCheck() {
+    #ifdef HAS_SAT
+        char call[12], loc[10];
+        if (!RotorFollow::parseCwBeacon(cwText.c_str(), call, sizeof(call), loc, sizeof(loc))) return;
+        char oldCall[12], oldLoc[10];
+        if (ROTOR_Utils::cwBeacon(oldCall, sizeof(oldCall), oldLoc, sizeof(oldLoc)) && strcmp(oldLoc, loc) == 0 && strcmp(oldCall, call) == 0) return;
+        double lat, lon;
+        if (!RotorFollow::locatorToLatLon(loc, lat, lon)) return;
+        ROTOR_Utils::setCwBeacon(call, loc, lat, lon);
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Rotor", "CW beacon %s %s (%.4f, %.4f)", call[0] ? call : "?", loc, lat, lon);
+    #endif
+    }
+
     const char* cwModeLabel() {
         return Config.cw.keyMode == 0 ? "KEY" : (Config.cw.keyMode == 1 ? "IA" : "IB");
     }
@@ -2985,14 +3001,17 @@ namespace PAGES_Utils {
     void drawRotPage() {
     #ifdef HAS_SAT
         header(PAGE_TITLES[PAGE_ROT], ROTOR_Utils::stateText());
-        if (Config.rotor.source == 1) row(0, "APRS target (GO TO)");
-        else                          row(0, "Fixed %d/%d", Config.rotor.targetIndex + 1, RotorConfig::TARGETS);
+        const int rsrc = Config.rotor.source;
+        if (rsrc == 1)      row(0, "APRS target (GO TO)");
+        else if (rsrc == 4) row(0, "Last heard%s", Config.rotor.followFilter.isEmpty() ? "" : " (filter)");
+        else if (rsrc == 5) row(0, "CW beacon (locator)");
+        else                row(0, "Fixed %d/%d", Config.rotor.targetIndex + 1, RotorConfig::TARGETS);
         const RotorConfig::Target& t = Config.rotor.targets[Config.rotor.targetIndex];
         if (Config.rotor.source == 2 && t.name.isEmpty()) { row(1, "Slot empty"); row(2, "Set it in WebUI/app"); return; }
         float az, el; bool trk;
         if (!ROTOR_Utils::target(az, el, trk)) {
-            row(1, "%s", Config.rotor.source == 1 ? "No target yet" : t.name.c_str());
-            row(2, "%s", Config.rotor.source == 1 ? "STATIONS: GO TO" : "Waiting for position");
+            row(1, "%s", rsrc == 2 ? t.name.c_str() : "No target yet");
+            row(2, "%s", rsrc == 1 ? "STATIONS: GO TO" : rsrc == 4 ? "No station with pos" : rsrc == 5 ? "MORSE: Listen CW" : "Waiting for position");
             return;
         }
         row(1, "%.20s", ROTOR_Utils::targetName());
@@ -3756,6 +3775,23 @@ namespace PAGES_Utils {
         return true;
     }
 
+    // Rotor, fuente 4 (Copyright (C) 2026 Manuel - EA7JRS): la estacion mas reciente con posicion (APRS LoRa o FSK: las dos entran
+    // en la misma lista) que pasa el filtro de indicativos y no es mas antigua que el limite de la WebUI
+    bool lastHeardTarget(double& lat, double& lon, double& altM, char* name, size_t nameSize) {
+        const uint32_t now = millis();
+        const uint32_t maxAge = (uint32_t)Config.rotor.followMaxMin * 60000UL;
+        for (uint8_t i = 0; i < heard.count(); i++) {
+            const Station* s = heard.byRecent(i);
+            if (!s) break;
+            if (now - s->lastMs > maxAge) break;                                    // la lista va de la mas reciente a la mas antigua
+            if (!s->hasPosition || !RotorFollow::callMatches(s->call, Config.rotor.followFilter.c_str())) continue;
+            lat = s->lat; lon = s->lon; altM = s->altitude;
+            snprintf(name, nameSize, "%s", s->call);
+            return true;
+        }
+        return false;
+    }
+
     void cwRemoteSession() {
         const bool rf       = Config.cw.keyTx && LoRa_Utils::cwAvailable();
         const bool tone     = Config.cw.sidetone && Config.notification.buzzerActive;
@@ -3862,7 +3898,9 @@ namespace PAGES_Utils {
                 snprintf(cwPending, sizeof(cwPending), "%s", decoder.pending());
                 dirty = true;
                 BLE_Control::cwRxEvent(true, c, env.level(), env.valid() ? env.peak() - env.noise() : 0.0f, decoder.wpm());   // letra para la app
+                if (c == ' ') cwBeaconCheck();                         // baliza con locator: objetivo del rotor (fuente 5)
             }
+            if (!keyed) rotorPoll();                                   // el rotor sigue funcionando durante la escucha (se recalcula cada 1 s)
             // solo se redibuja con la portadora apagada (el dibujo tarda ~25 ms): tras un espacio entre palabras o cada segundo
             if (!keyed && ((dirty && c == ' ') || now - lastDraw > 1000)) {
                 cwRxDbm = env.level();
@@ -3894,6 +3932,7 @@ namespace PAGES_Utils {
             if (BLE_Control::cwRxStopRequested()) break;             // la app la para
             delay(1);
         }
+        cwBeaconCheck();                                             // la ultima palabra puede no llevar espacio detras
         if (tone) NOTIFICATION_Utils::sidetone(false);
         NOTIFICATION_Utils::lightRx(false);
         LoRa_Utils::cwRxEnd();
@@ -4899,11 +4938,12 @@ namespace PAGES_Utils {
                 satTx = 0;
                 break;
             case C_ROT_SOURCE: {
-                int s = (Config.rotor.source + 1) % 3;
-                if (s == 0 && Config.operatingMode != MODE_SAT) s = 1;           // la fuente "satelite" solo existe en el modo SAT
+                const int s = RotorFollow::nextSource(Config.rotor.source, Config.operatingMode == MODE_SAT);   // la fuente "satelite" solo existe en el modo SAT
                 Config.rotor.source = s;
                 Config.writeFile();
-                showToast(s == 0 ? "Rotor: satellite" : (s == 1 ? "Rotor: APRS target" : "Rotor: fixed target"));
+                char toast[32];
+                snprintf(toast, sizeof(toast), "Rotor: %s", RotorFollow::sourceName(s));
+                showToast(toast);
                 break;
             }
             case C_ROT_NEXT:

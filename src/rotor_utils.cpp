@@ -59,6 +59,18 @@ namespace ROTOR_Utils {
         bool           tgtMobile = false;
         char           tgtName[24] = "";
         double         tgtDist = 0;
+        // ultima baliza CW con locator (fuente 5)
+        char           bcnCall[12] = "", bcnLoc[10] = "";
+        double         bcnLat = 0, bcnLon = 0;
+        bool           bcnOk = false;
+
+        // Copia sin llamadas a la libreria (se usa dentro de secciones criticas)
+        void copyStr(char* dst, size_t n, const char* src) {
+            size_t i = 0;
+            if (!n) return;
+            if (src) for (; src[i] && i + 1 < n; i++) dst[i] = src[i];
+            dst[i] = '\0';
+        }
 
         void setState(State s, const char* m) { st = s; snprintf(msg, sizeof(msg), "%s", m); }
 
@@ -252,6 +264,23 @@ namespace ROTOR_Utils {
     bool mobileInfo(float& absoluteAz, float& headingDeg) { absoluteAz = tgtAbsAz; headingDeg = tgtHdg; return tgtMobile; }
     double targetDistKm() { return tgtDist; }
 
+    void setCwBeacon(const char* call, const char* locator, double lat, double lon) {
+        portENTER_CRITICAL(&mux);
+        copyStr(bcnCall, sizeof(bcnCall), call);
+        copyStr(bcnLoc, sizeof(bcnLoc), locator);
+        bcnLat = lat; bcnLon = lon; bcnOk = true;
+        portEXIT_CRITICAL(&mux);
+        lastCalcMs = 0;                                    // se calcula en la proxima vuelta
+    }
+    bool cwBeacon(char* call, size_t callSize, char* locator, size_t locSize) {
+        portENTER_CRITICAL(&mux);
+        const bool ok = bcnOk;
+        if (call) copyStr(call, callSize, bcnCall);
+        if (locator) copyStr(locator, locSize, bcnLoc);
+        portEXIT_CRITICAL(&mux);
+        return ok;
+    }
+
     void begin() {
         stopTask = true;                                    // por si habia una tarea de una entrada anterior
         for (int i = 0; i < 100 && task != nullptr; i++) delay(50);
@@ -286,6 +315,15 @@ namespace ROTOR_Utils {
             if (!SAT_Utils::observer(o)) return;
             if (src == 1) {
                 ok = PAGES_Utils::aprsTarget(tLat, tLon, tAlt, tgtName, sizeof(tgtName));
+            } else if (src == 4) {
+                ok = PAGES_Utils::lastHeardTarget(tLat, tLon, tAlt, tgtName, sizeof(tgtName));
+            } else if (src == 5) {
+                portENTER_CRITICAL(&mux);
+                ok = bcnOk; tLat = bcnLat; tLon = bcnLon; tAlt = 0;
+                char c[12], l[10];
+                copyStr(c, sizeof(c), bcnCall); copyStr(l, sizeof(l), bcnLoc);
+                portEXIT_CRITICAL(&mux);
+                if (ok) snprintf(tgtName, sizeof(tgtName), "%s %s", c[0] ? c : "CW", l);
             } else {
                 const RotorConfig::Target& t = Config.rotor.targets[Config.rotor.targetIndex];
                 if (!t.name.isEmpty()) { ok = true; tLat = t.lat; tLon = t.lon; tAlt = t.alt; snprintf(tgtName, sizeof(tgtName), "%s", t.name.c_str()); }
@@ -355,6 +393,8 @@ namespace ROTOR_Utils {
     void setAttitude(float, float) {}
     bool tiltInfo(float&, float&) { return false; }
     double targetDistKm() { return 0.0; }
+    void setCwBeacon(const char*, const char*, double, double) {}
+    bool cwBeacon(char*, size_t, char*, size_t) { return false; }
 }
 
 #endif  // HAS_SAT

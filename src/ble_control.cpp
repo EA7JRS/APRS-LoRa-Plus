@@ -21,6 +21,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "rotor_utils.h"
+#include "rotor_follow.h"
 #include "sat_rx.h"
 #include "sat_tx.h"
 #include "baro_utils.h"
@@ -1133,7 +1134,12 @@ namespace {
                     Config.rotor.targetIndex = s; Config.rotor.source = 2;
                     changed = true;
                 }
-                if (!doc["src"].isNull()) { Config.rotor.source = constrain((int)(doc["src"] | 0), 0, 2); changed = true; }
+                if (!doc["src"].isNull()) {
+                    const int src = doc["src"] | 0;
+                    if (!RotorFollow::validSource(src)) { reply(cmd, id, "bad src"); return; }
+                    Config.rotor.source = src;
+                    changed = true;
+                }
                 if (changed) Config.writeFile();
                 reply(cmd, id);
                 sendTargets();

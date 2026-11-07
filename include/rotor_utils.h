@@ -31,6 +31,9 @@ namespace ROTOR_Utils {
     void        setExternal(float azDeg, float elDeg);   // un programa externo (GPredict por rotctld) manda el objetivo; manda sobre la fuente elegida mientras llegue (15 s)
     bool        externalFresh();
     bool        externalPos(float& azDeg, float& elDeg);   // ultimo acimut / elevacion pedidos por el programa externo
+    // Fuente "baliza CW" (5): la escucha CW encuentra indicativo + locator y el rotor apunta al centro del cuadro (desde el GPS del tracker)
+    void        setCwBeacon(const char* call, const char* locator, double lat, double lon);
+    bool        cwBeacon(char* call, size_t callSize, char* locator, size_t locSize);   // ultima baliza (false = ninguna)
     double      targetDistKm();             // distancia al objetivo terrestre (0 = satelite o desconocida)                // aumenta con cada objetivo nuevo (para los eventos BLE)
 
 }
