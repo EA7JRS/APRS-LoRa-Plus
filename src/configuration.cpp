@@ -107,10 +107,10 @@ namespace {
         FIELD(Notification, ledTxPin,         FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_TX),
         FIELD(Notification, ledMessage,       FF_REQUIRED,            false),
         FIELD(Notification, ledMessagePin,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_MESSAGE),
-        FIELD(Notification, ledRxBeacon,      0,                      false),
+        FIELD(Notification, ledRxBeacon,      0,                      true),
         FIELD(Notification, flashEmergency,   0,                      false),
         FIELD(Notification, ledTxCw,          0,                      false),
-        FIELD(Notification, ledRxCw,          0,                      false),
+        FIELD(Notification, ledRxCw,          0,                      true),
         FIELD(Notification, flashCw,          0,                      false),
         FIELD(Notification, buzzerActive,     FF_REQUIRED,            false),
         FIELD(Notification, buzzerPinTone,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_BUZZER_TONE),
@@ -1199,10 +1199,10 @@ void Configuration::setDefaultValues() {
     notification.ledTx              = false;
     notification.ledTxPin           = defaultPin(NOTIF_DEF_LED_TX);
     notification.ledMessage         = false;
-    notification.ledRxBeacon        = false;
+    notification.ledRxBeacon        = true;
     notification.flashEmergency     = false;
     notification.ledTxCw            = false;
-    notification.ledRxCw            = false;
+    notification.ledRxCw            = true;
     notification.flashCw            = false;
     notification.ledMessagePin      = defaultPin(NOTIF_DEF_LED_MESSAGE);
     notification.buzzerActive       = false;

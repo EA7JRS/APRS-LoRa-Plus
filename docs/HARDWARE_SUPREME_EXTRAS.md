@@ -20,7 +20,7 @@ Copyright (C) 2026 Manuel - EA7JRS. Esquema y reparto de pines para añadir hard
 | Manipulador, raya (anillo) | 46 | IO46 | *Dah GPIO* | contacto a GND, pull-up interno |
 | Salida NMEA hacia el conversor TTL→RS422 | 43 | TXD (QWIIC) | Connectivity → *NMEA output* → *TX pin* | aplica al reiniciar; 4800 / 9600 / 38400 baud |
 
-Sin usar: IO3 (pin de arranque), IO6 (PPS del GPS) y A-LDO2. Los defaults de fábrica de LEDs, flash y buzzer en la Supreme son 38 / 21 / 45 / 39 / 48 (todo apagado); manipulador, teclado y NMEA vienen sin pin (-1). El botón *Use the suggested pins* de la WebUI rellena todos con esta tabla.
+Sin usar: IO3 (pin de arranque), IO6 (PPS del GPS) y A-LDO2. Los defaults de fábrica de LEDs, flash y buzzer en la Supreme son 38 / 21 / 45 / 39 / 48 (todo apagado salvo el LED verde de recepción: destello por cada baliza APRS LoRa / FSK oída y señal CW recibida, activo de fábrica en el pin 21); manipulador, teclado y NMEA vienen sin pin (-1). El botón *Use the suggested pins* de la WebUI rellena todos con esta tabla.
 
 ## Por qué estos pines
 

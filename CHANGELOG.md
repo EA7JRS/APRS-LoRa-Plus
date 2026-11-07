@@ -1,6 +1,7 @@
 # Changelog
 
 ## Próxima versión — en desarrollo (aún sin publicar)
+- **LED verde (Rx) activo de fábrica para balizas y CW:** *Beacons* (destello por cada baliza o paquete APRS LoRa / FSK oído) y *CW* (señal CW recibida, también en el modo SAT) vienen activados en la configuración por defecto; solo actúan si el pin del LED verde está asignado (en la Supreme, IO21). Una configuración ya guardada con esos campos conserva su valor; los que faltan en el fichero toman el nuevo por defecto. Sin probar en placa.
 - **Nuevo logo en la pantalla de bienvenida:** pin con L+ y tres ondas (`include/logo_splash.h`, 33×36 px a 2 bits; originales vectoriales en `docs/logo/`), centrado y con «APRS LoRa+» debajo. En pantallas monocromas se enciende entero; en las de color cada capa (ondas, pin, L+) lleva su color, **provisional** (verdes de la paleta del proyecto y blanco). Nuevo primitivo `pagesBitmap2`. Sin probar en placa.
 - **Escucha CW desde la app:** orden BLE `cwrx` (start / stop) y evento `cwrx` con cada letra, el nivel, el SNR y la velocidad; la sesión es la misma que *Listen CW (RF)* del menú. Sin probar en placa.
 - **Rotor desde la app:** orden BLE `rotext` (acimut / elevación de un programa externo a través del servidor rotctld del móvil: Look4Sat, GPredict...; igual que el servidor rotctld por WiFi) y `caps.rotor`. El evento `rot` lleva además la posición real del rotor (`aaz`, `ael`) cuando se conoce. Sin probar en placa.
