@@ -18,6 +18,7 @@
 
 #include <ArduinoJson.h>
 #include "configuration.h"
+#include "rotor_follow.h"
 #include "board_pinout.h"
 #include "lora_utils.h"
 #include "gps_utils.h"
@@ -287,7 +288,18 @@ namespace WEB_Utils {
             Config.rotor.serverPort = constrain(getParamIntSafe("rotor.serverPort", Config.rotor.serverPort), 1, 65535);
             Config.rotor.tilt        = constrain(getParamIntSafe("rotor.tilt", Config.rotor.tilt), 0, 1);
             Config.rotor.mount       = constrain(getParamIntSafe("rotor.mount", Config.rotor.mount), 0, 1);
-            Config.rotor.source      = constrain(getParamIntSafe("rotor.source", Config.rotor.source), 0, 2);
+            {
+                const int src = getParamIntSafe("rotor.source", Config.rotor.source);
+                if (RotorFollow::validSource(src)) Config.rotor.source = src;
+            }
+            if (request->hasParam("rotor.followFilter", true)) {
+                String f = request->getParam("rotor.followFilter", true)->value();
+                f.trim(); f.toUpperCase();
+                Config.rotor.followFilter = f.substring(0, 80);
+            }
+            Config.rotor.followMaxMin = constrain(getParamIntSafe("rotor.followMaxMin", Config.rotor.followMaxMin), 1, 720);
+            Config.rotor.predict      = request->hasParam("rotor.predict", true);
+            Config.rotor.predictMaxS  = constrain(getParamIntSafe("rotor.predictMaxS", Config.rotor.predictMaxS), 10, 1800);
             Config.rotor.targetIndex = constrain(getParamIntSafe("rotor.targetIndex", Config.rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
             for (int i = 0; i < RotorConfig::TARGETS; i++) {
                 char key[24];

@@ -134,8 +134,8 @@ namespace RotProto {
             if (cmd == "stop" || cmd == "reset") { rprt(out, E_OK); return false; }
             if (cmd == "park") { rprt(out, rot.park() ? E_OK : E_REJECTED); return false; }
             if (cmd == "get_info") { snprintf(b, sizeof(b), "%s\n", rot.info()); out += b; return false; }
-            if (cmd == "dump_state") {                           // protocolo 1: modelo (lo asigna Hamlib), limites de acimut y elevacion, sur = 0, tipo acimut + elevacion
-                out += "1\n0\n0.000000\n360.000000\n0.000000\n90.000000\n0\n6\n";
+            if (cmd == "dump_state") {                           // protocolo 1 de Hamlib 4.x (tests/rotctl_parse.c): version, modelo y "clave=valor" hasta "done" (netrotctl lo espera)
+                out += "1\n2\nmin_az=0.000000\nmax_az=360.000000\nmin_el=0.000000\nmax_el=90.000000\nsouth_zero=0\nrot_type=AzEl\ndone\n";
                 return false;
             }
             if (cmd == "quit") { rprt(out, E_OK); return true; }

@@ -329,6 +329,27 @@ jobs:
                   merge-multiple: true
                   path: site
 
+            # Rotor y Gateway en el mismo instalador (lanzadores rotor/ y gateway/): su release con la MISMA version adjunta
+            # web-site-<dispositivo>.zip. Son repositorios privados: hace falta el secreto FLASHER_TOKEN (token de acceso de grano
+            # fino con permiso de lectura de "Contents" en esos dos repositorios). Sin el secreto o sin esa release, el instalador
+            # muestra "aun no hay version publicada" en ese dispositivo y el del tracker se publica igual.
+            - name: Rotor y Gateway (misma version)
+              env:
+                  GH_TOKEN: ${{ secrets.FLASHER_TOKEN }}
+                  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+              run: |
+                  for dev in rotor gateway; do
+                      if [ "$dev" = rotor ]; then repo=EA7JRS/APRS-LoRa-Plus-Rotor; else repo=EA7JRS/APRS-LoRa-Plus-I-Gateway; fi
+                      if [ -z "$GH_TOKEN" ]; then echo "::warning::Sin el secreto FLASHER_TOKEN: el instalador no incluye $dev"; continue; fi
+                      rm -rf "/tmp/$dev"
+                      if gh release download "$TAG" --repo "$repo" --pattern "web-site-$dev.zip" --dir "/tmp/$dev"; then
+                          mkdir -p "site/$dev" && unzip -q -o "/tmp/$dev/web-site-$dev.zip" -d "site/$dev"
+                          echo "$dev: $(python3 -c "import json;print(json.load(open('site/$dev/latest.json'))['version'])")"
+                      else
+                          echo "::warning::$repo no tiene la release $TAG con web-site-$dev.zip"
+                      fi
+                  done
+
             - name: Build site
               run: python3 tools/make_web_assets.py site --root site --page web/index.html
 

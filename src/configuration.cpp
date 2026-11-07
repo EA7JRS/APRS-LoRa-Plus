@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <SPIFFS.h>
 #include "configuration.h"
+#include "rotor_follow.h"
 #include "board_pins.h"
 #include "power_utils.h"
 #include "board_pinout.h"
@@ -297,6 +298,10 @@ bool Configuration::writeFile() {
         data["rotor"]["serverEnabled"]              = rotor.serverEnabled;
         data["rotor"]["serverPort"]                 = rotor.serverPort;
         data["rotor"]["source"]                     = rotor.source;
+        data["rotor"]["followFilter"]               = rotor.followFilter;
+        data["rotor"]["followMaxMin"]               = rotor.followMaxMin;
+        data["rotor"]["predict"]                    = rotor.predict;
+        data["rotor"]["predictMaxS"]                = rotor.predictMaxS;
         data["rotor"]["mount"]                      = rotor.mount;
         data["rotor"]["tilt"]                       = rotor.tilt;
         data["rotor"]["targetIndex"]                = rotor.targetIndex;
@@ -635,7 +640,14 @@ bool Configuration::readFile() {
         rotor.serverPort     = constrain((int)(data["rotor"]["serverPort"] | rotor.serverPort), 1, 65535);
         rotor.tilt           = constrain((int)(data["rotor"]["tilt"] | rotor.tilt), 0, 1);
         rotor.mount          = constrain((int)(data["rotor"]["mount"] | rotor.mount), 0, 1);
-        rotor.source         = constrain((int)(data["rotor"]["source"] | rotor.source), 0, 2);
+        {
+            const int src    = data["rotor"]["source"] | rotor.source;
+            rotor.source     = RotorFollow::validSource(src) ? src : 0;
+        }
+        rotor.followFilter   = data["rotor"]["followFilter"] | rotor.followFilter;
+        rotor.followMaxMin   = constrain((int)(data["rotor"]["followMaxMin"] | rotor.followMaxMin), 1, 720);
+        rotor.predict        = data["rotor"]["predict"] | rotor.predict;
+        rotor.predictMaxS    = constrain((int)(data["rotor"]["predictMaxS"] | rotor.predictMaxS), 10, 1800);
         rotor.targetIndex    = constrain((int)(data["rotor"]["targetIndex"] | rotor.targetIndex), 0, RotorConfig::TARGETS - 1);
         for (int i = 0; i < RotorConfig::TARGETS; i++) {
             JsonVariantConst t = data["rotor"]["targets"][i];
@@ -960,6 +972,10 @@ void Configuration::setDapnetDefaults() {
     rotor.serverEnabled  = false;
     rotor.serverPort     = 4533;
     rotor.source         = 0;
+    rotor.followFilter   = "";
+    rotor.followMaxMin   = 30;
+    rotor.predict        = true;
+    rotor.predictMaxS    = 300;
     rotor.mount          = 0;
     rotor.tilt           = 0;
     rotor.targetIndex    = 0;

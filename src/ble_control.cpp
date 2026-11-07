@@ -21,6 +21,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "rotor_utils.h"
+#include "rotor_follow.h"
 #include "sat_rx.h"
 #include "sat_tx.h"
 #include "baro_utils.h"
@@ -529,6 +530,7 @@ namespace {
                 j.num("rssi", st->rssi);
                 j.flt("snr", st->snr, 1);
                 j.unum("age", (now - st->lastMs) / 1000UL);
+                if (st->hasPosition && st->posMs) j.unum("pa", (now - st->posMs) / 1000UL);     // antiguedad de la posicion
                 j.num("n", st->packets);
                 if (st->device[0])  j.text("dev", st->device);
                 if (st->path[0])    j.text("path", st->path);
@@ -805,6 +807,10 @@ namespace {
         JW j("targets");
         j.num("sel", Config.rotor.targetIndex);
         j.num("src", Config.rotor.source);
+        j.text("ff", Config.rotor.followFilter.c_str());
+        j.num("fm", Config.rotor.followMaxMin);
+        j.flag("pr", Config.rotor.predict);
+        j.num("pm", Config.rotor.predictMaxS);
         j.arr("items");
         for (int i = 0; i < RotorConfig::TARGETS; i++) {
             const RotorConfig::Target& t = Config.rotor.targets[i];
@@ -1133,7 +1139,21 @@ namespace {
                     Config.rotor.targetIndex = s; Config.rotor.source = 2;
                     changed = true;
                 }
-                if (!doc["src"].isNull()) { Config.rotor.source = constrain((int)(doc["src"] | 0), 0, 2); changed = true; }
+                if (doc["ff"].is<const char*>()) {                                  // fuente 4: filtro de indicativos
+                    String f = doc["ff"].as<const char*>();
+                    f.trim(); f.toUpperCase();
+                    Config.rotor.followFilter = f.substring(0, 80);
+                    changed = true;
+                }
+                if (!doc["fm"].isNull()) { Config.rotor.followMaxMin = constrain((int)(doc["fm"] | 30), 1, 720); changed = true; }
+                if (!doc["pr"].isNull()) { Config.rotor.predict = doc["pr"] | true; changed = true; }
+                if (!doc["pm"].isNull()) { Config.rotor.predictMaxS = constrain((int)(doc["pm"] | 300), 10, 1800); changed = true; }
+                if (!doc["src"].isNull()) {
+                    const int src = doc["src"] | 0;
+                    if (!RotorFollow::validSource(src)) { reply(cmd, id, "bad src"); return; }
+                    Config.rotor.source = src;
+                    changed = true;
+                }
                 if (changed) Config.writeFile();
                 reply(cmd, id);
                 sendTargets();

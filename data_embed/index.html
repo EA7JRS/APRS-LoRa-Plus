@@ -912,8 +912,27 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <label for="rotor.tilt">Tilt compensation</label>
                                 </div>
                                 <div class="form-floating mb-2">
-                                    <select class="form-select form-select-sm" name="rotor.source" id="rotor.source"><option value="0" selected>Satellite (SAT mode)</option><option value="1">APRS station set with GO TO (compass target)</option><option value="2">Fixed target (list below)</option></select>
+                                    <select class="form-select form-select-sm" name="rotor.source" id="rotor.source"><option value="0" selected>Satellite (SAT mode)</option><option value="1">APRS station set with GO TO (compass target)</option><option value="2">Fixed target (list below)</option><option value="4">Last APRS station heard with position (LoRa / FSK)</option><option value="5">Last CW beacon heard with locator (MORSE: Listen CW)</option></select>
                                     <label for="rotor.source">What the rotor follows</label>
+                                </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-8"><div class="form-floating">
+                                        <input type="text" class="form-control form-control-sm" name="rotor.followFilter" id="rotor.followFilter" maxlength="80" placeholder="EA7JRS, EA1*">
+                                        <label for="rotor.followFilter">Last heard: callsigns to follow (EA7JRS = any SSID, EA7JRS-9, EA7*; empty = all)</label>
+                                    </div></div>
+                                    <div class="col-4"><div class="form-floating">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.followMaxMin" id="rotor.followMaxMin" min="1" max="720" step="1" value="30">
+                                        <label for="rotor.followMaxMin">Max. age (min)</label>
+                                    </div></div>
+                                    <div class="col-8"><div class="form-check form-switch mt-2">
+                                        <input type="checkbox" name="rotor.predict" id="rotor.predict" class="form-check-input" checked />
+                                        <label for="rotor.predict" class="form-label">Moving APRS stations: aim where they are now (speed and course of their last position)</label>
+                                    </div></div>
+                                    <div class="col-4"><div class="form-floating">
+                                        <input type="number" class="form-control form-control-sm" name="rotor.predictMaxS" id="rotor.predictMaxS" min="10" max="1800" step="10" value="300">
+                                        <label for="rotor.predictMaxS">Predict up to (s)</label>
+                                    </div></div>
+                                    <div class="form-text">Azimuth and elevation are computed from the tracker's own GPS position (Satellites 70 cm &gt; Station position). CW beacon: the rotor points to the centre of the locator square sent by the beacon (e.g. <code>VVV DE ED7YAA IM76HR</code>).</div>
                                 </div>
                                 <div class="small text-muted mb-1">Fixed targets (up to 8): a repeater, a beacon, a station... The Android app can fill this list by Bluetooth (<code>tgt</code> command), for example from a repeater directory you have access to. Latitude / longitude in decimal degrees (east +), altitude above sea level in metres. A slot with no name is empty.</div>
                                 <div class="mb-2"><select class="form-select form-select-sm w-auto d-inline-block" name="rotor.targetIndex" id="rotor.targetIndex"></select> <span class="small text-muted">selected target</span></div>
