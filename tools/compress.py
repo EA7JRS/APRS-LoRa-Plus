@@ -17,6 +17,7 @@
 
 import gzip
 import os
+import re
 import datetime
 Import("env")
 
@@ -49,6 +50,8 @@ for src in files:
     content = f.read()
     
   if src == 'data_embed/index.html':
+    # quita la sangria de cada linea (no hay <pre> ni <textarea>): menos bytes en la particion
+    content = re.sub(rb'\n[ \t]+', b'\n', content)
     env_vars = env["BOARD"] + "<br>" + ','.join(env["BUILD_FLAGS"]).replace('-Werror -Wall,', '').replace(',-DELEGANTOTA_USE_ASYNC_WEBSERVER=1', '') + "<br>" + "Version date: " + versionDate
     current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') + " UTC"
     build_info = f'{env_vars}<br>Build date: {current_date}'.encode()

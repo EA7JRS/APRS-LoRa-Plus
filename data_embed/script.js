@@ -1011,7 +1011,7 @@ function showToast(message) {
 
     el.querySelector('.toast-body').innerHTML = message;
 
-    (new bootstrap.Toast(el)).show();
+    (el._t || new bootstrap.Toast(el)).show();
 }
 
 function clampOutOfRangeInputs() {
