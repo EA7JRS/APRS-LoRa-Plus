@@ -1459,6 +1459,7 @@ namespace BLE_Control {
         j.flt("dbm", dbm, 0);
         j.flt("snr", snr, 0);
         j.num("wpm", wpm);
+        if (on && !c) j.num("f", LoRa_Utils::liveFreqHz());          // frecuencia de escucha (Hz): la app la usa en los spots CW
         j.send(sendLine);
     }
 
