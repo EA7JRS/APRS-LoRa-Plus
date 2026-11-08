@@ -329,17 +329,21 @@ jobs:
                   merge-multiple: true
                   path: site
 
-            # Rotor y Gateway en el mismo instalador (lanzadores rotor/ y gateway/): su release con la MISMA version adjunta
+            # Rotor, Gateway y Display en el mismo instalador (lanzadores rotor/, gateway/ y display/): su release con la MISMA version adjunta
             # web-site-<dispositivo>.zip. Son repositorios privados: hace falta el secreto FLASHER_TOKEN (token de acceso de grano
-            # fino con permiso de lectura de "Contents" en esos dos repositorios). Sin el secreto o sin esa release, el instalador
+            # fino con permiso de lectura de "Contents" en esos tres repositorios). Sin el secreto o sin esa release, el instalador
             # muestra "aun no hay version publicada" en ese dispositivo y el del tracker se publica igual.
-            - name: Rotor y Gateway (misma version)
+            - name: Rotor, Gateway y Display (misma version)
               env:
                   GH_TOKEN: ${{ secrets.FLASHER_TOKEN }}
                   TAG: ${{ github.event.release.tag_name || inputs.tag }}
               run: |
-                  for dev in rotor gateway; do
-                      if [ "$dev" = rotor ]; then repo=EA7JRS/APRS-LoRa-Plus-Rotor; else repo=EA7JRS/APRS-LoRa-Plus-I-Gateway; fi
+                  for dev in rotor gateway display; do
+                      case "$dev" in
+                          rotor) repo=EA7JRS/APRS-LoRa-Plus-Rotor ;;
+                          gateway) repo=EA7JRS/APRS-LoRa-Plus-I-Gateway ;;
+                          display) repo=EA7JRS/APRS-LoRa-Plus-Display ;;
+                      esac
                       if [ -z "$GH_TOKEN" ]; then echo "::warning::Sin el secreto FLASHER_TOKEN: el instalador no incluye $dev"; continue; fi
                       rm -rf "/tmp/$dev"
                       if gh release download "$TAG" --repo "$repo" --pattern "web-site-$dev.zip" --dir "/tmp/$dev"; then
