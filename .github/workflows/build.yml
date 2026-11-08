@@ -323,6 +323,13 @@ jobs:
               with:
                   ref: ${{ inputs.tag }}
 
+            # La pagina del instalador y su script no dependen de la version del firmware: se toman siempre de main, para que
+            # una etiqueta antigua que se vuelve a desplegar no publique una pagina sin los dispositivos nuevos.
+            - name: Pagina del instalador desde main
+              run: |
+                  git fetch --depth=1 origin main
+                  git checkout FETCH_HEAD -- web/index.html tools/make_web_assets.py
+
             - uses: actions/download-artifact@v8
               with:
                   pattern: web-*
