@@ -627,7 +627,7 @@ namespace {
                 static char buffer[24];
                 float value = BARO_Utils::getQnh();
                 if (value <= 0.0f) snprintf(buffer, sizeof(buffer), "Auto (GPS) ---");
-                else snprintf(buffer, sizeof(buffer), BARO_Utils::isManualQnh() ? "Manual %.1f" : "Auto %.1f", value);
+                else snprintf(buffer, sizeof(buffer), BARO_Utils::isManualQnh() ? "Manual %.1f" : BARO_Utils::isNetQnh() ? "Net %.1f" : "Auto %.1f", value);
                 return buffer;
             }
             #endif
@@ -1746,6 +1746,7 @@ namespace {
                 float qnhValue = BARO_Utils::getQnh();
                 if (qnhValue <= 0.0f) snprintf(line, sizeof(line), "QNH ---");
                 else if (BARO_Utils::isManualQnh()) snprintf(line, sizeof(line), "QNH %.1f*", qnhValue);
+                else if (BARO_Utils::isNetQnh()) snprintf(line, sizeof(line), "QNH %.0fN", qnhValue);   // N = de internet (la app)
                 else snprintf(line, sizeof(line), "QNH %.0f", qnhValue);
                 text(58, 20, line);
             #endif

@@ -46,6 +46,15 @@ namespace {
     bool        haveFeed        = false;
     bool        haveFallback    = false;
     float       fallbackAlt     = 0.0f;
+    // QNH de internet (la app: OpenWeatherMap / IQAir, orden BLE "wxnet"): solo cuando no hay QNH manual ni aprendido del GPS
+    // reciente; nunca se usa como presion de la estacion (balizas de meteorologia)
+    constexpr uint32_t  NET_QNH_MAX_AGE_MS  = 7200000UL;
+    bool        haveNet         = false;
+    bool        usingNet        = false;
+    float       netQnh          = 0.0f;
+    uint32_t    netQnhTime      = 0;
+
+    bool netFresh(uint32_t nowMs) { return haveNet && nowMs - netQnhTime <= NET_QNH_MAX_AGE_MS; }
 
     float saturationPressure(float tempC) {
         return 6.112f * expf(17.62f * tempC / (243.12f + tempC));
@@ -82,6 +91,7 @@ namespace BARO_Utils {
         if (gpsGood && !manualQnh) {
             float sample = seaLevelPressure(stationHpa, gpsAltitudeM, tempC);
             if (sample > MIN_QNH && sample < MAX_QNH) {
+                usingNet = false;                               // el GPS manda (corrige ademas el desfase del sensor)
                 if (!haveQnh) {
                     qnh = sample;
                 } else {
@@ -93,7 +103,14 @@ namespace BARO_Utils {
                 qnhTime = nowMs;
             }
         }
-        if (haveQnh && (manualQnh || (nowMs - qnhTime) <= QNH_MAX_AGE_MS)) {
+        const bool gpsQnhFresh = haveQnh && !usingNet && !manualQnh && (nowMs - qnhTime) <= QNH_MAX_AGE_MS;
+        if (!manualQnh && !gpsQnhFresh && netFresh(nowMs)) {
+            if (!usingNet) haveAlt = false;
+            qnh = netQnh; haveQnh = true; usingNet = true;
+        } else if (usingNet && !netFresh(nowMs)) {
+            usingNet = false; haveQnh = false;
+        }
+        if (haveQnh && (manualQnh || usingNet || (nowMs - qnhTime) <= QNH_MAX_AGE_MS)) {
             float instant = altitudeFromPressure(stationHpa, qnh, tempC);
             if (!haveAlt) {
                 altSmooth = instant;
@@ -112,7 +129,7 @@ namespace BARO_Utils {
     }
 
     float reducedPressure(float stationHpa, float tempC) {
-        if (haveQnh && haveFeed && (manualQnh || (lastFeed - qnhTime) <= QNH_MAX_AGE_MS)) return qnh;
+        if (haveQnh && haveFeed && !usingNet && (manualQnh || (lastFeed - qnhTime) <= QNH_MAX_AGE_MS)) return qnh;
         if (haveFallback) return seaLevelPressure(stationHpa, fallbackAlt, tempC);
         return stationHpa;
     }
@@ -132,17 +149,29 @@ namespace BARO_Utils {
         qnh = hpa;
         manualQnh = true;
         haveQnh = true;
+        usingNet = false;
         haveAlt = false;                                        // la altitud se recalcula con el QNH nuevo en la proxima muestra
     }
 
     void clearManualQnh() {
         manualQnh = false;
-        haveQnh = false;                                        // se vuelve a aprender del GPS
+        haveQnh = false;
+        usingNet = false;                                        // se vuelve a aprender del GPS
         haveAlt = false;
     }
 
     bool isManualQnh() {
         return manualQnh;
+    }
+
+    void setNetQnh(float hpa, uint32_t nowMs) {
+        if (isnan(hpa) || hpa <= MIN_QNH || hpa >= MAX_QNH) return;
+        netQnh = hpa; netQnhTime = nowMs; haveNet = true;
+        if (usingNet) qnh = hpa;
+    }
+
+    bool isNetQnh() {
+        return usingNet && !manualQnh;
     }
 
     float getQnh() {
@@ -151,7 +180,7 @@ namespace BARO_Utils {
 
     void reset() {
         manualQnh = false;
-        haveQnh = haveAlt = haveFeed = haveFallback = false;
+        haveQnh = haveAlt = haveFeed = haveFallback = haveNet = usingNet = false;
         qnh = 1013.25f;
         altSmooth = 0.0f;
     }

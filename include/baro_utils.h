@@ -38,6 +38,10 @@ namespace BARO_Utils {
     void    setManualQnh(float hpa);                            // se limita a 900..1090 hPa
     void    clearManualQnh();                                   // vuelve a aprender el QNH del GPS
     bool    isManualQnh();
+    // QNH de internet (presion al nivel del mar de OpenWeatherMap / IQAir que manda la app): se usa si no hay QNH manual ni uno
+    // aprendido del GPS en los ultimos 20 min; caduca a las 2 h
+    void    setNetQnh(float hpa, uint32_t nowMs);
+    bool    isNetQnh();
     float   getQnh();                                           // QNH en uso; 0 si aun no se conoce
     void    reset();
 

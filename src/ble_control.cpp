@@ -375,7 +375,31 @@ namespace {
             if (hasPressure)    j.flt("press", pressure);
         }
         const float qnh = BARO_Utils::getQnh();
-        if (qnh > 0.0f) j.flt("qnh", qnh);
+        if (qnh > 0.0f) { j.flt("qnh", qnh); j.text("qs", BARO_Utils::isManualQnh() ? "man" : BARO_Utils::isNetQnh() ? "net" : "gps"); }
+        {   // tiempo de internet que mando la app (lo ven tambien la pantalla APRS LoRa+ Display y otras apps conectadas)
+            NET_WX::Data nd;
+            if (NET_WX::get(nd)) {
+                j.objKey("net");
+                j.text("src", nd.src);
+                if (nd.place[0]) j.text("pl", nd.place);
+                if (nd.desc[0]) j.text("ds", nd.desc);
+                if (nd.hasT) j.flt("t", nd.tempC, 1);
+                if (nd.hasH) j.flt("h", nd.humidity, 0);
+                if (nd.hasP) j.flt("p", nd.pressureHpa, 1);
+                if (nd.hasWind) j.flt("ws", nd.windMs, 1);
+                if (nd.hasGust) j.flt("wg", nd.gustMs, 1);
+                if (nd.windDeg >= 0) j.num("wd", nd.windDeg);
+                if (nd.hasRain) j.flt("r", nd.rainMmH, 1);
+                if (nd.hasClouds) j.num("cl", nd.clouds);
+                if (nd.hasPm25) j.flt("pm25", nd.pm25, 1);
+                if (nd.hasPm10) j.flt("pm10", nd.pm10, 1);
+                if (nd.aqiOwm > 0) j.num("aq", nd.aqiOwm);
+                if (nd.aqiUs >= 0) j.num("aqus", nd.aqiUs);
+                if (nd.pollutant[0]) j.text("mp", nd.pollutant);
+                j.unum("age", NET_WX::ageS());
+                j.endObj();
+            }
+        }
         if (BARO_Utils::altitudeValid()) j.flt("baroAlt", BARO_Utils::getAltitude(), 1);
         if (MAG_Utils::isHeadingValid()) j.flt("heading", MAG_Utils::heading(), 1);
         if (IMU_Utils::isReady()) {
@@ -1389,6 +1413,7 @@ namespace {
             d.aqiUs = doc["aqus"].isNull() ? -1 : (int16_t)constrain((int)(doc["aqus"] | 0), 0, 999);
             d.ageAtRxS = (uint32_t)constrain((long)(doc["age"] | 0L), 0L, 86400L);
             NET_WX::set(d);
+            if (d.hasP && d.ageAtRxS < 7200) BARO_Utils::setNetQnh(d.pressureHpa, millis() - d.ageAtRxS * 1000UL);   // QNH del altimetro sin GPS
             reply(cmd, id);
         }
         else if (strcmp(cmd, "satfav") == 0) {                    // favorito: id = NORAD (si falta, el elegido), on = true / false
