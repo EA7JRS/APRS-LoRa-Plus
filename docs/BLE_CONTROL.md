@@ -45,8 +45,9 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 | `status` | | evento `status` |
 | `sensors` | | evento `sensors` |
 | `gnss` | | evento `gnss` |
+| `sky` | | evento `sky` (satélites a la vista, DOP y error) |
 | `dapnet` | | evento `dapnet` (historial) |
-| `sub` | `sensors` (s), `gnss` (s) | envío periódico de `sensors` (mínimo 2 s) y `gnss` (mínimo 1 s); 0 = parar. Se anula al desconectar |
+| `sub` | `sensors` (s), `gnss` (s), `sky` (s) | envío periódico de `sensors` (mínimo 2 s), `gnss` (mínimo 1 s) y `sky` (mínimo 2 s); 0 = parar. Se anula al desconectar |
 | `mode` | `m` | guarda el modo y **reinicia** el tracker (ver Modos) |
 | `profile` | `i` | perfil de baliza (indicativo) número `i` |
 | `lora` | `i` | perfil LoRa número `i` (no con el perfil náutico AIS) |
@@ -99,6 +100,14 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 `gnss`:
 ```json
 {"e":"gnss","fix":true,"lat":37.191512,"lon":-3.936701,"alt":512.0,"spd":0.0,"crs":0.0,"sats":11,"hdop":0.8,"age":420,"utc":"2026-11-05T07:45:00Z"}
+```
+
+`sky` (de las frases GSV / GSA / GST del receptor, `src/gnss_sky.cpp`): cada satélite visto en los últimos 12 s como
+`[sistema, número, elevación °, azimut °, SNR dB-Hz, usado]`; sistema `G` GPS, `R` GLONASS, `E` Galileo, `C` BeiDou, `J` QZSS,
+`S` SBAS, `N` otro; −1 = desconocido o sin señal. `pd` / `hd` / `vd` = PDOP / HDOP / VDOP de GSA, `err` = error horizontal en
+metros de GST (solo si el receptor envía GST), `used` = satélites en el fix (GGA). Lo que no se sabe no aparece.
+```json
+{"e":"sky","pd":2.0,"hd":1.0,"vd":1.6,"used":8,"s":[["G",5,45,310,38,1],["E",16,55,330,42,1],["C",13,25,230,28,0],["R",73,15,100,25,0]]}
 ```
 
 `dapnet` (más reciente primero) y `page` (uno nuevo, en el momento, solo en modo DAPNET):
