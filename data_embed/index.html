@@ -7,7 +7,7 @@
         <title>APRS LoRa+ Tracker</title>
         <link rel="stylesheet" href="/bootstrap.css" />
         <link rel="stylesheet" href="/style.css?v=%BUILD_ID%" />
-        <link rel="icon" href="/favicon.png" type="image/x-icon">
+        <link rel="icon" href="/favicon.png" type="image/png">
     <script>(function(){try{var t=localStorage.getItem("trackerTheme");if(!t)t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";var r=document.documentElement;if(t==="night"){r.setAttribute("data-bs-theme","dark");r.setAttribute("data-variant","night");}else{r.setAttribute("data-bs-theme",t);}}catch(e){}})();</script>
 <style>
 :root,[data-bs-theme="dark"]{--msh-bg:#121417;--msh-panel:#1c2025;--msh-panel-2:#22272e;--msh-border:#2c333b;--msh-accent:#e23b3b;--msh-accent-soft:rgba(226,59,59,.14);--msh-text-dim:#8b949e;--msh-text:#e6edf3;}
@@ -21,6 +21,7 @@
 [data-variant="night"] .btn-save:hover{background:#1a0000;color:#ff8a8a;}
 body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
 .app-topbar{background:#b21d1d;border-bottom:1px solid rgba(0,0,0,.25);height:56px;z-index:1030;}
+.app-topbar .logo{height:40px;width:40px;margin-right:.6rem;flex-shrink:0;border-radius:8px;}
 .app-topbar .brand{font-weight:600;color:#fff;font-size:1.1rem;display:flex;flex-direction:column;line-height:1.1;padding:.25rem 0;}
 .app-topbar .brand .brand-sub{font-weight:400;font-size:.68rem;opacity:.85;letter-spacing:.02em;}
 .btn-icon{background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;display:inline-flex;align-items:center;}
@@ -63,6 +64,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
         <input type="file" accept="text/json,.json" style="display: none" />
         <form autocomplete="off" action="/configuration.json" method="POST">
 <div class="app-topbar d-flex align-items-center px-3 sticky-top">
+  <img class="logo" src="/favicon.png" alt="" width="40" height="40">
   <span class="brand"><span class="brand-name">APRS LoRa+</span><small class="brand-sub" id="brandSub">Tracker <span class="ver">5.3.5</span></small></span>
   <div class="ms-auto d-flex align-items-center gap-2">
     <button class="btn btn-sm btn-icon" type="button" id="themeToggle" title="Toggle light/dark"></button>

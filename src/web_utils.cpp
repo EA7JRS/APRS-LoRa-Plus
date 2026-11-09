@@ -115,7 +115,7 @@ namespace WEB_Utils {
     }
 
     void handleFavicon(AsyncWebServerRequest *request) {
-        AsyncWebServerResponse *response = request->beginResponse(200, "image/x-icon", (const uint8_t*)favicon_data, favicon_data_len);
+        AsyncWebServerResponse *response = request->beginResponse(200, "image/png", (const uint8_t*)favicon_data, favicon_data_len);
         response->addHeader("Content-Encoding", "gzip");
         request->send(response);
     }
