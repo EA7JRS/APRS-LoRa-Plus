@@ -34,6 +34,9 @@
 #include "display.h"
 #include "ais_vessel.h"
 #include "logger.h"
+#ifdef HAS_SA868
+    #include "fm_utils.h"
+#endif
 
 extern Configuration        Config;
 extern Beacon               *currentBeacon;
@@ -255,6 +258,15 @@ namespace STATION_Utils {
             }
             String comment = (winlinkCommentState ? "winlink" : currentBeacon->comment);
             int sendCommentAfterXBeacons = ((winlinkCommentState || Config.battery.sendVoltageAlways) ? 1 : Config.sendCommentAfterXBeacons);
+            #ifdef HAS_SA868
+            if (Config.operatingMode == MODE_FM && !winlinkCommentState) {     // QSY de Kenwood: "145.650MHz T088 -060" al principio del comentario
+                char qsy[32];
+                if (FM_Utils::qsySpec(qsy, sizeof(qsy)) > 0) {
+                    comment = String(qsy) + (comment.length() ? " " : "") + comment;
+                    sendCommentAfterXBeacons = 1;
+                }
+            }
+            #endif
 
             if (Config.battery.sendVoltage && !Config.battery.voltageAsTelemetry && batteryConnected) {
                 #if defined(HAS_AXP192) || defined(HAS_AXP2101)

@@ -28,6 +28,8 @@
 #include "lora_utils.h"
 #ifdef HAS_SA868
     #include "sa868_radio.h"
+    #include "fm_utils.h"
+    #include "fm_core.h"
 #endif
 #include "gps_utils.h"
 #include "imu_utils.h"
@@ -282,9 +284,13 @@ namespace {
             sa["tx"]   = SA868::txFreqHz();
             sa["m17"]  = SA868::m17FreqHz();
             caps["m17"] = LoRa_Utils::m17Available();             // orden "m17sms" (en el modo M17)
+            caps["fm"]  = LoRa_Utils::fmAvailable();              // modo FM de voz: ordenes "fm*", "qsy", "carrier"
+            sa["dapnet"] = SA868::dapnetFreqHz();
+            sa["spkEsp"] = SA868::fmSpeakerFromEsp();
         #else
             caps["radio"] = "lora";
             caps["m17"]   = false;
+            caps["fm"]    = false;
         #endif
         doc["mode"] = Config.operatingMode;
         JsonArray modes = doc["modes"].to<JsonArray>();
@@ -975,6 +981,92 @@ namespace {
         reply(cmd, id);
     }
 
+    // ---------------------------------------------------------------- FM (T-TWR)
+
+    #ifdef HAS_SA868
+    static uint32_t carrierUntil = 0;
+
+    static void fmChannelJson(JsonObject o, const FmCore::Channel& c) {
+        o["f"] = c.rxHz; o["tx"] = FmCore::txHz(c); o["sh"] = c.shift; o["ofs"] = c.offsetHz; o["tm"] = c.toneMode; o["t"] = c.tone;
+        o["d"] = c.dcs; o["inv"] = c.dcsInv; o["w"] = c.wide; o["hp"] = c.high;
+        if (c.name[0]) o["n"] = c.name;
+    }
+
+    void sendFm() {
+        if (Config.operatingMode != MODE_FM) return;
+        JsonDocument doc;
+        doc["e"] = "fm";
+        fmChannelJson(doc.as<JsonObject>(), FM_Utils::channel());
+        doc["m"]    = FM_Utils::memMode();
+        doc["i"]    = FM_Utils::memIndex();
+        doc["step"] = FM_Utils::stepHz();
+        doc["sq"]   = FM_Utils::squelch();
+        doc["sqm"]  = Config.sa868.squelch;
+        doc["sqa"]  = Config.fm.squelchAuto;
+        doc["nr"]   = Config.fm.nrLevel;
+        doc["edit"] = FM_Utils::edit();
+        doc["busy"] = FM_Utils::busy();
+        doc["ptt"]  = FM_Utils::ptt();
+        doc["txs"]  = FM_Utils::txSeconds();
+        doc["rssi"] = FM_Utils::rssi();
+        doc["scan"] = FM_Utils::scanning() ? (FM_Utils::scanPaused() ? 2 : 1) : 0;
+        doc["arts"] = FM_Utils::artsOn() ? FM_Utils::artsState() + 1 : 0;      // 0 apagado, 1 buscando, 2 en alcance, 3 fuera
+        doc["eai"]  = FM_Utils::eaiOn() ? FM_Utils::eaiRemainingS() : 0;
+        doc["aprs"] = Config.fm.aprsBeacon;
+        doc["qsyb"] = Config.fm.qsyInBeacon;
+        doc["tok"]  = SA868::fmLastToneOk();
+        doc["spk"]  = SA868::fmSpeakerFromEsp();
+        const char* n = FM_Utils::notice();
+        if (n[0]) doc["note"] = n;
+        sendDoc(doc);
+    }
+
+    void sendFmMems() {
+        JsonDocument doc;
+        doc["e"] = "fmmems";
+        doc["max"] = FmConfig::MEMORIES;
+        JsonArray a = doc["mem"].to<JsonArray>();
+        for (int i = 0; i < FmConfig::MEMORIES; i++) {
+            if (!FM_Utils::memUsed(i)) continue;
+            const FmMemory& m = Config.fm.mem[i];
+            JsonObject o = a.add<JsonObject>();
+            o["i"] = i; o["n"] = m.name; o["f"] = m.rxHz; o["sh"] = m.shift; o["ofs"] = m.offsetHz; o["tm"] = m.toneMode; o["t"] = m.tone;
+            o["d"] = m.dcs; o["inv"] = m.dcsInv; o["w"] = m.wide; o["hp"] = m.high;
+        }
+        sendDoc(doc);
+    }
+
+    // el estado cambia (frecuencia, ocupado, PTT, escaneo...): evento como mucho 4 veces por segundo; si no, cada 5 s
+    void checkFm() {
+        if (carrierUntil && (int32_t)(millis() - carrierUntil) >= 0) { carrierUntil = 0; SA868::carrier(false); reply("carrier", -1, "stopped after 30 s"); }
+        if (!connected || !authed || Config.operatingMode != MODE_FM) return;
+        static uint32_t lastMs = 0, lastSig = 0;
+        const FmCore::Channel& c = FM_Utils::channel();
+        const uint32_t sig = (uint32_t)c.rxHz ^ ((uint32_t)c.toneMode << 28) ^ ((uint32_t)c.tone << 12) ^ (FM_Utils::busy() ? 1u : 0) ^ (FM_Utils::ptt() ? 2u : 0) ^
+                             ((uint32_t)FM_Utils::scanning() << 2) ^ ((uint32_t)FM_Utils::artsState() << 3) ^ ((uint32_t)FM_Utils::memIndex() << 5) ^
+                             ((uint32_t)c.shift << 26) ^ ((uint32_t)FM_Utils::squelch() << 20) ^ (c.high ? 0x40000000u : 0) ^ (c.wide ? 0x80000000u : 0) ^
+                             ((uint32_t)FM_Utils::eaiOn() << 4) ^ (uint32_t)(FM_Utils::notice()[0]);
+        const uint32_t now = millis();
+        if ((sig != lastSig && now - lastMs >= 250) || now - lastMs >= 5000) { lastSig = sig; lastMs = now; sendFm(); }
+    }
+
+    // canal del VFO a partir de la orden (los campos que falten se quedan como estan)
+    static FmCore::Channel channelFrom(JsonDocument& doc) {
+        FmCore::Channel c = FM_Utils::channel();
+        c.name[0] = 0;
+        if (!doc["f"].isNull())   c.rxHz = doc["f"] | c.rxHz;
+        if (!doc["sh"].isNull())  c.shift = (int8_t)constrain((int)(doc["sh"] | 0), -1, 1);
+        if (!doc["ofs"].isNull()) c.offsetHz = constrain((long)(doc["ofs"] | 0L), 0L, 99900000L);
+        if (!doc["tm"].isNull())  c.toneMode = (uint8_t)constrain((int)(doc["tm"] | 0), 0, FmCore::TONE_MODES - 1);
+        if (!doc["t"].isNull())   { const uint16_t t = doc["t"] | 885; if (FmCore::ctcssIndex(t) >= 0) c.tone = t; }
+        if (!doc["d"].isNull())   { const uint16_t d = doc["d"] | 23; if (FmCore::validDcs(d)) c.dcs = d; }
+        if (!doc["inv"].isNull()) c.dcsInv = doc["inv"] | false;
+        if (!doc["w"].isNull())   c.wide = doc["w"] | false;
+        if (!doc["hp"].isNull())  c.high = doc["hp"] | false;
+        return c;
+    }
+    #endif
+
     void handle(const char* text) {
         JsonDocument doc;
         if (deserializeJson(doc, text) != DeserializationError::Ok) { reply("?", -1, "bad JSON"); return; }
@@ -1251,6 +1343,125 @@ namespace {
                 reply(cmd, id, "not available");
             #endif
         }
+        else if (strcmp(cmd, "fm") == 0) {                        // estado del modo FM (evento "fm")
+            #ifdef HAS_SA868
+                if (Config.operatingMode != MODE_FM) { reply(cmd, id, "not in FM mode"); return; }
+                sendFm();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "fmset") == 0) {                     // canal del VFO (f, sh, ofs, tm, t, d, inv, w, hp) y opciones (sq, sqa, step, nr, aprs, qsyb, edit)
+            #ifdef HAS_SA868
+                if (Config.operatingMode != MODE_FM) { reply(cmd, id, "not in FM mode"); return; }
+                const bool chan = !doc["f"].isNull() || !doc["sh"].isNull() || !doc["ofs"].isNull() || !doc["tm"].isNull() || !doc["t"].isNull() ||
+                                  !doc["d"].isNull() || !doc["inv"].isNull() || !doc["w"].isNull() || !doc["hp"].isNull();
+                if (chan && !FM_Utils::setChannel(channelFrom(doc))) { reply(cmd, id, "out of band or ARTS on"); return; }
+                if (!doc["sq"].isNull()) { Config.sa868.squelch = constrain((int)(doc["sq"] | 1), 0, 8); Config.fm.squelchAuto = false; }
+                if (!doc["sqa"].isNull()) Config.fm.squelchAuto = doc["sqa"] | true;
+                if (!doc["step"].isNull()) Config.fm.stepIndex = constrain((int)(doc["step"] | 3), 0, FmCore::STEP_COUNT - 1);
+                if (!doc["nr"].isNull()) Config.fm.nrLevel = constrain((int)(doc["nr"] | 0), 0, 3);
+                if (!doc["aprs"].isNull()) Config.fm.aprsBeacon = doc["aprs"] | true;
+                if (!doc["qsyb"].isNull()) Config.fm.qsyInBeacon = doc["qsyb"] | true;
+                if (!doc["edit"].isNull()) FM_Utils::setEdit((uint8_t)(doc["edit"] | 0));
+                if (!doc["sq"].isNull() || !doc["sqa"].isNull() || !doc["step"].isNull() || !doc["nr"].isNull() || !doc["aprs"].isNull() || !doc["qsyb"].isNull()) {
+                    Config.writeFile();
+                    SA868::fmApply(FM_Utils::channel(), Config.sa868.squelch);
+                }
+                reply(cmd, id);
+                sendFm();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "fmdial") == 0) {                    // como girar el encoder: d = pasos (+ / -) de lo que se este editando
+            #ifdef HAS_SA868
+                if (Config.operatingMode != MODE_FM) { reply(cmd, id, "not in FM mode"); return; }
+                FM_Utils::dial(constrain((int)(doc["d"] | 0), -50, 50));
+                reply(cmd, id);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "fmmem") == 0) {                     // memorias: op = list | recall (i) | store (i, n) | del (i) | vfo
+            #ifdef HAS_SA868
+                const char* op = doc["op"] | "list";
+                const int i = doc["i"] | -1;
+                if (strcmp(op, "list") == 0) { sendFmMems(); return; }
+                if (Config.operatingMode != MODE_FM) { reply(cmd, id, "not in FM mode"); return; }
+                bool good = true;
+                if (strcmp(op, "recall") == 0) good = FM_Utils::recall(i);
+                else if (strcmp(op, "store") == 0) good = FM_Utils::store(i, doc["n"] | "");
+                else if (strcmp(op, "del") == 0) good = FM_Utils::erase(i);
+                else if (strcmp(op, "vfo") == 0) { if (FM_Utils::memMode()) FM_Utils::toggleVfoMem(); }
+                else { reply(cmd, id, "bad op"); return; }
+                if (!good) { reply(cmd, id, "bad memory"); return; }
+                reply(cmd, id);
+                if (strcmp(op, "store") == 0 || strcmp(op, "del") == 0) sendFmMems();
+                sendFm();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "fmscan") == 0 || strcmp(cmd, "fmarts") == 0 || strcmp(cmd, "fmeai") == 0) {     // s = start | stop
+            #ifdef HAS_SA868
+                if (Config.operatingMode != MODE_FM) { reply(cmd, id, "not in FM mode"); return; }
+                const bool start = strcmp(doc["s"] | "start", "stop") != 0;
+                if (strcmp(cmd, "fmscan") == 0) {
+                    if (!doc["mem"].isNull()) Config.fm.scanMemories = doc["mem"] | true;
+                    if (!doc["res"].isNull()) Config.fm.scanResume = constrain((int)(doc["res"] | 0), 0, 2);
+                    if (start) FM_Utils::scanStart(); else FM_Utils::scanStop();
+                } else if (strcmp(cmd, "fmarts") == 0) {
+                    if (start != FM_Utils::artsOn()) FM_Utils::artsToggle();
+                } else {
+                    if (start) FM_Utils::eaiStart(); else FM_Utils::eaiStop();
+                }
+                reply(cmd, id);
+                sendFm();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "qsy") == 0) {                       // QSY: c = comentario APRS ("146.940MHz T100 -060") o f, ofs (con signo), tm, t, d, w
+            #ifdef HAS_SA868
+                FmCore::Qsy q;
+                memset(&q, 0, sizeof(q));
+                const char* c = doc["c"] | "";
+                if (c[0]) { if (!FmCore::parseQsy(doc["name"].as<const char*>(), c, q)) { reply(cmd, id, "no frequency in the text"); return; } }
+                else {
+                    q.hz = doc["f"] | 0L;
+                    if (!doc["ofs"].isNull()) { q.hasOffset = true; q.offsetHz = doc["ofs"] | 0L; }
+                    q.toneMode = (uint8_t)constrain((int)(doc["tm"] | 0), 0, FmCore::TONE_MODES - 1);
+                    q.tone = doc["t"] | 885; q.dcs = doc["d"] | 23; q.narrow = !(doc["w"] | true);
+                }
+                FmCore::Channel ch;
+                FmCore::qsyToChannel(q, Config.sa868.iaruRegion, ch);
+                if (!SA868::validFreq(ch.rxHz) || !SA868::validFreq(FmCore::txHz(ch))) { reply(cmd, id, "not in the band of this radio"); return; }
+                if (Config.operatingMode == MODE_FM) { if (!FM_Utils::qsy(q)) { reply(cmd, id, "refused (ARTS on?)"); return; } reply(cmd, id); sendFm(); return; }
+                Config.fm.vfo.rxHz = (int)ch.rxHz; Config.fm.vfo.shift = ch.shift; Config.fm.vfo.offsetHz = (int)ch.offsetHz; Config.fm.vfo.toneMode = ch.toneMode;
+                Config.fm.vfo.tone = ch.tone; Config.fm.vfo.dcs = ch.dcs; Config.fm.vfo.wide = ch.wide; Config.fm.vfo.name = "";
+                Config.fm.memMode = false;
+                Config.writeFile();
+                bootModeValue = MODE_FM;                                    // arranca en FM en el canal anunciado (sin guardar el modo)
+                bootModeMagic = BOOT_MODE_MAGIC;
+                reply(cmd, id);
+                restartAtMs = millis() + 500;
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "carrier") == 0) {                   // portadora de calibracion (30 s como mucho): s = start | stop
+            #ifdef HAS_SA868
+                if (strcmp(doc["s"] | "start", "stop") == 0) { carrierUntil = 0; SA868::carrier(false); reply(cmd, id); return; }
+                if (!SA868::carrier(true)) { reply(cmd, id, "radio busy"); return; }
+                carrierUntil = millis() + 30000;
+                JsonDocument r;
+                r["e"] = "ok"; r["c"] = cmd; if (id >= 0) r["id"] = id; r["f"] = SA868::txFreqHz(); r["ppm"] = Config.radioPpm1000 / 1000.0;
+                sendDoc(r);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
         else if (strcmp(cmd, "heard") == 0) sendHeard(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 6), 1, 12));
         else if (strcmp(cmd, "cfgget") == 0) sendCfg((uint32_t)max(0, (int)(doc["o"] | 0)), id);
         else if (strcmp(cmd, "cfgset") == 0) {                    // sustituye /tracker_conf.json entero: s = begin (n = bytes, reboot) | c (d = texto) | end | abort
@@ -1473,6 +1684,9 @@ namespace BLE_Control {
         checkSatRx();
         checkSat();
         checkMsgs();
+        #ifdef HAS_SA868
+        checkFm();
+        #endif
         if (!connected) return;
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }
@@ -1516,10 +1730,15 @@ namespace BLE_Control {
         j.send(sendLine);
     }
 
+    void setBootMode(int mode) {                                        // modo para el siguiente arranque, sin guardarlo (QSY a FM...)
+        bootModeValue = mode;
+        bootModeMagic = BOOT_MODE_MAGIC;
+    }
+
     int takeBootMode() {
         if (bootModeMagic != BOOT_MODE_MAGIC) return -1;
         bootModeMagic = 0;
-        if (bootModeValue < MODE_APRS_LORA || bootModeValue > MODE_FST4W) return -1;
+        if (bootModeValue < MODE_APRS_LORA || bootModeValue > MODE_FM) return -1;
         return (int)bootModeValue;
     }
 

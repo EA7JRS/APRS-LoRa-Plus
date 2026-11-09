@@ -21,6 +21,8 @@
 #include "lora_utils.h"
 #include "sa868_radio.h"
 #include "display.h"
+#include "dapnet_utils.h"
+#include "fm_utils.h"
 
 extern logging::Logger  logger;
 extern Configuration    Config;
@@ -53,7 +55,8 @@ namespace LoRa_Utils {
 
     bool fskAvailable()             { return true; }        // APRS FSK 9600 (G3RUH) por el audio plano del SA868
     bool m17Available()             { return true; }        // M17 (4FSK 4800 simbolos/s) por el mismo audio plano
-    bool dapnetAvailable()          { return false; }
+    bool dapnetAvailable()          { return true; }        // POCSAG de banda base por el audio plano (144,8625 VHF / 439,9875 UHF)
+    bool fmAvailable()              { return true; }        // modo FM (voz)
     bool cwAvailable()              { return false; }
     void cwSelect(bool)             {}
     void cwKey(bool)                {}
@@ -81,9 +84,9 @@ namespace LoRa_Utils {
     void satTxEnd()                 {}
 
     long profileFreqHz()            { return Config.sa868.rxFreqHz; }
-    long liveFreqHz()               { return catRxHz > 0 ? catRxHz : SA868::rxFreqHz(); }       // la del modo (9600: perfil FSK; M17: sa868.m17FreqHz)
-    long ppmCorrectionHz(long)      { return 0; }           // el SA868 lleva su propio cristal: la correccion global no se aplica
-    double ppmCorrectionHzExact(long) { return 0.0; }
+    long liveFreqHz()               { return catRxHz > 0 ? catRxHz : SA868::rxFreqHz(); }       // la del modo (9600: perfil FSK; M17, DAPNET, FM: la suya)
+    long ppmCorrectionHz(long hz)   { return SA868::ppmCorrectionHz(hz); }     // el cristal del SA868: emision y recepcion
+    double ppmCorrectionHzExact(long hz) { return (double)hz * (double)Config.radioPpm1000 / 1e9; }
 
     void retune() {
         catRxHz = catTxHz = 0;
@@ -92,6 +95,7 @@ namespace LoRa_Utils {
 
     bool setLiveFreqHz(long hz) {
         if (!SA868::validFreq(hz)) return false;
+        if (SA868::modeFm()) return FM_Utils::setVfoHz(hz);     // CAT (Hamlib) en FM: sintoniza el VFO
         if (!SA868::setFrequencies(hz, hz)) return false;
         catRxHz = catTxHz = hz;
         return true;
@@ -113,10 +117,14 @@ namespace LoRa_Utils {
             return;
         }
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "%s ready", SA868::modemName());
+        if (SA868::modeFm()) FM_Utils::begin();
     }
 
     // Cada modo emite solo lo suyo: en esta placa, APRS AFSK 1200 (modo 0), APRS FSK 9600 G3RUH (modo 1) y M17 (modo 10)
-    bool aprsTxAllowed() { return isAprsMode(Config.operatingMode); }
+    bool aprsTxAllowed() {
+        if (Config.operatingMode == MODE_FM) return Config.fm.aprsBeacon;      // FM: solo si se piden balizas APRS durante la voz
+        return isAprsMode(Config.operatingMode);
+    }
 
     // Escuchar antes de transmitir: silenciador abierto o datos AFSK en el aire. Espera con reintentos aleatorios hasta el tope
     // de la WebUI (cadWaitSec) y emite igualmente al agotarlo, como en LoRa
@@ -153,7 +161,7 @@ namespace LoRa_Utils {
         if (Config.notification.ledTx) digitalWrite(Config.notification.ledTxPin, HIGH);
         if (Config.notification.buzzerActive && Config.notification.txBeep) NOTIFICATION_Utils::beaconTxBeep();
 
-        const bool sent = SA868::transmit(newPacket.c_str());
+        const bool sent = SA868::modeFm() ? FM_Utils::aprsTransmit(newPacket.c_str()) : SA868::transmit(newPacket.c_str());
         transmitFlag = true;
         if (sent) {
             #ifdef HAS_APRS_PAGES
@@ -178,6 +186,12 @@ namespace LoRa_Utils {
         ReceivedLoRaPacket rx;
         rx.rssi = 0; rx.snr = 0; rx.freqError = 0;
         if (Config.operatingMode == MODE_SAT) return rx;
+        if (Config.operatingMode == MODE_DAPNET) {         // POCSAG: los bytes del demodulador al decodificador de siempre
+            uint8_t block[128];
+            const size_t n = SA868::popDapnet(block, sizeof(block));
+            if (n) DAPNET_Utils::feed(block, n, SA868::rssi());
+            return rx;
+        }
         String tnc2;
         int rssi = 0;
         if (SA868::popFrame(tnc2, rssi)) {

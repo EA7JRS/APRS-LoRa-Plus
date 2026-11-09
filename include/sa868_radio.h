@@ -9,7 +9,8 @@
  *    registros del AT1846S). Se detecta solo.
  *  - Revision de la placa: la Rev2.1 alimenta el modulo desde la bateria y la Rev2.0 desde el DC3 de la PMU; si el modulo contesta
  *    sin DC3 es una Rev2.1. Se puede fijar en la configuracion (sa868.revision).
- *  - Modos: APRS AFSK 1200 (modo 0), APRS FSK 9600 G3RUH (modo 1) y M17 (modo 10). En 9600 y M17: audio plano (filtros de voz
+ *  - Modos: APRS AFSK 1200 (modo 0), APRS FSK 9600 G3RUH (modo 1), DAPNET (modo 5, recepcion POCSAG), M17 (modo 10) y FM (modo 11,
+ *    voz: src/fm_utils.cpp). En 9600 y M17: audio plano (filtros de voz
  *    puenteados), canal de 25 kHz y ADC a 48 kHz. M17: el APRS va en paquetes M17 de protocolo APRS; se oyen ademas los SMS y los
  *    indicativos y posiciones GNSS de las emisiones de voz (include/m17_modem.h).
  *  - Audio: emision por PDM (I2S0, modo DAC) en GPIO18 hacia la entrada de microfono del modulo (MIC_CH_SEL en alto); recepcion por
@@ -20,6 +21,7 @@
 #define SA868_RADIO_H_
 
 #include <Arduino.h>
+#include "fm_core.h"
 
 namespace SA868 {
 
@@ -48,9 +50,34 @@ namespace SA868 {
     bool     m17Sms(const char* dst, const char* text);    // SMS M17 (protocolo 0x05) a un indicativo o a "@ALL"; bloquea mientras emite
     uint32_t m17Lsfs();                     // M17: cabeceras (LSF) oidas
     uint32_t m17CrcErrors();
+
+    // DAPNET (POCSAG de banda base por el audio plano; 144,8625 MHz en VHF, 439,9875 MHz en UHF)
+    bool     modeDapnet();
+    long     dapnetFreqHz();
+    size_t   popDapnet(uint8_t* out, size_t max);   // bytes demodulados (bit de mayor peso primero) para DAPNET_Utils::feed
+
+    // FM (voz). Ver src/fm_utils.cpp
+    bool     modeFm();
+    bool     fmApply(const FmCore::Channel& c, int squelch);  // frecuencias, tonos, ancho, potencia y silenciador
+    const FmCore::Channel& fmChannel();
+    bool     fmToneSupported(const FmCore::Channel& c);     // DCS solo con NiceRF; CTCSS de NiceRF: los 38 de su tabla
+    bool     fmLastToneOk();
+    int      fmSquelchLevel();              // nivel en uso (el automatico lo cambia en la Rev2.0)
+    void     fmPoll();                      // cada 50 ms desde el bucle principal
+    bool     fmBusy();                      // silenciador abierto
+    int      fmRssi();                      // dBm (solo con OpenRTX; 0 si no)
+    bool     fmVoice(bool on);              // PTT de voz con el microfono de la placa
+    bool     fmVoiceActive();
+    bool     fmTransmitting();
+    bool     fmPlayTones(const uint16_t* hz, const uint16_t* ms, size_t n);   // tonos del ESP32 (0 Hz = portadora)
+    bool     fmCwId(const char* text, int wpm);
+    bool     fmAprsTransmit(const char* tnc2);  // APRS AFSK en la frecuencia APRS y vuelta al canal
+    bool     fmSpeakerFromEsp();            // Rev2.1: el altavoz lo alimenta el ESP32 (silenciador por software / reduccion de ruido)
     void     sleep();
     void     wake();
-    bool     validFreq(long hz);            // dentro de la banda del modulo (134..174 MHz VHF, 400..480 MHz UHF)
+    bool     validFreq(long hz);
+    long     ppmCorrectionHz(long hz);      // correccion global (Config.radioPpm1000) que se suma al programar el modulo
+    bool     carrier(bool on);              // portadora sin modular en la frecuencia de emision en uso (calibracion)            // dentro de la banda del modulo (134..174 MHz VHF, 400..480 MHz UHF)
 }
 
 #endif

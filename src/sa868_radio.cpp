@@ -25,6 +25,12 @@
 #include "afsk1200.h"
 #include "g3ruh_modem.h"
 #include "m17_modem.h"
+#include "pocsag_modem.h"
+#include "fm_core.h"
+#include "fm_dsp.h"
+#include "cw_morse.h"
+#include "driver/sdm.h"
+#include "driver/gptimer.h"
 #include "iaru_plan.h"
 #include "sa868_radio.h"
 #include "logger.h"
@@ -53,6 +59,11 @@ namespace SA868 {
     static constexpr long     M17_VHF_HZ = 144875000L;      // M17: sugeridas por la IARU R1 (boletin VHF+ de junio de 2023)
     static constexpr long     M17_UHF_HZ = 433475000L;
     static constexpr uint32_t M17_HEARD_MS = 30000;         // una misma estacion M17 (voz) se pasa a APRS como mucho cada 30 s
+    static constexpr long     DAPNET_VHF_HZ = 144862500L;   // DAPNET: 144,8625 MHz en VHF, 439,9875 MHz en UHF
+    static constexpr long     DAPNET_UHF_HZ = 439987500L;
+    #ifndef SA868_SPK_PIN
+        #define SA868_SPK_PIN 45                            // Rev2.1: ESP32 -> amplificador del altavoz (ESP32_PWM_TONE de LilyGO), con ALDO3
+    #endif
 
     struct RxItem { char text[AX25G3::MAX_FRAME + 120]; };
 
@@ -70,6 +81,30 @@ namespace SA868 {
     static bool                 flat        = false;        // 9600 o M17
     static long                 curRx       = 0, curTx = 0; // frecuencias en uso
     static float*               m17Syms     = nullptr;      // simbolos de la emision M17 (PSRAM)
+    // DAPNET: POCSAG de banda base; los bytes van a una cola y los lee el bucle principal (DAPNET_Utils no es de esta tarea)
+    static bool                 dap         = false;
+    static PocsagModem::BaseRx  pocRx;
+    static QueueHandle_t        dapQueue    = nullptr;
+    // FM (voz)
+    static bool                 fmMode      = false;
+    static bool                 fmLoaded    = false;        // ya hay canal (FM_Utils::begin)
+    static FmCore::Channel      fmCh;
+    static int                  fmSquelch   = 1;            // nivel en uso (el manual o el que elige el automatico)
+    static volatile bool        fmOpen      = false;        // silenciador abierto (canal ocupado)
+    static volatile bool        fmSoftOpen  = false;        // decision del silenciador por software (tarea de recepcion)
+    static volatile int         fmRssiDbm   = 0;
+    static volatile bool        fmCtcssOk   = true;         // OpenRTX con TSQL: tono detectado
+    static bool                 fmVoiceOn   = false;
+    static bool                 fmToneOk    = true;
+    static bool                 espAudio    = false;        // Rev2.1: el altavoz lo alimenta el ESP32 (reduccion de ruido / silenciador)
+    static FmDsp::NoiseDetector fmNoise;
+    static FmDsp::AutoSquelch   fmAuto;
+    static FmDsp::NoiseReducer* fmNr        = nullptr;
+    static sdm_channel_handle_t spkSdm      = nullptr;
+    static gptimer_handle_t     spkTimer    = nullptr;
+    static constexpr int        SPK_RING    = 2048;
+    static int8_t               spkRing[SPK_RING];
+    static volatile uint16_t    spkHead = 0, spkTail = 0;
     static adc_continuous_handle_t adc      = nullptr;
     static i2s_chan_handle_t    txChan      = nullptr;
     static QueueHandle_t        rxQueue     = nullptr;
@@ -174,8 +209,18 @@ namespace SA868 {
         reloadConfig();
     }
 
+    // Correccion global de frecuencia (WebUI > Frequency calibration, ppm): el mismo cristal da la emision y la recepcion del modulo
+    long ppmCorrectionHz(long hz) { return (long)llround((double)hz * (double)Config.radioPpm1000 / 1e9); }
+    static long corrected(long hz) { return hz + ppmCorrectionHz(hz); }
+    // "145.5000" para el AT+DMOSETGROUP (pasos de 100 Hz), ya corregida
+    static void niceRfFreq(long hz, char* out, size_t n) {
+        const long c = (corrected(hz) + 50) / 100;          // en centenas de Hz, redondeada
+        snprintf(out, n, "%03ld.%04ld", c / 10000L, c % 10000L);
+    }
+
     static void at1846Freq(long hz) {
-        const uint32_t v = (uint32_t)(((uint64_t)hz * 16) / 1000);
+        hz = corrected(hz);
+        const uint32_t v = (uint32_t)(((uint64_t)hz * 16 + 500) / 1000);   // pasos de 62,5 Hz
         poke(0x29, (uint16_t)(v >> 16));
         poke(0x2A, (uint16_t)(v & 0xFFFF));
         reloadConfig();
@@ -203,21 +248,24 @@ namespace SA868 {
     }
 
     static void applySpeaker() {
-        if (rev == 21) {                                    // ALDO3: 0 = el amplificador lo gobierna la radio, 1 = el ESP32 (silencio)
+        if (rev == 21) {                                    // ALDO3: 0 = el amplificador lo alimenta la radio, 1 = el ESP32 (GPIO45)
             PMU.setALDO3Voltage(3300);
-            if (Config.sa868.speaker) PMU.disableALDO3(); else PMU.enableALDO3();
+            if (Config.sa868.speaker && !espAudio) PMU.disableALDO3(); else PMU.enableALDO3();     // sin altavoz: el ESP32 calla
         }
         if (fw == Firmware::OPENRTX) commandOk(Config.sa868.speaker ? "AT+AUDIO=1" : "AT+AUDIO=0", "OK");
     }
 
-    static void applyPower() {
+    // H/L del modulo (IO38): alto = potencia alta. La Rev2.0 lo lleva seguro; en la Rev2.1 OpenRTX usa el mismo pin (sin verificar)
+    static void applyPowerLevel(bool high) {
         #ifdef SA868_HL_PIN
-        if (rev == 20) {                                    // H/L del modulo: alto = potencia alta
-            pinMode(SA868_HL_PIN, OUTPUT);
-            digitalWrite(SA868_HL_PIN, Config.sa868.highPower ? HIGH : LOW);
-        }
+        pinMode(SA868_HL_PIN, OUTPUT);
+        digitalWrite(SA868_HL_PIN, high ? HIGH : LOW);
+        #else
+        (void)high;
         #endif
     }
+
+    static void applyPower() { applyPowerLevel(Config.sa868.highPower); }
 
     bool validFreq(long hz) {
         return isUhf ? (hz >= 400000000L && hz <= 480000000L) : (hz >= 134000000L && hz <= 174000000L);
@@ -244,9 +292,10 @@ namespace SA868 {
             at1846Mode(1);
             return true;
         }
-        char c[64];
-        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%03ld.%04ld,%03ld.%04ld,0000,%d,0000", (Config.sa868.wide || flat) ? 1 : 0,
-                 txHz / 1000000L, (txHz % 1000000L) / 100L, rxHz / 1000000L, (rxHz % 1000000L) / 100L, constrain(Config.sa868.squelch, 0, 8));
+        char c[64], ft[16], fr[16];
+        niceRfFreq(txHz, ft, sizeof(ft));
+        niceRfFreq(rxHz, fr, sizeof(fr));
+        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%s,%s,0000,%d,0000", (Config.sa868.wide || flat) ? 1 : 0, ft, fr, constrain(Config.sa868.squelch, 0, 8));
         const bool good = commandOk(c, "+DMOSETGROUP:0", 800);
         if (!good) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "%s rejected", c);
         return good;
@@ -261,6 +310,8 @@ namespace SA868 {
             rx = tx = currentLoRaType->fskFrequency;
         }
         if (m17) rx = tx = m17FreqHz();
+        if (dap) rx = tx = dapnetFreqHz();
+        if (fmMode && fmLoaded) return fmApply(fmCh, fmSquelch);
         if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;           // no deberia pasar: fixBandDefaults() al arrancar
         if (!validFreq(tx)) tx = rx;
         if (fw == Firmware::OPENRTX) {
@@ -360,18 +411,91 @@ namespace SA868 {
         queueText(t);
     }
 
+    // ---- DAPNET ------------------------------------------------------------------------------------------------------
+
+    static void onPocByte(uint8_t b, void*) { if (dapQueue) xQueueSend(dapQueue, &b, 0); }
+
+    long dapnetFreqHz() {
+        if (validFreq(Config.sa868.dapnetFreqHz)) return Config.sa868.dapnetFreqHz;
+        return isUhf ? DAPNET_UHF_HZ : DAPNET_VHF_HZ;
+    }
+
+    size_t popDapnet(uint8_t* out, size_t max) {
+        size_t n = 0;
+        while (dapQueue && n < max && xQueueReceive(dapQueue, &out[n], 0) == pdTRUE) n++;
+        return n;
+    }
+
+    // ---- Altavoz desde el ESP32 (Rev2.1): sigma-delta en GPIO45 a 13,2 kHz desde un temporizador ------------------
+
+    static inline void spkPush(int8_t s) {
+        const uint16_t next = (uint16_t)((spkHead + 1) % SPK_RING);
+        if (next == spkTail) return;                        // lleno: se pierde la muestra (el temporizador va mas lento)
+        spkRing[spkHead] = s;
+        spkHead = next;
+    }
+
+    static bool IRAM_ATTR spkTick(gptimer_handle_t, const gptimer_alarm_event_data_t*, void*) {
+        int8_t s = 0;
+        if (spkTail != spkHead) { s = spkRing[spkTail]; spkTail = (uint16_t)((spkTail + 1) % SPK_RING); }
+        sdm_channel_set_pulse_density(spkSdm, s);
+        return false;
+    }
+
+    static bool speakerBegin() {
+        if (spkSdm) return true;
+        sdm_config_t sc = {};
+        sc.clk_src = SDM_CLK_SRC_DEFAULT;
+        sc.gpio_num = SA868_SPK_PIN;
+        sc.sample_rate_hz = 1000000;                        // 1 MHz: el filtro RC de la placa deja la voz
+        if (sdm_new_channel(&sc, &spkSdm) != ESP_OK) return false;
+        sdm_channel_enable(spkSdm);
+        gptimer_config_t tc = {};
+        tc.clk_src = GPTIMER_CLK_SRC_DEFAULT;
+        tc.direction = GPTIMER_COUNT_UP;
+        tc.resolution_hz = 1000000;
+        if (gptimer_new_timer(&tc, &spkTimer) != ESP_OK) return false;
+        gptimer_event_callbacks_t cb = {};
+        cb.on_alarm = spkTick;
+        gptimer_register_event_callbacks(spkTimer, &cb, nullptr);
+        gptimer_alarm_config_t ac = {};
+        ac.alarm_count = 1000000 / RX_FS;                   // ~76 us
+        ac.reload_count = 0;
+        ac.flags.auto_reload_on_alarm = true;
+        gptimer_set_alarm_action(spkTimer, &ac);
+        gptimer_enable(spkTimer);
+        gptimer_start(spkTimer);
+        return true;
+    }
+
     static void rxTaskFn(void*) {
         static uint8_t buf[256 * SOC_ADC_DIGI_RESULT_BYTES];
         for (;;) {
             uint32_t got = 0;
             if (adc_continuous_read(adc, buf, sizeof(buf), &got, 100) != ESP_OK) continue;
-            if (resetDemod) { if (m17) m17rx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
-            if (txActive) continue;                         // en emision el ADC oye la propia senal: se descarta
+            if (resetDemod) { if (m17) m17rx.reset(); else if (dap) pocRx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
+            if (txActive) {                                 // en emision el ADC oye la propia senal: se descarta (y el altavoz calla)
+                if (espAudio) for (int k = 0; k < 64; k++) spkPush(0);
+                continue;
+            }
+            const bool gate = fmOpen;
+            const float gain = espAudio ? (float)constrain(Config.sa868.volume, 1, 8) / 4.0f : 0.0f;
             for (uint32_t i = 0; i + SOC_ADC_DIGI_RESULT_BYTES <= got; i += SOC_ADC_DIGI_RESULT_BYTES) {
                 const adc_digi_output_data_t* p = (const adc_digi_output_data_t*)&buf[i];
                 const int v = (int)p->type2.data;
                 const float x = (float)(v - 2048) / 2048.0f;
-                if (m17) m17rx.feed(x); else if (mode96) g3rx.feed(x, onFrame, nullptr); else demod.feed(x, onFrame, nullptr);
+                if (m17) { m17rx.feed(x); continue; }
+                if (dap) { pocRx.feed(x, onPocByte, nullptr); continue; }
+                if (mode96) { g3rx.feed(x, onFrame, nullptr); continue; }
+                demod.feed(x, onFrame, nullptr);            // AFSK: tambien en FM (APRS en el canal de voz)
+                if (!fmMode) continue;
+                if (fmNoise.feed(x)) fmSoftOpen = fmAuto.softUpdate(fmNoise, fmRssiDbm, fw == Firmware::OPENRTX);
+                if (espAudio) {
+                    float y = fmNr ? fmNr->process(x) : x;
+                    y = gate ? y * gain : 0.0f;
+                    int s = (int)lroundf(y * 127.0f);
+                    spkPush((int8_t)constrain(s, -127, 127));
+                }
             }
         }
     }
@@ -396,11 +520,22 @@ namespace SA868 {
         if (m17) {
             if (!m17rx.begin()) return false;
             m17rx.setCallbacks(onM17Lsf, onM17Packet, nullptr);
+        } else if (dap) {
+            pocRx.begin((float)RX_FS_9600, Config.dapnet.baud, (float)Config.sa868.dapnetHpfHz);
+            dapQueue = xQueueCreate(512, 1);
+            if (!dapQueue) return false;
         } else if (mode96 ? !g3rx.begin(RX_FS_9600) : !demod.begin(RX_FS)) return false;
+        if (fmMode) {
+            fmNoise.begin((float)RX_FS);
+            if (espAudio && Config.fm.nrLevel > 0) {
+                fmNr = new FmDsp::NoiseReducer();
+                if (fmNr) { fmNr->begin(); fmNr->setStrength(Config.fm.nrLevel / 3.0f); }
+            }
+        }
         rxQueue = xQueueCreate(RX_QUEUE, sizeof(RxItem));
         if (!rxQueue) return false;
         if (adc_continuous_start(adc) != ESP_OK) return false;
-        return xTaskCreatePinnedToCore(rxTaskFn, "afskRx", m17 ? 12288 : 6144, nullptr, 5, &rxTask, 0) == pdPASS;   // M17: Viterbi
+        return xTaskCreatePinnedToCore(rxTaskFn, "afskRx", (m17 || fmMode) ? 12288 : 6144, nullptr, 5, &rxTask, 0) == pdPASS;   // M17: Viterbi; FM: reduccion de ruido
     }
 
     // ---- Arranque ----------------------------------------------------------------------------------------------------
@@ -453,7 +588,14 @@ namespace SA868 {
         fixBandDefaults();
         mode96 = (Config.operatingMode == MODE_APRS_FSK);
         m17    = (Config.operatingMode == MODE_M17);
-        flat   = mode96 || m17;
+        dap    = (Config.operatingMode == MODE_DAPNET);
+        fmMode = (Config.operatingMode == MODE_FM);
+        flat   = mode96 || m17 || dap;
+        if (fmMode) {
+            PMU.setBLDO1Voltage(3300);                      // microfono de la placa encendido: voz
+            PMU.enableBLDO1();
+            espAudio = rev == 21 && (Config.fm.nrLevel > 0 || Config.fm.squelchAuto);
+        }
         if (flat) logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "%s: flat audio, 25 kHz channel", modemName());
         if (m17) {
             m17Syms = (float*)heap_caps_malloc(M17M::maxPacketSymbols() * sizeof(float), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -462,6 +604,12 @@ namespace SA868 {
         applyConfig();
         if (!audioTxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "PDM audio output failed");
         if (!audioRxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "ADC audio input failed");
+        if (espAudio) {
+            if (speakerBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "Speaker fed by the ESP32 (GPIO%d): %s%s", SA868_SPK_PIN,
+                                           Config.fm.squelchAuto ? "auto squelch" : "squelch", Config.fm.nrLevel ? ", noise reduction" : "");
+            else { espAudio = false; logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "Speaker output (GPIO%d) failed", SA868_SPK_PIN); }
+            applySpeaker();
+        }
         return true;
     }
 
@@ -473,7 +621,9 @@ namespace SA868 {
     uint32_t framesOk()       { return m17 ? m17rx.packets : (mode96 ? g3rx.frames : demod.frames); }
     bool mode9600()           { return mode96; }
     bool modeM17()            { return m17; }
-    const char* modemName()   { return m17 ? "M17" : (mode96 ? "G3RUH 9600" : "AFSK 1200"); }
+    const char* modemName()   { return m17 ? "M17" : (dap ? "POCSAG" : (fmMode ? "FM voice" : (mode96 ? "G3RUH 9600" : "AFSK 1200"))); }
+    bool modeFm()             { return fmMode; }
+    bool modeDapnet()         { return dap; }
     long rxFreqHz()           { return curRx ? curRx : Config.sa868.rxFreqHz; }
     long txFreqHz()           { return curTx ? curTx : Config.sa868.txFreqHz; }
     uint32_t m17Lsfs()        { return m17rx.lsfs; }
@@ -501,6 +651,7 @@ namespace SA868 {
             at1846Freq(txFreqHz());
             at1846Mode(2);
         }
+        if (fmMode && rev == 21) PMU.disableBLDO1();        // Rev2.1: con MIC_CH_SEL en alto el microfono iria al ADC del ESP32
         digitalWrite(SA868_MIC_SEL_PIN, HIGH);              // el ESP32 hacia la entrada de microfono del modulo
         digitalWrite(SA868_PTT_PIN, LOW);
         i2s_channel_enable(txChan);
@@ -518,6 +669,7 @@ namespace SA868 {
         digitalWrite(SA868_PTT_PIN, HIGH);
         i2s_channel_disable(txChan);
         digitalWrite(SA868_MIC_SEL_PIN, LOW);
+        if (fmMode) PMU.enableBLDO1();
         if (fw == Firmware::OPENRTX) {
             at1846Freq(rxFreqHz());
             at1846Mode(1);
@@ -608,6 +760,223 @@ namespace SA868 {
         return true;
     }
 
+    // ---- Portadora de prueba (calibracion de frecuencia) --------------------------------------------------------------
+
+    bool carrier(bool on) {
+        static bool keyed = false;
+        if (on) {
+            if (!ok || txActive) return false;
+            txActive = true;
+            if (fw == Firmware::OPENRTX) { at1846Freq(txFreqHz()); at1846Mode(2); }
+            if (fmMode && rev == 21) PMU.disableBLDO1();
+            digitalWrite(SA868_MIC_SEL_PIN, HIGH);          // entrada del ESP32 en silencio: portadora sin modular
+            digitalWrite(SA868_PTT_PIN, LOW);
+            keyed = true;
+            return true;
+        }
+        if (!keyed) return false;
+        digitalWrite(SA868_PTT_PIN, HIGH);
+        digitalWrite(SA868_MIC_SEL_PIN, LOW);
+        if (fmMode) PMU.enableBLDO1();
+        if (fw == Firmware::OPENRTX) { at1846Freq(rxFreqHz()); at1846Mode(1); }
+        keyed = false;
+        resetDemod = true;
+        txActive = false;
+        return true;
+    }
+
+    // ---- Modo FM (voz) -----------------------------------------------------------------------------------------------
+
+    // Subtono del AT+DMOSETGROUP de NiceRF: "0000" sin tono, "0001".."0038" CTCSS, "023N" / "023I" DCS
+    static void niceRfSub(const FmCore::Channel& c, bool rx, char* out, size_t n) {
+        snprintf(out, n, "0000");
+        if (c.toneMode == FmCore::TONE_DCS) { snprintf(out, n, "%03u%c", (unsigned)c.dcs, c.dcsInv ? 'I' : 'N'); return; }
+        const bool on = c.toneMode == FmCore::TONE_TSQL || (!rx && c.toneMode == FmCore::TONE_ENC);
+        if (!on) return;
+        const int code = FmCore::niceRfCtcss(c.tone);
+        if (code > 0) snprintf(out, n, "%04d", code);
+        else fmToneOk = false;
+    }
+
+    bool fmToneSupported(const FmCore::Channel& c) {
+        if (c.toneMode == FmCore::TONE_DCS) return fw != Firmware::OPENRTX;                     // OpenRTX no programa el DCS
+        if (c.toneMode == FmCore::TONE_ENC || c.toneMode == FmCore::TONE_TSQL) return fw == Firmware::OPENRTX || FmCore::niceRfCtcss(c.tone) > 0;
+        return true;
+    }
+
+    bool fmApply(const FmCore::Channel& c, int squelch) {
+        if (!ok) return false;
+        const long rx = c.rxHz, tx = FmCore::txHz(c);
+        if (!validFreq(rx) || !validFreq(tx)) return false;
+        fmCh = c; fmLoaded = true;
+        fmSquelch = constrain(squelch, 0, 8);
+        fmToneOk = fmToneSupported(c);
+        curRx = rx; curTx = tx;
+        bool good = true;
+        // con el ESP32 al altavoz y el silenciador automatico, el del modulo va al minimo (SQL de la Rev2.1 = portadora)
+        const int moduleSql = (espAudio && Config.fm.squelchAuto) ? 1 : fmSquelch;
+        if (fw == Firmware::OPENRTX) {
+            at1846Bandwidth(c.wide);
+            maskSet(0x58, 0x00F8, Config.sa868.filters ? 0x0000 : 0x00F8);
+            maskSet(0x44, 0x00F0, (uint16_t)((constrain(Config.sa868.volume, 1, 8) * 15 / 8) << 4));
+            at1846Freq(rx);
+            // CTCSS (registros de OpenRTX, AT1846S.h): 0x4A tono de emision en centesimas de Hz, 0x4D el de recepcion, 0x5B umbral
+            maskSet(0x4E, 0x0600, 0x0000);
+            maskSet(0x3A, 0x001F, 0x0000);
+            poke(0x4A, 0); poke(0x4D, 0);
+            if (c.toneMode == FmCore::TONE_ENC || c.toneMode == FmCore::TONE_TSQL) {
+                poke(0x4A, (uint16_t)(c.tone * 10)); poke(0x4B, 0); poke(0x4C, 0);
+                maskSet(0x4E, 0x0600, 0x0600);
+            }
+            if (c.toneMode == FmCore::TONE_TSQL) {
+                poke(0x4D, (uint16_t)(c.tone * 10));
+                poke(0x5B, FmCore::ctcssThreshold(c.tone));
+                maskSet(0x3A, 0x001F, 0x0008);
+            }
+            at1846Mode(1);
+        } else {
+            char txs[8], rxs[8], cmd[80], ft[16], fr[16];
+            niceRfSub(c, false, txs, sizeof(txs));
+            niceRfSub(c, true, rxs, sizeof(rxs));
+            niceRfFreq(tx, ft, sizeof(ft));
+            niceRfFreq(rx, fr, sizeof(fr));
+            snprintf(cmd, sizeof(cmd), "AT+DMOSETGROUP=%d,%s,%s,%s,%d,%s", c.wide ? 1 : 0, ft, fr, txs, moduleSql, rxs);
+            good = commandOk(cmd, "+DMOSETGROUP:0", 800);
+            if (!good) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "%s rejected", cmd);
+            char v[40];
+            snprintf(v, sizeof(v), "AT+DMOSETVOLUME=%d", constrain(Config.sa868.volume, 1, 8));
+            commandOk(v, "+DMOSETVOLUME:0");
+            const int f = Config.sa868.filters ? 0 : 1;
+            snprintf(v, sizeof(v), "AT+SETFILTER=%d,%d,%d", f, f, f);
+            commandOk(v, "+DMOSETFILTER:0");
+        }
+        applyPowerLevel(c.high);
+        if (!fmToneOk) logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "FM", "%s not available with the %s firmware: sent without it",
+                                   c.toneMode == FmCore::TONE_DCS ? "DCS" : "This CTCSS tone", firmwareName());
+        return good;
+    }
+
+    const FmCore::Channel& fmChannel() { return fmCh; }
+    int  fmSquelchLevel() { return fmSquelch; }
+    bool fmBusy() { return fmOpen; }
+    int  fmRssi() { return fmRssiDbm; }
+    bool fmTransmitting() { return txActive; }
+    bool fmSpeakerFromEsp() { return espAudio; }
+    bool fmLastToneOk() { return fmToneOk; }
+
+    // Voz: microfono de la placa hacia el modulo y PTT. Con 1750 Hz, medio segundo de tono antes (apertura de repetidores antiguos)
+    bool fmVoice(bool on) {
+        if (!ok) return false;
+        if (on) {
+            if (txActive) return false;
+            if (fmCh.toneMode == FmCore::TONE_1750) {
+                static const uint16_t hz[1] = { 1750 }, ms[1] = { 500 };
+                fmPlayTones(hz, ms, 1);
+            }
+            txActive = true;
+            if (fw == Firmware::OPENRTX) { at1846Freq(curTx); at1846Mode(2); }
+            digitalWrite(SA868_MIC_SEL_PIN, LOW);
+            digitalWrite(SA868_PTT_PIN, LOW);
+            fmVoiceOn = true;
+            return true;
+        }
+        if (!fmVoiceOn) return false;
+        digitalWrite(SA868_PTT_PIN, HIGH);
+        if (fw == Firmware::OPENRTX) { at1846Freq(curRx); at1846Mode(1); }
+        fmVoiceOn = false;
+        resetDemod = true;
+        txActive = false;
+        return true;
+    }
+
+    bool fmVoiceActive() { return fmVoiceOn; }
+
+    // Tonos desde el ESP32 en el canal de voz (pitidos de la EAI, sondeo de ARTS, CW, 1750 Hz); hz = 0: portadora sin modular
+    bool fmPlayTones(const uint16_t* hz, const uint16_t* ms, size_t n) {
+        if (!ok || !txChan || txActive || n == 0) return false;
+        size_t seg = 0, left = (size_t)ms[0] * (TX_FS / 1000);
+        float ph = 0;
+        const float amp = constrain(Config.sa868.txLevel, 1, 100) / 100.0f * 32000.0f;
+        keyAndPlay([&](int16_t* out, size_t max) -> size_t {
+            size_t k = 0;
+            while (k < max) {
+                while (left == 0) { if (++seg >= n) return k; left = (size_t)ms[seg] * (TX_FS / 1000); ph = 0; }
+                const float step = 2.0f * (float)M_PI * hz[seg] / (float)TX_FS;
+                out[k++] = hz[seg] ? (int16_t)(amp * sinf(ph)) : 0;
+                ph += step; if (ph > 2.0f * (float)M_PI) ph -= 2.0f * (float)M_PI;
+                left--;
+            }
+            return k;
+        });
+        return true;
+    }
+
+    // Indicativo en CW (tono de 800 Hz por el microfono del modulo)
+    bool fmCwId(const char* text, int wpm) {
+        static uint16_t hz[400], ms[400];
+        size_t n = 0;
+        const uint16_t dot = (uint16_t)(1200 / constrain(wpm, 5, 40));
+        hz[n] = 0; ms[n++] = 200;
+        for (const char* p = text; *p && n + 20 < 400; p++) {
+            if (*p == ' ') { hz[n] = 0; ms[n++] = (uint16_t)(dot * 4); continue; }
+            const char* pat = CWMorse::pattern(*p);
+            if (!pat) continue;
+            for (const char* e = pat; *e; e++) {
+                hz[n] = 800; ms[n++] = (uint16_t)(*e == '-' ? dot * 3 : dot);
+                hz[n] = 0;   ms[n++] = dot;
+            }
+            ms[n - 1] = (uint16_t)(dot * 3);
+        }
+        return fmPlayTones(hz, ms, n);
+    }
+
+    // APRS en la frecuencia APRS (sa868.rxFreqHz / txFreqHz, sin tono) y vuelta al canal de voz
+    bool fmAprsTransmit(const char* tnc2) {
+        if (!ok || txActive) return false;
+        const FmCore::Channel saved = fmCh;
+        FmCore::Channel a;
+        FmCore::clearChannel(a, Config.sa868.rxFreqHz);
+        const long tx = Config.sa868.txFreqHz;
+        if (tx != a.rxHz) { a.shift = tx > a.rxHz ? 1 : -1; a.offsetHz = labs(tx - a.rxHz); } else a.shift = 0;
+        a.toneMode = FmCore::TONE_OFF; a.wide = Config.sa868.wide; a.high = Config.sa868.highPower;
+        if (!fmApply(a, fmSquelch)) { fmApply(saved, fmSquelch); return false; }
+        const bool sent = transmit(tnc2);
+        fmApply(saved, fmSquelch);
+        return sent;
+    }
+
+    // Cada 50 ms desde el bucle principal: RSSI y CTCSS (OpenRTX), estado del silenciador, altavoz, nivel automatico
+    void fmPoll() {
+        if (!fmMode || !ok || txActive) return;
+        const uint32_t now = millis();
+        static uint32_t last = 0;
+        if (now - last < 50) return;
+        last = now;
+        bool open;
+        if (fw == Firmware::OPENRTX) {
+            fmRssiDbm = -137 + (int)(peek(0x1B) >> 8);
+            fmCtcssOk = fmCh.toneMode != FmCore::TONE_TSQL || (peek(0x1C) & 0x0100) != 0;
+            if (Config.fm.squelchAuto) open = fmSoftOpen;
+            else open = fmSquelch == 0 || fmRssiDbm >= -128 + 4 * fmSquelch;                       // nivel 1 = -124 dBm ... 8 = -96 dBm
+            open = open && fmCtcssOk;
+            static bool spk = true;
+            if (!espAudio && Config.sa868.speaker && open != spk) { spk = open; commandOk(open ? "AT+AUDIO=1" : "AT+AUDIO=0", "OK"); }
+        } else {
+            #ifdef SA868_SQL_PIN
+            const bool carrier = rev == 21 ? digitalRead(SA868_SQL_PIN) == LOW : demod.level() > 0.02f;
+            #else
+            const bool carrier = demod.level() > 0.02f;
+            #endif
+            open = carrier && (!Config.fm.squelchAuto || !espAudio || fmSoftOpen);
+            // Rev2.0 (sin ESP32 al altavoz): el automatico ajusta el nivel del modulo
+            if (Config.fm.squelchAuto && !espAudio) {
+                const int nl = fmAuto.levelUpdate(now, carrier, carrier && fmNoise.noise(), fmSquelch);
+                if (nl >= 0 && nl != fmSquelch) { fmSquelch = nl; fmApply(fmCh, fmSquelch); }
+            }
+        }
+        fmOpen = open;
+    }
+
     // ---- Recepcion ---------------------------------------------------------------------------------------------------
 
     bool popFrame(String& tnc2, int& rssiOut) {
@@ -623,6 +992,8 @@ namespace SA868 {
         #ifdef SA868_SQL_PIN
         if (rev == 21 && digitalRead(SA868_SQL_PIN) == LOW) return true;    // silenciador abierto: hay portadora
         #endif
+        if (fmMode) return fmOpen || demod.dataCarrier();
+        if (dap) return pocRx.carrier();
         return m17 ? m17rx.dataCarrier() : (mode96 ? g3rx.dataCarrier() : demod.dataCarrier());
     }
 

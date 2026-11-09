@@ -330,6 +330,41 @@ namespace {
         FB(Sa868Config, m17FreqHz, FF_KEEP, 0),
         FC(Sa868Config, m17Can,    FF_KEEP, 0, 0, 15),
         FC(Sa868Config, txLevelM17, FF_KEEP, 0, 1, 100),
+        FB(Sa868Config, dapnetFreqHz, FF_KEEP, 0),
+        FC(Sa868Config, dapnetHpfHz, FF_KEEP, 0, 0, 2000),
+    };
+    const Field kFmMemFields[] = {
+        Field("n",   (uint16_t)offsetof(FmMemory, name),     FT_STR,  0,        ""),
+        FC(FmMemory, rxHz,     0, 0, 0, 480000000),
+        FC(FmMemory, shift,    0, 0, -1, 1),
+        FC(FmMemory, offsetHz, 0, 600000, 0, 99900000),
+        FC(FmMemory, toneMode, 0, 0, 0, 4),
+        FC(FmMemory, tone,     0, 885, 670, 2541),
+        FC(FmMemory, dcs,      0, 23, 23, 754),
+        FB(FmMemory, dcsInv,   0, 0),
+        FB(FmMemory, wide,     0, 0),
+        FB(FmMemory, high,     0, 0),
+    };
+    const Field kFmFields[] = {                                                     // los valores que faltan parten de setFmDefaults()
+        FC(FmConfig, stepIndex,    FF_KEEP, 3, 0, 8),
+        FB(FmConfig, memMode,      FF_KEEP, 0),
+        FC(FmConfig, memIndex,     FF_KEEP, 0, 0, FmConfig::MEMORIES - 1),
+        FC(FmConfig, scanResume,   FF_KEEP, 0, 0, 2),
+        FB(FmConfig, scanMemories, FF_KEEP, 1),
+        FB(FmConfig, scanLoHz,     FF_KEEP, 0),
+        FB(FmConfig, scanHiHz,     FF_KEEP, 0),
+        FC(FmConfig, artsInterval, FF_KEEP, 25, 15, 25),
+        FC(FmConfig, artsDcs,      FF_KEEP, 23, 23, 754),
+        FB(FmConfig, cwId,         FF_KEEP, 1),
+        FC(FmConfig, cwWpm,        FF_KEEP, 20, 5, 40),
+        FC(FmConfig, eaiMode,      FF_KEEP, 1, 1, 2),
+        FC(FmConfig, eaiMinutes,   FF_KEEP, 10, 1, 50),
+        FC(FmConfig, manDownMin,   FF_KEEP, 0, 0, 120),
+        FC(FmConfig, totSec,       FF_KEEP, 180, 0, 600),
+        FB(FmConfig, aprsBeacon,   FF_KEEP, 1),
+        FB(FmConfig, qsyInBeacon,  FF_KEEP, 1),
+        FB(FmConfig, squelchAuto,  FF_KEEP, 1),
+        FC(FmConfig, nrLevel,      FF_KEEP, 0, 0, 3),
     };
 #endif
     const Field kSatFields[] = {                                                    // los valores que faltan parten de setDapnetDefaults()
@@ -529,6 +564,14 @@ bool Configuration::writeFile() {
         writeFields(data["dapnet"].to<JsonObject>(),       &dapnet,       kDapnetFields,       NFIELDS(kDapnetFields));
         #ifdef HAS_SA868
         writeFields(data["sa868"].to<JsonObject>(),        &sa868,        kSa868Fields,        NFIELDS(kSa868Fields));
+        writeFields(data["fm"].to<JsonObject>(),           &fm,           kFmFields,           NFIELDS(kFmFields));
+        writeFields(data["fm"]["vfo"].to<JsonObject>(),    &fm.vfo,       kFmMemFields,        NFIELDS(kFmMemFields));
+        for (int i = 0; i < FmConfig::MEMORIES; i++) {                              // solo las memorias ocupadas (el indice es la posicion)
+            if (fm.mem[i].rxHz <= 0) continue;
+            JsonObject m = data["fm"]["mem"].add<JsonObject>();
+            m["i"] = i;
+            writeFields(m, &fm.mem[i], kFmMemFields, NFIELDS(kFmMemFields));
+        }
         #endif
         writeFields(data["sat"].to<JsonObject>(),          &sat,          kSatFields,          NFIELDS(kSatFields));
         writeFields(data["rotor"].to<JsonObject>(),        &rotor,        kRotorFields,        NFIELDS(kRotorFields));
@@ -674,6 +717,14 @@ bool Configuration::readFile() {
         setSa868Defaults();
         READ("sa868", sa868, kSa868Fields);
         if (sa868.revision != 0 && sa868.revision != 20 && sa868.revision != 21) sa868.revision = 0;
+        setFmDefaults();
+        READ("fm", fm, kFmFields);
+        readFields(data["fm"]["vfo"], &fm.vfo, kFmMemFields, NFIELDS(kFmMemFields));
+        for (JsonObject m : data["fm"]["mem"].as<JsonArray>()) {
+            const int i = m["i"] | -1;
+            if (i >= 0 && i < FmConfig::MEMORIES) readFields(m, &fm.mem[i], kFmMemFields, NFIELDS(kFmMemFields));
+        }
+        if (fm.artsInterval != 15) fm.artsInterval = 25;
         #endif
 
         READ("sat", sat, kSatFields);
@@ -891,6 +942,37 @@ void Configuration::setSa868Defaults() {
     sa868.m17FreqHz  = 0;                       // la sugerida para la banda del modulo
     sa868.m17Can     = 0;
     sa868.txLevelM17 = 40;
+    sa868.dapnetFreqHz = 0;                     // 144,8625 (VHF) / 439,9875 MHz (UHF)
+    sa868.dapnetHpfHz = 320;                    // 100 nF con 10 k / 10 k a la entrada del ADC
+}
+
+void Configuration::setFmDefaults() {
+    auto clearMem = [](FmMemory& m) {
+        m.name = ""; m.rxHz = 0; m.shift = 0; m.offsetHz = 600000; m.toneMode = 0; m.tone = 885; m.dcs = 23;
+        m.dcsInv = false; m.wide = false; m.high = false;
+    };
+    clearMem(fm.vfo);
+    fm.vfo.rxHz      = 145500000;               // llamada simplex de 2 m en la Region 1 (se ajusta a la banda del modulo)
+    for (int i = 0; i < FmConfig::MEMORIES; i++) clearMem(fm.mem[i]);
+    fm.stepIndex     = 3;                       // 12,5 kHz
+    fm.memMode       = false;
+    fm.memIndex      = 0;
+    fm.scanResume    = 0;
+    fm.scanMemories  = true;
+    fm.scanLoHz      = 0;                       // 0 = toda la banda del modulo
+    fm.scanHiHz      = 0;
+    fm.artsInterval  = 25;
+    fm.artsDcs       = 23;
+    fm.cwId          = true;
+    fm.cwWpm         = 20;
+    fm.eaiMode       = 1;
+    fm.eaiMinutes    = 10;
+    fm.manDownMin    = 0;
+    fm.totSec        = 180;
+    fm.aprsBeacon    = true;
+    fm.qsyInBeacon   = true;
+    fm.squelchAuto   = true;
+    fm.nrLevel       = 0;
 }
 
 void Configuration::setDapnetDefaults() {

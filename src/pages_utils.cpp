@@ -44,6 +44,9 @@
 #include "lora_utils.h"
 #ifdef HAS_SA868
     #include "sa868_radio.h"
+    #include "fm_utils.h"
+    #include "fm_core.h"
+    #include "ble_control.h"
 #endif
 #include "cw_morse.h"
 #include "wspr.h"
@@ -110,7 +113,7 @@ using namespace PAGES_Core;
 
 namespace {
 
-    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_COUNT };
+    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_FM, PAGE_COUNT };
 
     // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
     bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
@@ -131,6 +134,7 @@ namespace {
         if (Config.operatingMode == MODE_LRFHSS) return p == PAGE_LRF;
         if (Config.operatingMode == MODE_DAPNET) return p == PAGE_DAP;
         if (Config.operatingMode == MODE_SAT) return p == PAGE_SAT;
+        if (p == PAGE_FM) return Config.operatingMode == MODE_FM;           // T-TWR: emisora de voz, junto a las paginas APRS
         return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && (p != PAGE_ROT || rotorPageOn()) && (p != PAGE_TEAM || Config.team.watchActive);
     }
     bool aprsMode() { return Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && !ftMode(); }
@@ -139,7 +143,7 @@ namespace {
     int cwPin(int pin) { return (pin >= 0 && !POWER_Utils::pinReserved(pin)) ? pin : -1; }
 
     const char* const PAGE_TITLES[PAGE_COUNT] = {
-        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP"
+        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP", "FM"
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
@@ -156,7 +160,8 @@ namespace {
         X(DAP_CLEAR) X(DAP_MON) X(SAT_NEXT) X(SAT_PREV) X(SAT_VIEW) X(SAT_CAT) X(SATRX_TOGGLE) X(SATRX_TX) X(SATRX_FINE_UP) \
         X(SATRX_FINE_DN) X(SATRX_LORA) X(SATRX_CLEAR) X(SATTX_SEND) X(ROT_SOURCE) X(ROT_NEXT) X(ROT_PREV) X(ROT_PARK) X(MODE_CHANGE) X(TEAM_BROWSE) \
         X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
-        X(SYS_IARU)
+        X(SYS_IARU) X(FM_VM) X(FM_EDIT) X(FM_SHIFT) X(FM_TONEMODE) X(FM_STEP) X(FM_POWER) X(FM_WIDE) X(FM_SQLAUTO) X(FM_NR) \
+        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY)
     enum Command : uint8_t {
     #define X(n) C_##n,
         COMMAND_LIST(X)
@@ -178,7 +183,15 @@ namespace {
     const Item ITEMS_MSG_EMPTY[] = { {"Back", C_BACK} };
     const Item ITEMS_QUICK[]   = { {QUICK_TEXT[0], C_QUICK0}, {QUICK_TEXT[1], C_QUICK1}, {QUICK_TEXT[2], C_QUICK2}, {QUICK_TEXT[3], C_QUICK3},
                                    {QUICK_TEXT[4], C_QUICK4}, {QUICK_TEXT[5], C_QUICK5}, {QUICK_TEXT[6], C_QUICK6}, {QUICK_TEXT[7], C_QUICK7}, {"Back", C_BACK} };
+#ifdef HAS_SA868
+    const Item ITEMS_LAST[]    = { {"Next view", C_LAST_VIEW}, {"Older station", C_LAST_NEXT}, {"Newer station", C_LAST_PREV}, {"GO TO", C_GOTO},
+                                   {"QSY (FM voice)", C_QSY}, {"Back", C_BACK} };
+    const Item ITEMS_RADIO[]   = { {"Tune carrier", C_RADIO_TUNE}, {"Power", C_LORA_POWER}, {"Reset counters", C_LORA_RESET}, {"Heard list", C_LORA_HEARD}, {"Back", C_BACK} };
+    Item            fmItems[18];
+    char            fmLabels[10][24];
+#else
     const Item ITEMS_LAST[]    = { {"Next view", C_LAST_VIEW}, {"Older station", C_LAST_NEXT}, {"Newer station", C_LAST_PREV}, {"GO TO", C_GOTO}, {"Back", C_BACK} };
+#endif
     const Item ITEMS_LIST[]    = { {"Browse", C_LIST_BROWSE}, {"Sort", C_LIST_SORT}, {"Filter", C_LIST_FILTER}, {"Clear list", C_LIST_CLEAR}, {"Back", C_BACK} };
     const Item ITEMS_GNSS[]    = { {"GPS", C_G_GPS}, {"Galileo", C_G_GAL}, {"BeiDou", C_G_BDS}, {"GLONASS", C_G_GLO}, {"QZSS", C_G_QZSS}, {"Back", C_BACK} };
     const Item ITEMS_COMPASS[] = { {"Target", C_COMPASS_TARGET}, {"Next station", C_COMPASS_NEXT}, {"Heading", C_COMPASS_MODE}, {"North", C_COMPASS_NORTH},
@@ -458,7 +471,38 @@ namespace {
             case PAGE_COMPASS:  PAGES_ITEMS(ITEMS_COMPASS);
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:    PAGES_ITEMS(ITEMS_CLOCK);
+#ifdef HAS_SA868
+            case PAGE_LINK:     PAGES_ITEMS(ITEMS_RADIO);
+            case PAGE_FM: {
+                static const char* const EDITS[FM_Utils::ED_COUNT] = { "FREQ", "TONE", "OFFSET", "SQUELCH" };
+                static const char* const NR[4] = { "Off", "Low", "Mid", "High" };
+                const FmCore::Channel& c = FM_Utils::channel();
+                uint8_t n = 0, l = 0;
+                auto add = [&](const char* label, Command cmd) { fmItems[n++] = Item{label, cmd}; };
+                auto lab = [&](Command cmd, const char* fmt, auto... a) { snprintf(fmLabels[l], sizeof(fmLabels[l]), fmt, a...); add(fmLabels[l++], cmd); };
+                add(FM_Utils::memMode() ? "Go to VFO" : "Go to memory", C_FM_VM);
+                lab(C_FM_EDIT, "Dial: %s", EDITS[FM_Utils::edit() % FM_Utils::ED_COUNT]);
+                lab(C_FM_SHIFT, "Shift: %s", c.shift == 0 ? "simplex" : (c.shift < 0 ? "-" : "+"));
+                lab(C_FM_TONEMODE, "Tone: %s", FmCore::toneModeName(c.toneMode));
+                lab(C_FM_STEP, "Step: %.2f kHz", FM_Utils::stepHz() / 1000.0);
+                lab(C_FM_POWER, "Power: %s", c.high ? "High" : "Low");
+                lab(C_FM_WIDE, "Width: %s", c.wide ? "Wide" : "Narrow");
+                lab(C_FM_SQLAUTO, "Squelch: %s", Config.fm.squelchAuto ? "Auto" : "Manual");
+                lab(C_FM_NR, "Noise red.: %s", NR[Config.fm.nrLevel & 3]);
+                add(FM_Utils::scanning() ? "Stop scan" : (Config.fm.scanMemories ? "Scan memories" : "Scan band"), C_FM_SCAN);
+                add("Store to memory", C_FM_STORE);
+                add(FM_Utils::artsOn() ? "ARTS: stop" : "ARTS: start", C_FM_ARTS);
+                add(FM_Utils::eaiOn() ? "EAI: stop" : "EAI: start", C_FM_EAI);
+                add(Config.fm.aprsBeacon ? "APRS beacon: ON" : "APRS beacon: OFF", C_FM_APRS);
+                add("Tune carrier", C_RADIO_TUNE);
+                add("Change mode", C_MODE_CHANGE);
+                add("Back", C_BACK);
+                count = n;
+                return fmItems;
+            }
+#else
             case PAGE_LINK:     PAGES_ITEMS(ITEMS_LORA);
+#endif
             case PAGE_BOARD: {                                        // Bluetooth, protocolo Bluetooth y KISS por WiFi
                 uint8_t n = 0;
                 snprintf(sysBtLabel, sizeof(sysBtLabel), "Bluetooth: %s", bluetoothActive ? "ON" : "OFF");
@@ -742,6 +786,9 @@ namespace {
             case PAGE_TEAM:     // dos personas
                 pagesDrawCircle(x + 2, y + 3, 2, on); pagesDrawCircle(x + 6, y + 3, 2, on);
                 pagesDrawLine(x, y + 7, x + 8, y + 7, on);
+                break;
+            case PAGE_FM:       // emisora de mano: cuerpo y antena
+                pagesDrawRect(x + 2, y + 3, 5, 5, on); pagesDrawLine(x + 3, y, x + 3, y + 2, on); pagesFillRect(x + 3, y + 4, 3, 1, on);
                 break;
             default: break;
         }
@@ -1914,6 +1961,113 @@ namespace {
         else if (ms < 100000UL) snprintf(out, size, "%us", (unsigned)(ms / 1000UL));
         else snprintf(out, size, "%um", (unsigned)(ms / 60000UL));
     }
+
+    #ifdef HAS_SA868
+    // ---- FM (voz), T-TWR: frecuencia grande, canal, tono, silenciador, estado -----------------------------------------
+    void drawFmPage() {
+        const FmCore::Channel& c = FM_Utils::channel();
+        char right[8];
+        if (FM_Utils::memMode()) snprintf(right, sizeof(right), "M%02d", FM_Utils::memIndex() + 1);
+        else snprintf(right, sizeof(right), "VFO");
+        header("FM", right);
+        const bool tx = FM_Utils::ptt();
+        char f[12];
+        FmCore::formatFreq(tx ? FmCore::txHz(c) : c.rxHz, f, sizeof(f));
+        text(0, 12, f, 2);                                  // 8 caracteres de 12 px
+        text(104, 12, tx ? "TX" : (FM_Utils::busy() ? "RX" : "  "));
+        text(104, 20, FM_Utils::edit() == FM_Utils::ED_FREQ ? (FM_Utils::memMode() ? "CH" : "<>") : "  ");
+        char sh[12], tone[12], line[28];
+        if (c.shift == 0) snprintf(sh, sizeof(sh), "S");
+        else snprintf(sh, sizeof(sh), "%c%.2f", c.shift > 0 ? '+' : '-', c.offsetHz / 1e6);
+        switch (c.toneMode) {
+            case FmCore::TONE_ENC:  snprintf(tone, sizeof(tone), "T%.1f", c.tone / 10.0); break;
+            case FmCore::TONE_TSQL: snprintf(tone, sizeof(tone), "TS%.1f", c.tone / 10.0); break;
+            case FmCore::TONE_DCS:  snprintf(tone, sizeof(tone), "D%03u%c", (unsigned)c.dcs, c.dcsInv ? 'I' : 'N'); break;
+            case FmCore::TONE_1750: snprintf(tone, sizeof(tone), "1750"); break;
+            default:                snprintf(tone, sizeof(tone), "-"); break;
+        }
+        snprintf(line, sizeof(line), "%s %s %c %c", sh, tone, c.wide ? 'W' : 'N', c.high ? 'H' : 'L');
+        text(0, 29, line);
+        // nombre de la memoria o paso; silenciador a la derecha
+        char sq[10];
+        snprintf(sq, sizeof(sq), "SQL%s%d", Config.fm.squelchAuto ? "A" : " ", FM_Utils::squelch());
+        if (FM_Utils::memMode() && c.name[0]) snprintf(line, sizeof(line), "%.8s", c.name);
+        else snprintf(line, sizeof(line), "%.2fk", FM_Utils::stepHz() / 1000.0);
+        text(0, 38, line);
+        text(128 - 6 * (int)strlen(sq), 38, sq);
+        // estado
+        if (tx) snprintf(line, sizeof(line), "TX %lus", (unsigned long)FM_Utils::txSeconds());
+        else if (FM_Utils::eaiOn()) snprintf(line, sizeof(line), "EAI %lu:%02lu", (unsigned long)(FM_Utils::eaiRemainingS() / 60), (unsigned long)(FM_Utils::eaiRemainingS() % 60));
+        else if (FM_Utils::scanning()) snprintf(line, sizeof(line), "SCAN %s", FM_Utils::scanPaused() ? "HOLD" : ">>");
+        else if (FM_Utils::artsOn()) snprintf(line, sizeof(line), "ARTS %s", FM_Utils::artsState() == FmCore::ARTS_IN ? "IN RANGE" : (FM_Utils::artsState() == FmCore::ARTS_OUT ? "OUT RANGE" : "..."));
+        else if (FM_Utils::busy()) {
+            const int r = FM_Utils::rssi();
+            if (r != 0) { char sm[10]; sMeterText(r, sm, sizeof(sm)); snprintf(line, sizeof(line), "%s %d dBm", sm, r); }
+            else snprintf(line, sizeof(line), "BUSY");
+        } else line[0] = 0;
+        text(0, 47, line);
+        if (Config.fm.aprsBeacon) text(128 - 24, 47, "APRS");
+        // aviso o lo que mueve el encoder
+        const char* n = FM_Utils::notice();
+        const char* const EDITS[FM_Utils::ED_COUNT] = { "frequency", "tone", "offset", "squelch" };
+        if (n[0]) snprintf(line, sizeof(line), "%s", n);
+        else snprintf(line, sizeof(line), "Dial: %s", FM_Utils::edit() == FM_Utils::ED_FREQ ? (FM_Utils::memMode() ? "channel" : "frequency") : EDITS[FM_Utils::edit()]);
+        text(0, 56, line);
+    }
+
+    // Portadora sin modular de 30 s en la frecuencia de emision en uso, para medir el error con un SDR (Frequency calibration)
+    void radioTuneCarrier() {
+        if (!SA868::carrier(true)) { showToast("Radio busy"); return; }
+        bool armed = !cwButtonDown();
+        const uint32_t startMs = millis();
+        uint32_t lastDraw = 0;
+        const long hz = SA868::txFreqHz();
+        for (;;) {
+            const bool down = cwButtonDown();
+            if (!down) armed = true;
+            else if (armed) break;
+            const uint32_t elapsed = millis() - startMs;
+            if (elapsed >= 30000UL) break;
+            if (millis() - lastDraw > 500) {
+                lastDraw = millis();
+                pagesBegin();
+                header("TUNE", "TX");
+                row(1, "%.4f MHz", hz / 1e6);
+                row(2, "Carrier on, %us left", (unsigned)(30 - elapsed / 1000));
+                row(3, "Correction %+.3f ppm", Config.radioPpm1000 / 1000.0);
+                row(4, "Measure with an SDR");
+                row(5, "Button: stop");
+                pagesFlush();
+            }
+            delay(5);
+        }
+        SA868::carrier(false);
+        displayTime = millis();
+        showToast("Tune stopped");
+    }
+
+    // QSY a lo que anuncia la estacion (frecuencia en el comentario o en el nombre del objeto): en FM al momento; si no, se
+    // deja en el VFO y se arranca en FM
+    void qsyToStation(const Station* s) {
+        if (!s) { showToast("No station"); return; }
+        FmCore::Qsy q;
+        if (!FmCore::parseQsy(s->call, s->comment, q)) { showToast("No frequency"); return; }
+        FmCore::Channel ch;
+        FmCore::qsyToChannel(q, Config.sa868.iaruRegion, ch);
+        if (!SA868::validFreq(ch.rxHz) || !SA868::validFreq(FmCore::txHz(ch))) { showToast("Not in this band"); return; }
+        if (Config.operatingMode == MODE_FM) { FM_Utils::qsy(q); return; }
+        Config.fm.vfo.rxHz = (int)ch.rxHz; Config.fm.vfo.shift = ch.shift; Config.fm.vfo.offsetHz = (int)ch.offsetHz;
+        Config.fm.vfo.toneMode = ch.toneMode; Config.fm.vfo.tone = ch.tone; Config.fm.vfo.dcs = ch.dcs; Config.fm.vfo.wide = ch.wide;
+        Config.fm.vfo.name = "";
+        Config.fm.memMode = false;
+        Config.writeFile();
+        BLE_Control::setBootMode(MODE_FM);
+        showToast("QSY: to FM...");
+        show();
+        delay(600);
+        ESP.restart();
+    }
+    #endif
 
     void drawLink() {
         #ifdef HAS_SA868
@@ -4173,6 +4327,9 @@ namespace PAGES_Utils {
             case PAGE_LINK:    drawLink();      break;
             case PAGE_BOARD:   drawBoard();     break;
             case PAGE_TEAM:    drawTeamPage();  break;
+            #ifdef HAS_SA868
+            case PAGE_FM:      drawFmPage();    break;
+            #endif
             default: break;
         }
         if (submenuOpen && millis() - submenuMs > SUBMENU_TIMEOUT_MS) submenuOpen = false;
@@ -4195,6 +4352,7 @@ namespace PAGES_Utils {
             options[n++] = Option{ MODE_APRS_LORA, APRS_MAIN_MODE_NAME };
             if (LoRa_Utils::fskAvailable()) options[n++] = Option{ MODE_APRS_FSK, "APRS FSK 9600" };
             if (LoRa_Utils::m17Available()) options[n++] = Option{ MODE_M17, "M17" };
+            if (LoRa_Utils::fmAvailable())  options[n++] = Option{ MODE_FM, "FM voice" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_MORSE, "MORSE / CW" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_WSPR, "WSPR beacon" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FT8, "FT8 beacon" };
@@ -4264,7 +4422,7 @@ namespace PAGES_Utils {
             }
         #endif
         }
-        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK && !(Config.operatingMode == MODE_M17 && LoRa_Utils::m17Available())) Config.operatingMode = MODE_APRS_LORA;
+        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK && !(Config.operatingMode == MODE_M17 && LoRa_Utils::m17Available()) && !(Config.operatingMode == MODE_FM && LoRa_Utils::fmAvailable())) Config.operatingMode = MODE_APRS_LORA;
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
@@ -4276,8 +4434,11 @@ namespace PAGES_Utils {
         ROTOR_Utils::begin();
         #endif
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
+        #ifdef HAS_SA868
+        if (Config.operatingMode == MODE_FM) { page = PAGE_FM; beaconManualMode = !Config.fm.aprsBeacon; }     // FM: emisora de voz; balizas APRS si se piden
+        #endif
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
-                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : Config.operatingMode == MODE_M17 ? "M17" : APRS_MAIN_MODE_NAME)));
+                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : Config.operatingMode == MODE_M17 ? "M17" : Config.operatingMode == MODE_FM ? "FM voice" : APRS_MAIN_MODE_NAME)));
         return (uint8_t)Config.operatingMode;
     }
 
@@ -4745,6 +4906,41 @@ namespace PAGES_Utils {
                 else lastCall[0] = '\0';
                 break;
             }
+            #ifdef HAS_SA868
+            case C_FM_VM:       FM_Utils::toggleVfoMem(); break;
+            case C_FM_EDIT: {
+                FM_Utils::setEdit((uint8_t)((FM_Utils::edit() + 1) % FM_Utils::ED_COUNT));
+                static const char* const E[FM_Utils::ED_COUNT] = { "Dial: frequency", "Dial: tone", "Dial: offset", "Dial: squelch" };
+                showToast(E[FM_Utils::edit()]);
+                break;
+            }
+            case C_FM_SHIFT:    FM_Utils::cycleShift(); break;
+            case C_FM_TONEMODE: FM_Utils::cycleToneMode(); break;
+            case C_FM_STEP:     FM_Utils::cycleStep(); break;
+            case C_FM_POWER:    FM_Utils::togglePower(); break;
+            case C_FM_WIDE:     FM_Utils::toggleWide(); break;
+            case C_FM_SQLAUTO:  FM_Utils::toggleAutoSquelch(); break;
+            case C_FM_NR:
+                if (!SA868::fmSpeakerFromEsp() && SA868::revision() != 21) { showToast("NR: Rev2.1 only"); break; }
+                FM_Utils::cycleNoiseReduction();
+                break;
+            case C_FM_SCAN:     if (FM_Utils::scanning()) FM_Utils::scanStop(); else FM_Utils::scanStart(); break;
+            case C_FM_STORE: {
+                int slot = FM_Utils::memMode() ? FM_Utils::memIndex() : -1;
+                for (int k = 0; slot < 0 && k < FmConfig::MEMORIES; k++) if (!FM_Utils::memUsed(k)) slot = k;
+                if (slot < 0) { showToast("Memories full"); break; }
+                FM_Utils::store(slot, nullptr);
+                break;
+            }
+            case C_FM_ARTS:     FM_Utils::artsToggle(); break;
+            case C_FM_EAI:      if (FM_Utils::eaiOn()) FM_Utils::eaiStop(); else FM_Utils::eaiStart(); break;
+            case C_FM_APRS:
+                FM_Utils::toggleAprsBeacon();
+                beaconManualMode = !Config.fm.aprsBeacon;
+                break;
+            case C_RADIO_TUNE:  radioTuneCarrier(); break;
+            case C_QSY:         qsyToStation(heard.byRecent(lastIndex)); break;
+            #endif
             case C_GOTO:
                 goToStation(heard.byRecent(lastIndex));
                 break;
@@ -5135,7 +5331,7 @@ namespace PAGES_Utils {
             case C_BACK: case C_MENU: case C_MODE_CHANGE: case C_MSG_REPLY:
             case C_GPS_GNSS: case C_CLK_ZONE: case C_LORA_POWER: case C_ALT_QNH: case C_COMPASS_DECL:
             case C_MSG_QUICK: case C_TEAM_QUICK:
-            case C_CW_LISTEN: case C_CW_TRAIN_LISTEN: case C_CW_TRAIN_KEY: case C_WSPR_TUNE: case C_CWB_TUNE:
+            case C_CW_LISTEN: case C_CW_TRAIN_LISTEN: case C_CW_TRAIN_KEY: case C_WSPR_TUNE: case C_CWB_TUNE: case C_RADIO_TUNE:   // la app: orden "carrier"
                 return true;
             default:
                 return false;
@@ -5243,8 +5439,11 @@ namespace PAGES_Utils {
     }
 
     bool wantsFastRefresh() {
-        return viewing() && (page == PAGE_COMPASS || sosState == SOS_COUNTDOWN || alarmShown);
+        return viewing() && (page == PAGE_COMPASS || page == PAGE_FM || sosState == SOS_COUNTDOWN || alarmShown);
     }
+
+    // El encoder sintoniza solo con la pagina FM a la vista y sin submenu (T-TWR)
+    bool fmDialActive() { return viewing() && page == PAGE_FM && !submenuOpen && !alarmShown; }
 
 }
 

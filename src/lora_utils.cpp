@@ -339,6 +339,7 @@ namespace LoRa_Utils {
     }
 
     bool m17Available() { return false; }                   // M17 (4FSK por audio) solo en la T-TWR (lora_utils_sa868.cpp)
+    bool fmAvailable()  { return false; }                   // FM de voz: solo la T-TWR
 
     bool fskAvailable() {
         return RADIO_HAS_FSK;

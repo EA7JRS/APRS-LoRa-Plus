@@ -55,3 +55,11 @@ jobs:
                   for f in $(find lib/libm17/src -name '*.c'); do gcc -O2 -Ilib/libm17/src -c "$f" -o "/tmp/m17o/$(echo "$f" | tr / _).o"; done
                   g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude -Ilib/libm17/src tools/afsk/test_m17.cpp src/m17_modem.cpp /tmp/m17o/*.o -lm -o /tmp/test_m17
                   /tmp/test_m17
+            - name: FM y DAPNET (T-TWR)
+              run: |
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/fm/test_fm.cpp src/fm_core.cpp -o /tmp/test_fm
+                  /tmp/test_fm
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/fm/test_fm_dsp.cpp src/fm_dsp.cpp -o /tmp/test_fm_dsp
+                  /tmp/test_fm_dsp
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/afsk/test_pocsag_audio.cpp -o /tmp/test_pocsag_audio
+                  /tmp/test_pocsag_audio

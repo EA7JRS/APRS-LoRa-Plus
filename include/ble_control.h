@@ -22,6 +22,7 @@ namespace BLE_Control {
     void loop();                                        // al final de cada vuelta del bucle principal: ordenes, envios periodicos, DAPNET
     void nmea(const char* text, size_t length);         // frase NMEA para el movil (solo si esta suscrito)
     int  takeBootMode();                                // modo pedido por el movil para este arranque (-1 = ninguno); lo borra
+    void setBootMode(int mode);                         // modo para el siguiente arranque (una vez)
 
     // Manipulador remoto (modo MORSE): el movil manda cada pulsar / soltar con su marca de tiempo; el tracker lo reproduce con
     // un retardo fijo que absorbe las variaciones del enlace BLE, asi sale la manipulacion tal cual

@@ -198,10 +198,11 @@ public:
 #else
     #define APRS_MAIN_MODE_NAME "APRS LoRa"
 #endif
-enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10 };
+enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11 };
 
-// Modos que emiten APRS (balizas, mensajes, digipeater, KISS...): LoRa (AFSK 1200 en la T-TWR), FSK 9600 y M17 (T-TWR)
-inline bool isAprsMode(int mode) { return mode == MODE_APRS_LORA || mode == MODE_APRS_FSK || mode == MODE_M17; }
+// Modos que emiten APRS (balizas, mensajes, KISS...): LoRa (AFSK 1200 en la T-TWR), FSK 9600, M17 (T-TWR) y FM (T-TWR: voz;
+// el APRS sale por la frecuencia APRS y vuelve al canal de voz, sin digipeater)
+inline bool isAprsMode(int mode) { return mode == MODE_APRS_LORA || mode == MODE_APRS_FSK || mode == MODE_M17 || mode == MODE_FM; }
 
 // Baliza WSPR (modo WSPR): mensaje tipo 1 con el indicativo del perfil de baliza (sin SSID), locator de 4 caracteres y potencia
 class WSPRConfig {
@@ -279,6 +280,48 @@ public:
     int     m17FreqHz;                          // modo M17: frecuencia (Hz; 0 = la sugerida por la IARU R1: 144,875 MHz en VHF, 433,475 MHz en UHF)
     int     m17Can;                             // modo M17: Channel Access Number (0..15)
     int     txLevelM17;                         // modo M17: nivel de la banda base 4FSK (1..100 %): unos 2,4 kHz de desviacion en los simbolos +-3
+    int     dapnetFreqHz;                       // modo DAPNET: frecuencia POCSAG (Hz; 0 = 144,8625 MHz en VHF, 439,9875 MHz en UHF)
+    int     dapnetHpfHz;                        // modo DAPNET: corte del acoplo de alterna de la entrada de audio que se compensa (Hz; 0 = sin compensar)
+};
+
+// Modo FM (voz) de la T-TWR: canal del VFO, opciones y memorias (Manuel - EA7JRS)
+class FmMemory {
+public:
+    String  name;                               // 8 caracteres
+    int     rxHz;                               // 0 = memoria vacia
+    int     shift;                              // -1, 0, +1
+    int     offsetHz;
+    int     toneMode;                           // 0 sin tono, 1 TONE, 2 TSQL, 3 DCS, 4 1750 Hz
+    int     tone;                               // CTCSS en decimas de Hz
+    int     dcs;                                // 23 = "023"
+    bool    dcsInv;
+    bool    wide;
+    bool    high;
+};
+
+class FmConfig {
+public:
+    static const int MEMORIES = 32;
+    FmMemory vfo;                               // el VFO (sin nombre)
+    int     stepIndex;                          // paso del VFO (FmCore::STEPS)
+    bool    memMode;                            // true = memoria, false = VFO
+    int     memIndex;
+    int     scanResume;                         // 0 portadora, 1 tiempo (5 s), 2 parar
+    bool    scanMemories;                       // true = escanea las memorias, false = la banda (scanLoHz .. scanHiHz)
+    int     scanLoHz, scanHiHz;
+    int     artsInterval;                       // ARTS: 15 o 25 s
+    int     artsDcs;                            // ARTS: codigo DCS del grupo
+    bool    cwId;                               // indicativo en CW cada 10 minutos (ARTS) y en la EAI
+    int     cwWpm;
+    int     eaiMode;                            // 1 intervalo (pitidos), 2 continuo (microfono abierto)
+    int     eaiMinutes;                         // 1..50
+    int     manDownMin;                         // hombre caido: minutos sin tocar nada (0 = apagado) -> EAI
+    int     totSec;                             // tiempo maximo de emision con el PTT (0 = sin limite)
+    bool    aprsBeacon;                         // balizas APRS en la frecuencia APRS (sa868.txFreqHz) durante el modo FM
+    bool    qsyInBeacon;                        // anade la frecuencia, el tono y el desplazamiento del canal a la baliza (QSY de Kenwood)
+    bool    squelchAuto;                        // silenciador automatico (Rev2.1: por software; Rev2.0: ajusta el nivel del modulo)
+    int     nrLevel;                            // reduccion de ruido del audio recibido (Rev2.1): 0 apagada, 1 suave, 2 media, 3 fuerte
+    FmMemory mem[MEMORIES];
 };
 
 // Modo SAT (satelites en 70 cm): prediccion de pasos y Doppler. Los TLE y las frecuencias se descargan por WiFi (la red de Firmware update)
@@ -435,6 +478,7 @@ public:
     LRFHSSConfig            lrfhss;
     DAPNETConfig            dapnet;
     Sa868Config             sa868;
+    FmConfig                fm;
     SatConfig               sat;
     RotorConfig             rotor;
     GPSConfig               gps;
@@ -463,6 +507,7 @@ public:
     void setFtDefaults();
     void setDapnetDefaults();
     void setSa868Defaults();
+    void setFmDefaults();
     void enforceAisBeacon(Beacon& beacon);              // SSID, simbolo, SmartBeacon y datos AIS coherentes con el tipo de embarcacion
     bool ensureAisProfiles();                           // anade el perfil nautico y el perfil LoRa AIS si faltan (true si cambio algo)
     int  aisLoraIndex() const;                          // -1 si no hay perfil LoRa AIS

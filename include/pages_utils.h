@@ -61,6 +61,7 @@ namespace PAGES_Utils {
     bool    beaconAllowed();            // false: hay que descartar el envio automatico
     void    beaconSent();               // se ha transmitido la baliza
     bool    wantsFastRefresh();         // true en la brujula (refresco ~5 Hz)
+    bool    fmDialActive();             // T-TWR: el encoder sintoniza (pagina FM a la vista, sin submenu)
 
     uint8_t unreadCount();                      // mensajes recibidos sin leer
     const char* replyCallsign();                // destinatario para PAGES_CMD_REPLY

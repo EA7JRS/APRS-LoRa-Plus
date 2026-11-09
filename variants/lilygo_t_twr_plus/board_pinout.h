@@ -37,6 +37,12 @@
     #define GPS_RX              6       // ESP32 TX -> L76K RX
     #define GPS_TX              5       // L76K TX -> ESP32 RX
     #define GPS_PPS             7
+    #define GPS_BAUDRATE        9600    // el L76K arranca a 9600; el tracker lo sube a 115200 si contesta ($PCAS)
+    #define HAS_GPS_CTRL                // apagado y encendido por el ALDO4
+    #define GPS_CONFIG_CONSTELLATIONS   // deteccion del receptor: sin UBX es un L76K (CASIC): GPS / BeiDou / GLONASS, velocidad, frecuencia de fijos
+    #define GPS_SPEED_FILTER            // velocidad / rumbo estables con la unidad parada
+    #define GPS_LAST_POSITION           // guarda y muestra la ultima posicion valida tras reiniciar
+    #define GPS_COORD_DECIMALS  5
 
     //  Pulsadores y otros
     #define BUTTON_PIN          21      // pulsador del encoder (el boton de un solo pulsador del tracker)

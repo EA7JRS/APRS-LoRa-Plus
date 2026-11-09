@@ -78,6 +78,9 @@ ____________________________________________________________________*/
 #include "fw_update.h"
 #include "iaru_auto.h"
 #include "kiss_net.h"
+#ifdef HAS_SA868
+    #include "fm_utils.h"
+#endif
 #ifdef HAS_TOUCHSCREEN
 #include "touch_utils.h"
 #endif
@@ -274,6 +277,9 @@ void loop() {
     #endif
 
     ReceivedLoRaPacket packet = LoRa_Utils::receivePacket();
+    #ifdef HAS_SA868
+        if (Config.operatingMode == MODE_FM) FM_Utils::loop();     // T-TWR: PTT, encoder, escaneo, ARTS, EAI (EA7JRS)
+    #endif
 
     MSG_Utils::checkReceivedMessage(packet);
     MSG_Utils::processOutputBuffer();
