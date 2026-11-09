@@ -867,7 +867,7 @@ void Configuration::setSa868Defaults() {
     sa868.rxFreqHz   = 144800000;               // APRS en VHF, Region 1 de la IARU
     sa868.txFreqHz   = 144800000;
     sa868.highPower  = false;
-    sa868.wide       = true;                    // APRS 1200 baudios: canal de 25 kHz con +-3 kHz de desviacion
+    sa868.wide       = false;                   // APRS: siempre estrecho (12,5 kHz) salvo que se elija ancho (Manuel, 2026-11-09)
     sa868.volume     = 6;
     sa868.squelch    = 1;
     sa868.txLevel    = 25;

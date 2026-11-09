@@ -278,7 +278,7 @@ namespace WEB_Utils {
                 const double tx = request->getParam("sa868.txMHz", true)->value().toDouble();
                 Config.sa868.txFreqHz = constrain((int)lround(tx * 1e6), 134000000, 480000000);
             }
-            Config.sa868.wide      = getParamIntSafe("sa868.wide", Config.sa868.wide ? 1 : 0) != 0;
+            Config.sa868.wide      = getParamIntSafe("sa868.wide", Config.sa868.wide ? 1 : 0) == 1;     // 0 = Narrow 12,5 kHz, 1 = Wide 25 kHz
             Config.sa868.highPower = getParamIntSafe("sa868.highPower", Config.sa868.highPower ? 1 : 0) != 0;
             Config.sa868.volume    = constrain(getParamIntSafe("sa868.volume", Config.sa868.volume), 1, 8);
             Config.sa868.squelch   = constrain(getParamIntSafe("sa868.squelch", Config.sa868.squelch), 0, 8);

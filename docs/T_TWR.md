@@ -20,11 +20,11 @@ APRS LoRa, APRS FSK 9600, CW / Morse, WSPR, FT8, FT4, FST4W, LR-FHSS, DAPNET y l
 |---|---|---|
 | Región IARU y canal APRS | Región 1, 144,8000 | Lista de canales de 2 m de la región (tabla de abajo) o *Custom* |
 | RX / TX (MHz) | 144,8000 | Dentro de la banda del módulo |
-| Canal | 25 kHz | APRS 1200: ±3 kHz de desviación |
+| Ancho de banda | Narrow 12,5 kHz | *Wide* 25 kHz o *Narrow* 12,5 kHz. Para APRS, Narrow |
 | Potencia | Baja | Solo la Rev2.0 la puede cambiar (pin H/L). La alta calienta |
 | Volumen | 6 (1–8) | Altavoz y audio hacia el ESP32 |
 | Silenciador | 1 (0–8) | 0 = abierto: el demodulador oye también las señales más débiles |
-| Nivel TX | 25 % | **Ajustar** para unos 3 kHz de desviación (receptor o SDR) |
+| Nivel TX | 25 % | **Ajustar** con un receptor o SDR: unos 2,5 kHz de desviación en Narrow (3 kHz en Wide) |
 | TXDELAY / cola | 300 / 30 ms | Banderas antes y después de la trama |
 | Filtros de voz | Sí | Pre/desénfasis y paso alto / bajo del módulo |
 | Altavoz | Sí | Rev2.1 y firmware OpenRTX; la Rev2.0 no lo puede silenciar |

@@ -261,7 +261,7 @@ public:
     int     rxFreqHz;                           // frecuencia de recepcion (Hz); APRS: 144,800 MHz en Europa, 144,390 MHz en Norteamerica
     int     txFreqHz;                           // frecuencia de emision (Hz); normalmente la misma
     bool    highPower;                          // potencia alta (Rev2.0: pin H/L del modulo; la Rev2.1 no la puede cambiar)
-    bool    wide;                               // canal de 25 kHz (si no, 12,5 kHz)
+    bool    wide;                               // ancho de banda: true = Wide 25 kHz, false = Narrow 12,5 kHz (por defecto, APRS)
     int     volume;                             // volumen del altavoz y del audio hacia el ESP32 (1..8)
     int     squelch;                            // silenciador del modulo (0 = abierto .. 8); con 0 el demodulador oye tambien las senales mas debiles
     int     txLevel;                            // nivel del audio AFSK hacia el modulo (1..100 %): ajusta la desviacion (unos 3 kHz)
