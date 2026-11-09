@@ -195,10 +195,6 @@ namespace {
                                    {"QSY (FM voice)", C_QSY}, {"Back", C_BACK} };
     const Item ITEMS_RADIO[]   = { {"Tune carrier", C_RADIO_TUNE}, {"Power", C_LORA_POWER}, {"Reset counters", C_LORA_RESET}, {"Heard list", C_LORA_HEARD}, {"Back", C_BACK} };
     Item            fmItems[24];
-    Item            aisItems[10];
-    char            aisChLabel[24];
-    uint8_t         aisView = 0;                 // 0 lista, 1 detalle
-    int             aisSel = 0;                  // barco elegido (posicion en la lista por distancia)
     char            fmLabels[12][24];
 #else
     const Item ITEMS_LAST[]    = { {"Next view", C_LAST_VIEW}, {"Older station", C_LAST_NEXT}, {"Newer station", C_LAST_PREV}, {"GO TO", C_GOTO}, {"Back", C_BACK} };
@@ -300,6 +296,10 @@ namespace {
     char            dapMonLabel[24];
     uint8_t         dapIndex = 0;                // 0 = mensaje mas reciente
     Item            satItems[20];
+    Item            aisItems[10];
+    char            aisChLabel[24];
+    uint8_t         aisView = 0;                 // 0 lista, 1 detalle
+    int             aisSel = 0;                  // barco elegido (posicion en la lista por distancia)
     char            satListenLabel[24];
     Item            rotItems[5];
     char            rotSourceLabel[28];
