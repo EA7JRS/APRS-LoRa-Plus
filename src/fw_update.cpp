@@ -7,6 +7,9 @@
 #include <WiFi.h>
 #include <time.h>
 #include <logger.h>
+#ifdef HAS_SA868
+    #include "sa868_radio.h"
+#endif
 #include "fw_update.h"
 #include "cat_net.h"
 #include "configuration.h"
@@ -264,6 +267,16 @@ namespace FW_Update {
         doc["flashSize"]       = (uint32_t)ESP.getFlashChipSize();
         doc["sketchSize"]      = (uint32_t)ESP.getSketchSize();
         doc["ota"]             = slotAvailable();
+        #ifdef HAS_SA868                                    // LilyGO T-TWR: radio FM SA868 (la WebUI muestra su seccion y oculta la de los modos del SX126x)
+            doc["radio"]       = "sa868";
+            JsonObject sa      = doc["sa868"].to<JsonObject>();
+            sa["ok"]           = SA868::ready();
+            sa["rev"]          = SA868::revision();
+            sa["band"]         = SA868::uhf() ? "UHF" : "VHF";
+            sa["fw"]           = SA868::firmwareName();
+        #else
+            doc["radio"]       = "lora";
+        #endif
         #ifdef HAS_SAT
             doc["sat"]         = true;
         #else

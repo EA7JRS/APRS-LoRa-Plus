@@ -26,6 +26,9 @@
 #include "sat_tx.h"
 #include "baro_utils.h"
 #include "lora_utils.h"
+#ifdef HAS_SA868
+    #include "sa868_radio.h"
+#endif
 #include "gps_utils.h"
 #include "imu_utils.h"
 #include "mag_utils.h"
@@ -209,7 +212,7 @@ namespace {
     // Los mismos que ofrece el menu de arranque (PAGES_Utils::selectMode); sin paginas solo hay modos APRS
     uint8_t listModes(ModeOption* out) {
         uint8_t n = 0;
-        out[n++] = ModeOption{ MODE_APRS_LORA, "APRS LoRa" };
+        out[n++] = ModeOption{ MODE_APRS_LORA, APRS_MAIN_MODE_NAME };
         if (LoRa_Utils::fskAvailable()) out[n++] = ModeOption{ MODE_APRS_FSK, "APRS FSK 9600" };
         #ifdef HAS_APRS_PAGES
             if (LoRa_Utils::cwAvailable()) {
@@ -265,6 +268,16 @@ namespace {
             caps["dapnet"] = false;
             caps["cw"]     = false;
             caps["modes"]  = false;
+        #endif
+        #ifdef HAS_SA868                                         // T-TWR: radio FM SA868 (APRS AFSK 1200); ajustes en el grupo "sa868" (cfgget/cfgset)
+            caps["radio"] = "sa868";
+            JsonObject sa = doc["sa868"].to<JsonObject>();
+            sa["rev"]  = SA868::revision();
+            sa["fw"]   = SA868::firmwareName();
+            sa["band"] = SA868::uhf() ? "UHF" : "VHF";
+            sa["ok"]   = SA868::ready();
+        #else
+            caps["radio"] = "lora";
         #endif
         doc["mode"] = Config.operatingMode;
         JsonArray modes = doc["modes"].to<JsonArray>();

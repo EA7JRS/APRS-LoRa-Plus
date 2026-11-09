@@ -198,6 +198,24 @@ namespace BOARD_PINS {
         #ifdef JOYSTICK_RIGHT
             add(JOYSTICK_RIGHT, 'u', "Joystick right");
         #endif
+        #ifdef HAS_SA868                                    // LilyGO T-TWR Plus: radio FM SA868, encoder, LED y PMU
+            add(SA868_TX_PIN, 'u', "SA868 UART TX");
+            add(SA868_RX_PIN, 'u', "SA868 UART RX");
+            add(SA868_PTT_PIN, 'u', "SA868 PTT");
+            add(SA868_PD_PIN, 'u', "SA868 power down");
+            add(SA868_HL_PIN, 'u', "SA868 high/low power (Rev2.0)");
+            add(SA868_SQL_PIN, 'u', "SA868 squelch (Rev2.1)");
+            add(SA868_MIC_SEL_PIN, 'u', "Microphone switch");
+            add(SA868_AUDIO_OUT_PIN, 'u', "AFSK audio out (PDM)");
+            add(SA868_AUDIO_IN_PIN, 'u', "AFSK audio in (ADC)");
+            add(TTWR_ENCODER_A, 'u', "Encoder A");
+            add(TTWR_ENCODER_B, 'u', "Encoder B");
+            add(TTWR_PIXEL_PIN, 'u', "WS2812 LED");
+            add(PMU_IRQ_PIN, 'u', "PMU interrupt");
+            add(11, 'u', "TF MOSI"); add(12, 'u', "TF SCK"); add(13, 'u', "TF MISO");
+            add(15, 'u', "Microphone ADC (Rev2.1)"); add(45, 'u', "Tone to amplifier (Rev2.1)");
+            for (int g = 33; g <= 37; g++) add(g, 'u', "PSRAM (octal)");
+        #endif
         #ifdef DAC_I2S_WS
             add(DAC_I2S_WS, 'u', "I2S audio WS");
         #endif

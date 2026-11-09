@@ -192,6 +192,12 @@ public:
 };
 
 // Modo de funcionamiento, elegido al arrancar tras el mensaje de bienvenida
+// Nombre del modo APRS principal: en la T-TWR (radio FM SA868) MODE_APRS_LORA es APRS analogico AFSK 1200
+#ifdef HAS_SA868
+    #define APRS_MAIN_MODE_NAME "APRS AFSK 1200"
+#else
+    #define APRS_MAIN_MODE_NAME "APRS LoRa"
+#endif
 enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9 };
 
 // Baliza WSPR (modo WSPR): mensaje tipo 1 con el indicativo del perfil de baliza (sin SSID), locator de 4 caracteres y potencia
@@ -246,6 +252,24 @@ public:
     bool    monitorAll;                         // mostrar todos los mensajes que se reciban, sean para ti o no
     bool    timeSync;                           // poner el reloj con la hora UTC que difunde DAPNET cuando no hay hora GPS
     int     charset;                            // 0 = ASCII, 1 = aleman ISO 646 (DIN 66003)
+};
+
+// Radio FM SA868 de la LilyGO T-TWR Plus (Manuel - EA7JRS): APRS AFSK 1200 baudios en VHF (o UHF). Solo se lee y se guarda en las
+// placas con HAS_SA868; en el resto el grupo no aparece en el fichero
+class Sa868Config {
+public:
+    int     rxFreqHz;                           // frecuencia de recepcion (Hz); APRS: 144,800 MHz en Europa, 144,390 MHz en Norteamerica
+    int     txFreqHz;                           // frecuencia de emision (Hz); normalmente la misma
+    bool    highPower;                          // potencia alta (Rev2.0: pin H/L del modulo; la Rev2.1 no la puede cambiar)
+    bool    wide;                               // canal de 25 kHz (si no, 12,5 kHz)
+    int     volume;                             // volumen del altavoz y del audio hacia el ESP32 (1..8)
+    int     squelch;                            // silenciador del modulo (0 = abierto .. 8); con 0 el demodulador oye tambien las senales mas debiles
+    int     txLevel;                            // nivel del audio AFSK hacia el modulo (1..100 %): ajusta la desviacion (unos 3 kHz)
+    int     txDelayMs;                          // banderas delante de la trama (TXDELAY)
+    int     txTailMs;                           // banderas detras de la trama
+    bool    filters;                            // filtros de voz del modulo (pre/desenfasis, paso alto y paso bajo) activos
+    bool    speaker;                            // se oye por el altavoz lo que entra por la radio
+    int     revision;                           // placa: 0 = deteccion automatica, 20 = Rev2.0, 21 = Rev2.1
 };
 
 // Modo SAT (satelites en 70 cm): prediccion de pasos y Doppler. Los TLE y las frecuencias se descargan por WiFi (la red de Firmware update)
@@ -401,6 +425,7 @@ public:
     FTConfig                ft;
     LRFHSSConfig            lrfhss;
     DAPNETConfig            dapnet;
+    Sa868Config             sa868;
     SatConfig               sat;
     RotorConfig             rotor;
     GPSConfig               gps;
@@ -428,6 +453,7 @@ public:
     void setLrfhssDefaults();
     void setFtDefaults();
     void setDapnetDefaults();
+    void setSa868Defaults();
     void enforceAisBeacon(Beacon& beacon);              // SSID, simbolo, SmartBeacon y datos AIS coherentes con el tipo de embarcacion
     bool ensureAisProfiles();                           // anade el perfil nautico y el perfil LoRa AIS si faltan (true si cambio algo)
     int  aisLoraIndex() const;                          // -1 si no hay perfil LoRa AIS

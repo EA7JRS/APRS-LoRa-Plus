@@ -952,6 +952,31 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
+                        <div class="row my-5 d-flex align-items-top d-none" id="grp-sa868">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>VHF radio (SA868)</h5>
+                                <small>LilyGO T-TWR Plus: analogue APRS, AFSK 1200 baud (144.800 MHz in Region 1, 144.390 MHz in North America). Rev2.1 cannot change the power. Set the TX level for about 3 kHz deviation on a receiver.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.rxMHz" id="sa868.rxMHz" min="134" max="480" step="0.0125" value="144.8" /><label for="sa868.rxMHz">RX (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txMHz" id="sa868.txMHz" min="134" max="480" step="0.0125" value="144.8" /><label for="sa868.txMHz">TX (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.wide" id="sa868.wide"><option value="1">25 kHz</option><option value="0">12.5 kHz</option></select><label for="sa868.wide">Channel</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.highPower" id="sa868.highPower"><option value="0">Low</option><option value="1">High</option></select><label for="sa868.highPower">Power</label></div>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.volume" id="sa868.volume" min="1" max="8" value="6" /><label for="sa868.volume">Volume</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.squelch" id="sa868.squelch" min="0" max="8" value="1" /><label for="sa868.squelch">Squelch</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txLevel" id="sa868.txLevel" min="1" max="100" value="25" /><label for="sa868.txLevel">TX level %</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txDelayMs" id="sa868.txDelayMs" min="50" max="1000" value="300" /><label for="sa868.txDelayMs">TXDELAY ms</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txTailMs" id="sa868.txTailMs" min="10" max="300" value="30" /><label for="sa868.txTailMs">TX tail ms</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.revision" id="sa868.revision"><option value="0">Auto</option><option value="20">Rev2.0</option><option value="21">Rev2.1</option></select><label for="sa868.revision">Board</label></div>
+                                </div>
+                                <div class="form-check form-switch"><input type="checkbox" name="sa868.filters" id="sa868.filters" class="form-check-input" /><label for="sa868.filters" class="form-label">Voice filters and pre/de-emphasis of the module</label></div>
+                                <div class="form-check form-switch"><input type="checkbox" name="sa868.speaker" id="sa868.speaker" class="form-check-input" /><label for="sa868.speaker" class="form-label">Hear the channel on the speaker</label></div>
+                                <div class="small text-muted mb-2" id="sa868-status"></div>
+                            </div>
+                        </div>
                         <div class="row my-5 d-flex align-items-top" id="grp-dapnet">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>

@@ -16,6 +16,9 @@
  * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
  */
 
+// Placas con radio SX12xx / LLCC68. La LilyGO T-TWR (radio FM SA868) usa src/lora_utils_sa868.cpp (Manuel - EA7JRS)
+#ifndef HAS_SA868
+
 #include <RadioLib.h>
 #include <logger.h>
 #include <SPI.h>
@@ -1373,3 +1376,5 @@ namespace LoRa_Utils {
     }
 
 }
+
+#endif  // HAS_SA868

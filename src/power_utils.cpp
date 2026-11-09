@@ -30,7 +30,11 @@
 #include "logger.h"
 
 
-#if !defined(TTGO_T_Beam_S3_SUPREME_V3) && !defined(HELTEC_WIRELESS_TRACKER)
+#if defined(LILYGO_T_TWR_PLUS)                  // T-TWR Plus: PMU y pantalla en el mismo I2C (8 / 9)
+    #define I2C_SDA 8
+    #define I2C_SCL 9
+    #define IRQ_PIN 4
+#elif !defined(TTGO_T_Beam_S3_SUPREME_V3) && !defined(HELTEC_WIRELESS_TRACKER)
     #define I2C_SDA 21
     #define I2C_SCL 22
     #define IRQ_PIN 35
@@ -225,7 +229,7 @@ namespace POWER_Utils {
         #endif
 
         #ifdef HAS_AXP2101
-            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+            #if defined(TTGO_T_Beam_S3_SUPREME_V3) || defined(LILYGO_T_TWR_PLUS)
                 PMU.setALDO4Voltage(3300);
                 PMU.enableALDO4();
             #else
@@ -245,7 +249,7 @@ namespace POWER_Utils {
         #endif
 
         #ifdef HAS_AXP2101
-            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+            #if defined(TTGO_T_Beam_S3_SUPREME_V3) || defined(LILYGO_T_TWR_PLUS)
                 PMU.disableALDO4();
             #else
                 PMU.disableALDO3();
@@ -264,7 +268,9 @@ namespace POWER_Utils {
         #endif
 
         #ifdef HAS_AXP2101
-            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+            #if defined(LILYGO_T_TWR_PLUS)
+                // el modulo SA868 se alimenta en SA868::begin() (DC3 en la Rev2.0, bateria en la Rev2.1); ALDO3 es el conmutador de audio
+            #elif defined(TTGO_T_Beam_S3_SUPREME_V3)
                 PMU.setALDO3Voltage(3300);
                 PMU.enableALDO3();
             #else
@@ -280,7 +286,9 @@ namespace POWER_Utils {
         #endif
 
         #ifdef HAS_AXP2101
-            #ifdef TTGO_T_Beam_S3_SUPREME_V3
+            #if defined(LILYGO_T_TWR_PLUS)
+                // el SA868 se apaga con su pin PD (SA868::sleep)
+            #elif defined(TTGO_T_Beam_S3_SUPREME_V3)
                 PMU.disableALDO3();
             #else
                 PMU.disableALDO2();
@@ -484,6 +492,10 @@ namespace POWER_Utils {
                 Wire.begin(I2C0_SDA, I2C0_SCL);
                 Wire.setClock(400000);
                 if (begin(Wire1)) beginStatus = true;
+            #elif defined(LILYGO_T_TWR_PLUS)
+                Wire.begin(I2C_SDA, I2C_SCL);
+                Wire.setClock(400000);
+                if (begin(Wire)) beginStatus = true;
             #else
                 Wire.begin(SDA, SCL);
                 if (begin(Wire)) beginStatus = true;

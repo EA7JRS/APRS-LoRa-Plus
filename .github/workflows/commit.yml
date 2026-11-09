@@ -17,6 +17,8 @@ jobs:
                   chip: esp32
                 - name: ttgo_t_beam_s3_SUPREME_v3
                   chip: esp32s3
+                - name: lilygo_t_twr_plus
+                  chip: esp32s3
         steps:
             - uses: actions/checkout@v7
 
@@ -32,3 +34,13 @@ jobs:
 
             - name: Build FS
               run: pio run --target buildfs -e ${{ matrix.target.name }}
+
+    afsk:
+        # Modem AFSK 1200 de la T-TWR (include/afsk1200.h): pruebas en el PC
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - name: AFSK 1200
+              run: |
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/afsk/test_afsk.cpp src/afsk1200.cpp src/ax25_g3ruh.cpp src/fx25.cpp src/il2p.cpp -o /tmp/test_afsk
+                  /tmp/test_afsk

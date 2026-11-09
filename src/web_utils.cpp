@@ -270,6 +270,27 @@ namespace WEB_Utils {
             Config.dapnet.timeSync   = request->hasParam("dapnet.timeSync", true);
             Config.dapnet.charset    = constrain(getParamIntSafe("dapnet.charset", Config.dapnet.charset), 0, 1);
         }
+        #ifdef HAS_SA868
+        if (request->hasParam("sa868.rxMHz", true)) {      // radio FM SA868 (LilyGO T-TWR): MHz en la WebUI, Hz en la configuracion
+            const double rx = request->getParam("sa868.rxMHz", true)->value().toDouble();
+            Config.sa868.rxFreqHz = constrain((int)lround(rx * 1e6), 134000000, 480000000);
+            if (request->hasParam("sa868.txMHz", true)) {
+                const double tx = request->getParam("sa868.txMHz", true)->value().toDouble();
+                Config.sa868.txFreqHz = constrain((int)lround(tx * 1e6), 134000000, 480000000);
+            }
+            Config.sa868.wide      = getParamIntSafe("sa868.wide", Config.sa868.wide ? 1 : 0) != 0;
+            Config.sa868.highPower = getParamIntSafe("sa868.highPower", Config.sa868.highPower ? 1 : 0) != 0;
+            Config.sa868.volume    = constrain(getParamIntSafe("sa868.volume", Config.sa868.volume), 1, 8);
+            Config.sa868.squelch   = constrain(getParamIntSafe("sa868.squelch", Config.sa868.squelch), 0, 8);
+            Config.sa868.txLevel   = constrain(getParamIntSafe("sa868.txLevel", Config.sa868.txLevel), 1, 100);
+            Config.sa868.txDelayMs = constrain(getParamIntSafe("sa868.txDelayMs", Config.sa868.txDelayMs), 50, 1000);
+            Config.sa868.txTailMs  = constrain(getParamIntSafe("sa868.txTailMs", Config.sa868.txTailMs), 10, 300);
+            const int r = getParamIntSafe("sa868.revision", Config.sa868.revision);
+            Config.sa868.revision  = (r == 20 || r == 21) ? r : 0;
+            Config.sa868.filters   = request->hasParam("sa868.filters", true);
+            Config.sa868.speaker   = request->hasParam("sa868.speaker", true);
+        }
+        #endif
         {   // rotor (modo SAT)
             Config.rotor.enabled    = request->hasParam("rotor.enabled", true);
             Config.rotor.transport  = constrain(getParamIntSafe("rotor.transport", Config.rotor.transport), 0, 1);

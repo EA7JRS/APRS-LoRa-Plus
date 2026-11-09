@@ -310,6 +310,22 @@ namespace {
         FB(DAPNETConfig, timeSync,      FF_KEEP, 0),
         FC(DAPNETConfig, charset,       FF_KEEP, 0, 0, 1),
     };
+#ifdef HAS_SA868
+    const Field kSa868Fields[] = {                                                  // los valores que faltan parten de setSa868Defaults()
+        FC(Sa868Config, rxFreqHz,  FF_REQUIRED | FF_KEEP, 0, 134000000, 480000000),
+        FC(Sa868Config, txFreqHz,  FF_KEEP, 0, 134000000, 480000000),
+        FB(Sa868Config, highPower, FF_KEEP, 0),
+        FB(Sa868Config, wide,      FF_KEEP, 0),
+        FC(Sa868Config, volume,    FF_KEEP, 0, 1, 8),
+        FC(Sa868Config, squelch,   FF_KEEP, 0, 0, 8),
+        FC(Sa868Config, txLevel,   FF_KEEP, 0, 1, 100),
+        FC(Sa868Config, txDelayMs, FF_KEEP, 0, 50, 1000),
+        FC(Sa868Config, txTailMs,  FF_KEEP, 0, 10, 300),
+        FB(Sa868Config, filters,   FF_KEEP, 0),
+        FB(Sa868Config, speaker,   FF_KEEP, 0),
+        FB(Sa868Config, revision,  FF_KEEP, 0),
+    };
+#endif
     const Field kSatFields[] = {                                                    // los valores que faltan parten de setDapnetDefaults()
         FB(SatConfig, noradId,        FF_KEEP, 0),
         FC(SatConfig, category,       FF_KEEP, 0, 0, 3),
@@ -505,6 +521,9 @@ bool Configuration::writeFile() {
             data["wspr"]["ppDriftTenths"][i]        = wspr.ppDriftTenths[i];
         }
         writeFields(data["dapnet"].to<JsonObject>(),       &dapnet,       kDapnetFields,       NFIELDS(kDapnetFields));
+        #ifdef HAS_SA868
+        writeFields(data["sa868"].to<JsonObject>(),        &sa868,        kSa868Fields,        NFIELDS(kSa868Fields));
+        #endif
         writeFields(data["sat"].to<JsonObject>(),          &sat,          kSatFields,          NFIELDS(kSatFields));
         writeFields(data["rotor"].to<JsonObject>(),        &rotor,        kRotorFields,        NFIELDS(kRotorFields));
         for (int i = 0; i < RotorConfig::TARGETS; i++) {
@@ -640,6 +659,12 @@ bool Configuration::readFile() {
         READ("dapnet", dapnet, kDapnetFields);
         if (dapnet.baud != 512 && dapnet.baud != 1200 && dapnet.baud != 2400) dapnet.baud = 1200;
         if (dapnet.rxBwTenthsKHz != 117 && dapnet.rxBwTenthsKHz != 146 && dapnet.rxBwTenthsKHz != 195 && dapnet.rxBwTenthsKHz != 234 && dapnet.rxBwTenthsKHz != 293) dapnet.rxBwTenthsKHz = 146;
+
+        #ifdef HAS_SA868
+        setSa868Defaults();
+        READ("sa868", sa868, kSa868Fields);
+        if (sa868.revision != 0 && sa868.revision != 20 && sa868.revision != 21) sa868.revision = 0;
+        #endif
 
         READ("sat", sat, kSatFields);
         if (sat.txText.length() > 64) sat.txText = sat.txText.substring(0, 64);
@@ -835,6 +860,21 @@ bool Configuration::ensureAisProfiles() {
         changed = true;
     }
     return changed;
+}
+
+void Configuration::setSa868Defaults() {
+    sa868.rxFreqHz   = 144800000;               // APRS en VHF, Region 1 de la IARU
+    sa868.txFreqHz   = 144800000;
+    sa868.highPower  = false;
+    sa868.wide       = true;                    // APRS 1200 baudios: canal de 25 kHz con +-3 kHz de desviacion
+    sa868.volume     = 6;
+    sa868.squelch    = 1;
+    sa868.txLevel    = 25;
+    sa868.txDelayMs  = 300;
+    sa868.txTailMs   = 30;
+    sa868.filters    = true;
+    sa868.speaker    = true;
+    sa868.revision   = 0;
 }
 
 void Configuration::setDapnetDefaults() {
@@ -1061,6 +1101,7 @@ void Configuration::setDefaultValues() {
     setLrfhssDefaults();
     setFtDefaults();
     setDapnetDefaults();
+    setSa868Defaults();
     setGpsDefaults();
     radioPpm1000                    = 0;
     operatingMode                   = MODE_APRS_LORA;

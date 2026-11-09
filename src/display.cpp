@@ -62,7 +62,7 @@
 
     #define ssd1306 //comment this line with "//" when using SH1106 screen instead of SSD1306
 
-    #if defined(TTGO_T_Beam_S3_SUPREME_V3) || defined(TTGO_T_BEAM_1W)
+    #if defined(TTGO_T_Beam_S3_SUPREME_V3) || defined(TTGO_T_BEAM_1W) || defined(LILYGO_T_TWR_PLUS)
         #undef ssd1306
     #endif
     #if defined(HELTEC_V3_GPS) || defined(HELTEC_V3_TNC) || defined(HELTEC_V3_2_GPS) || defined(HELTEC_V3_2_TNC)
@@ -269,7 +269,12 @@ void displaySetup() {
                     while (true) {}
                 }
             #else
-                if (!display.begin(0x3c, false)) {
+                uint8_t oledAddr = 0x3c;
+                #ifdef LILYGO_T_TWR_PLUS                // la pantalla de las T-TWR de UHF esta en 0x3D
+                    Wire.beginTransmission(0x3d);
+                    if (Wire.endTransmission() == 0) oledAddr = 0x3d;
+                #endif
+                if (!display.begin(oledAddr, false)) {
                     logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SH1106", "allocation failed!");
                     while (true) {}
                 }

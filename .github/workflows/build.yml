@@ -46,6 +46,11 @@ jobs:
                       flash_size: 16MB
                       flash_mode: dio
                       spiffs_offset: "0xc90000"
+                    - name: lilygo_t_twr_plus
+                      chip: esp32s3
+                      flash_size: 16MB
+                      flash_mode: dio
+                      spiffs_offset: "0xc90000"
                     - name: ttgo_t_deck_GPS
                       chip: esp32s3
                       flash_size: 8MB

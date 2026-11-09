@@ -611,6 +611,17 @@ function loadSettings(settings) {
         document.getElementById("sat.seqPreMs").value = sat.seqPreMs ?? 50;
         document.getElementById("sat.seqPostMs").value = sat.seqPostMs ?? 20;
         document.getElementById("sat.seqTailMs").value = sat.seqTailMs ?? 50;
+        if (settings.sa868) {                       // LilyGO T-TWR: radio FM SA868
+            const sa = settings.sa868;
+            document.getElementById("sa868.rxMHz").value = ((sa.rxFreqHz ?? 144800000) / 1e6).toFixed(4);
+            document.getElementById("sa868.txMHz").value = ((sa.txFreqHz ?? 144800000) / 1e6).toFixed(4);
+            document.getElementById("sa868.wide").value = sa.wide === false ? "0" : "1";
+            document.getElementById("sa868.highPower").value = sa.highPower ? "1" : "0";
+            ["volume", "squelch", "txLevel", "txDelayMs", "txTailMs"].forEach(k => { if (sa[k] !== undefined) document.getElementById("sa868." + k).value = sa[k]; });
+            document.getElementById("sa868.revision").value = String(sa.revision ?? 0);
+            document.getElementById("sa868.filters").checked = sa.filters !== false;
+            document.getElementById("sa868.speaker").checked = sa.speaker !== false;
+        }
         const dap = settings.dapnet || {};
         document.getElementById("dapnet.freqMHz").value = ((dap.freqHz ?? 439987500) / 1e6).toFixed(4);
         document.getElementById("dapnet.baud").value = String(dap.baud ?? 1200);
@@ -1601,6 +1612,11 @@ function boardPinInit() {
         .then(i => {
             const name = i.board || "";
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
+            if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
+                document.getElementById("grp-sa868").classList.remove("d-none");
+                ["grp-dapnet", "grp-ft", "grp-lrfhss", "grp-freqcal", "grp-iaru"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
+                if (i.sa868) document.getElementById("sa868-status").textContent = "Detected: " + (i.sa868.ok ? "Rev" + (i.sa868.rev / 10).toFixed(1) + ", " + i.sa868.band + ", " + i.sa868.fw + " firmware" : "no answer from the radio module");
+            }
             const isSupreme = name.toLowerCase().indexOf("supreme") >= 0;
             const show = () => {
                 PIN_NAME = name;
