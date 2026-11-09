@@ -140,6 +140,10 @@ WebUI > *Frequency calibration*: la misma corrección en ppm que las demás plac
 
 Configurado como en la Supreme: el tracker detecta el L76K (no contesta a UBX: órdenes CASIC `$PCAS`), lo sube a 115200 baudios, elige constelaciones (GPS / BeiDou / GLONASS) desde la página GPS o la WebUI, lo apaga y enciende por el ALDO4, filtra la velocidad parado y guarda la última posición.
 
+## AIS (modo 12)
+
+Con el módulo de VHF, *AIS receiver* escucha los barcos en 161,975 / 162,025 MHz (audio plano, canal de 25 kHz, un canal cada vez o alternando). Página AIS, alarmas de colisión y socorro, GO TO y `!AIVDM` a la app. Detalle en `docs/AIS.md`.
+
 ## Satélites (modos SAT y FM)
 
 El modo SAT funciona con el VFO de FM: lista (favoritos, *This radio*, 2 m…), pasos, azimut / elevación, rotor y, con *Listen*, el VFO sigue al satélite con Doppler, subida precompensada y el CTCSS del transmisor; FM de voz con el PTT y **APRS por satélite** (ISS 145,825 MHz, ruta ARISS, posición o mensaje). En el modo FM, *Satellite: ON / SAT: next satellite / SAT: next transmitter / SAT: send position*. El archivo completo de satélites cabe entero (~900 kB, grupos de CelesTrak) y se envía desde la app o desde la WebUI por WiFi. Detalle en `docs/SAT_MODE.md`.

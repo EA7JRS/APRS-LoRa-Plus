@@ -348,7 +348,7 @@ namespace AisCore {
     }
 
     // bit ya sin NRZI: banderas 0x7E, relleno tras cinco unos, octetos con el primer bit como el de menor peso
-    void Demod::bit(uint8_t b, FrameCallback cb, void* ctx) {
+    void Demod::hdlcBit(uint8_t b, FrameCallback cb, void* ctx) {
         shift = (shift << 1) | b;
         if ((shift & 0xFF) == 0x7E) {                          // bandera
             if (inFrame && nbuf > 0) endFrame(cb, ctx);
@@ -391,7 +391,7 @@ namespace AisCore {
             const uint8_t lvl = atCross > 0 ? 1 : 0;
             const uint8_t b = (lvl == prevBit) ? 1 : 0;        // NRZI: sin cambio = 1, cambio = 0
             prevBit = lvl;
-            bit(b, cb, ctx);
+            hdlcBit(b, cb, ctx);
             // portadora de datos: banderas o entrenamiento recientes
             if ((shift & 0xFF) == 0x7E || (shift & 0xFFFF) == 0x5555 || (shift & 0xFFFF) == 0xAAAA) lockedBits = 300;
             else if (lockedBits > 0) lockedBits--;

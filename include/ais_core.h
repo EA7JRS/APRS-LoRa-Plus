@@ -118,7 +118,7 @@ namespace AisCore {
         uint8_t  buf[MAX_MSG_BYTES + 4];
         size_t   nbuf = 0;
         uint8_t  cur = 0; int curBits = 0;
-        void     bit(uint8_t b, FrameCallback cb, void* ctx);        // bit tras NRZI
+        void     hdlcBit(uint8_t b, FrameCallback cb, void* ctx);    // bit tras NRZI
         void     endFrame(FrameCallback cb, void* ctx);
     };
 
