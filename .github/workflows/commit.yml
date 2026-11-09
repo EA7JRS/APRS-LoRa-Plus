@@ -65,3 +65,8 @@ jobs:
                   /tmp/test_pocsag_audio
                   g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/bcast/test_rds.cpp -o /tmp/test_rds
                   /tmp/test_rds
+
+            - name: Satelites (nucleo SGP4, archivo de datos)
+              run: |
+                  g++ -std=c++17 -O2 -Iinclude tools/test_sat_core.cpp src/sat_core.cpp src/sgp4/SGP4.cpp -o /tmp/test_sat_core
+                  /tmp/test_sat_core

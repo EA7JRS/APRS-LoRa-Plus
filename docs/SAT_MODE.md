@@ -1,4 +1,4 @@
-# Modo SAT (satélites en 70 cm) y control de rotor
+# Modo SAT (satélites) y control de rotor
 
 *Copyright (c) 2026 Manuel - EA7JRS. Estado: **fases 1 a 4** (predicción, rotor, recepción con Doppler, emisión con precompensación, GPredict y app), sin probar en placa.*
 
@@ -6,7 +6,7 @@
 
 ## Qué hace (fase 1)
 
-Se elige en **SELECT MODE → Satellites 70cm** (y desde la app por BLE: modo 9). Es un modo de **solo cálculo**: no emite ni procesa paquetes de radio.
+Se elige en **SELECT MODE → Satellites** (y desde la app por BLE: modo 9). Es un modo de **solo cálculo**: no emite ni procesa paquetes de radio.
 
 - Lista de satélites con enlace de subida y/o bajada entre 420 y 450 MHz (datos de CelesTrak y SatNOGS).
 - Para el satélite elegido: **azimut, elevación, distancia, altura y velocidad radial**, próximo paso (AOS, LOS, elevación máxima) y **Doppler** de cada transmisor (lo que oyes en la bajada y lo que hay que emitir en la subida para que llegue en su frecuencia). La frecuencia de subida y de bajada de un transpondedor lineal se muestra en su centro.
@@ -15,9 +15,13 @@ Se elige en **SELECT MODE → Satellites 70cm** (y desde la app por BLE: modo 9)
 
 Pantalla **SATELLITE** (pulsación larga → submenú): *Next / Previous satellite*, *Change view* (ahora / próximo paso / frecuencias). El archivo de satélites lo envía la app (ver más abajo).
 
-## Categorías: 70 cm, LoRa / LR-FHSS / TinyGS e Inmarsat
+## Categorías y favoritos
 
-El submenú tiene *List: All / 70cm / LoRa/TinyGS / GEO/Inmarsat* para filtrar la lista:
+El submenú tiene *List: …* para filtrar la lista; recorre *All, Favorites, This radio, 2m, 70cm, LoRa/TinyGS, GEO/Inmarsat* y se salta las que no tienen satélites. *Favorite: ON/OFF* marca el satélite elegido (hasta 32, `sat.favorites`; también en la WebUI y con la estrella de la app). Fuera de las listas de flechas, con el **encoder de la T-TWR** se pasa al satélite siguiente / anterior de la lista.
+
+- **Favorites**: los marcados.
+- **This radio**: con algún transmisor en la banda de la radio de la placa (SX126x: 70 cm; T-TWR: la del SA868, 134–174 o 400–480 MHz).
+- **2m**: subida o bajada en 144–148 MHz.
 
 - **70cm**: satélites con subida o bajada en 420–450 MHz.
 - **LoRa/TinyGS**: transmisores SatNOGS con modo LoRa o LR-FHSS en cualquier banda (433, 868, 915 MHz, 2,4 GHz...) y los LACUNASAT. Sirve para saber cuándo pasa un satélite TinyGS o de LR-FHSS (el tracker solo *emite* LR-FHSS; la recepción de estos satélites la hace tu estación TinyGS).
@@ -27,9 +31,16 @@ Las frecuencias se guardan con 64 bits (la banda L y los 2,4 GHz no caben en 32)
 
 ## Datos orbitales
 
-El archivo `sats.txt` lo **envía la app Android** (pestaña SAT: lo descarga con el internet del móvil, o lo lee de un archivo, y lo sube por BLE con `satdata`); el tracker lo guarda en la memoria flash y ya no lleva cliente HTTP ni descarga nada por sí mismo. Lo genera cada día un workflow de GitHub (`.github/workflows/satdata.yml`, `tools/make_sat_data.py`) y lo publica en la rama `satdata` del repositorio; la dirección de descarga se cambia en la app. Los TLE envejecen: la precisión baja pasados unos días; la pantalla muestra su edad.
+El archivo de satélites lo **envía la app Android** (Bluetooth) **o la WebUI** (WiFi: sección *Satellites* > *Satellite data*; el navegador lo descarga de internet, o se elige un archivo, y lo sube a `/api/satdata`). Hay dos archivos en la rama `satdata`:
 
-Formato (texto, un bloque por satélite): `S|norad|nombre`, las dos líneas del TLE y `T|subidaMin|subidaMax|bajadaMin|bajadaMax|modo|baudios|inversor|descripción` por transmisor (Hz; 0 = sin dato).
+- `sats.txt`: el de siempre (70 cm, LoRa, GEO; máx. 62 kB), para las placas con la partición de datos de 192 kB y para las apps y firmwares antiguos.
+- `sats_all.txt`: **todas las bandas** (2 m / VHF 134–174 MHz, 70 cm / UHF 400–480 MHz, LoRa, GEO), los **grupos de CelesTrak** de cada satélite (letras: `s` estaciones espaciales, `v` los más brillantes, `a` aficionados, `c` CubeSats, `n` SatNOGS, `w` meteorológicos, `x` ciencia, `d` educación, `e` ingeniería; `l` LoRa y `g` geoestacionarios salen de la categoría), los satélites de los grupos de seguimiento (`s`, `v`, `a`, `w`) aunque no tengan transmisores, y el **CTCSS** de las subidas de los repetidores de FM conocidos (ISS, SO-50, AO-91, PO-101, IO-86). La app y la WebUI se quedan con los **grupos elegidos** (`sat.groups`; ninguno = todos) y siempre con los favoritos, primero, hasta lo que cabe en el tracker (`caps.satMax`: 64 000 bytes; en la T-TWR, con 16 MB de flash, ~900 000 bytes y hasta 3000 satélites en el índice, en PSRAM).
+
+La app (pestaña SAT: lo descarga con el internet del móvil, o lo lee de un archivo, y lo sube por BLE con `satdata`); el tracker lo guarda en la memoria flash y ya no lleva cliente HTTP ni descarga nada por sí mismo. Lo genera cada día un workflow de GitHub (`.github/workflows/satdata.yml`, `tools/make_sat_data.py`) y lo publica en la rama `satdata` del repositorio; la dirección de descarga se cambia en la app. Los TLE envejecen: la precisión baja pasados unos días; la pantalla muestra su edad.
+
+Formato (texto, un bloque por satélite): `S|norad|nombre|categoría|grupos`, las dos líneas del TLE y `T|subidaMin|subidaMax|bajadaMin|bajadaMax|modo|baudios|inversor|descripción|CTCSS` por transmisor (Hz; 0 = sin dato; CTCSS en décimas de Hz, opcional; si falta, se busca en la descripción: «67 Hz», «CTCSS 67.0», «PL 74.4»). Categoría U 70 cm, V 2 m / VHF, L LoRa, G geoestacionario. Los campos nuevos (grupos, CTCSS) los ignoran los lectores antiguos. El tracker lo valida y lo lee por bloques de 2 kB (el índice de un archivo de 900 kB se hace en uno o dos segundos al entrar en el modo).
+
+**Hasta que `t-twr-plus` llegue a `main`** el workflow diario solo publica `sats.txt` (lo ejecuta GitHub desde la rama principal); mientras tanto la app y la WebUI usan ese y avisan.
 
 ## Radio: recepción con Doppler (fase 2)
 
@@ -111,3 +122,18 @@ Fuera del modo SAT aparece la pantalla **ROTOR** (solo con el rotor activado y u
 **Repetidores y RepeaterBook.** RepeaterBook Connect solo envía frecuencia, desplazamiento y tono a radios compatibles (con suscripción) y no ofrece ninguna interfaz abierta para terceros; su API exige permiso y prohíbe reutilizar los datos en otros servicios. Por eso el tracker no lleva datos de RepeaterBook: la app Android, con el acceso que tenga el usuario a ese servicio, manda al tracker solo el repetidor elegido (`tgt`). La app aún no lo hace.
 
 **Sin probar con rotor real ni en placa.** El cálculo SGP4, Doppler y pasos sí está comprobado en PC contra las referencias de Vallado y una implementación independiente (`tools/test_sat_core.cpp`).
+
+## T-TWR (SA868): el VFO de FM sigue al satélite
+
+En la LilyGO T-TWR la radio es FM de 2 m o de 70 cm (un solo módulo y una sola banda), así que el modo SAT y el modo FM usan el **VFO de FM**: *Listen* (menú SAT, app o `satrx`) y *Satellite: ON* en la página FM lo ponen a seguir al transmisor elegido del satélite elegido.
+
+- **Bajada** con Doppler (cada 0,5 s; se resintoniza al pasar 250 Hz con OpenRTX o 500 Hz con NiceRF, como mucho una vez por segundo y nunca emitiendo) más el **ajuste fino** (el encoder en la página FM o SAT: 100 Hz por paso; *Fine ±100 Hz*).
+- **Subida** precompensada; se actualiza antes de cada emisión. Canal de 25 kHz (margen para el Doppler que queda).
+- **CTCSS** de la subida del archivo de datos (TONE); se puede cambiar en la página FM (*Dial: tone*).
+- Satélite de **banda cruzada** (SO-50: sube en 2 m y baja en 70 cm): si la bajada no cae en la banda del módulo se escucha la subida (las otras estaciones) y se puede emitir; si la subida no cae en una banda de aficionado del módulo (2 m: 144–146 MHz en la R1, 144–148 en la 2 y la 3; 70 cm: 430–440, 420–450 en la R2), solo se escucha.
+- **FM de voz**: con el **PTT** lateral, solo con *Allow transmitting* (WebUI), un indicativo real y el satélite por encima de *TX minimum elevation*. En el modo SAT el PTT solo emite hacia el satélite.
+- **APRS por satélite** (digipetidor AFSK 1200: **ISS 145,825 MHz**, o cualquier transmisor AFSK con la misma subida y bajada o «APRS» / «digi» en la descripción): las tramas oídas van al registro del modo SAT y a la **lista de estaciones y mensajes** (también se ven en la app). *Send position (TX)* manda la posición (GPS, última o la del modo SAT) con la ruta `sat.aprsPath` (**ARISS** por defecto; APRSAT para otros) y el comentario de la WebUI (40 caracteres como mucho: el digipetidor está muy concurrido); *Send message (TX)* manda el texto. En el modo FM con *APRS beacon* encendido, las balizas y los mensajes van por el satélite mientras está a la vista (respetando *Minimum seconds between transmissions*) y por la frecuencia APRS el resto del tiempo; en el modo SAT solo por el satélite. Sin digipeater en FM ni en SAT.
+- **APT** de los NOAA (137 MHz) se oye con el módulo de VHF, pero no se decodifica.
+- GPredict por CAT (`F`) manda la bajada ya corregida (15 s).
+
+Sin probar en la placa: falta comprobar que el firmware de NiceRF acepta frecuencias fuera de la rejilla de 12,5 kHz (si no, el Doppler solo va bien con OpenRTX, en pasos de 62,5 Hz) y los cortes de audio al resintonizar.

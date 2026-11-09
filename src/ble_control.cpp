@@ -706,6 +706,13 @@ namespace {
         j.send(sendLine);
     }
 
+    // T-TWR en FM: la lista de satelites se carga la primera vez que la pide la app (en el modo SAT ya esta)
+    static void satEnsureLoaded() {
+        #if defined(HAS_SAT) && defined(HAS_SA868)
+            if (Config.operatingMode == MODE_FM && SAT_Utils::count() == 0) SAT_Utils::begin();
+        #endif
+    }
+
     // satrx / sattx: modo SAT; en la T-TWR tambien en FM (el VFO sigue al satelite)
     static bool satModeOk() {
         if (Config.operatingMode == MODE_SAT) return true;
@@ -825,7 +832,7 @@ namespace {
                 j.num("i", i); j.num("id", e->noradId); j.text("n", e->name); j.text("c", cat); j.num("t", e->txCount);
                 j.num("b", e->bands);
                 if (SAT_Utils::isFavorite(e->noradId)) j.flag("fav", true);
-                if (SAT_Utils::inCategory(*e)) j.flag("in", true);       // en la categoria elegida
+                j.flag("in", SAT_Utils::inCategory(*e));                // en la categoria elegida
                 j.endObj();
             }
             j.endArr();
@@ -1265,7 +1272,7 @@ namespace {
                 reply(cmd, id, "not available");
             #endif
         }
-        else if (strcmp(cmd, "sat") == 0) { sendSat(); }
+        else if (strcmp(cmd, "sat") == 0) { satEnsureLoaded(); sendSat(); }
         else if (strcmp(cmd, "satfav") == 0) {                    // favorito: id = NORAD (si falta, el elegido), on = true / false
             #ifdef HAS_SAT
                 int nid = doc["id"] | 0;
@@ -1278,19 +1285,20 @@ namespace {
                 reply(cmd, id, "not available");
             #endif
         }
-        else if (strcmp(cmd, "satcat") == 0) {                    // categoria de la lista: c = 0 todos, 1 70 cm, 2 LoRa, 3 GEO, 4 favoritos, 5 2 m, 6 esta radio
+        else if (strcmp(cmd, "satcat") == 0) {                    // categoria de la lista: k = 0 todos, 1 70 cm, 2 LoRa, 3 GEO, 4 favoritos, 5 2 m, 6 esta radio
             #ifdef HAS_SAT
-                if (!SAT_Utils::setCategory(doc["c"] | 0)) { reply(cmd, id, "bad category"); return; }
+                if (doc["k"].isNull() || !SAT_Utils::setCategory(doc["k"] | 0)) { reply(cmd, id, "bad category"); return; }
                 reply(cmd, id);
                 sendSat();
             #else
                 reply(cmd, id, "not available");
             #endif
         }
-        else if (strcmp(cmd, "satlist") == 0) { sendSatList(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 20), 1, 40)); }
-        else if (strcmp(cmd, "sattxlist") == 0) { sendSatTx(); }
+        else if (strcmp(cmd, "satlist") == 0) { satEnsureLoaded(); sendSatList(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 20), 1, 40)); }
+        else if (strcmp(cmd, "sattxlist") == 0) { satEnsureLoaded(); sendSatTx(); }
         else if (strcmp(cmd, "satsel") == 0) {                    // elige el satelite: i = indice de la lista, o id = numero NORAD
             #ifdef HAS_SAT
+                satEnsureLoaded();
                 int target = -1;
                 if (!doc["i"].isNull()) target = doc["i"] | -1;
                 else if (!doc["id"].isNull()) {
