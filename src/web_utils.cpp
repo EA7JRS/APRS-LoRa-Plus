@@ -29,6 +29,7 @@
 #include "fw_update.h"
 #include "iaru_auto.h"
 #include "keypad_fh2.h"
+#include "fm_core.h"
 
 extern Configuration               Config;
 extern String                      versionNumber;
@@ -300,6 +301,78 @@ namespace WEB_Utils {
             Config.sa868.iaruRegion = constrain(getParamIntSafe("sa868.iaruRegion", Config.sa868.iaruRegion), 1, 3);
             Config.sa868.filters   = request->hasParam("sa868.filters", true);
             Config.sa868.speaker   = request->hasParam("sa868.speaker", true);
+            if (request->hasParam("sa868.dapnetMHz", true)) {  // DAPNET por el SA868: la de la banda (144,8625 / 439,9875) se guarda como 0
+                const long hz = lround(request->getParam("sa868.dapnetMHz", true)->value().toDouble() * 1e6);
+                const bool inBand = (hz >= 134000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L);
+                Config.sa868.dapnetFreqHz = (inBand && hz != 144862500L && hz != 439987500L) ? (int)hz : 0;
+            }
+            Config.sa868.dapnetHpfHz = constrain(getParamIntSafe("sa868.dapnetHpfHz", Config.sa868.dapnetHpfHz), 0, 2000);
+        }
+        if (request->hasParam("fm.vfoMHz", true)) {         // modo FM (voz) de la T-TWR
+            // tono: "88.5" (CTCSS) o "023N" / "023I" (DCS)
+            auto readTone = [&](const char* key, int mode, FmMemory& m) {
+                if (!request->hasParam(key, true)) return;
+                String t = request->getParam(key, true)->value();
+                t.trim(); t.toUpperCase();
+                if (mode == 3) {
+                    const int code = t.toInt();
+                    if (FmCore::validDcs((uint16_t)code)) m.dcs = code;
+                    m.dcsInv = t.endsWith("I");
+                } else if (t.length()) {
+                    const int tenths = (int)lround(t.toDouble() * 10.0);
+                    if (FmCore::ctcssIndex((uint16_t)tenths) >= 0) m.tone = tenths;
+                }
+            };
+            auto mhzParam = [&](const char* key, long def) -> long {
+                if (!request->hasParam(key, true)) return def;
+                const String v = request->getParam(key, true)->value();
+                return v.length() ? lround(v.toDouble() * 1e6) : 0L;
+            };
+            FmMemory& v = Config.fm.vfo;
+            const long f = mhzParam("fm.vfoMHz", v.rxHz);
+            if (f >= 134000000L && f <= 480000000L) v.rxHz = (int)f;
+            v.shift    = constrain(getParamIntSafe("fm.vfoShift", v.shift), -1, 1);
+            v.offsetHz = (int)constrain(mhzParam("fm.vfoOffsetMHz", v.offsetHz), 0L, 99900000L);
+            v.toneMode = constrain(getParamIntSafe("fm.vfoToneMode", v.toneMode), 0, 4);
+            readTone("fm.vfoTone", v.toneMode, v);
+            v.wide     = getParamIntSafe("fm.vfoWide", v.wide ? 1 : 0) == 1;
+            v.high     = getParamIntSafe("fm.vfoHigh", v.high ? 1 : 0) == 1;
+            Config.fm.stepIndex    = constrain(getParamIntSafe("fm.stepIndex", Config.fm.stepIndex), 0, 8);
+            Config.fm.totSec       = constrain(getParamIntSafe("fm.totSec", Config.fm.totSec), 0, 600);
+            Config.fm.nrLevel      = constrain(getParamIntSafe("fm.nrLevel", Config.fm.nrLevel), 0, 3);
+            Config.fm.squelchAuto  = request->hasParam("fm.squelchAuto", true);
+            Config.fm.aprsBeacon   = request->hasParam("fm.aprsBeacon", true);
+            Config.fm.qsyInBeacon  = request->hasParam("fm.qsyInBeacon", true);
+            Config.fm.cwId         = request->hasParam("fm.cwId", true);
+            Config.fm.scanMemories = getParamIntSafe("fm.scanMemories", Config.fm.scanMemories ? 1 : 0) == 1;
+            Config.fm.scanResume   = constrain(getParamIntSafe("fm.scanResume", Config.fm.scanResume), 0, 2);
+            Config.fm.scanLoHz     = (int)mhzParam("fm.scanLoMHz", Config.fm.scanLoHz);
+            Config.fm.scanHiHz     = (int)mhzParam("fm.scanHiMHz", Config.fm.scanHiHz);
+            Config.fm.artsInterval = getParamIntSafe("fm.artsInterval", Config.fm.artsInterval) == 15 ? 15 : 25;
+            const int dcs = getParamIntSafe("fm.artsDcs", Config.fm.artsDcs);
+            if (FmCore::validDcs((uint16_t)dcs)) Config.fm.artsDcs = dcs;
+            Config.fm.eaiMode      = constrain(getParamIntSafe("fm.eaiMode", Config.fm.eaiMode), 1, 2);
+            Config.fm.eaiMinutes   = constrain(getParamIntSafe("fm.eaiMinutes", Config.fm.eaiMinutes), 1, 50);
+            Config.fm.manDownMin   = constrain(getParamIntSafe("fm.manDownMin", Config.fm.manDownMin), 0, 120);
+            Config.fm.cwWpm        = constrain(getParamIntSafe("fm.cwWpm", Config.fm.cwWpm), 5, 40);
+            for (int i = 0; i < FmConfig::MEMORIES; i++) {
+                char key[24];
+                snprintf(key, sizeof(key), "fm.m%d.f", i);
+                if (!request->hasParam(key, true)) continue;                                   // fila ausente: se deja como esta
+                FmMemory& m = Config.fm.mem[i];
+                const long mf = mhzParam(key, 0);
+                if (mf < 134000000L || mf > 480000000L) { m.rxHz = 0; m.name = ""; continue; }  // vacia
+                m.rxHz = (int)mf;
+                snprintf(key, sizeof(key), "fm.m%d.n", i);
+                if (request->hasParam(key, true)) { String n = request->getParam(key, true)->value(); n.trim(); m.name = n.substring(0, 8); }
+                snprintf(key, sizeof(key), "fm.m%d.sh", i);  m.shift = constrain(getParamIntSafe(key, m.shift), -1, 1);
+                snprintf(key, sizeof(key), "fm.m%d.ofs", i); m.offsetHz = (int)constrain(mhzParam(key, m.offsetHz), 0L, 99900000L);
+                snprintf(key, sizeof(key), "fm.m%d.tm", i);  m.toneMode = constrain(getParamIntSafe(key, m.toneMode), 0, 4);
+                snprintf(key, sizeof(key), "fm.m%d.t", i);   readTone(key, m.toneMode, m);
+                snprintf(key, sizeof(key), "fm.m%d.wh", i);
+                const int wh = constrain(getParamIntSafe(key, (m.wide ? 1 : 0) + (m.high ? 2 : 0)), 0, 3);
+                m.wide = (wh & 1) != 0; m.high = (wh & 2) != 0;
+            }
         }
         #endif
         {   // rotor (modo SAT)

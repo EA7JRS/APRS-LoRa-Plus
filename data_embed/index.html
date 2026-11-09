@@ -744,7 +744,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-broadcast" viewBox="0 0 16 16" > <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707m2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708m5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708m2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0" /> </svg>
                                     Frequency calibration
                                 </h5>
-                                <small>Oscillator correction in ppm for all modes. Emit a carrier (Tune carrier, WSPR or CW BEACON submenu), measure it with an SDR and enter the error (measured &minus; expected). Positive ppm raises the transmitted frequency.</small>
+                                <small>Oscillator correction in ppm for all modes. Emit a carrier (Tune carrier, WSPR or CW BEACON submenu), measure it with an SDR and enter the error (measured &minus; expected). Positive ppm raises the transmitted frequency. T-TWR: <i>Tune carrier</i> in the RADIO or FM page menu (or the app); the correction applies to the SA868 in transmit and receive (100 Hz steps with the NiceRF firmware, 62.5 Hz with OpenRTX).</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="row">
@@ -990,6 +990,47 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div class="small text-muted mb-2" id="sa868-status"></div>
                             </div>
                         </div>
+                        <div class="row my-5 d-flex align-items-top d-none" id="grp-fm">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M5 1a.5.5 0 0 1 .5.5V4h5a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V1.5A.5.5 0 0 1 5 1m1 5v2h4V6zm0 4v1h1v-1zm2 0v1h1v-1zm-2 2v1h1v-1zm2 0v1h1v-1z"/></svg> FM voice (T-TWR)</h5>
+                                <small>SELECT MODE &rarr; FM voice: the T-TWR as a 2 m / 70 cm handheld. Side PTT with the board microphone, the encoder tunes on the FM page (long press: menu). ARS sets the repeater shift in repeater segments. Squelch <b>Auto</b>: on Rev2.1 the ESP32 feeds the speaker and closes on noise (with noise reduction if chosen); on Rev2.0 it adjusts the module level. ARTS polls with the DCS code every 15 / 25 s (IN / OUT RANGE, like Yaesu); EAI transmits beeps every 2.5 s or the open microphone, with the callsign in CW, for the EAI time (also after the man-down time without touching the radio). APRS beacons go out on the APRS frequency and come back; with <i>Frequency in beacon</i> the comment starts with the channel ("145.650MHz T088 -060") so other APRS radios can QSY. On the LAST APRS page, <i>QSY (FM voice)</i> tunes a station that announces a frequency.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="small fw-semibold mb-1 px-1">VFO</div>
+                                <div class="row g-0">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.vfoMHz" id="fm.vfoMHz" min="134" max="480" step="0.00625" value="145.5" /><label for="fm.vfoMHz">Frequency (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="fm.vfoShift" id="fm.vfoShift"><option value="0">Simplex</option><option value="-1">&minus;</option><option value="1">+</option></select><label for="fm.vfoShift">Shift</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.vfoOffsetMHz" id="fm.vfoOffsetMHz" min="0" max="99.9" step="0.005" value="0.6" /><label for="fm.vfoOffsetMHz">Offset (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="fm.vfoToneMode" id="fm.vfoToneMode"><option value="0">No tone</option><option value="1">TONE</option><option value="2">TSQL</option><option value="3">DCS</option><option value="4">1750 Hz</option></select><label for="fm.vfoToneMode">Tone</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="text" class="form-control form-control-sm" name="fm.vfoTone" id="fm.vfoTone" maxlength="6" placeholder="88.5 / 023N" /><label for="fm.vfoTone">CTCSS Hz / DCS</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="fm.vfoWide" id="fm.vfoWide"><option value="0">Narrow 12.5 kHz</option><option value="1">Wide 25 kHz</option></select><label for="fm.vfoWide">Bandwidth</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="fm.vfoHigh" id="fm.vfoHigh"><option value="0">Low</option><option value="1">High</option></select><label for="fm.vfoHigh">Power</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="fm.stepIndex" id="fm.stepIndex"><option value="0">5 kHz</option><option value="1">6.25 kHz</option><option value="2">10 kHz</option><option value="3">12.5 kHz</option><option value="4">15 kHz</option><option value="5">20 kHz</option><option value="6">25 kHz</option><option value="7">50 kHz</option><option value="8">100 kHz</option></select><label for="fm.stepIndex">Step</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.totSec" id="fm.totSec" min="0" max="600" value="180" /><label for="fm.totSec">TOT (s)</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="fm.nrLevel" id="fm.nrLevel"><option value="0">Off</option><option value="1">Low</option><option value="2">Mid</option><option value="3">High</option></select><label for="fm.nrLevel">Noise red. (Rev2.1)</label></div>
+                                </div>
+                                <div class="form-check form-switch"><input type="checkbox" name="fm.squelchAuto" id="fm.squelchAuto" class="form-check-input" /><label for="fm.squelchAuto" class="form-label">Automatic squelch (otherwise the level of the VHF radio section)</label></div>
+                                <div class="form-check form-switch"><input type="checkbox" name="fm.aprsBeacon" id="fm.aprsBeacon" class="form-check-input" /><label for="fm.aprsBeacon" class="form-label">APRS beacons on the APRS frequency during FM</label></div>
+                                <div class="form-check form-switch"><input type="checkbox" name="fm.qsyInBeacon" id="fm.qsyInBeacon" class="form-check-input" /><label for="fm.qsyInBeacon" class="form-label">Frequency in beacon (QSY information)</label></div>
+                                <div class="small fw-semibold mt-2 mb-1 px-1">Scan, ARTS, EAI</div>
+                                <div class="row g-0">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="fm.scanMemories" id="fm.scanMemories"><option value="1">Memories</option><option value="0">Band</option></select><label for="fm.scanMemories">Scan</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="fm.scanResume" id="fm.scanResume"><option value="0">Carrier (2 s)</option><option value="1">Time (5 s)</option><option value="2">Stop</option></select><label for="fm.scanResume">Resume</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.scanLoMHz" id="fm.scanLoMHz" min="0" max="480" step="0.0125" placeholder="band" /><label for="fm.scanLoMHz">Band from (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.scanHiMHz" id="fm.scanHiMHz" min="0" max="480" step="0.0125" placeholder="band" /><label for="fm.scanHiMHz">to (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="fm.artsInterval" id="fm.artsInterval"><option value="25">25 s</option><option value="15">15 s</option></select><label for="fm.artsInterval">ARTS polling</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.artsDcs" id="fm.artsDcs" min="23" max="754" value="23" /><label for="fm.artsDcs">ARTS DCS code</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="fm.eaiMode" id="fm.eaiMode"><option value="1">Interval (beeps)</option><option value="2">Continuous (mic)</option></select><label for="fm.eaiMode">EAI</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.eaiMinutes" id="fm.eaiMinutes" min="1" max="50" value="10" /><label for="fm.eaiMinutes">EAI time (min)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.manDownMin" id="fm.manDownMin" min="0" max="120" value="0" /><label for="fm.manDownMin">Man down (min, 0 off)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.cwWpm" id="fm.cwWpm" min="5" max="40" value="20" /><label for="fm.cwWpm">CW ID speed (wpm)</label></div>
+                                </div>
+                                <div class="form-check form-switch"><input type="checkbox" name="fm.cwId" id="fm.cwId" class="form-check-input" /><label for="fm.cwId" class="form-label">Callsign in CW every 10 minutes (ARTS) and in EAI</label></div>
+                                <div class="small fw-semibold mt-2 mb-1 px-1">Memories (empty frequency = free)</div>
+                                <div class="row g-1 mb-1 small text-muted"><div class="col-2">Name</div><div class="col-2">MHz</div><div class="col-1">Shift</div><div class="col-2">Offset</div><div class="col-2">Tone</div><div class="col-2">Hz / DCS</div><div class="col-1">W / H</div></div>
+                                <div id="fm-mems"></div>
+                            </div>
+                        </div>
                         <div class="row my-5 d-flex align-items-top" id="grp-dapnet">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
@@ -1000,6 +1041,8 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="row">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2 d-none" id="dapnet-sa868-f"><input type="number" class="form-control form-control-sm" name="sa868.dapnetMHz" id="sa868.dapnetMHz" min="134" max="480" step="0.0125" value="144.8625" /><label for="sa868.dapnetMHz">Frequency (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2 d-none" id="dapnet-sa868-h"><input type="number" class="form-control form-control-sm" name="sa868.dapnetHpfHz" id="sa868.dapnetHpfHz" min="0" max="2000" value="320" title="AC coupling of the board audio input that is compensated (100 nF with 10k / 10k: about 320 Hz)" /><label for="sa868.dapnetHpfHz">Audio coupling (Hz)</label></div>
                                     <div class="form-floating col-12 col-md-3 px-1 mb-2">
                                         <input type="number" class="form-control form-control-sm" name="dapnet.freqMHz" id="dapnet.freqMHz" min="400" max="480" step="0.0125" value="439.9875" required />
                                         <label for="dapnet.freqMHz">Frequency (MHz)</label>

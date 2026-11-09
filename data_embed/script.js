@@ -674,6 +674,52 @@ function loadSettings(settings) {
             sa868IaruWire();
             document.getElementById("sa868.filters").checked = sa.filters !== false;
             document.getElementById("sa868.speaker").checked = sa.speaker !== false;
+            document.getElementById("sa868.dapnetHpfHz").value = sa.dapnetHpfHz ?? 320;
+            if (sa.dapnetFreqHz) document.getElementById("sa868.dapnetMHz").value = (sa.dapnetFreqHz / 1e6).toFixed(4);
+        }
+        if (settings.fm) {                          // T-TWR: modo FM (voz)
+            const fm = settings.fm, v = fm.vfo || {};
+            const toneText = m => (m.tm === 3) ? String(m.d ?? 23).padStart(3, "0") + (m.inv ? "I" : "N") : ((m.t ?? 885) / 10).toFixed(1);
+            const g = id => document.getElementById(id);
+            g("fm.vfoMHz").value = ((v.rxHz || 145500000) / 1e6).toFixed(5);
+            g("fm.vfoShift").value = String(v.shift ?? 0);
+            g("fm.vfoOffsetMHz").value = ((v.offsetHz ?? 600000) / 1e6).toFixed(3);
+            g("fm.vfoToneMode").value = String(v.toneMode ?? 0);
+            g("fm.vfoTone").value = toneText({ tm: v.toneMode, t: v.tone, d: v.dcs, inv: v.dcsInv });
+            g("fm.vfoWide").value = v.wide ? "1" : "0";
+            g("fm.vfoHigh").value = v.high ? "1" : "0";
+            ["stepIndex", "totSec", "nrLevel", "scanResume", "artsInterval", "artsDcs", "eaiMode", "eaiMinutes", "manDownMin", "cwWpm"].forEach(k => { if (fm[k] !== undefined) g("fm." + k).value = String(fm[k]); });
+            g("fm.scanMemories").value = fm.scanMemories === false ? "0" : "1";
+            g("fm.scanLoMHz").value = fm.scanLoHz ? (fm.scanLoHz / 1e6).toFixed(4) : "";
+            g("fm.scanHiMHz").value = fm.scanHiHz ? (fm.scanHiHz / 1e6).toFixed(4) : "";
+            g("fm.squelchAuto").checked = fm.squelchAuto !== false;
+            g("fm.aprsBeacon").checked = fm.aprsBeacon !== false;
+            g("fm.qsyInBeacon").checked = fm.qsyInBeacon !== false;
+            g("fm.cwId").checked = fm.cwId !== false;
+            const box = g("fm-mems"), mems = {};
+            (fm.mem || []).forEach(m => { if (m && m.i !== undefined) mems[m.i] = m; });
+            box.innerHTML = "";
+            for (let i = 0; i < 32; i++) {
+                const m = mems[i] || {};
+                const r = document.createElement("div");
+                const n = k => 'name="fm.m' + i + '.' + k + '"';
+                r.className = "row g-1 mb-1";
+                r.innerHTML = '<div class="col-2"><input type="text" class="form-control form-control-sm" ' + n("n") + ' maxlength="8" placeholder="M' + String(i + 1).padStart(2, "0") + '"></div>' +
+                    '<div class="col-2"><input type="number" class="form-control form-control-sm" ' + n("f") + ' min="0" max="480" step="0.00625"></div>' +
+                    '<div class="col-1"><select class="form-select form-select-sm" ' + n("sh") + '><option value="0">S</option><option value="-1">&minus;</option><option value="1">+</option></select></div>' +
+                    '<div class="col-2"><input type="number" class="form-control form-control-sm" ' + n("ofs") + ' min="0" max="99.9" step="0.005"></div>' +
+                    '<div class="col-2"><select class="form-select form-select-sm" ' + n("tm") + '><option value="0">&mdash;</option><option value="1">TONE</option><option value="2">TSQL</option><option value="3">DCS</option><option value="4">1750</option></select></div>' +
+                    '<div class="col-2"><input type="text" class="form-control form-control-sm" ' + n("t") + ' maxlength="6"></div>' +
+                    '<div class="col-1"><select class="form-select form-select-sm" ' + n("wh") + '><option value="0">N L</option><option value="1">W L</option><option value="2">N H</option><option value="3">W H</option></select></div>';
+                box.appendChild(r);
+                const q = k => r.querySelector('[name="fm.m' + i + '.' + k + '"]');
+                if (m.rxHz) {
+                    q("n").value = m.n || ""; q("f").value = (m.rxHz / 1e6).toFixed(5); q("sh").value = String(m.shift ?? 0);
+                    q("ofs").value = ((m.offsetHz ?? 600000) / 1e6).toFixed(3); q("tm").value = String(m.toneMode ?? 0);
+                    q("t").value = toneText({ tm: m.toneMode, t: m.tone, d: m.dcs, inv: m.dcsInv });
+                    q("wh").value = String((m.wide ? 1 : 0) + (m.high ? 2 : 0));
+                } else { q("ofs").value = "0.600"; q("t").value = "88.5"; }
+            }
         }
         const dap = settings.dapnet || {};
         document.getElementById("dapnet.freqMHz").value = ((dap.freqHz ?? 439987500) / 1e6).toFixed(4);
@@ -1667,7 +1713,12 @@ function boardPinInit() {
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
                 document.getElementById("grp-sa868").classList.remove("d-none");
-                ["grp-dapnet", "grp-ft", "grp-lrfhss", "grp-freqcal"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
+                ["grp-ft", "grp-lrfhss"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
+                document.getElementById("grp-fm").classList.remove("d-none");
+                // DAPNET por el SA868: frecuencia propia (144,8625 / 439,9875) y compensacion del acoplo; sin desviacion ni ancho del SX126x
+                ["dapnet-sa868-f", "dapnet-sa868-h"].forEach(id => document.getElementById(id).classList.remove("d-none"));
+                ["dapnet.freqMHz", "dapnet.devKHz", "dapnet.rxBwTenthsKHz"].forEach(id => { const e = document.getElementById(id); if (e) e.closest(".form-floating").classList.add("d-none"); });
+                if (i.sa868 && i.sa868.dapnet) document.getElementById("sa868.dapnetMHz").value = (i.sa868.dapnet / 1e6).toFixed(4);
                 if (i.sa868) { SA868_BAND = i.sa868.band || ""; if (sa868Refill) sa868Refill(); }
                 if (i.sa868) document.getElementById("sa868-status").textContent = "Detected: " + (i.sa868.ok ? "Rev" + (i.sa868.rev / 10).toFixed(1) + ", " + i.sa868.band + ", " + i.sa868.fw + " firmware" + (i.sa868.modem ? " · now " + i.sa868.modem + (i.sa868.rx ? " on " + (i.sa868.rx / 1e6).toFixed(4) + " MHz" : "") : "") : "no answer from the radio module");
             }

@@ -720,7 +720,8 @@ bool Configuration::readFile() {
         setFmDefaults();
         READ("fm", fm, kFmFields);
         readFields(data["fm"]["vfo"], &fm.vfo, kFmMemFields, NFIELDS(kFmMemFields));
-        for (JsonObject m : data["fm"]["mem"].as<JsonArray>()) {
+        JsonArray fmMems = data["fm"]["mem"];
+        for (JsonObject m : fmMems) {
             const int i = m["i"] | -1;
             if (i >= 0 && i < FmConfig::MEMORIES) readFields(m, &fm.mem[i], kFmMemFields, NFIELDS(kFmMemFields));
         }
