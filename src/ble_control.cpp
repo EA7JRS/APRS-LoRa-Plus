@@ -12,6 +12,7 @@
 #include <esp_attr.h>
 #include <logger.h>
 #include "ble_control.h"
+#include "gnss_sky.h"
 #include "configuration.h"
 #include "board_pinout.h"
 #include "display.h"
@@ -116,6 +117,7 @@ namespace {
     // Envios periodicos y tareas aplazadas (solo en el bucle principal)
     uint32_t                sensorsEveryMs  = 0, sensorsLastMs = 0;
     uint32_t                gnssEveryMs     = 0, gnssLastMs    = 0;
+    uint32_t                skyEveryMs      = 0, skyLastMs     = 0;
     uint32_t                restartAtMs     = 0;
     uint32_t                dapnetSeen      = 0;
     int                     cwIndex         = -1;
@@ -401,6 +403,28 @@ namespace {
                      (unsigned)gps.time.hour(), (unsigned)gps.time.minute(), (unsigned)gps.time.second());
             j.text("utc", utc);
         }
+        j.send(sendLine);
+    }
+
+    // Cielo del receptor (GNSS_Sky): satelites a la vista con elevacion, azimut, SNR y si se usan; DOP y error de GST
+    void sendSky() {
+        JW j("sky");
+        j.flt("pd", GNSS_Sky::pdop(), 1);
+        j.flt("hd", GNSS_Sky::hdop(), 1);
+        j.flt("vd", GNSS_Sky::vdop(), 1);
+        j.flt("err", GNSS_Sky::errorM(), 1);
+        if (gps.satellites.isValid()) j.num("used", gps.satellites.value());
+        j.arr("s");
+        const uint8_t n = GNSS_Sky::count();
+        for (uint8_t i = 0; i < n; i++) {
+            const GNSS_Sky::Sat* p = GNSS_Sky::sat(i);
+            if (!p) break;
+            char b[40];
+            snprintf(b, sizeof(b), "[\"%c\",%u,%d,%d,%d,%d]", p->sys, (unsigned)p->svid, (int)p->elev, (int)p->azim, (int)p->snr, p->used ? 1 : 0);
+            j.sep();
+            j.s += b;
+        }
+        j.endArr();
         j.send(sendLine);
     }
 
@@ -965,11 +989,14 @@ namespace {
         else if (strcmp(cmd, "status") == 0)  sendStatus();
         else if (strcmp(cmd, "sensors") == 0) sendSensors();
         else if (strcmp(cmd, "gnss") == 0)    sendGnss();
+        else if (strcmp(cmd, "sky") == 0)     sendSky();
         else if (strcmp(cmd, "dapnet") == 0)  sendDapnet();
         else if (strcmp(cmd, "sub") == 0) {
             const int s = doc["sensors"] | -1;
             const int g = doc["gnss"] | -1;
             const int sc = doc["screen"] | -1;
+            const int sk = doc["sky"] | -1;
+            if (sk >= 0) skyEveryMs = sk == 0 ? 0 : (uint32_t)max(sk, 2) * 1000UL;
             if (sc >= 0) screenEveryMs = sc == 0 ? 0 : (uint32_t)max(sc, 1) * 1000UL;
             if (s >= 0) sensorsEveryMs = s == 0 ? 0 : (uint32_t)max(s, 2) * 1000UL;
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
@@ -1402,6 +1429,7 @@ namespace BLE_Control {
         nmeaWanted     = false;
         sensorsEveryMs = 0;
         gnssEveryMs    = 0;
+        skyEveryMs     = 0;
         screenEveryMs  = 0;
         cfgAbort();
     }
@@ -1444,6 +1472,7 @@ namespace BLE_Control {
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }
         if (gnssEveryMs && now - gnssLastMs >= gnssEveryMs)          { gnssLastMs = now; sendGnss(); }
+        if (skyEveryMs && now - skyLastMs >= skyEveryMs)             { skyLastMs = now; sendSky(); }
         if (screenEveryMs && now - screenLastMs >= screenEveryMs)    { screenLastMs = now; sendScreen(); }
     }
 
