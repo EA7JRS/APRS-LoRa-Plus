@@ -18,7 +18,7 @@ namespace IARU_Plan {
             return c;
         }
 
-        // Canales (Hz) por tipo y region (copia de IARU_CHANNELS / _FSK / _CW / _CWB de data_embed/script.js)
+        // Canales (Hz) por tipo y region (copia de IARU_CHANNELS / _FSK / _CW / _CWB / _VHF de data_embed/script.js)
         const long LORA_1[] = {433625000, 433650000, 433675000, 433700000, 433725000, 433750000, 433775000,
                                434450000, 434475000, 434500000, 434525000, 434550000, 434575000, 434855000,
                                438025000, 438050000, 438075000, 438100000, 438125000, 438150000, 438175000, 439912500};
@@ -33,6 +33,11 @@ namespace IARU_Plan {
         const long CWB_1[]  = {432410000, 432430000, 432450000, 432470000, 432025000, 432050000, 432075000, 432100000};
         const long CWB_2[]  = {432320000, 432350000, 432380000, 903050000, 432025000, 432050000, 432100000, 902100000, 903100000};
         const long CWB_3[]  = {432050000, 432100000};
+        // APRS AFSK 1200 en 2 m (T-TWR, radio SA868), por pais: sigidwiki.com/wiki/APRS, VK2KFJ (Australia / Nueva Zelanda) y la
+        // tabla japonesa de frecuencias APRS (144,660 MHz a 1200 baudios)
+        const long VHF_1[]  = {144800000};
+        const long VHF_2[]  = {144390000, 144930000, 145570000};
+        const long VHF_3[]  = {144390000, 145175000, 144575000, 144640000, 144660000};
 
         #define ARR(a) a, (int)(sizeof(a) / sizeof(a[0]))
         struct List { const long* hz; int n; };
@@ -42,6 +47,7 @@ namespace IARU_Plan {
                 case FSK:  return region == 1 ? List{ARR(FSK_1)}  : (region == 2 ? List{ARR(LORA_2)} : List{ARR(LORA_3)});
                 case CW:   return region == 1 ? List{ARR(CW_1)}   : (region == 2 ? List{ARR(CW_2)}   : List{ARR(CW_3)});
                 case CWB:  return region == 1 ? List{ARR(CWB_1)}  : (region == 2 ? List{ARR(CWB_2)}  : List{ARR(CWB_3)});
+                case VHF:  return region == 1 ? List{ARR(VHF_1)}  : (region == 2 ? List{ARR(VHF_2)}  : List{ARR(VHF_3)});
                 default:   return region == 1 ? List{ARR(LORA_1)} : (region == 2 ? List{ARR(LORA_2)} : List{ARR(LORA_3)});
             }
         }
@@ -57,8 +63,9 @@ namespace IARU_Plan {
     }
 
     bool allowed(int region, long hz) {
-        if (region == 2) return (hz >= 420000000L && hz <= 450000000L) || (hz >= 902000000L && hz <= 928000000L);
-        return hz >= 430000000L && hz <= 440000000L;               // regiones 1 y 3
+        if (region == 2) return (hz >= 144000000L && hz <= 148000000L) || (hz >= 420000000L && hz <= 450000000L) || (hz >= 902000000L && hz <= 928000000L);
+        if (region == 3) return (hz >= 144000000L && hz <= 148000000L) || (hz >= 430000000L && hz <= 440000000L);
+        return (hz >= 144000000L && hz <= 146000000L) || (hz >= 430000000L && hz <= 440000000L);    // region 1
     }
 
     int channelCount(Kind kind, int region)            { return listFor(kind, region).n; }
@@ -68,6 +75,7 @@ namespace IARU_Plan {
         switch (kind) {
             case CW:  return 432050000L;                          // centro de actividad de telegrafia (existe en las tres regiones)
             case CWB: return region == 1 ? 432410000L : (region == 2 ? 432320000L : 432050000L);
+            case VHF: return region == 1 ? 144800000L : 144390000L;   // R3: 144,390 (Indonesia, Malasia, Tailandia); Australia, Nueva Zelanda, China y Japon en la lista
             default:  return 433775000L;                          // LoRa APRS (existe en las tres regiones, tambien en la lista FSK)
         }
     }

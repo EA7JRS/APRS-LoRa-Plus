@@ -324,6 +324,7 @@ namespace {
         FB(Sa868Config, filters,   FF_KEEP, 0),
         FB(Sa868Config, speaker,   FF_KEEP, 0),
         FB(Sa868Config, revision,  FF_KEEP, 0),
+        FC(Sa868Config, iaruRegion, FF_KEEP, 0, 1, 3),
     };
 #endif
     const Field kSatFields[] = {                                                    // los valores que faltan parten de setDapnetDefaults()
@@ -875,6 +876,7 @@ void Configuration::setSa868Defaults() {
     sa868.filters    = true;
     sa868.speaker    = true;
     sa868.revision   = 0;
+    sa868.iaruRegion = 1;
 }
 
 void Configuration::setDapnetDefaults() {

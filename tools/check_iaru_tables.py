@@ -13,9 +13,10 @@ start = js.index("const IARU_REGIONS")
 end = js.index("function iaruList")
 code = js[start:end] + """
 const out = {};
-const T = {lora: IARU_CHANNELS, fsk: IARU_CHANNELS_FSK, cw: IARU_CHANNELS_CW, cwb: IARU_CHANNELS_CWB};
+const T = {lora: IARU_CHANNELS, fsk: IARU_CHANNELS_FSK, cw: IARU_CHANNELS_CW, cwb: IARU_CHANNELS_CWB, vhf: IARU_CHANNELS_VHF};
 for (const k of Object.keys(T)) for (const r of [1, 2, 3]) out[k + r] = (T[k][r] || []).map(c => Math.round(c[1] * 1e6));
 out.bands = IARU_REGIONS;
+out.vhfBands = IARU_VHF_BANDS;
 console.log(JSON.stringify(out));
 """
 ws = json.loads(subprocess.check_output(["node", "-e", code]))
@@ -30,5 +31,10 @@ for r, b in exp.items():
     if ws["bands"][r]["bands"] != b:
         bad += 1
         print("DIFERENTE bandas R" + r, ws["bands"][r]["bands"], "!=", b)
+# 2 m (T-TWR): R1 144-146, R2 y R3 144-148, como IARU_Plan::allowed
+vexp = {"1": [144.0, 146.0], "2": [144.0, 148.0], "3": [144.0, 148.0]}
+if ws["vhfBands"] != vexp:
+    bad += 1
+    print("DIFERENTE bandas de 2 m", ws["vhfBands"], "!=", vexp)
 print("tablas IARU: %s" % ("OK" if not bad else "%d diferencias" % bad))
 sys.exit(1 if bad else 0)

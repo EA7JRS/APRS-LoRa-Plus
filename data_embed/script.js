@@ -59,6 +59,42 @@ const IARU_CHANNELS_CWB = {
         ["432.380  CW beacon segment (IARU R2 432.3-432.4)", 432.38], ["903.050  33 cm beacon segment (IARU R2 903.0-903.1)", 903.05]].concat(IARU_CHANNELS_CW[2]),
     3: IARU_CHANNELS_CW[3]
 };
+// APRS AFSK 1200 on 2 m (LilyGO T-TWR, SA868 radio), per country: sigidwiki.com/wiki/APRS, VK2KFJ (VK / ZL), Japanese APRS frequency table.
+const IARU_VHF_BANDS = { 1: [144.0, 146.0], 2: [144.0, 148.0], 3: [144.0, 148.0] };
+const IARU_CHANNELS_VHF = {
+    1: [["144.800  APRS (Europe, Africa, Russia)", 144.8]],
+    2: [["144.390  APRS (North America, Chile, Colombia)", 144.39], ["144.930  APRS (Argentina, Uruguay)", 144.93], ["145.570  APRS (Brazil)", 145.57]],
+    3: [["144.390  APRS (Indonesia, Malaysia, Thailand)", 144.39], ["145.175  APRS (Australia)", 145.175], ["144.575  APRS (New Zealand)", 144.575],
+        ["144.640  APRS (China)", 144.64], ["144.660  APRS 1200 baud (Japan)", 144.66]]
+};
+function sa868IaruWire() {
+    const g = id => document.getElementById(id);
+    const reg = g("sa868.iaruRegion"), preset = g("sa868.preset"), rx = g("sa868.rxMHz"), tx = g("sa868.txMHz"), info = g("sa868.bandinfo");
+    const key = v => String(Math.round(parseFloat(v) * 1e4));
+    const refresh = () => {
+        const r = parseInt(reg.value, 10), b = IARU_VHF_BANDS[r], f = parseFloat(rx.value);
+        const vhf = f < 300, ok = !vhf || (f >= b[0] && f <= b[1]);
+        info.className = ok ? "text-muted" : "text-danger fw-semibold";
+        info.textContent = vhf ? "2 m amateur allocation, " + IARU_REGIONS[r].name + ": " + b[0] + "\u2013" + b[1] + " MHz" + (ok ? "" : " \u2014 the frequency is OUTSIDE it") + ". National rules prevail."
+                               : "UHF module: set the APRS frequency used in your area.";
+    };
+    const fill = () => {
+        const r = parseInt(reg.value, 10);
+        preset.innerHTML = ['<option value="">Custom</option>'].concat(IARU_CHANNELS_VHF[r].map(c => '<option value="' + c[1] + '">' + c[0] + '</option>')).join("");
+        const cur = [...preset.options].find(o => o.value && key(o.value) === key(rx.value));
+        preset.value = cur ? cur.value : "";
+    };
+    preset.addEventListener("change", () => { if (preset.value) { rx.value = preset.value; tx.value = preset.value; } refresh(); });
+    reg.addEventListener("change", () => {
+        // a channel of the old region that does not exist in the new one becomes the new region's first channel (as the automatic region does)
+        const oldList = [].concat(...Object.values(IARU_CHANNELS_VHF)).map(c => key(c[1]));
+        const newList = IARU_CHANNELS_VHF[parseInt(reg.value, 10)];
+        if (oldList.includes(key(rx.value)) && !newList.some(c => key(c[1]) === key(rx.value))) { rx.value = newList[0][1].toFixed(4); tx.value = rx.value; }
+        fill(); refresh();
+    });
+    rx.addEventListener("input", () => { fill(); refresh(); });
+    fill(); refresh();
+}
 function iaruList(o, region) {
     const t = o && o.kind === "cwb" ? IARU_CHANNELS_CWB : o && o.kind === "cw" ? IARU_CHANNELS_CW : (o && o.kind === "fsk" ? IARU_CHANNELS_FSK : IARU_CHANNELS);
     return t[region] || [];
@@ -619,6 +655,8 @@ function loadSettings(settings) {
             document.getElementById("sa868.highPower").value = sa.highPower ? "1" : "0";
             ["volume", "squelch", "txLevel", "txDelayMs", "txTailMs"].forEach(k => { if (sa[k] !== undefined) document.getElementById("sa868." + k).value = sa[k]; });
             document.getElementById("sa868.revision").value = String(sa.revision ?? 0);
+            document.getElementById("sa868.iaruRegion").value = String(sa.iaruRegion ?? 1);
+            sa868IaruWire();
             document.getElementById("sa868.filters").checked = sa.filters !== false;
             document.getElementById("sa868.speaker").checked = sa.speaker !== false;
         }
@@ -1614,7 +1652,7 @@ function boardPinInit() {
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
                 document.getElementById("grp-sa868").classList.remove("d-none");
-                ["grp-dapnet", "grp-ft", "grp-lrfhss", "grp-freqcal", "grp-iaru"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
+                ["grp-dapnet", "grp-ft", "grp-lrfhss", "grp-freqcal"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
                 if (i.sa868) document.getElementById("sa868-status").textContent = "Detected: " + (i.sa868.ok ? "Rev" + (i.sa868.rev / 10).toFixed(1) + ", " + i.sa868.band + ", " + i.sa868.fw + " firmware" : "no answer from the radio module");
             }
             const isSupreme = name.toLowerCase().indexOf("supreme") >= 0;

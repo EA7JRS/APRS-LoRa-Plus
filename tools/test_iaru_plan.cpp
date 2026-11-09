@@ -12,9 +12,9 @@ static int fails = 0;
 
 int main(int argc, char** argv) {
     if (argc > 1 && !strcmp(argv[1], "--tables")) {
-        const char* names[] = {"lora", "fsk", "cw", "cwb"};
+        const char* names[] = {"lora", "fsk", "cw", "cwb", "vhf"};
         printf("{");
-        for (int k = 0; k < 4; k++) for (int r = 1; r <= 3; r++) {
+        for (int k = 0; k < 5; k++) for (int r = 1; r <= 3; r++) {
             printf("%s\"%s%d\":[", (k || r > 1) ? "," : "", names[k], r);
             for (int i = 0; i < channelCount((Kind)k, r); i++) printf("%s%ld", i ? "," : "", channelHz((Kind)k, r, i));
             printf("]");
@@ -50,6 +50,16 @@ int main(int argc, char** argv) {
     CHECK(mapFrequency(CWB, 1, 2, 432410000L) == 432320000L);
     CHECK(mapFrequency(CWB, 2, 1, 432350000L) == 432410000L);
     CHECK(mapFrequency(CWB, 1, 3, 432050000L) == 432050000L);
+    // 2 m APRS (T-TWR)
+    CHECK(allowed(1, 144800000L) && !allowed(1, 147000000L) && allowed(2, 147000000L) && allowed(3, 145175000L));
+    CHECK(mapFrequency(VHF, 1, 2, 144800000L) == 144390000L);         // Europa -> Norteamerica
+    CHECK(mapFrequency(VHF, 2, 1, 145570000L) == 144800000L);         // Brasil -> Region 1
+    CHECK(mapFrequency(VHF, 2, 3, 144390000L) == 144390000L);         // 144,390 existe en R2 y R3
+    CHECK(mapFrequency(VHF, 3, 1, 145175000L) == 144800000L);         // Australia -> Region 1
+    CHECK(mapFrequency(VHF, 1, 3, 145500000L) == 145500000L);         // Custom valido en R3: se respeta
+    CHECK(mapFrequency(VHF, 2, 1, 147000000L) == 144800000L);         // Custom fuera de la banda de R1 -> por defecto
+    CHECK(mapFrequency(VHF, 1, 2, 432500000L) == 432500000L);         // modulo de UHF: frecuencia propia dentro de la banda
+    CHECK(channelCount(VHF, 3) == 5 && defaultHz(VHF, 2) == 144390000L);
     CHECK(mapFrequency(LORA, 2, 2, 12345L) == 12345L);                // misma region: no se toca
     CHECK(mapFrequency(LORA, 1, 2, 0L) == 0L);
     printf(fails ? "%d fallos\n" : "OK\n", fails);

@@ -1,5 +1,5 @@
 /*
- * APRS LoRa+ - Regiones IARU: deteccion por posicion y planes de banda (70 cm / 33 cm).
+ * APRS LoRa+ - Regiones IARU: deteccion por posicion y planes de banda (2 m APRS de la T-TWR, 70 cm / 33 cm).
  * Copyright (C) 2026 Manuel - EA7JRS   (GPL-3.0-or-later)
  *
  * Codigo puro (sin Arduino): se prueba en el PC con tools/test_iaru_plan.cpp.
@@ -12,10 +12,10 @@
 
 namespace IARU_Plan {
 
-    enum Kind { LORA = 0, FSK = 1, CW = 2, CWB = 3 };      // tipo de perfil: determina la lista de canales
+    enum Kind { LORA = 0, FSK = 1, CW = 2, CWB = 3, VHF = 4 };     // tipo de perfil: determina la lista de canales (VHF = APRS AFSK 1200 de la T-TWR)
 
     int  regionAt(float lat, float lon);                    // 1, 2 o 3 segun la posicion (grados decimales)
-    bool allowed(int region, long hz);                      // dentro de la banda de aficionados de la region
+    bool allowed(int region, long hz);                      // dentro de la banda de aficionados de la region (2 m, 70 cm y, en R2, 33 cm)
     int  channelCount(Kind kind, int region);
     long channelHz(Kind kind, int region, int index);
     long defaultHz(Kind kind, int region);                  // canal por defecto de la region para ese tipo de perfil

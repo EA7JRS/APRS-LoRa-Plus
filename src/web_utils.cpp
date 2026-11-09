@@ -287,6 +287,7 @@ namespace WEB_Utils {
             Config.sa868.txTailMs  = constrain(getParamIntSafe("sa868.txTailMs", Config.sa868.txTailMs), 10, 300);
             const int r = getParamIntSafe("sa868.revision", Config.sa868.revision);
             Config.sa868.revision  = (r == 20 || r == 21) ? r : 0;
+            Config.sa868.iaruRegion = constrain(getParamIntSafe("sa868.iaruRegion", Config.sa868.iaruRegion), 1, 3);
             Config.sa868.filters   = request->hasParam("sa868.filters", true);
             Config.sa868.speaker   = request->hasParam("sa868.speaker", true);
         }

@@ -79,6 +79,15 @@ namespace IARU_Auto {
             ftField(Config.ft.fstRegion, Config.ft.fstFreqHz, 0);
             if (Config.cw.beaconRegion != r) { rg++; setFreq(Config.cw.beaconFreq, IARU_Plan::CWB, Config.cw.beaconRegion); if (!dry) Config.cw.beaconRegion = r; }
             if (Config.cw.keyRegion != r)    { rg++; setFreq(Config.cw.keyFreq, IARU_Plan::CW, Config.cw.keyRegion);        if (!dry) Config.cw.keyRegion = r; }
+            #ifdef HAS_SA868
+            if (Config.sa868.iaruRegion != r) {         // T-TWR: canal APRS de 2 m de la region (144,800 / 144,390 ...)
+                rg++;
+                long rx = Config.sa868.rxFreqHz, tx = Config.sa868.txFreqHz;
+                setFreq(rx, IARU_Plan::VHF, Config.sa868.iaruRegion);
+                setFreq(tx, IARU_Plan::VHF, Config.sa868.iaruRegion);
+                if (!dry) { Config.sa868.rxFreqHz = (int)rx; Config.sa868.txFreqHz = (int)tx; Config.sa868.iaruRegion = r; }
+            }
+            #endif
             if (regs) *regs = rg;
             return freqs;
         }
@@ -87,6 +96,9 @@ namespace IARU_Auto {
         long previewActive(int r, long* before) {
             long f = LoRa_Utils::profileFreqHz();
             *before = f;
+            #ifdef HAS_SA868
+                return IARU_Plan::mapFrequency(IARU_Plan::VHF, Config.sa868.iaruRegion, r, f);
+            #endif
             if (currentLoRaType == nullptr || currentLoRaType->ais) return f;
             if (Config.operatingMode == MODE_MORSE) return f;
             const bool fsk = Config.operatingMode == MODE_APRS_FSK;

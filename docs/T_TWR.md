@@ -18,6 +18,7 @@ APRS LoRa, APRS FSK 9600, CW / Morse, WSPR, FT8, FT4, FST4W, LR-FHSS, DAPNET y l
 
 | Ajuste | Por defecto | Notas |
 |---|---|---|
+| Región IARU y canal APRS | Región 1, 144,8000 | Lista de canales de 2 m de la región (tabla de abajo) o *Custom* |
 | RX / TX (MHz) | 144,8000 | Dentro de la banda del módulo |
 | Canal | 25 kHz | APRS 1200: ±3 kHz de desviación |
 | Potencia | Baja | Solo la Rev2.0 la puede cambiar (pin H/L). La alta calienta |
@@ -28,6 +29,16 @@ APRS LoRa, APRS FSK 9600, CW / Morse, WSPR, FT8, FT4, FST4W, LR-FHSS, DAPNET y l
 | Filtros de voz | Sí | Pre/desénfasis y paso alto / bajo del módulo |
 | Altavoz | Sí | Rev2.1 y firmware OpenRTX; la Rev2.0 no lo puede silenciar |
 | Placa | Auto | Rev2.0 / Rev2.1 si la detección falla |
+
+### Canales APRS de 2 m por región IARU
+
+| Región | Canales (MHz) | Por defecto |
+|---|---|---|
+| 1 (Europa, África, Oriente Medio) | 144,800 | 144,800 |
+| 2 (Américas) | 144,390 (Norteamérica, Chile, Colombia) · 144,930 (Argentina, Uruguay) · 145,570 (Brasil) | 144,390 |
+| 3 (Asia-Pacífico) | 144,390 (Indonesia, Malasia, Tailandia) · 145,175 (Australia) · 144,575 (Nueva Zelanda) · 144,640 (China) · 144,660 (Japón, 1200 baudios) | 144,390 |
+
+Fuentes: [sigidwiki](https://sigidwiki.com/wiki/APRS), VK2KFJ (Australia y Nueva Zelanda) y la tabla japonesa de frecuencias APRS. Banda de 2 m que se comprueba: 144–146 MHz en la Región 1 y 144–148 MHz en las Regiones 2 y 3 (las normas nacionales mandan). Con la **región IARU automática** activada (WebUI *IARU region (auto)*), al cambiar de región el canal pasa al equivalente: si existe en la nueva región se conserva (144,390 entre la 2 y la 3); si no, el de por defecto. Una frecuencia propia se respeta si cabe en la banda de la nueva región. Mismas tablas en el firmware (`src/iaru_plan.cpp`, tipo `VHF`) y en la WebUI; `tools/check_iaru_tables.py` comprueba que coinciden. Con el módulo de UHF la frecuencia es propia (no hay lista).
 
 *Escuchar antes de transmitir* (WebUI, el mismo ajuste que el CAD de LoRa) espera a que el silenciador se cierre (Rev2.1) y a que no haya datos AFSK en el aire.
 

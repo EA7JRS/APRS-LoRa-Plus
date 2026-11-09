@@ -270,6 +270,7 @@ public:
     bool    filters;                            // filtros de voz del modulo (pre/desenfasis, paso alto y paso bajo) activos
     bool    speaker;                            // se oye por el altavoz lo que entra por la radio
     int     revision;                           // placa: 0 = deteccion automatica, 20 = Rev2.0, 21 = Rev2.1
+    int     iaruRegion;                         // region IARU de las frecuencias (canales de 2 m de cada region; la region automatica la cambia)
 };
 
 // Modo SAT (satelites en 70 cm): prediccion de pasos y Doppler. Los TLE y las frecuencias se descargan por WiFi (la red de Firmware update)
