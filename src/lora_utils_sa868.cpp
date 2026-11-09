@@ -11,6 +11,7 @@
 #ifdef HAS_SA868
 
 #include <Arduino.h>
+#include <SPI.h>          // RadioLib se sigue compilando (otras partes lo incluyen) y necesita SPI en el buscador de librerias
 #include <logger.h>
 #include "notification_utils.h"
 #include "configuration.h"
