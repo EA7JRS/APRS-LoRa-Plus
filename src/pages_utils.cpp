@@ -914,6 +914,9 @@ namespace {
         const char* tag = "--";
         if (LoRa_Utils::isAisActive()) tag = "AIS";
         else switch (loraIndex) { case 0: tag = "Eu"; break; case 1: tag = "PL"; break; case 2: tag = "UK"; break; case 3: tag = "US"; break; default: break; }
+        #ifdef HAS_SA868
+        tag = SA868::modeM17() ? "M17" : (SA868::mode9600() ? "9k6" : "1k2");     // T-TWR: modem en uso (no hay bandas LoRa)
+        #endif
         char locator[10] = "------";
         if (have) snprintf(locator, sizeof(locator), "%s", Utils::getMaidenheadLocator(lat, lon, 6));
         char quality = '?';
@@ -1896,6 +1899,10 @@ namespace {
     }
 
     const char* regionName() {
+        #ifdef HAS_SA868
+        static const char* const R[] = { "R1", "R1", "R2", "R3" };
+        return R[constrain(Config.sa868.iaruRegion, 1, 3)];                         // T-TWR: region IARU de la radio FM
+        #endif
         if (LoRa_Utils::isAisActive()) return "AIS";
         switch (loraIndex) { case 0: return "EU/WORLD"; case 1: return "POLAND"; case 2: return "UK"; case 3: return "US"; default: return "CUSTOM"; }
     }
@@ -1909,7 +1916,11 @@ namespace {
     }
 
     void drawLink() {
+        #ifdef HAS_SA868
+        header("RADIO", regionName());
+        #else
         header(PAGE_TITLES[PAGE_LINK], regionName());
+        #endif
         const LoraType& lora = *currentLoRaType;
         int sf = lora.spreadingFactor;
         long bw = lora.signalBandwidth;

@@ -289,7 +289,8 @@ namespace WEB_Utils {
             if (request->hasParam("sa868.m17MHz", true)) {  // vacio o fuera de banda = la sugerida para la banda del modulo
                 const double m = request->getParam("sa868.m17MHz", true)->value().toDouble();
                 const long hz = lround(m * 1e6);
-                Config.sa868.m17FreqHz = ((hz >= 134000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L)) ? (int)hz : 0;
+                const bool inBand = (hz >= 134000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L);
+                Config.sa868.m17FreqHz = (inBand && hz != 144875000L && hz != 433475000L) ? (int)hz : 0;    // la sugerida se guarda como 0: sigue a la banda
             }
             Config.sa868.txDelayMs = constrain(getParamIntSafe("sa868.txDelayMs", Config.sa868.txDelayMs), 50, 1000);
             Config.sa868.fec       = constrain(getParamIntSafe("sa868.fec", Config.sa868.fec), 0, 4);

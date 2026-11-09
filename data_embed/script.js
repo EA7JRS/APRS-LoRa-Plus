@@ -665,7 +665,8 @@ function loadSettings(settings) {
             document.getElementById("sa868.txMHz").value = ((sa.txFreqHz ?? 144800000) / 1e6).toFixed(4);
             document.getElementById("sa868.wide").value = sa.wide === true ? "1" : "0";        // APRS: narrow by default
             document.getElementById("sa868.highPower").value = sa.highPower ? "1" : "0";
-            document.getElementById("sa868.m17MHz").value = sa.m17FreqHz ? (sa.m17FreqHz / 1e6).toFixed(4) : "";
+            // 0 = la sugerida para la banda del modulo (144,875 VHF / 433,475 UHF)
+            document.getElementById("sa868.m17MHz").value = ((sa.m17FreqHz || ((sa.rxFreqHz ?? 144800000) >= 300000000 ? 433475000 : 144875000)) / 1e6).toFixed(4);
             ["volume", "squelch", "txLevel", "txLevel9600", "txLevelM17", "m17Can", "txDelayMs", "txTailMs"].forEach(k => { if (sa[k] !== undefined) document.getElementById("sa868." + k).value = sa[k]; });
             document.getElementById("sa868.revision").value = String(sa.revision ?? 0);
             document.getElementById("sa868.fec").value = String(sa.fec ?? 0);
