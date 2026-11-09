@@ -30,7 +30,8 @@ int main() {
     // emision solo en las bandas de aficionado
     CHECK(txAllowed(144800000L, 1) && txAllowed(145990000L, 1) && !txAllowed(146500000L, 1) && txAllowed(146940000L, 2) && txAllowed(147000000L, 3));
     CHECK(!txAllowed(146500000L, 0) && txAllowed(145500000L, 0) && txAllowed(433500000L, 0) && !txAllowed(446006250L, 0));
-    CHECK(txAllowed(420500000L, 2) && !txAllowed(420500000L, 1) && !txAllowed(441000000L, 1) && txAllowed(449000000L, 2));
+    CHECK(!txAllowed(420500000L, 2) && txAllowed(430000000L, 2) && !txAllowed(420500000L, 1) && !txAllowed(441000000L, 1) && txAllowed(449000000L, 2) && !txAllowed(451000000L, 2));
+    CHECK(txAllowed(147500000L, 2) && !txAllowed(148500000L, 2) && !txAllowed(441000000L, 3) && !txAllowed(146100000L, 1));
     CHECK(!txAllowed(161975000L, 1) && !txAllowed(156800000L, 2) && !txAllowed(137100000L, 3) && !txAllowed(162550000L, 2));
     CHECK(standardOffset(438650000L, 1) == 7600000L && standardOffset(442000000L, 2) == 5000000L);
     int8_t sh = 0; long off = 0;

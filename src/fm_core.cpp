@@ -85,7 +85,7 @@ namespace FmCore {
 
     bool txAllowed(long hz, int region) {
         if (hz >= 144000000L && hz <= ((region == 2 || region == 3) ? 148000000L : 146000000L)) return true;
-        if (region == 2) return hz >= 420000000L && hz <= 450000000L;
+        if (region == 2) return hz >= 430000000L && hz <= 450000000L;
         return hz >= 430000000L && hz <= 440000000L;
     }
     bool inUhf(long hz) { return hz >= 400000000L && hz <= 480000000L; }

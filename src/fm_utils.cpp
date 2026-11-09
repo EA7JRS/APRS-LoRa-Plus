@@ -417,7 +417,7 @@ namespace FM_Utils {
     static uint32_t satCalcMs = 0, satRetuneMs = 0, satLastTxMs = 0, satNSent = 0, satNHeard = 0;
     static FmCore::Channel beforeSat;
 
-    // banda de aficionados del modulo para emitir (2 m: 144-146 MHz en la Region 1, 144-148 en la 2 y la 3; 70 cm: 430-440, 420-450 en la 2)
+    // banda de aficionados del modulo para emitir (Europa / R1: 144-146 y 430-440 MHz; America / R2: 144-148 y 430-450 MHz)
     static long     satExtHz = 0;
     static uint32_t satExtMs = 0;
 
