@@ -9,6 +9,7 @@
 #include <logger.h>
 #ifdef HAS_SA868
     #include "sa868_radio.h"
+    #include "tx_unlock.h"
 #endif
 #include "fw_update.h"
 #include "bcast_radio.h"
@@ -279,6 +280,9 @@ namespace FW_Update {
             sa["modem"]        = SA868::modemName();
             sa["rx"]           = SA868::rxFreqHz();
             sa["dapnet"]       = SA868::dapnetFreqHz();
+            sa["txul"]         = TX_Unlock::unlocked();
+            sa["txulav"]       = TX_Unlock::available();
+            sa["mac"]          = TX_Unlock::deviceId();
         #else
             doc["radio"]       = "lora";
         #endif

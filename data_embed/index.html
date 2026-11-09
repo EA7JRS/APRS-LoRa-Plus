@@ -1012,6 +1012,13 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div class="form-check form-switch"><input type="checkbox" name="sa868.filters" id="sa868.filters" class="form-check-input" /><label for="sa868.filters" class="form-label">Voice filters and pre/de-emphasis of the module</label></div>
                                 <div class="form-check form-switch"><input type="checkbox" name="sa868.speaker" id="sa868.speaker" class="form-check-input" /><label for="sa868.speaker" class="form-label">Hear the channel on the speaker</label></div>
                                 <div class="small text-muted mb-2" id="sa868-status"></div>
+                                <div class="small mb-2">Transmits only in the amateur bands of the IARU region where it is (GPS position; without a position, 144&ndash;146 and 430&ndash;440 MHz). Receives 136&ndash;174 / 400&ndash;480 MHz. These limits are fixed in the firmware.</div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center mb-3" id="txul-box">
+                                    <span class="small" id="txul-state"></span>
+                                    <input type="text" class="form-control form-control-sm" style="max-width:40em" id="txul-code" maxlength="200" placeholder="Unlock code for this device (128 hexadecimal digits)" autocomplete="off" />
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="txul-go">Unlock TX range</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="txul-lock">Lock again</button>
+                                </div>
                             </div>
                         </div>
                         <div class="row my-5 d-flex align-items-top d-none" id="grp-fm">

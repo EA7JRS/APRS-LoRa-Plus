@@ -1765,6 +1765,7 @@ function boardPinInit() {
                 ["dapnet.freqMHz", "dapnet.devKHz", "dapnet.rxBwTenthsKHz"].forEach(id => { const e = document.getElementById(id); if (e) e.closest(".form-floating").classList.add("d-none"); });
                 if (i.sa868 && i.sa868.dapnet) document.getElementById("sa868.dapnetMHz").value = (i.sa868.dapnet / 1e6).toFixed(4);
                 if (i.sa868) { SA868_BAND = i.sa868.band || ""; if (sa868Refill) sa868Refill(); }
+                if (i.sa868) txUnlockShow(i.sa868);
                 if (i.sa868) document.getElementById("sa868-status").textContent = "Detected: " + (i.sa868.ok ? "Rev" + (i.sa868.rev / 10).toFixed(1) + ", " + i.sa868.band + ", " + i.sa868.fw + " firmware" + (i.sa868.modem ? " · now " + i.sa868.modem + (i.sa868.rx ? " on " + (i.sa868.rx / 1e6).toFixed(4) + " MHz" : "") : "") : "no answer from the radio module");
             }
             const isSupreme = name.toLowerCase().indexOf("supreme") >= 0;
@@ -1918,4 +1919,26 @@ document.addEventListener("DOMContentLoaded", () => {
         f.text().then(t => satUpload(t, f.name));
         ev.target.value = "";
     });
+});
+
+
+// ---- T-TWR: desbloqueo del rango de emision con el codigo de este equipo (EA7JRS) ----
+function txUnlockShow(sa) {
+    const st = document.getElementById("txul-state");
+    if (!st) return;
+    const un = sa.txul === true;
+    st.textContent = un ? "TX range UNLOCKED (whole module band; your licence)" : (sa.txulav ? "TX locked to the amateur bands. Device " + (sa.mac || "?") : "TX locked to the amateur bands (this firmware cannot be unlocked)");
+    document.getElementById("txul-code").classList.toggle("d-none", un || !sa.txulav);
+    document.getElementById("txul-go").classList.toggle("d-none", un || !sa.txulav);
+    document.getElementById("txul-lock").classList.toggle("d-none", !un);
+}
+document.addEventListener("DOMContentLoaded", () => {
+    const go = document.getElementById("txul-go");
+    if (!go) return;
+    const send = body => fetch("/api/txunlock", { method: "POST", body: body }).then(r => r.json()).then(j => {
+        document.getElementById("txul-state").textContent = j.ok ? (j.unlocked ? "TX range UNLOCKED" : "TX locked to the amateur bands") : "Refused: " + (j.msg || "?");
+        if (j.ok) txUnlockShow({ txul: j.unlocked, txulav: true });
+    }).catch(e => { document.getElementById("txul-state").textContent = "Error: " + e; });
+    go.addEventListener("click", () => { const fd = new URLSearchParams(); fd.append("code", document.getElementById("txul-code").value.trim()); send(fd); });
+    document.getElementById("txul-lock").addEventListener("click", () => { const fd = new URLSearchParams(); fd.append("lock", "1"); send(fd); });
 });

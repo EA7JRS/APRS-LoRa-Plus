@@ -20,6 +20,9 @@
 #include "configuration.h"
 #include "sat_config.h"
 #include "sat_utils.h"
+#ifdef HAS_SA868
+#include "tx_unlock.h"
+#endif
 #include "rotor_follow.h"
 #include "board_pinout.h"
 #include "lora_utils.h"
@@ -841,6 +844,18 @@ namespace WEB_Utils {
             request->send(r);
         });
         // Archivo de satelites (modo SAT) por WiFi: estado y subida (lo baja el navegador de internet, filtrado por grupos, o se elige un archivo)
+        #ifdef HAS_SA868
+        // T-TWR: desbloqueo del rango de emision con el codigo de este equipo (code) o vuelta a las bandas de aficionado (lock=1)
+        server.on("/api/txunlock", HTTP_POST, [](AsyncWebServerRequest *request) {
+            bool ok = true; const char* why = "";
+            if (request->hasParam("lock", true)) TX_Unlock::lock();
+            else ok = TX_Unlock::tryUnlock(request->hasParam("code", true) ? request->getParam("code", true)->value().c_str() : "", &why);
+            String out = String("{\"ok\":") + (ok ? "true" : "false") + ",\"unlocked\":" + (TX_Unlock::unlocked() ? "true" : "false") + ",\"msg\":\"" + why + "\"}";
+            AsyncWebServerResponse *r = request->beginResponse(ok ? 200 : 400, "application/json", out);
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
+        #endif
         server.on("/api/satdata", HTTP_GET, [](AsyncWebServerRequest *request) {
             AsyncWebServerResponse *r = request->beginResponse(200, "application/json", SAT_Utils::statusJson());
             r->addHeader("Cache-Control", "no-store");

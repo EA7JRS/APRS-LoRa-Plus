@@ -22,6 +22,9 @@
 #include "sat_utils.h"
 #include "net_wx.h"
 #include "ais_utils.h"
+#ifdef HAS_SA868
+#include "tx_unlock.h"
+#endif
 #include "rotor_utils.h"
 #include "rotor_follow.h"
 #include "sat_rx.h"
@@ -291,6 +294,9 @@ namespace {
             caps["fm"]  = LoRa_Utils::fmAvailable();              // modo FM de voz: ordenes "fm*", "qsy", "carrier"
             sa["dapnet"] = SA868::dapnetFreqHz();
             sa["spkEsp"] = SA868::fmSpeakerFromEsp();
+            sa["txul"]   = TX_Unlock::unlocked();                 // rango de emision desbloqueado (codigo del equipo)
+            sa["txulav"] = TX_Unlock::available();
+            sa["mac"]    = TX_Unlock::deviceId();
         #else
             caps["radio"] = "lora";
             caps["m17"]   = false;
@@ -1332,6 +1338,16 @@ namespace {
             #endif
         }
         else if (strcmp(cmd, "sat") == 0) { satEnsureLoaded(); sendSat(); }
+        else if (strcmp(cmd, "txunlock") == 0) {                  // T-TWR: code = codigo de desbloqueo del rango de emision de este equipo; lock:true = volver a bandas de aficionado
+            #ifdef HAS_SA868
+                if (doc["lock"] | false) { TX_Unlock::lock(); reply(cmd, id); return; }
+                const char* why = "";
+                if (!TX_Unlock::tryUnlock(doc["code"] | "", &why)) { reply(cmd, id, why); return; }
+                reply(cmd, id);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
         else if (strcmp(cmd, "aislist") == 0) {                   // barcos AIS por distancia: from, cnt (1..15)
             sendAisList(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 10), 1, 15));
         }

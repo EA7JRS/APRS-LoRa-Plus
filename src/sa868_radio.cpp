@@ -34,6 +34,7 @@
 #include "driver/gptimer.h"
 #include "iaru_plan.h"
 #include "gps_utils.h"
+#include "tx_unlock.h"
 #include <TinyGPS++.h>
 #include "sa868_radio.h"
 #include "logger.h"
@@ -301,6 +302,7 @@ namespace SA868 {
     // Emision solo en las bandas de aficionado (fijo en el firmware). La region sale de la posicion GPS; sin posicion, solo lo comun a
     // las tres regiones (144-146 y 430-440 MHz): la region elegida en la WebUI no amplia lo que se puede emitir
     bool txAllowed(long hz) {
+        if (TX_Unlock::unlocked()) return validFreq(hz);   // desbloqueado con el codigo de este equipo: toda la banda del modulo
         return validFreq(hz) && FmCore::txAllowed(hz, txRegion());
     }
 
