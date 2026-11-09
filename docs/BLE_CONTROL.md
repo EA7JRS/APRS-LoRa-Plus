@@ -85,6 +85,8 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
  "cwMsgs":["CQ CQ DE {CALL}","..."]}
 ```
 
+`caps.radio` dice qué radio lleva la placa: `"lora"` (SX12xx / LLCC68) o `"sa868"` (LilyGO T-TWR Plus, radio FM con APRS AFSK 1200). Con `"sa868"` el evento añade `"sa868":{"rev":21,"fw":"NiceRF","band":"VHF","ok":true}` (revisión de la placa, firmware del módulo: `NiceRF` u `OpenRTX`, banda y si el módulo contesta), el modo 0 se llama `APRS AFSK 1200` y no hay más modos de radio. Sus ajustes (frecuencias, potencia, volumen, silenciador, nivel de emisión, TXDELAY...) están en el grupo `sa868` de la configuración (`cfgget` / `cfgset`); ver `docs/T_TWR.md`.
+
 `status`:
 ```json
 {"e":"status","mode":0,"profile":0,"lora":0,"digi":false,"smart":true,"sos":false,"batt":4.05,"up":3600,"bleKiss":true}

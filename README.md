@@ -56,6 +56,8 @@ No todos los modos están disponibles en todos los chips:
 | APRS FSK 9600 | ✔ | ✔ | ✘ |
 | CW / WSPR / FT8 / FT4 / FST4W / DAPNET | ✔ | ✘ | ✘ |
 
+**LilyGO T-TWR Plus** (`lilygo_t_twr_plus`, Rev2.0 y Rev2.1, *sin probar en placa*): no lleva LoRa sino un transceptor FM SA868; hace **APRS analógico AFSK 1200** en VHF (144,800 MHz) con el módem en el ESP32-S3. Ver [`docs/T_TWR.md`](docs/T_TWR.md).
+
 Las placas sin botón (ESP32-C3 SuperMini DIY, Heltec HT-CT62) no tienen selector de arranque y las placas TNC sin pantalla no muestran páginas. Ver el capítulo «Compatibilidad por placa» del manual.
 
 ## Compilar
