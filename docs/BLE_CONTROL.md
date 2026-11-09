@@ -99,8 +99,11 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
 
 `status`:
 ```json
-{"e":"status","mode":0,"profile":0,"lora":0,"digi":false,"smart":true,"sos":false,"batt":4.05,"up":3600,"bleKiss":true}
+{"e":"status","mode":2,"profile":0,"lora":0,"digi":false,"smart":true,"sos":false,"batt":4.05,"up":3600,"bleKiss":true,"f":432050000,"mod":"CW"}
 ```
+`f` = frecuencia (Hz) de la radio en el modo en curso y `mod` = su modulación (`LoRa`, `AFSK` en la T-TWR, `FSK`, `CW`, `POCSAG`, `M17`,
+`FM`, `WSPR`, `FT8`, `FT4`, `FST4W`, `LR-FHSS`, `SAT`, `AIS`): en MORSE la del perfil CW Beacon o Telegrafía, en DAPNET la suya, en
+WSPR / FT8 / FT4 / FST4W el dial de su perfil, en SAT la del receptor de satélites. Sin dato no aparece `f`.
 (`batt` falta si no hay batería.)
 
 `sensors` (cada campo solo si hay dato válido):

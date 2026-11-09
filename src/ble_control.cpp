@@ -350,6 +350,33 @@ namespace {
         return BATTERY_Utils::getBatteryInfoVoltage().toFloat();
     }
 
+    // Frecuencia (Hz) y modulacion de la radio en el modo en curso, para el dial de la app: en MORSE el perfil CW Beacon o Telegrafia,
+    // en DAPNET su frecuencia, en WSPR / FT8 / FT4 / FST4W el dial de su perfil, en SAT la del receptor de satelites (0 = sin datos)
+    void radioState(unsigned long& hz, const char*& mod) {
+        hz = 0; mod = "";
+        const long live = LoRa_Utils::liveFreqHz();
+        switch (Config.operatingMode) {
+            #ifdef HAS_SA868
+            case MODE_APRS_LORA: hz = live; mod = "AFSK"; break;
+            #else
+            case MODE_APRS_LORA: hz = live; mod = "LoRa"; break;
+            #endif
+            case MODE_APRS_FSK:  hz = live; mod = "FSK"; break;
+            case MODE_MORSE:     hz = live; mod = "CW"; break;
+            case MODE_DAPNET:    hz = live; mod = "POCSAG"; break;
+            case MODE_M17:       hz = live; mod = "M17"; break;
+            case MODE_FM:        hz = live; mod = "FM"; break;
+            case MODE_WSPR:      hz = Config.wspr.freqHz > 1500 ? Config.wspr.freqHz - 1500 : 0; mod = "WSPR"; break;    // dial (la central es dial + 1500 Hz)
+            case MODE_FT8:       hz = Config.ft.ft8FreqHz; mod = "FT8"; break;
+            case MODE_FT4:       hz = Config.ft.ft4FreqHz; mod = "FT4"; break;
+            case MODE_FST4W:     hz = Config.ft.fstFreqHz; mod = "FST4W"; break;
+            case MODE_LRFHSS:    hz = Config.lrfhss.freqHz; mod = "LR-FHSS"; break;
+            case MODE_SAT:       hz = SATRX_Utils::active() ? (unsigned long)SATRX_Utils::rxHz() : 0; mod = "SAT"; break;
+            case MODE_AIS:       hz = 161975000UL; mod = "AIS"; break;
+            default: break;
+        }
+    }
+
     void sendStatus() {
         JW j("status");
         j.num("mode", Config.operatingMode);
@@ -362,6 +389,10 @@ namespace {
         if (v > 0.0f) j.flt("batt", v);
         j.unum("up", millis() / 1000UL);
         j.flag("bleKiss", Config.bluetooth.useKISS);
+        unsigned long hz; const char* mod;
+        radioState(hz, mod);
+        if (hz > 0) j.unum("f", hz);
+        if (mod[0]) j.text("mod", mod);
         j.send(sendLine);
     }
 
