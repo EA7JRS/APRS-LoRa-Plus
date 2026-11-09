@@ -979,6 +979,12 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.revision" id="sa868.revision"><option value="0">Auto</option><option value="20">Rev2.0</option><option value="21">Rev2.1</option></select><label for="sa868.revision">Board</label></div>
                                     <div class="form-floating col-12 col-md-4 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.fec" id="sa868.fec"><option value="0">AX.25</option><option value="1">FX.25 (16 check bytes)</option><option value="2">FX.25 (32 check bytes)</option><option value="3">FX.25 (64 check bytes)</option><option value="4">IL2P</option></select><label for="sa868.fec">1200 baud protocol (TX)</label></div>
                                 </div>
+                                <div class="small fw-semibold mt-1 mb-1 px-1">MORSE mode (CW in VHF / UHF)</div>
+                                <div class="row g-0 mb-1">
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.cwMcw" id="sa868.cwMcw"><option value="0">A1A (carrier on / off)</option><option value="1">MCW (tone, PTT held)</option></select><label for="sa868.cwMcw">CW emission</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.cwToneHz" id="sa868.cwToneHz" min="300" max="1500" value="800" /><label for="sa868.cwToneHz">MCW tone (Hz)</label></div>
+                                    <div class="col-12 px-1 mb-1"><small class="text-muted">Frequencies and power: CW section (outside the band of the module: 144.050 / 432.050 MHz). A1A keys the module (NiceRF: PTT, up to ~15-18 wpm; OpenRTX: one register write per edge, up to ~12 wpm). Reception detects the carrier by the quieting of the FM noise; on Rev2.1 the speaker gives a 700 Hz tone.</small></div>
+                                </div>
                                 <div class="small fw-semibold mt-1 mb-1 px-1">M17 mode</div>
                                 <div class="row g-0 mb-1">
                                     <div class="form-floating col-12 col-md-4 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.m17MHz" id="sa868.m17MHz" min="134" max="480" step="0.0125" value="144.875" /><label for="sa868.m17MHz">M17 frequency (MHz)</label></div>

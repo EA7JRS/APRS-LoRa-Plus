@@ -40,6 +40,9 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | **Toda la configuración** (WebUI) | `cfgget`, `cfgset` | sí | sí |
 | Escucha CW por RF (texto, nivel, SNR, velocidad, frecuencia) | `cwrx`, evento `cwrx` (`f`) | sí | sí |
 | T-TWR (radio FM SA868): revisión, firmware, banda, módem y frecuencias en uso; modo M17 y SMS a otras radios M17 | `info.sa868`, `mode` 10, `m17sms` | sí | sí |
+| T-TWR modo FM de voz: canal, sintonía, tonos, potencia, silenciador (manual / automático), reducción de ruido, memorias, escaneo, ARTS, EAI, balizas APRS durante la voz; QSY desde estaciones oídas | `mode` 11, `fm`, `fmset`, `fmdial`, `fmmem`, `fmscan`, `fmarts`, `fmeai`, `qsy`, eventos `fm` / `fmmems` | sí | sí |
+| T-TWR: portadora de calibración de frecuencia | `carrier` | sí | sí |
+| T-TWR: DAPNET (VHF / UHF) y CW A1A / MCW (modo MORSE) | los de DAPNET y MORSE de siempre | sí | sí |
 | Sesiones interactivas con el pulsador (entrenador, sintonías WSPR / CW-baliza) | pendiente de orden propia | no | no |
 
 La orden `att` la manda la app con el móvil sujeto al soporte del rotor (boca arriba, parte de arriba del móvil hacia delante; ajuste de cero en la app). Comprobar los signos con el montaje real.

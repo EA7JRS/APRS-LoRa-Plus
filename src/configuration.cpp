@@ -332,6 +332,8 @@ namespace {
         FC(Sa868Config, txLevelM17, FF_KEEP, 0, 1, 100),
         FB(Sa868Config, dapnetFreqHz, FF_KEEP, 0),
         FC(Sa868Config, dapnetHpfHz, FF_KEEP, 0, 0, 2000),
+        FB(Sa868Config, cwMcw,     FF_KEEP, 0),
+        FC(Sa868Config, cwToneHz,  FF_KEEP, 800, 300, 1500),
     };
     const Field kFmMemFields[] = {
         Field("n",   (uint16_t)offsetof(FmMemory, name),     FT_STR,  0,        ""),
@@ -945,6 +947,8 @@ void Configuration::setSa868Defaults() {
     sa868.txLevelM17 = 40;
     sa868.dapnetFreqHz = 0;                     // 144,8625 (VHF) / 439,9875 MHz (UHF)
     sa868.dapnetHpfHz = 320;                    // 100 nF con 10 k / 10 k a la entrada del ADC
+    sa868.cwMcw      = false;                   // A1A
+    sa868.cwToneHz   = 800;
 }
 
 void Configuration::setFmDefaults() {

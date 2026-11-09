@@ -56,6 +56,15 @@ namespace SA868 {
     long     dapnetFreqHz();
     size_t   popDapnet(uint8_t* out, size_t max);   // bytes demodulados (bit de mayor peso primero) para DAPNET_Utils::feed
 
+    // CW (modo MORSE): A1A (portadora con el PTT) o MCW (tono); escucha por el silenciamiento del ruido de FM
+    long     cwFreqHz(bool beacon);
+    bool     cwSelect(bool beacon);
+    void     cwKey(bool on);
+    void     cwEnd();
+    bool     cwRxBegin();
+    float    cwRxLevel();
+    void     cwRxEnd();
+
     // FM (voz). Ver src/fm_utils.cpp
     bool     modeFm();
     bool     fmApply(const FmCore::Channel& c, int squelch);  // frecuencias, tonos, ancho, potencia y silenciador

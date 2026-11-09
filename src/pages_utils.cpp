@@ -2015,6 +2015,8 @@ namespace {
         text(0, 56, line);
     }
 
+    bool cwButtonDown();                    // definida mas abajo (seccion CW)
+
     // Portadora sin modular de 30 s en la frecuencia de emision en uso, para medir el error con un SDR (Frequency calibration)
     void radioTuneCarrier() {
         if (!SA868::carrier(true)) { showToast("Radio busy"); return; }
@@ -2063,7 +2065,7 @@ namespace {
         Config.writeFile();
         BLE_Control::setBootMode(MODE_FM);
         showToast("QSY: to FM...");
-        show();
+        PAGES_Utils::show();
         delay(600);
         ESP.restart();
     }
@@ -4354,10 +4356,10 @@ namespace PAGES_Utils {
             if (LoRa_Utils::m17Available()) options[n++] = Option{ MODE_M17, "M17" };
             if (LoRa_Utils::fmAvailable())  options[n++] = Option{ MODE_FM, "FM voice" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_MORSE, "MORSE / CW" };
-            if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_WSPR, "WSPR beacon" };
-            if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FT8, "FT8 beacon" };
-            if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FT4, "FT4 beacon" };
-            if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FST4W, "FST4W beacon" };
+            if (LoRa_Utils::wsprAvailable()) options[n++] = Option{ MODE_WSPR, "WSPR beacon" };
+            if (LoRa_Utils::wsprAvailable()) options[n++] = Option{ MODE_FT8, "FT8 beacon" };
+            if (LoRa_Utils::wsprAvailable()) options[n++] = Option{ MODE_FT4, "FT4 beacon" };
+            if (LoRa_Utils::wsprAvailable()) options[n++] = Option{ MODE_FST4W, "FST4W beacon" };
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) options[n++] = Option{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) options[n++] = Option{ MODE_DAPNET, "DAPNET pager" };
             #ifdef HAS_SAT

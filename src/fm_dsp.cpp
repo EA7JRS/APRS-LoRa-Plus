@@ -167,4 +167,29 @@ namespace FmDsp {
         }
         return y;
     }
+
+    // ---- CW por el silenciamiento del ruido -------------------------------------------------------------------------
+
+    void QuietingDetector::begin(float fs) {
+        blockLen = (int)(fs * 0.002f);
+        if (blockLen < 8) blockLen = 8;
+        n = 0; prev = 0; e = 0; ref = -200; level = 0; smooth = 0; isOn = false;
+    }
+
+    bool QuietingDetector::feed(float x) {
+        const float d = x - prev;
+        prev = x;
+        e += d * d;
+        if (++n < blockLen) return false;
+        const float db = 10.0f * log10f(e / (float)n + 1e-12f);
+        n = 0; e = 0;
+        // referencia: el soplido sin portadora (lo mas alto oido, olvidando despacio: ~1 dB/s)
+        if (db > ref) ref = db; else ref -= 0.002f;
+        const float q = ref - db;
+        smooth += (q - smooth) * 0.5f;                      // dos bloques: ~4 ms
+        level = smooth < 0 ? 0 : smooth;
+        if (!isOn && level > ON_DB) isOn = true;
+        else if (isOn && level < OFF_DB) isOn = false;
+        return true;
+    }
 }

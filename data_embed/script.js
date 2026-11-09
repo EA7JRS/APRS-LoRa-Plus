@@ -675,6 +675,8 @@ function loadSettings(settings) {
             document.getElementById("sa868.filters").checked = sa.filters !== false;
             document.getElementById("sa868.speaker").checked = sa.speaker !== false;
             document.getElementById("sa868.dapnetHpfHz").value = sa.dapnetHpfHz ?? 320;
+            document.getElementById("sa868.cwMcw").value = sa.cwMcw ? "1" : "0";
+            document.getElementById("sa868.cwToneHz").value = sa.cwToneHz ?? 800;
             if (sa.dapnetFreqHz) document.getElementById("sa868.dapnetMHz").value = (sa.dapnetFreqHz / 1e6).toFixed(4);
         }
         if (settings.fm) {                          // T-TWR: modo FM (voz)

@@ -71,6 +71,21 @@ namespace FmDsp {
         int   frames = 0;
     };
 
+    // CW (A1A) en un receptor de FM: con portadora el soplido desaparece ("quieting"). Mide la energia de alta frecuencia del
+    // audio en bloques de 2 ms; levelDb() = dB por debajo del soplido sin portadora (aprendido); on() con histeresis
+    class QuietingDetector {
+    public:
+        void  begin(float fs);
+        bool  feed(float x);                    // true al terminar un bloque
+        float levelDb() const { return level; } // 0 = soplido, 20..40 = portadora
+        bool  on() const { return isOn; }
+        static constexpr float ON_DB = 9.0f, OFF_DB = 5.0f;
+    private:
+        int   blockLen = 26, n = 0;
+        float prev = 0, e = 0, ref = -200, level = 0, smooth = 0;
+        bool  isOn = false;
+    };
+
     void fft(float* re, float* im, int n, bool inverse);    // radix 2, n potencia de 2 (<= 1024)
 }
 

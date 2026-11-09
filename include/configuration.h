@@ -282,6 +282,8 @@ public:
     int     txLevelM17;                         // modo M17: nivel de la banda base 4FSK (1..100 %): unos 2,4 kHz de desviacion en los simbolos +-3
     int     dapnetFreqHz;                       // modo DAPNET: frecuencia POCSAG (Hz; 0 = 144,8625 MHz en VHF, 439,9875 MHz en UHF)
     int     dapnetHpfHz;                        // modo DAPNET: corte del acoplo de alterna de la entrada de audio que se compensa (Hz; 0 = sin compensar)
+    bool    cwMcw;                              // modo MORSE: false = A1A (portadora on / off), true = MCW (tono por el microfono del modulo)
+    int     cwToneHz;                           // tono del MCW (Hz)
 };
 
 // Modo FM (voz) de la T-TWR: canal del VFO, opciones y memorias (Manuel - EA7JRS)

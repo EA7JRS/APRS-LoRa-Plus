@@ -163,6 +163,41 @@ int main() {
             CHECK(snrOut > snrIn + 3);
         }
     }
+    // CW A1A recibido en FM: portadora a 20 ppm (punto de 60 ms) con "PARIS" repetido; soplido sin portadora, casi silencio con ella
+    {
+        const float dot = 0.060f;
+        const char* morse = ".--. .- .-. .. ...";               // PARIS
+        std::vector<int> keyed;                                 // 1 ms por elemento
+        auto add = [&](int on, float units) { for (int k = 0; k < (int)(units * dot * 1000); k++) keyed.push_back(on); };
+        add(0, 10);
+        for (int rep = 0; rep < 3; rep++) {
+            for (const char* p = morse; *p; p++) {
+                if (*p == ' ') { add(0, 2); continue; }        // con el hueco de elemento: 3 unidades entre letras
+                add(1, *p == '-' ? 3 : 1); add(0, 1);
+            }
+            add(0, 6);
+        }
+        add(0, 10);
+        auto h = hiss((float)keyed.size() / 1000.0f + 0.1f, 0.3f);
+        std::normal_distribution<float> g(0, 1);
+        QuietingDetector q; q.begin(FS);
+        int lastOn = 0, edges = 0, expectEdges = 0, wrongMs = 0;
+        for (size_t k = 1; k < keyed.size(); k++) if (keyed[k] != keyed[k - 1]) expectEdges++;
+        const int perMs = (int)(FS / 1000);
+        for (size_t k = 0; k < keyed.size(); k++) {
+            for (int s = 0; s < perMs; s++) {
+                const size_t i = k * perMs + s;
+                const float x = keyed[k] ? 0.01f * g(rng) : h[i];          // portadora: el ruido baja unos 30 dB
+                q.feed(x);
+            }
+            const int on = q.on() ? 1 : 0;
+            if (on != lastOn) { edges++; lastOn = on; }
+            if (k > 600 && on != keyed[k > 6 ? k - 6 : 0]) wrongMs++;          // con 6 ms de retardo
+        }
+        printf("CW por silenciamiento: %d flancos (esperados %d), %d ms mal de %zu\n", edges, expectEdges, wrongMs, keyed.size());
+        CHECK(edges == expectEdges);
+        CHECK(wrongMs < (int)keyed.size() / 30);                      // ~3 ms de error por flanco
+    }
     printf(fails ? "%d FALLOS de %d\n" : "OK (%d comprobaciones)\n", fails ? fails : checks, checks);
     return fails ? 1 : 0;
 }

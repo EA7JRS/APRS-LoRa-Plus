@@ -57,19 +57,24 @@ namespace LoRa_Utils {
     bool m17Available()             { return true; }        // M17 (4FSK 4800 simbolos/s) por el mismo audio plano
     bool dapnetAvailable()          { return true; }        // POCSAG de banda base por el audio plano (144,8625 VHF / 439,9875 UHF)
     bool fmAvailable()              { return true; }        // modo FM (voz)
-    bool cwAvailable()              { return false; }
-    void cwSelect(bool)             {}
-    void cwKey(bool)                {}
-    void cwEnd()                    {}
+    bool cwAvailable()              { return true; }        // CW A1A (portadora con el PTT) o MCW en VHF / UHF: modo MORSE
+    bool wsprAvailable()            { return false; }       // WSPR, FT8, FT4, FST4W: el SA868 no hace pasos de 1,46 Hz
+    void cwSelect(bool beacon)      { SA868::cwSelect(beacon); }
+    void cwKey(bool on) {
+        NOTIFICATION_Utils::lightTx(on);
+        NOTIFICATION_Utils::lightMorse(on);
+        SA868::cwKey(on);
+    }
+    void cwEnd()                    { SA868::cwEnd(); transmitFlag = true; operationDone = true; }
     bool wsprBegin(uint32_t, int)   { return false; }
     bool wsprStart(uint32_t)        { return false; }
     void wsprTone(uint32_t)         {}
     void wsprEnd()                  {}
     bool lrfhssAvailable()          { return false; }
     int  lrfhssSend(const uint8_t*, size_t) { return -1; }
-    bool cwRxBegin()                { return false; }
-    float cwRxLevel()               { return -200.0f; }
-    void cwRxEnd()                  {}
+    bool cwRxBegin()                { return SA868::cwRxBegin(); }
+    float cwRxLevel()               { return SA868::cwRxLevel(); }
+    void cwRxEnd()                  { SA868::cwRxEnd(); }
     bool satRxAvailable()           { return false; }
     bool satRxBegin(const SatRxParams&) { return false; }
     bool satRxTune(int64_t)         { return false; }

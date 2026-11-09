@@ -218,8 +218,8 @@ namespace {
         if (LoRa_Utils::fskAvailable()) out[n++] = ModeOption{ MODE_APRS_FSK, "APRS FSK 9600" };
         if (LoRa_Utils::m17Available()) out[n++] = ModeOption{ MODE_M17, "M17" };
         #ifdef HAS_APRS_PAGES
-            if (LoRa_Utils::cwAvailable()) {
-                out[n++] = ModeOption{ MODE_MORSE,  "MORSE / CW" };
+            if (LoRa_Utils::cwAvailable()) out[n++] = ModeOption{ MODE_MORSE,  "MORSE / CW" };
+            if (LoRa_Utils::wsprAvailable()) {
                 out[n++] = ModeOption{ MODE_WSPR,   "WSPR beacon" };
                 out[n++] = ModeOption{ MODE_FT8,    "FT8 beacon" };
                 out[n++] = ModeOption{ MODE_FT4,    "FT4 beacon" };
@@ -1091,7 +1091,7 @@ namespace {
             #ifdef HAS_APRS_PAGES
                 const char* st = doc["s"] | "";
                 if (strcmp(st, "start") == 0) {
-                    if (!LoRa_Utils::cwAvailable()) { reply(cmd, id, "CW needs an SX126x"); return; }
+                    if (!LoRa_Utils::cwAvailable()) { reply(cmd, id, "CW not available on this radio"); return; }
                     reply(cmd, id);
                     cwRxStop = false;
                     PAGES_Utils::cwListenSession();                      // vuelve al pulsar el boton, con "stop" o a los 10 minutos

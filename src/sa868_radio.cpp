@@ -105,6 +105,16 @@ namespace SA868 {
     static constexpr int        SPK_RING    = 2048;
     static int8_t               spkRing[SPK_RING];
     static volatile uint16_t    spkHead = 0, spkTail = 0;
+    // CW (modo MORSE): A1A con el PTT o MCW (tono), escucha por el silenciamiento del ruido; tono local por el altavoz (Rev2.1)
+    static bool                 cwMode      = false;
+    static volatile bool        cwRx        = false;
+    static FmDsp::QuietingDetector cwDet;
+    static volatile float       cwLevel     = 0;
+    static volatile bool        cwSidetone  = false;        // tono local mientras se manipula (Rev2.1)
+    static bool                 cwKeyed     = false, cwSession = false;
+    static volatile bool        mcwTone     = false, mcwRun = false;
+    static TaskHandle_t         mcwTask     = nullptr;
+    static uint16_t             reg30Rx = 0, reg30Tx = 0;  // OpenRTX: registro 0x30 en recepcion / emision (una sola orden por flanco)
     static adc_continuous_handle_t adc      = nullptr;
     static i2s_chan_handle_t    txChan      = nullptr;
     static QueueHandle_t        rxQueue     = nullptr;
@@ -311,6 +321,7 @@ namespace SA868 {
         }
         if (m17) rx = tx = m17FreqHz();
         if (dap) rx = tx = dapnetFreqHz();
+        if (cwMode) rx = tx = cwFreqHz(false);
         if (fmMode && fmLoaded) return fmApply(fmCh, fmSquelch);
         if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;           // no deberia pasar: fixBandDefaults() al arrancar
         if (!validFreq(tx)) tx = rx;
@@ -474,8 +485,25 @@ namespace SA868 {
             uint32_t got = 0;
             if (adc_continuous_read(adc, buf, sizeof(buf), &got, 100) != ESP_OK) continue;
             if (resetDemod) { if (m17) m17rx.reset(); else if (dap) pocRx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
-            if (txActive) {                                 // en emision el ADC oye la propia senal: se descarta (y el altavoz calla)
-                if (espAudio) for (int k = 0; k < 64; k++) spkPush(0);
+            const uint32_t nSamples = got / SOC_ADC_DIGI_RESULT_BYTES;
+            static float tonePh = 0;
+            auto tone = [&](bool on) -> int8_t {           // 700 Hz para el altavoz (tono local / CW recibida)
+                if (!on) return 0;
+                tonePh += 2.0f * (float)M_PI * 700.0f / (float)RX_FS;
+                if (tonePh > 2.0f * (float)M_PI) tonePh -= 2.0f * (float)M_PI;
+                return (int8_t)(sinf(tonePh) * 12.0f * (float)constrain(Config.sa868.volume, 1, 8));
+            };
+            if (txActive) {                                 // en emision el ADC oye la propia senal: se descarta (el altavoz calla o da el tono local)
+                if (espAudio) for (uint32_t k = 0; k < nSamples; k++) spkPush(tone(cwSidetone));
+                continue;
+            }
+            if (cwMode) {                                   // MORSE: escucha CW por el silenciamiento; el altavoz da un tono con la portadora
+                for (uint32_t i = 0; i + SOC_ADC_DIGI_RESULT_BYTES <= got; i += SOC_ADC_DIGI_RESULT_BYTES) {
+                    const adc_digi_output_data_t* p = (const adc_digi_output_data_t*)&buf[i];
+                    const float x = (float)((int)p->type2.data - 2048) / 2048.0f;
+                    if (cwRx && cwDet.feed(x)) cwLevel = cwDet.levelDb();
+                    if (espAudio) spkPush(tone(cwRx && cwDet.on()));
+                }
                 continue;
             }
             const bool gate = fmOpen;
@@ -590,7 +618,9 @@ namespace SA868 {
         m17    = (Config.operatingMode == MODE_M17);
         dap    = (Config.operatingMode == MODE_DAPNET);
         fmMode = (Config.operatingMode == MODE_FM);
+        cwMode = (Config.operatingMode == MODE_MORSE);
         flat   = mode96 || m17 || dap;
+        if (cwMode) espAudio = rev == 21;                   // Rev2.1: tono local y tono de la CW recibida por el altavoz
         if (fmMode) {
             PMU.setBLDO1Voltage(3300);                      // microfono de la placa encendido: voz
             PMU.enableBLDO1();
@@ -621,7 +651,7 @@ namespace SA868 {
     uint32_t framesOk()       { return m17 ? m17rx.packets : (mode96 ? g3rx.frames : demod.frames); }
     bool mode9600()           { return mode96; }
     bool modeM17()            { return m17; }
-    const char* modemName()   { return m17 ? "M17" : (dap ? "POCSAG" : (fmMode ? "FM voice" : (mode96 ? "G3RUH 9600" : "AFSK 1200"))); }
+    const char* modemName()   { return m17 ? "M17" : (dap ? "POCSAG" : (fmMode ? "FM voice" : (cwMode ? (Config.sa868.cwMcw ? "CW (MCW)" : "CW (A1A)") : (mode96 ? "G3RUH 9600" : "AFSK 1200")))); }
     bool modeFm()             { return fmMode; }
     bool modeDapnet()         { return dap; }
     long rxFreqHz()           { return curRx ? curRx : Config.sa868.rxFreqHz; }
@@ -783,6 +813,117 @@ namespace SA868 {
         resetDemod = true;
         txActive = false;
         return true;
+    }
+
+    // ---- CW (modo MORSE): telegrafia A1A o MCW en VHF / UHF ----------------------------------------------------------
+
+    static bool cwChannel(long hz, bool high, int squelch) {
+        FmCore::Channel c;
+        FmCore::clearChannel(c, hz);
+        c.toneMode = FmCore::TONE_OFF; c.wide = false; c.high = high; c.shift = 0;
+        const bool good = fmApply(c, squelch);
+        if (fw == Firmware::OPENRTX) {                      // valor del registro 0x30 en RX y en TX: un solo POKE por flanco
+            const uint16_t v = (uint16_t)(peek(0x30) & ~0x0060);
+            reg30Rx = (uint16_t)(v | (1 << 5)); reg30Tx = (uint16_t)(v | (2 << 5));
+        }
+        return good;
+    }
+
+    // frecuencia CW de la banda del modulo: la de la configuracion si cae dentro; si no, 144,050 (VHF) / 432,050 MHz (UHF)
+    long cwFreqHz(bool beacon) {
+        const long f = beacon ? Config.cw.beaconFreq : Config.cw.keyFreq;
+        if (validFreq(f)) return f;
+        return isUhf ? 432050000L : 144050000L;
+    }
+
+    bool cwSelect(bool beacon) {
+        if (!ok) return false;
+        const int p = beacon ? Config.cw.beaconPower : Config.cw.keyPower;
+        return cwChannel(cwFreqHz(beacon), p > 31, Config.sa868.squelch);
+    }
+
+    static void mcwTaskFn(void*) {
+        static int16_t b[256];
+        float ph = 0;
+        const float amp = constrain(Config.sa868.txLevel, 1, 100) / 100.0f * 32000.0f;
+        const float step = 2.0f * (float)M_PI * constrain(Config.sa868.cwToneHz, 300, 1500) / (float)TX_FS;
+        float env = 0;
+        while (mcwRun) {
+            for (int i = 0; i < 256; i++) {
+                env += ((mcwTone ? 1.0f : 0.0f) - env) * 0.02f;     // flancos de ~1 ms: sin clics
+                b[i] = (int16_t)(amp * env * sinf(ph));
+                ph += step; if (ph > 2.0f * (float)M_PI) ph -= 2.0f * (float)M_PI;
+            }
+            size_t w = 0;
+            i2s_channel_write(txChan, b, sizeof(b), &w, 100);
+        }
+        mcwTask = nullptr;
+        vTaskDelete(nullptr);
+    }
+
+    // A1A: la portadora se enciende y se apaga (PTT con NiceRF; registro de modo con OpenRTX). MCW: PTT puesto toda la sesion y
+    // tono de cwToneHz por el microfono del modulo
+    void cwKey(bool on) {
+        if (!ok) return;
+        cwSidetone = on;
+        if (Config.sa868.cwMcw) {
+            if (on && !cwSession) {
+                if (!txChan) return;
+                cwSession = true; txActive = true;
+                if (fw == Firmware::OPENRTX) poke(0x30, reg30Tx);
+                digitalWrite(SA868_MIC_SEL_PIN, HIGH);
+                digitalWrite(SA868_PTT_PIN, LOW);
+                i2s_channel_enable(txChan);
+                mcwRun = true;
+                xTaskCreatePinnedToCore(mcwTaskFn, "mcw", 3072, nullptr, 6, &mcwTask, 1);
+            }
+            mcwTone = on;
+            return;
+        }
+        if (on == cwKeyed) return;
+        cwKeyed = on;
+        if (on) {
+            txActive = true;
+            digitalWrite(SA868_MIC_SEL_PIN, HIGH);          // entrada del ESP32 en silencio: portadora pura
+            if (fw == Firmware::OPENRTX) poke(0x30, reg30Tx);
+            digitalWrite(SA868_PTT_PIN, LOW);
+        } else {
+            digitalWrite(SA868_PTT_PIN, HIGH);
+            if (fw == Firmware::OPENRTX) poke(0x30, reg30Rx);
+            txActive = false;
+        }
+    }
+
+    void cwEnd() {
+        cwSidetone = false;
+        if (cwKeyed) cwKey(false);
+        if (cwSession) {
+            mcwTone = false; mcwRun = false;
+            for (int i = 0; i < 40 && mcwTask; i++) delay(5);
+            digitalWrite(SA868_PTT_PIN, HIGH);
+            i2s_channel_disable(txChan);
+            if (fw == Firmware::OPENRTX) poke(0x30, reg30Rx);
+            cwSession = false; txActive = false;
+        }
+        digitalWrite(SA868_MIC_SEL_PIN, LOW);
+        resetDemod = true;
+    }
+
+    // Escucha: frecuencia de Telegrafia con el silenciador del modulo abierto (se oye el soplido; la portadora lo calla)
+    bool cwRxBegin() {
+        if (!ok) return false;
+        cwChannel(cwFreqHz(false), Config.cw.keyPower > 31, 0);
+        cwDet.begin((float)RX_FS);
+        cwLevel = 0;
+        cwRx = true;
+        return true;
+    }
+
+    float cwRxLevel() { return -120.0f + cwLevel; }         // dB por encima del "suelo" (soplido): el decodificador solo mira diferencias
+
+    void cwRxEnd() {
+        cwRx = false;
+        cwChannel(cwFreqHz(false), Config.cw.keyPower > 31, Config.sa868.squelch);
     }
 
     // ---- Modo FM (voz) -----------------------------------------------------------------------------------------------

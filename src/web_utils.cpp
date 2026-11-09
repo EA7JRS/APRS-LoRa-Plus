@@ -307,6 +307,8 @@ namespace WEB_Utils {
                 Config.sa868.dapnetFreqHz = (inBand && hz != 144862500L && hz != 439987500L) ? (int)hz : 0;
             }
             Config.sa868.dapnetHpfHz = constrain(getParamIntSafe("sa868.dapnetHpfHz", Config.sa868.dapnetHpfHz), 0, 2000);
+            Config.sa868.cwMcw     = getParamIntSafe("sa868.cwMcw", Config.sa868.cwMcw ? 1 : 0) == 1;
+            Config.sa868.cwToneHz  = constrain(getParamIntSafe("sa868.cwToneHz", Config.sa868.cwToneHz), 300, 1500);
         }
         if (request->hasParam("fm.vfoMHz", true)) {         // modo FM (voz) de la T-TWR
             // tono: "88.5" (CTCSS) o "023N" / "023I" (DCS)

@@ -1,4 +1,4 @@
-# LilyGO T-TWR Plus: APRS analógico en VHF (AFSK 1200), 9600 y M17
+# LilyGO T-TWR Plus: APRS analógico (AFSK 1200), 9600, M17, FM de voz, DAPNET y CW
 
 Copyright (C) 2026 Manuel - EA7JRS. GPL-3.0-or-later.
 
@@ -8,11 +8,11 @@ La T-TWR no lleva radio LoRa. Lleva un módulo **SA868** de NiceRF: un transcept
 
 ## Qué funciona igual que en las demás placas
 
-Balizas (SmartBeacon, perfiles), mensajes y ACK, digipeater, estaciones oídas, pantallas, GPS (L76K), Bluetooth (KISS y control de la app), WebUI, NMEA, telemetría. El modo de arranque se llama **APRS AFSK 1200** (es el modo 0, el que en las demás placas es APRS LoRa). Hay otros dos modos: **APRS FSK 9600** (G3RUH, el mismo AX.25 a 9600 baudios que las otras placas emiten con el SX126x) y **M17** (digital, 4FSK), ver más abajo.
+Balizas (SmartBeacon, perfiles), mensajes y ACK, digipeater, estaciones oídas, pantallas, GPS (L76K), Bluetooth (KISS y control de la app), WebUI, NMEA, telemetría. El modo de arranque se llama **APRS AFSK 1200** (es el modo 0, el que en las demás placas es APRS LoRa). Otros modos: **APRS FSK 9600** (G3RUH, el mismo AX.25 a 9600 baudios que las otras placas emiten con el SX126x), **M17** (digital, 4FSK), **FM voice** (la T-TWR como emisora de mano), **DAPNET** (buscapersonas POCSAG, recepción) y **MORSE / CW** (A1A o MCW), ver más abajo.
 
 ## Qué no hay en esta placa
 
-APRS LoRa, CW / Morse, WSPR, FT8, FT4, FST4W, LR-FHSS, DAPNET y la recepción o emisión hacia satélites: son funciones del chip SX126x. El modo SAT queda solo para la predicción de pasos y el rotor. La corrección global de frecuencia (ppm) no se aplica: el SA868 lleva su propio cristal.
+APRS LoRa, WSPR, FT8, FT4, FST4W, LR-FHSS y la recepción o emisión hacia satélites: son funciones del chip SX126x (WSPR y los modos de WSJT-X necesitan pasos de 1,46 Hz que el SA868 no hace). El modo SAT queda solo para la predicción de pasos y el rotor.
 
 ## Ajustes (WebUI > *VHF radio (SA868)*, grupo `sa868` de la configuración)
 
@@ -30,6 +30,8 @@ APRS LoRa, CW / Morse, WSPR, FT8, FT4, FST4W, LR-FHSS, DAPNET y la recepción o 
 | TXDELAY / cola | 300 / 30 ms | Banderas antes y después de la trama |
 | Filtros de voz | Sí | Pre/desénfasis y paso alto / bajo del módulo |
 | Altavoz | Sí | Rev2.1 y firmware OpenRTX; la Rev2.0 no lo puede silenciar |
+| Emisión CW | A1A | A1A (portadora) o MCW (tono, 800 Hz) en el modo MORSE |
+| DAPNET | vacía | 144,8625 (VHF) / 439,9875 MHz (UHF); acoplo de la entrada de audio 320 Hz |
 | Placa | Auto | Rev2.0 / Rev2.1 si la detección falla |
 | Frecuencia M17 | vacía | Vacía = la sugerida por la IARU R1: 144,875 MHz (VHF) o 433,475 MHz (UHF) |
 | CAN M17 | 0 (0–15) | *Channel Access Number* de las tramas M17 |
@@ -93,6 +95,51 @@ SELECT MODE → **M17** (modo 10; BLE `mode` 10). Radio digital M17 (4FSK, 4800 
 - **Frecuencia:** M17 no tiene canal fijo; la sugerencia de la IARU R1 (boletín VHF+ de junio de 2023) es 144,875 y 433,475 MHz. En otras regiones, escribe la que se use en tu zona.
 - **Sin verificar:** como en 9600, que el SA868 deje pasar el 4FSK limpio (mejor con el firmware de OpenRTX, que es el que OpenRTX usa para su propio M17 en esta placa) y el nivel de emisión.
 
+## FM voice (la T-TWR como emisora de mano)
+
+SELECT MODE → **FM voice** (modo 11; BLE `mode` 11). El modo se guarda como los modos APRS: la T-TWR vuelve a arrancar en FM.
+
+- **Voz:** PTT lateral (GPIO3) con el micrófono de la placa; el altavoz suena por la radio (o por el ESP32 en la Rev2.1, ver abajo). Tiempo máximo de emisión (TOT, 180 s por defecto): pasado, corta hasta soltar el PTT.
+- **Página FM** (se abre al arrancar): frecuencia grande, VFO o memoria (`M03`), desplazamiento, tono, ancho (`W`/`N`), potencia (`H`/`L`), paso o nombre de la memoria, silenciador (`SQLA3` = automático, nivel 3), estado (RX con S-meter, TX con segundos, escaneo, ARTS, EAI) y lo que mueve el encoder. Las demás páginas APRS siguen ahí (mensajes, estaciones, GPS…).
+- **Encoder:** en la página FM mueve lo elegido en *Dial*: frecuencia del VFO (en pasos de 5 a 100 kHz) o memoria siguiente, tono CTCSS / DCS, desplazamiento (pasos de 100 kHz) o nivel del silenciador. En el VFO, **ARS**: dentro de un segmento de salidas de repetidor de la región IARU pone solo el desplazamiento (R1: 145,600–145,7875 −600 kHz, 438,650–439,425 −7,6 MHz; R2 y R3 sus segmentos habituales).
+- **Submenú (pulsación larga):** VFO / memoria, *Dial*, desplazamiento, tono (sin tono, TONE, TSQL, DCS, 1750 Hz), paso, potencia, ancho, silenciador automático o manual, reducción de ruido, escaneo, guardar en memoria, ARTS, EAI, balizas APRS, *Tune carrier*, cambio de modo.
+- **Tonos:** 50 CTCSS y 104 DCS (normal o invertido); 1750 Hz = medio segundo de tono al pulsar el PTT. Con el firmware de **NiceRF**, los 38 CTCSS de su tabla y todos los DCS; con el de **OpenRTX**, cualquier CTCSS (registros del AT1846S, como OpenRTX) pero **no DCS** (avisa y emite sin él).
+- **Potencia:** Low / High por canal (pin H/L IO38; la Rev2.1 sin verificar). **Silenciador:** manual 0–8 o automático (abajo).
+- **32 memorias** con nombre (8 caracteres): se guardan desde el submenú, la WebUI o la app; *Scan memories* las recorre.
+- **Escaneo:** memorias o banda (la de aficionado de la región, o los límites de la WebUI); reanuda a los 2 s de quedar libre (*Carrier*), a los 5 s (*Time*) o se para en la primera señal (*Stop*). El encoder cambia el sentido; el PTT lo para.
+- **ARTS** (como Yaesu): sondea con el código DCS del grupo cada 25 (o 15) s y al soltar el PTT; **IN RANGE** mientras se oye al otro, **OUT RANGE** tras cuatro sondeos sin oírlo (aviso en pantalla y en la app). Indicativo en CW cada 10 minutos (opcional). Con OpenRTX (sin DCS) usa TSQL de 100 Hz: solo entre T-TWR.
+- **EAI** (emergencia, como Yaesu): *Interval* = pitido de 0,5 s cada 2,5 s; *Continuous* = micrófono abierto en tramos de 50 s con 10 s de escucha; indicativo en CW al empezar y cada 10 minutos; dura lo elegido (1–50 min). Arranca desde el submenú, la app o el **hombre caído** (minutos sin tocar nada, con aviso 30 s antes). Con *APRS beacon* también lanza la baliza de emergencia (SOS) por APRS. A diferencia de los Yaesu, no hay disparo remoto por pareja de tonos; el disparo remoto existente por mensaje APRS (`EAI <código>`) sigue disponible en los modos APRS.
+- **APRS durante la voz:** con *APRS beacon* las balizas, los mensajes y el KISS salen en la frecuencia APRS de la sección del SA868 (AFSK 1200, sin tono) y la radio vuelve al canal de voz; si se está hablando, esperan a soltar el PTT. No hay digipeater en FM. Lo que llegue en AFSK por el propio canal de voz se decodifica igualmente.
+- **QSY** (especificación de frecuencia de APRS 1.2, como Kenwood): con *Frequency in beacon* el comentario de la baliza empieza con el canal (`145.650MHz T088 -060`, minúscula = estrecho, `-000` = simplex en un segmento de repetidores). Al revés: en la página LAST APRS, *QSY (FM voice)* sintoniza lo que anuncia la estación (comentario `146.940MHz T100 -060 R25k` o nombre de objeto `146.94-R`; sin desplazamiento escrito, el ARS de la región); desde otro modo, guarda el canal en el VFO y arranca en FM. La app tiene el botón *QSY* en las estaciones oídas.
+- **CAT (Hamlib)** en FM: `F` sintoniza el VFO.
+
+### Silenciador automático y reducción de ruido
+
+- **Rev2.1:** el ESP32 alimenta el amplificador del altavoz (GPIO45 por sigma-delta a 13,2 kHz, ALDO3 elige el ESP32) con el audio del ADC. El silenciador por software abre con dos bloques de 20 ms sin aspecto de soplido y cierra con tres seguidos (el detector mira la energía de alta frecuencia y el nivel frente al soplido aprendido sin portadora; con portadora el ruido baja y no cierra en las pausas); con OpenRTX además el RSSI frente al suelo de ruido medido + 6 dB. La **reducción de ruido** (Low / Mid / High, se aplica al arrancar el modo) es una resta espectral (STFT de 256 puntos, estimación del ruido por mínimos, ganancia suavizada); unos 20 ms de retardo. En el PC: +5 dB de relación señal / ruido con voz sintética a 7 dB y −10 a −14 dB de soplido sin voz.
+- **Rev2.0:** el altavoz lo alimenta solo la radio: el automático **ajusta el nivel del silenciador del módulo** (sube uno si se abre con soplido más de 1 s; con el canal libre un minuto prueba a bajar uno y lo deshace si vuelve el soplido, y no lo intenta otra vez en 5 min). Sin reducción de ruido.
+- Con OpenRTX (sin silenciador en el módulo): manual = umbral de RSSI (nivel 1 = −124 dBm … 8 = −96 dBm), y el altavoz se calla con `AT+AUDIO`.
+- El micrófono no pasa por el ESP32: su entrada (GPIO15) es del ADC2, sin lectura continua.
+
+## DAPNET (recepción POCSAG)
+
+SELECT MODE → **DAPNET pager** (modo 5), en las dos bandas: **144,8625 MHz** con el módulo de VHF y **439,9875 MHz** con el de UHF (o la de *DAPNET* en la WebUI). El SA868 se pone en audio plano y canal de 25 kHz; el ESP32 demodula el POCSAG (512 / 1200 / 2400 baudios, el de la sección DAPNET) desde el audio: compensación del acoplo de alterna de la entrada (100 nF con 10 k / 10 k, unos 320 Hz, ajustable), paso bajo, umbral adaptativo y PLL de reloj; los bits van al mismo decodificador POCSAG que las demás placas (RIC propios, todos los mensajes, hora, juego de caracteres, página DAPNET, avisos y app). Solo recepción, como en las demás. En el PC (`tools/afsk/test_pocsag_audio.cpp`): las tres velocidades, polaridad invertida, ±0,5 % de reloj, acoplo de 250–400 Hz, 20/20 a 12 dB; sin compensar el acoplo, 0/20.
+
+## MORSE / CW en VHF y UHF
+
+SELECT MODE → **MORSE / CW** (modo 2). Todo lo del modo MORSE de la Supreme: mensajes CW, texto libre, manipulador (jack y app), escucha con decodificación, entrenador, baliza CW y spots. Frecuencias y potencia de la sección *CW* (fuera de la banda del módulo: 144,050 / 432,050 MHz; potencia > 31 dBm = High).
+
+- **Emisión A1A** (por defecto): portadora sin modular que se enciende y apaga; con NiceRF por el PTT (hasta unas 15–18 ppm por el tiempo de subida del módulo), con OpenRTX por el registro de modo del AT1846S (una orden por flanco, hasta unas 12 ppm). **MCW**: PTT puesto toda la sesión y tono de 800 Hz (ajustable) por el micrófono del módulo, sin límite de velocidad.
+- **Recepción:** un receptor de FM no da el tono de la CW, pero la portadora calla el soplido: el ESP32 mide la energía de alta frecuencia del audio cada 2 ms frente al soplido sin portadora (silenciador del módulo abierto durante la escucha) y esa envolvente va al decodificador Morse de siempre. En el PC: PARIS a 20 ppm con todos los flancos y ~3 ms de error por flanco.
+- **Rev2.1:** tono local de 700 Hz por el altavoz al manipular y tono de 700 Hz cuando se oye la portadora.
+
+## Calibración de frecuencia
+
+WebUI > *Frequency calibration*: la misma corrección en ppm que las demás placas, aplicada al SA868 en emisión y recepción (es el mismo cristal), en todos los modos. *Tune carrier* (submenú de RADIO y de FM, o la app, orden `carrier`) emite 30 s de portadora sin modular en la frecuencia de emisión en uso: mídela con un SDR, escribe el error y *Apply to ppm*. Resolución: 100 Hz con NiceRF (formato del `AT+DMOSETGROUP`), 62,5 Hz con OpenRTX.
+
+## GPS L76K
+
+Configurado como en la Supreme: el tracker detecta el L76K (no contesta a UBX: órdenes CASIC `$PCAS`), lo sube a 115200 baudios, elige constelaciones (GPS / BeiDou / GLONASS) desde la página GPS o la WebUI, lo apaga y enciende por el ALDO4, filtra la velocidad parado y guarda la última posición.
+
 ## Pines (de la librería de LilyGO, `utilities.h`, y de los esquemas)
 
 | Función | GPIO | | Función | GPIO |
@@ -113,5 +160,9 @@ PMU AXP2101: DC1 ESP32 y OLED, DC3 radio (Rev2.0), ALDO2 TF, ALDO3 conmutador de
 1. **Nivel de audio de emisión:** la placa no atenúa la salida del ESP32 antes de la entrada de micrófono (el ejemplo de LilyGO le mete una onda cuadrada de 3,3 V). El 25 % es una estimación: medir la desviación.
 2. **Nivel de audio de recepción:** en la Rev2.1 la polarización del ADC queda baja (unos 0,5 V con 47 kΩ hacia EXT_VDD); con mucho volumen el semiciclo negativo se recorta. Si se pierden tramas fuertes, bajar el volumen.
 3. **Detección de la revisión** sin batería en la Rev2.1 (el módulo no tendría alimentación): fijar *Placa* en la WebUI.
-4. **Firmware de OpenRTX:** la potencia del módulo no se controla por órdenes (solo el pin H/L de la Rev2.0); `AT+AMP` no se usa.
-5. **Encoder:** solo el pulsador hace de botón del tracker; el giro no se usa todavía.
+4. **Firmware de OpenRTX:** la potencia del módulo no se controla por órdenes (solo el pin H/L); `AT+AMP` no se usa.
+5. **Encoder:** el giro sintoniza en la página FM (tabla de paso completo de la librería Rotary, la del ejemplo de LilyGO): si da dos pasos por clic o ninguno, avisar.
+6. **Potencia en la Rev2.1:** el pin H/L (IO38) se maneja también; LilyGO solo lo documenta en la Rev2.0.
+7. **Altavoz desde el ESP32 (Rev2.1, GPIO45 + ALDO3):** nivel y filtrado del sigma-delta; si se oye mal, poner *Noise red.* en *Off* y el silenciador en manual (la radio vuelve a alimentar el altavoz).
+8. **Detector de soplido, silenciamiento de la CW y POCSAG:** probados con señales sintéticas; los umbrales pueden necesitar ajuste con el audio real del SA868.
+9. **Velocidad de la CW A1A:** depende del tiempo de subida del módulo; medir con un SDR.
