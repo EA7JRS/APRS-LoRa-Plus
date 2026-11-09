@@ -730,11 +730,11 @@ function loadSettings(settings) {
                 r.className = "row g-1 mb-1";
                 r.innerHTML = '<div class="col-2"><input type="text" class="form-control form-control-sm" ' + n("n") + ' maxlength="8" placeholder="M' + String(i + 1).padStart(2, "0") + '"></div>' +
                     '<div class="col-2"><input type="number" class="form-control form-control-sm" ' + n("f") + ' min="0" max="480" step="0.00625"></div>' +
-                    '<div class="col-1"><select class="form-select form-select-sm" ' + n("sh") + '><option value="0">S</option><option value="-1">&minus;</option><option value="1">+</option></select></div>' +
+                    '<div class="col-1"><select class="form-select form-select-sm px-1" ' + n("sh") + '><option value="0">S</option><option value="-1">&minus;</option><option value="1">+</option></select></div>' +
                     '<div class="col-2"><input type="number" class="form-control form-control-sm" ' + n("ofs") + ' min="0" max="99.9" step="0.005"></div>' +
                     '<div class="col-2"><select class="form-select form-select-sm" ' + n("tm") + '><option value="0">&mdash;</option><option value="1">TONE</option><option value="2">TSQL</option><option value="3">DCS</option><option value="4">1750</option></select></div>' +
-                    '<div class="col-2"><input type="text" class="form-control form-control-sm" ' + n("t") + ' maxlength="6"></div>' +
-                    '<div class="col-1"><select class="form-select form-select-sm" ' + n("wh") + '><option value="0">N L</option><option value="1">W L</option><option value="2">N H</option><option value="3">W H</option></select></div>';
+                    '<div class="col-1"><input type="text" class="form-control form-control-sm px-1" ' + n("t") + ' maxlength="6"></div>' +
+                    '<div class="col-2"><select class="form-select form-select-sm" ' + n("wh") + '><option value="0">N / Low</option><option value="1">W / Low</option><option value="2">N / High</option><option value="3">W / High</option></select></div>';
                 box.appendChild(r);
                 const q = k => r.querySelector('[name="fm.m' + i + '.' + k + '"]');
                 if (m.rxHz) {
