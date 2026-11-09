@@ -802,11 +802,11 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div class="mb-2" id="satdata-groups"></div>
                                 <input type="hidden" name="sat.groups" id="sat.groups" />
                                 <div class="form-floating mb-2">
-                                    <input type="text" class="form-control form-control-sm" name="sat.favorites" id="sat.favorites" maxlength="260" placeholder="25544, 27607" />
+                                    <input type="text" class="form-control form-control-sm" name="sat.favorites" id="sat.favorites" maxlength="260" />
                                     <label for="sat.favorites">Favorites (NORAD numbers, up to 32; also from the tracker menu and the app)</label>
                                 </div>
                                 <div class="d-flex flex-wrap gap-2 mb-2">
-                                    <button type="button" class="btn btn-sm btn-primary" id="satdata-download">Download from internet and send</button>
+                                    <button type="button" class="btn btn-sm btn-secondary" id="satdata-download">Download from internet and send</button>
                                     <label class="btn btn-sm btn-outline-secondary mb-0">Send a file&hellip;<input type="file" id="satdata-file" accept=".txt,text/plain" class="d-none" /></label>
                                 </div>
                                 <div class="small text-muted mb-3">The browser downloads the file (it needs internet: the tracker does not) and sends the chosen groups to the tracker. Connected to the tracker's own WiFi there is no internet: use <em>Send a file</em> with <code>sats_all.txt</code> downloaded before.</div>
