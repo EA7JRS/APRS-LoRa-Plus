@@ -289,7 +289,7 @@ public:
 // Radio comercial con un receptor I2C externo (RDA5807M, Si4703, Si4735): include/bcast_radio.h (Manuel - EA7JRS)
 class BcastConfig {
 public:
-    static const int PRESETS = 10;
+    static constexpr int PRESETS = 10;
     bool    enabled;                            // buscar el receptor al arrancar
     int     resetPin;                           // GPIO del RST del modulo (Si4703 y Si4735; -1 = sin conectar)
     int     band;                               // 0 FM, 1 onda media, 2 onda corta, 3 onda larga (AM solo con el Si4735)
@@ -319,7 +319,7 @@ public:
 
 class FmConfig {
 public:
-    static const int MEMORIES = 32;
+    static constexpr int MEMORIES = 32;
     FmMemory vfo;                               // el VFO (sin nombre)
     int     stepIndex;                          // paso del VFO (FmCore::STEPS)
     bool    memMode;                            // true = memoria, false = VFO
