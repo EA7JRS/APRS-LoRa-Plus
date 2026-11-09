@@ -19,6 +19,8 @@
 #ifndef NMEA_LINK_H_
 #define NMEA_LINK_H_
 
+#include <Arduino.h>
+
 // Salida NMEA 0183 / NMEA 2000 (USB, TCP y UART) con datos GNSS, meteorologia y estaciones APRS oidas como objetivos AIS.
 namespace NMEA_Link {
 
@@ -26,6 +28,10 @@ namespace NMEA_Link {
     void update();                                  // llamar al final de cada vuelta del bucle principal
     // packetText: trama APRS completa; si lleva la etiqueta "AIS:..." del perfil nautico AIS se usan sus datos reales (MMSI, nombre, tipo, dimensiones)
     void onAprsPosition(const char* callsign, double lat, double lon, double speedKmh, double courseDeg, const char* packetText = nullptr);
+    // frases ya hechas (!AIVDM del receptor AIS) a todas las salidas activas y a la app (BLE); sin salida NMEA en la placa, solo a la app
+    void sendRaw(const char* text, size_t length);
+    // UART de la salida NMEA (si esta activa y el modulo AIS esta configurado, con su pin RX): el receptor AIS lo comparte; nullptr si no
+    HardwareSerial* uartForAis();
 
 }
 

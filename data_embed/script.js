@@ -682,6 +682,23 @@ function loadSettings(settings) {
             document.getElementById("sa868.cwToneHz").value = sa.cwToneHz ?? 800;
             if (sa.dapnetFreqHz) document.getElementById("sa868.dapnetMHz").value = (sa.dapnetFreqHz / 1e6).toFixed(4);
         }
+        {   // receptor AIS
+            const ai = settings.ais || {};
+            const g = id => document.getElementById(id);
+            g("ais.module").checked = ai.module === true;
+            g("ais.rxPin").value = ai.rxPin ?? -1;
+            g("ais.baud").value = String(ai.baud ?? 38400);
+            g("ais.channel").value = String(ai.channel ?? 0);
+            g("ais.altSec").value = ai.altSec ?? 30;
+            g("ais.cpaAlarm").checked = ai.cpaAlarm !== false;
+            g("ais.cpaNm").value = ((ai.cpaTenthNm ?? 5) / 10).toFixed(1);
+            g("ais.tcpaMin").value = ai.tcpaMin ?? 15;
+            g("ais.guardNm").value = ((ai.guardTenthNm ?? 0) / 10).toFixed(1);
+            g("ais.maxAgeMin").value = ai.maxAgeMin ?? 10;
+            g("ais.distressAlarm").checked = ai.distressAlarm !== false;
+            g("ais.forwardNmea").checked = ai.forwardNmea !== false;
+            g("ais.hpfHz").value = ai.hpfHz ?? 320;
+        }
         {   // radio comercial por I2C
             const bc = settings.bcast || {};
             const g = id => document.getElementById(id);

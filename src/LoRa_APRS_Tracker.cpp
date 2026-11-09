@@ -81,6 +81,7 @@ ____________________________________________________________________*/
 #include "bcast_radio.h"
 #include "sat_config.h"
 #include "sat_utils.h"
+#include "ais_utils.h"
 #ifdef HAS_SA868
     #include "fm_utils.h"
     #include "sa868_radio.h"
@@ -205,6 +206,7 @@ void setup() {
 
     // NMEA_Link despues de WiFi.mode(WIFI_OFF) por si NMEA_TCP esta activo y debe levantar red
     NMEA_Link::setup();
+    AIS_Utils::begin();                                             // receptor AIS: modulo externo por UART (EA7JRS)
     KISS_NET::setup();                                             // KISS por WiFi (si esta activado): se une a la WiFi sin bloquear el arranque
 
     if (bluetoothActive) {
@@ -287,6 +289,7 @@ void loop() {
     #endif
     BCAST::loop();
     SAT_Utils::service();                                           // subida del archivo de satelites por la WebUI (EA7JRS)
+    AIS_Utils::loop();                                              // receptor AIS: modulo, canales, alarmas (EA7JRS)
 
     MSG_Utils::checkReceivedMessage(packet);
     MSG_Utils::processOutputBuffer();

@@ -27,6 +27,7 @@
 #include "m17_modem.h"
 #include "pocsag_modem.h"
 #include "fm_core.h"
+#include "ais_core.h"
 #include "fm_dsp.h"
 #include "cw_morse.h"
 #include "driver/sdm.h"
@@ -85,6 +86,12 @@ namespace SA868 {
     static bool                 dap         = false;
     static PocsagModem::BaseRx  pocRx;
     static QueueHandle_t        dapQueue    = nullptr;
+    // AIS: mensajes a una cola que lee el bucle principal
+    static bool                 ais         = false;
+    static AisCore::Demod       aisRx;
+    struct AisItem { uint8_t n; char ch; uint8_t d[AisCore::MAX_MSG_BYTES]; };
+    static QueueHandle_t        aisQueue    = nullptr;
+    static volatile char        aisCh       = 'A';
     // FM (voz)
     static bool                 fmMode      = false;
     static bool                 fmLoaded    = false;        // ya hay canal (FM_Utils::begin)
@@ -305,7 +312,7 @@ namespace SA868 {
         char c[64], ft[16], fr[16];
         niceRfFreq(txHz, ft, sizeof(ft));
         niceRfFreq(rxHz, fr, sizeof(fr));
-        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%s,%s,0000,%d,0000", (Config.sa868.wide || flat) ? 1 : 0, ft, fr, constrain(Config.sa868.squelch, 0, 8));
+        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%s,%s,0000,%d,0000", (Config.sa868.wide || flat) ? 1 : 0, ft, fr, ais ? 0 : constrain(Config.sa868.squelch, 0, 8));   // AIS: silenciador abierto (rafagas de 26 ms)
         const bool good = commandOk(c, "+DMOSETGROUP:0", 800);
         if (!good) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "%s rejected", c);
         return good;
@@ -321,6 +328,7 @@ namespace SA868 {
         }
         if (m17) rx = tx = m17FreqHz();
         if (dap) rx = tx = dapnetFreqHz();
+        if (ais) rx = tx = (aisCh == 'B') ? AisCore::FREQ_B : AisCore::FREQ_A;
         if (cwMode) rx = tx = cwFreqHz(false);
         if (fmMode && fmLoaded) return fmApply(fmCh, fmSquelch);
         if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;           // no deberia pasar: fixBandDefaults() al arrancar
@@ -426,6 +434,36 @@ namespace SA868 {
 
     static void onPocByte(uint8_t b, void*) { if (dapQueue) xQueueSend(dapQueue, &b, 0); }
 
+    static void onAis(const uint8_t* m, size_t n, void*) {
+        if (!aisQueue || n == 0 || n > AisCore::MAX_MSG_BYTES) return;
+        static AisItem it;                                  // solo la tarea de recepcion lo usa
+        it.n = (uint8_t)n; it.ch = aisCh;
+        memcpy(it.d, m, n);
+        xQueueSend(aisQueue, &it, 0);
+    }
+
+    bool modeAis() { return ais; }
+    bool popAis(uint8_t* m, size_t& n, char& ch) {
+        static AisItem it;
+        if (!aisQueue || xQueueReceive(aisQueue, &it, 0) != pdTRUE) return false;
+        n = it.n; ch = it.ch;
+        memcpy(m, it.d, it.n);
+        return true;
+    }
+    bool aisChannel(char ch) {
+        if (!ais || (ch != 'A' && ch != 'B')) return false;
+        if (ch == aisCh) return true;
+        aisCh = ch;
+        const long f = ch == 'B' ? AisCore::FREQ_B : AisCore::FREQ_A;
+        const bool good = setFrequencies(f, f);
+        resetDemod = true;
+        return good;
+    }
+    char aisChannelNow() { return aisCh; }
+    uint32_t aisFrames() { return aisRx.frames; }
+    uint32_t aisCrcErrors() { return aisRx.crcErrors; }
+    bool aisCarrier() { return aisRx.dataCarrier(); }
+
     long dapnetFreqHz() {
         if (validFreq(Config.sa868.dapnetFreqHz)) return Config.sa868.dapnetFreqHz;
         return isUhf ? DAPNET_UHF_HZ : DAPNET_VHF_HZ;
@@ -484,7 +522,7 @@ namespace SA868 {
         for (;;) {
             uint32_t got = 0;
             if (adc_continuous_read(adc, buf, sizeof(buf), &got, 100) != ESP_OK) continue;
-            if (resetDemod) { if (m17) m17rx.reset(); else if (dap) pocRx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
+            if (resetDemod) { if (m17) m17rx.reset(); else if (dap) pocRx.reset(); else if (ais) aisRx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
             const uint32_t nSamples = got / SOC_ADC_DIGI_RESULT_BYTES;
             static float tonePh = 0;
             auto tone = [&](bool on) -> int8_t {           // 700 Hz para el altavoz (tono local / CW recibida)
@@ -514,6 +552,7 @@ namespace SA868 {
                 const float x = (float)(v - 2048) / 2048.0f;
                 if (m17) { m17rx.feed(x); continue; }
                 if (dap) { pocRx.feed(x, onPocByte, nullptr); continue; }
+                if (ais) { aisRx.feed(x, onAis, nullptr); continue; }
                 if (mode96) { g3rx.feed(x, onFrame, nullptr); continue; }
                 demod.feed(x, onFrame, nullptr);            // AFSK: tambien en FM (APRS en el canal de voz)
                 if (!fmMode) continue;
@@ -552,6 +591,10 @@ namespace SA868 {
             pocRx.begin((float)RX_FS_9600, Config.dapnet.baud, (float)Config.sa868.dapnetHpfHz);
             dapQueue = xQueueCreate(512, 1);
             if (!dapQueue) return false;
+        } else if (ais) {
+            if (!aisRx.begin((float)RX_FS_9600, (float)Config.ais.hpfHz)) return false;
+            aisQueue = xQueueCreate(6, sizeof(AisItem));
+            if (!aisQueue) return false;
         } else if (mode96 ? !g3rx.begin(RX_FS_9600) : !demod.begin(RX_FS)) return false;
         if (fmMode) {
             fmNoise.begin((float)RX_FS);
@@ -617,9 +660,11 @@ namespace SA868 {
         mode96 = (Config.operatingMode == MODE_APRS_FSK);
         m17    = (Config.operatingMode == MODE_M17);
         dap    = (Config.operatingMode == MODE_DAPNET);
+        ais    = (Config.operatingMode == MODE_AIS);
+        if (ais) aisCh = Config.ais.channel == 1 ? 'B' : 'A';
         fmMode = (Config.operatingMode == MODE_FM || Config.operatingMode == MODE_SAT);    // SAT: el VFO sigue al satelite (FM_Utils)
         cwMode = (Config.operatingMode == MODE_MORSE);
-        flat   = mode96 || m17 || dap;
+        flat   = mode96 || m17 || dap || ais;
         if (cwMode) espAudio = rev == 21;                   // Rev2.1: tono local y tono de la CW recibida por el altavoz
         if (fmMode) {
             PMU.setBLDO1Voltage(3300);                      // microfono de la placa encendido: voz
@@ -651,7 +696,7 @@ namespace SA868 {
     uint32_t framesOk()       { return m17 ? m17rx.packets : (mode96 ? g3rx.frames : demod.frames); }
     bool mode9600()           { return mode96; }
     bool modeM17()            { return m17; }
-    const char* modemName()   { return m17 ? "M17" : (dap ? "POCSAG" : (fmMode ? (Config.operatingMode == MODE_SAT ? "SAT FM" : "FM voice") : (cwMode ? (Config.sa868.cwMcw ? "CW (MCW)" : "CW (A1A)") : (mode96 ? "G3RUH 9600" : "AFSK 1200")))); }
+    const char* modemName()   { return m17 ? "M17" : (dap ? "POCSAG" : ais ? "AIS" : (fmMode ? (Config.operatingMode == MODE_SAT ? "SAT FM" : "FM voice") : (cwMode ? (Config.sa868.cwMcw ? "CW (MCW)" : "CW (A1A)") : (mode96 ? "G3RUH 9600" : "AFSK 1200")))); }
     bool modeFm()             { return fmMode; }
     bool modeDapnet()         { return dap; }
     long rxFreqHz()           { return curRx ? curRx : Config.sa868.rxFreqHz; }

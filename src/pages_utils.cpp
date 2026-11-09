@@ -62,6 +62,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "net_wx.h"
+#include "ais_utils.h"
 #include "rotor_utils.h"
 #include "rotor_follow.h"
 #include "sat_rx.h"
@@ -115,7 +116,7 @@ using namespace PAGES_Core;
 
 namespace {
 
-    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_FM, PAGE_BCAST, PAGE_COUNT };
+    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_FM, PAGE_BCAST, PAGE_AIS, PAGE_COUNT };
 
     // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
     bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
@@ -137,16 +138,18 @@ namespace {
         if (Config.operatingMode == MODE_LRFHSS) return p == PAGE_LRF;
         if (Config.operatingMode == MODE_DAPNET) return p == PAGE_DAP;
         if (Config.operatingMode == MODE_SAT) return p == PAGE_SAT;
+        if (Config.operatingMode == MODE_AIS) return p == PAGE_AIS || p == PAGE_GPS || p == PAGE_COMPASS || p == PAGE_CLOCK || p == PAGE_WX;   // receptor AIS de la T-TWR
+        if (p == PAGE_AIS) return AIS_Utils::active();                       // con un modulo AIS externo o barcos de la app
         if (p == PAGE_FM) return Config.operatingMode == MODE_FM;           // T-TWR: emisora de voz, junto a las paginas APRS
         return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && (p != PAGE_ROT || rotorPageOn()) && (p != PAGE_TEAM || Config.team.watchActive);
     }
-    bool aprsMode() { return Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && !ftMode(); }
+    bool aprsMode() { return Config.operatingMode != MODE_AIS && Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && !ftMode(); }
 
     // Pin del manipulador / teclado FH-2: -1 (sin usar) si es negativo o si lo ocupa la propia placa (Supreme: radio, GPS, IMU, PMU...)
     int cwPin(int pin) { return (pin >= 0 && !POWER_Utils::pinReserved(pin)) ? pin : -1; }
 
     const char* const PAGE_TITLES[PAGE_COUNT] = {
-        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP", "FM", "BCAST"
+        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP", "FM", "BCAST", "AIS"
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
@@ -164,7 +167,7 @@ namespace {
         X(SATRX_FINE_DN) X(SATRX_LORA) X(SATRX_CLEAR) X(SATTX_SEND) X(ROT_SOURCE) X(ROT_NEXT) X(ROT_PREV) X(ROT_PARK) X(MODE_CHANGE) X(TEAM_BROWSE) \
         X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
         X(SYS_IARU) X(FM_VM) X(FM_EDIT) X(FM_SHIFT) X(FM_TONEMODE) X(FM_STEP) X(FM_POWER) X(FM_WIDE) X(FM_SQLAUTO) X(FM_NR) \
-        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) X(FM_SAT) X(FM_SATNEXT) X(FM_SATTX) X(SAT_FAV) X(SATTX_POS) X(WX_NET) X(SAT_PHONE) \
+        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) X(FM_SAT) X(FM_SATNEXT) X(FM_SATTX) X(SAT_FAV) X(SATTX_POS) X(WX_NET) X(SAT_PHONE) X(AIS_VIEW) X(AIS_NEXT) X(AIS_PREV) X(AIS_GOTO) X(AIS_CH) X(AIS_ALARM) X(AIS_CLEAR) \
         X(BC_SEEKUP) X(BC_SEEKDN) X(BC_VOLUP) X(BC_VOLDN) X(BC_MUTE) X(BC_BAND) X(BC_MONO) X(BC_STORE) X(BC_PRESET) X(BC_POWER)
     enum Command : uint8_t {
     #define X(n) C_##n,
@@ -192,6 +195,10 @@ namespace {
                                    {"QSY (FM voice)", C_QSY}, {"Back", C_BACK} };
     const Item ITEMS_RADIO[]   = { {"Tune carrier", C_RADIO_TUNE}, {"Power", C_LORA_POWER}, {"Reset counters", C_LORA_RESET}, {"Heard list", C_LORA_HEARD}, {"Back", C_BACK} };
     Item            fmItems[24];
+    Item            aisItems[10];
+    char            aisChLabel[24];
+    uint8_t         aisView = 0;                 // 0 lista, 1 detalle
+    int             aisSel = 0;                  // barco elegido (posicion en la lista por distancia)
     char            fmLabels[12][24];
 #else
     const Item ITEMS_LAST[]    = { {"Next view", C_LAST_VIEW}, {"Older station", C_LAST_NEXT}, {"Newer station", C_LAST_PREV}, {"GO TO", C_GOTO}, {"Back", C_BACK} };
@@ -505,6 +512,23 @@ namespace {
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:    PAGES_ITEMS(ITEMS_CLOCK);
             case PAGE_WX:       PAGES_ITEMS(ITEMS_WX);
+            case PAGE_AIS: {
+                uint8_t n = 0;
+                aisItems[n++] = Item{aisView ? "View: list" : "View: details", C_AIS_VIEW};
+                aisItems[n++] = Item{"Next vessel", C_AIS_NEXT};
+                aisItems[n++] = Item{"Previous vessel", C_AIS_PREV};
+                aisItems[n++] = Item{"GO TO", C_AIS_GOTO};
+                if (Config.operatingMode == MODE_AIS) {
+                    snprintf(aisChLabel, sizeof(aisChLabel), "Channel: %s", Config.ais.channel == 2 ? "A/B" : (Config.ais.channel == 1 ? "B 162.025" : "A 161.975"));
+                    aisItems[n++] = Item{aisChLabel, C_AIS_CH};
+                }
+                aisItems[n++] = Item{Config.ais.cpaAlarm ? "Collision alarm: ON" : "Collision alarm: OFF", C_AIS_ALARM};
+                aisItems[n++] = Item{"Clear list", C_AIS_CLEAR};
+                if (Config.operatingMode == MODE_AIS) aisItems[n++] = Item{"Change mode", C_MODE_CHANGE};
+                aisItems[n++] = Item{"Back", C_BACK};
+                count = n;
+                return aisItems;
+            }
 #ifdef HAS_SA868
             case PAGE_LINK:     PAGES_ITEMS(ITEMS_RADIO);
             case PAGE_FM: {
@@ -831,6 +855,10 @@ namespace {
             case PAGE_TEAM:     // dos personas
                 pagesDrawCircle(x + 2, y + 3, 2, on); pagesDrawCircle(x + 6, y + 3, 2, on);
                 pagesDrawLine(x, y + 7, x + 8, y + 7, on);
+                break;
+            case PAGE_AIS:      // barco: casco y mastil
+                pagesDrawLine(x, y + 5, x + 8, y + 5, on); pagesDrawLine(x + 1, y + 7, x + 7, y + 7, on); pagesDrawLine(x, y + 5, x + 1, y + 7, on);
+                pagesDrawLine(x + 8, y + 5, x + 7, y + 7, on); pagesDrawLine(x + 4, y, x + 4, y + 5, on); pagesDrawLine(x + 4, y, x + 7, y + 4, on);
                 break;
             case PAGE_BCAST:    // radio de sobremesa: caja y altavoz
                 pagesDrawRect(x, y + 2, 9, 6, on); pagesDrawCircle(x + 6, y + 5, 1, on); pagesDrawLine(x + 2, y, x + 6, y + 2, on);
@@ -2431,6 +2459,21 @@ namespace PAGES_Utils {
         submenuId = SM_PAGE;
     }
 
+    static void goToStation(const Station* selected);
+    // ---- AIS: barcos como destino de la brujula / rotor y alarmas (Manuel - EA7JRS) ----
+    // Se anade (o actualiza) en la lista de estaciones con su MMSI como indicativo; open = abrir la brujula hacia el
+    void aisTarget(const char* id, bool hasPos, double lat, double lon, float speedKmh, float course, const char* comment, bool open) {
+        if (!open && !(compassTarget && strcmp(targetCall, id) == 0) && heard.indexOf(id) < 0) return;   // solo el que se sigue o ya esta en la lista
+        heard.update(id, 's', 0, hasPos, (float)lat, (float)lon, 0, (int)lroundf(speedKmh), (int)lroundf(course), 0, 0.0f, millis(),
+                     "AIS", nullptr, comment, nullptr, '/');
+        if (open) goToStation(heard.byRecent((uint8_t)max(0, heard.indexOf(id))));
+    }
+
+    void aisAlarm(const char* id, const char* detail, bool distress, bool hasPos, double lat, double lon) {
+        if (hasPos) heard.update(id, distress ? 'Y' : 's', 0, true, (float)lat, (float)lon, 0, 0, 0, 0, 0.0f, millis(), "AIS", nullptr, detail, nullptr, '/');
+        triggerAlarm(id, distress ? ALARM_AIS_SOS : ALARM_AIS_CPA, detail, millis());
+    }
+
     void teamOnPacket(const APRSPacket& packet, bool hasPos, uint32_t now);      // definidas mas abajo (vigilancia de grupo y EAI)
     void teamOnMessage(const APRSPacket& packet, uint32_t now);
 
@@ -2836,6 +2879,7 @@ namespace PAGES_Utils {
             if (clicks) {
                 if (page == PAGE_FM && fmDialActive()) FM_Utils::dial(clicks);
                 else if (page == PAGE_BCAST && viewing() && !submenuOpen) BCAST::step(clicks);
+                else if (page == PAGE_AIS && viewing() && !submenuOpen) { aisSel += clicks; if (aisSel < 0) aisSel = 0; }
                 #ifdef HAS_SAT
                 else if (page == PAGE_SAT && viewing() && !submenuOpen) {
                     if (FM_Utils::satOn()) FM_Utils::satFine(clicks * 100);            // escuchando: ajuste fino de 100 Hz
@@ -3499,6 +3543,76 @@ namespace PAGES_Utils {
 #else
     void drawSatPage() {}
 #endif
+
+    // ======================= AIS =======================
+    static void aisAgo(uint32_t ms, char* out, size_t n) {
+        const uint32_t s = ms / 1000;
+        if (s < 60) snprintf(out, n, "%lus", (unsigned long)s); else if (s < 3600) snprintf(out, n, "%lum", (unsigned long)(s / 60)); else snprintf(out, n, "%luh", (unsigned long)(s / 3600));
+    }
+
+    void drawAisPage() {
+        int idx[AisCore::Table::CAP];
+        const int m = AIS_Utils::sorted(idx, AisCore::Table::CAP);
+        char right[12];
+        const char ch = AIS_Utils::channel();
+        if (ch) snprintf(right, sizeof(right), "%d %c", m, ch); else snprintf(right, sizeof(right), "%d", m);
+        header(PAGE_TITLES[PAGE_AIS], right);
+        if (m == 0) {
+            row(0, "No vessels yet");
+            if (Config.operatingMode == MODE_AIS) {
+                row(1, "SA868 %s MHz", ch == 'B' ? "162.025" : "161.975");
+                #ifdef HAS_SA868
+                row(2, "Frames %lu bad %lu", (unsigned long)SA868::aisFrames(), (unsigned long)SA868::aisCrcErrors());
+                #endif
+                row(3, "Needs a VHF marine");
+                row(4, "antenna (2 m works)");
+            } else {
+                row(1, "Source: %s", AIS_Utils::sourceName());
+            }
+            return;
+        }
+        if (aisSel >= m) aisSel = m - 1;
+        AisCore::Own o; const bool haveOwn = AIS_Utils::own(o);
+        if (aisView == 0) {                                          // lista por distancia (5 filas, la elegida marcada)
+            const int first = aisSel >= 5 ? aisSel - 4 : 0;
+            for (int r = 0; r < 5 && first + r < m; r++) {
+                const AisCore::Vessel* v = AIS_Utils::table().at(idx[first + r]);
+                if (!v) continue;
+                char name[11];
+                if (v->name[0]) snprintf(name, sizeof(name), "%.9s", v->name); else snprintf(name, sizeof(name), "%09lu", (unsigned long)v->mmsi);
+                const bool dng = AIS_Utils::dangerous(*v);
+                if (v->hasPos && haveOwn) {
+                    double nm, brg; AisCore::rangeBearing(o, v->lat, v->lon, nm, brg);
+                    row(r, "%c%-9.9s%c%4.1f %03d", first + r == aisSel ? '>' : ' ', name, dng ? '!' : ' ', nm > 99.9 ? 99.9 : nm, (int)lround(brg) % 360);
+                } else {
+                    row(r, "%c%-9.9s %s", first + r == aisSel ? '>' : ' ', name, v->hasPos ? "pos" : "no pos");
+                }
+            }
+            row(5, "%lu msgs %s", (unsigned long)AIS_Utils::messages(), AIS_Utils::sourceName());
+            return;
+        }
+        const AisCore::Vessel* v = AIS_Utils::table().at(idx[aisSel]);
+        if (!v) return;
+        const char* sart = AisCore::distressName(v->mmsi);
+        row(0, "%.20s", v->name[0] ? v->name : (sart[0] ? sart : "(no name yet)"));
+        row(1, "%09lu %c %.8s", (unsigned long)v->mmsi, v->cls, v->call[0] ? v->call : AisCore::shipTypeName(v->shipType));
+        if (v->hasPos && haveOwn) {
+            double nm, brg; AisCore::rangeBearing(o, v->lat, v->lon, nm, brg);
+            row(2, "%.2fnm %03d %s", nm, (int)lround(brg) % 360, cardinal16(brg));
+        } else if (v->hasPos) row(2, "%.4f %.4f", v->lat, v->lon);
+        else row(2, "No position yet");
+        char hd[8] = "";
+        if (v->hdg != 511) snprintf(hd, sizeof(hd), " H%03d", v->hdg);
+        if (v->hasSog || v->hasCog) row(3, "%.1fkn %03d%s %.6s", v->hasSog ? v->sogKn : 0.0f, v->hasCog ? (int)lround(v->cogDeg) % 360 : 0, hd, AisCore::statusName(v->status));
+        else row(3, "%.20s", AisCore::shipTypeName(v->shipType));
+        double c, t;
+        if (haveOwn && v->hasPos && AisCore::cpa(o, *v, c, t) && t > 0 && t < 600) row(4, "CPA %.2fnm %.0fmin%s", c, t, AIS_Utils::dangerous(*v) ? " !" : "");
+        else if (v->dest[0]) row(4, "To %.17s", v->dest);
+        else if (v->length) row(4, "%um x %um %.8s", v->length, v->beam, AisCore::shipTypeName(v->shipType));
+        char ago[8]; aisAgo(millis() - v->lastMs, ago, sizeof(ago));
+        if (v->lastText[0]) row(5, "%.20s", v->lastText);
+        else row(5, "%s ago%s%s", ago, v->length ? " " : "", v->length ? (String(v->length) + "m " + AisCore::shipTypeName(v->shipType)).c_str() : "");
+    }
 
     // ======================= WSPR =======================
     // Callsign del perfil de baliza sin SSID
@@ -4455,7 +4569,7 @@ namespace PAGES_Utils {
     }
 
     void show() {
-        if (!pageVisible(page)) { page = (Config.operatingMode == MODE_MORSE) ? PAGE_CW : ((Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : (Config.operatingMode == MODE_LRFHSS ? PAGE_LRF : (Config.operatingMode == MODE_DAPNET ? PAGE_DAP : (Config.operatingMode == MODE_SAT ? PAGE_SAT : PAGE_MAIN)))); changedPage(); }
+        if (!pageVisible(page)) { page = (Config.operatingMode == MODE_MORSE) ? PAGE_CW : ((Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : (Config.operatingMode == MODE_LRFHSS ? PAGE_LRF : (Config.operatingMode == MODE_DAPNET ? PAGE_DAP : (Config.operatingMode == MODE_SAT ? PAGE_SAT : (Config.operatingMode == MODE_AIS ? PAGE_AIS : PAGE_MAIN))))); changedPage(); }
         pagesBegin();
         memset(mirrorRows, 0, sizeof(mirrorRows));
         mirrorTitle[0] = '\0';
@@ -4489,6 +4603,7 @@ namespace PAGES_Utils {
             case PAGE_COMPASS: drawCompass();   break;
             case PAGE_ALT:     drawAltimeter(); break;
             case PAGE_WX:      drawWx();        break;
+            case PAGE_AIS:     drawAisPage();   break;
             case PAGE_CLOCK:   drawClock();     break;
             case PAGE_LINK:    drawLink();      break;
             case PAGE_BOARD:   drawBoard();     break;
@@ -4514,7 +4629,7 @@ namespace PAGES_Utils {
         } else {
         #ifdef BUTTON_PIN
             struct Option { uint8_t mode; const char* label; };
-            Option options[12];
+            Option options[16];
             uint8_t n = 0;
             options[n++] = Option{ MODE_APRS_LORA, APRS_MAIN_MODE_NAME };
             if (LoRa_Utils::fskAvailable()) options[n++] = Option{ MODE_APRS_FSK, "APRS FSK 9600" };
@@ -4527,6 +4642,7 @@ namespace PAGES_Utils {
             if (LoRa_Utils::wsprAvailable()) options[n++] = Option{ MODE_FST4W, "FST4W beacon" };
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) options[n++] = Option{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) options[n++] = Option{ MODE_DAPNET, "DAPNET pager" };
+            if (LoRa_Utils::aisAvailable()) options[n++] = Option{ MODE_AIS, "AIS receiver" };
             #ifdef HAS_SAT
             options[n++] = Option{ MODE_SAT, "Satellites" };
             #endif
@@ -4583,16 +4699,17 @@ namespace PAGES_Utils {
             // MORSE solo se activa si se acepta a mano (pulsacion larga) y no se guarda; sin pulsar nada se arranca el ultimo modo APRS
             uint8_t mode = chosen ? options[sel].mode : (uint8_t)Config.savedMode;
             Config.operatingMode = mode;
-            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_SAT && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
+            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_SAT && mode != MODE_AIS && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
                 Config.savedMode = mode;
                 Config.writeFile();                                                        // el ultimo modo APRS elegido pasa a ser el predeterminado
             }
         #endif
         }
-        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK && !(Config.operatingMode == MODE_M17 && LoRa_Utils::m17Available()) && !(Config.operatingMode == MODE_FM && LoRa_Utils::fmAvailable())) Config.operatingMode = MODE_APRS_LORA;
+        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK && !(Config.operatingMode == MODE_M17 && LoRa_Utils::m17Available()) && !(Config.operatingMode == MODE_FM && LoRa_Utils::fmAvailable()) && !(Config.operatingMode == MODE_AIS && LoRa_Utils::aisAvailable())) Config.operatingMode = MODE_APRS_LORA;
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
+        if (Config.operatingMode == MODE_AIS) { beaconManualMode = true; page = PAGE_AIS; }                    // receptor AIS: no emite
         #ifndef HAS_SAT
         if (Config.operatingMode == MODE_SAT) Config.operatingMode = MODE_APRS_LORA;                          // modo no disponible en esta placa
         #endif
@@ -4605,7 +4722,7 @@ namespace PAGES_Utils {
         if (Config.operatingMode == MODE_FM) { page = PAGE_FM; beaconManualMode = !Config.fm.aprsBeacon; }     // FM: emisora de voz; balizas APRS si se piden
         #endif
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
-                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : Config.operatingMode == MODE_M17 ? "M17" : Config.operatingMode == MODE_FM ? "FM voice" : APRS_MAIN_MODE_NAME)));
+                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_AIS ? "AIS" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : Config.operatingMode == MODE_M17 ? "M17" : Config.operatingMode == MODE_FM ? "FM voice" : APRS_MAIN_MODE_NAME)));
         return (uint8_t)Config.operatingMode;
     }
 
@@ -5369,6 +5486,30 @@ namespace PAGES_Utils {
                 showToast("RX log cleared");
             #endif
                 break;
+            case C_AIS_VIEW: aisView ^= 1; break;
+            case C_AIS_NEXT: aisSel++; break;
+            case C_AIS_PREV: if (aisSel > 0) aisSel--; break;
+            case C_AIS_GOTO: {
+                int idx[AisCore::Table::CAP];
+                const int m = AIS_Utils::sorted(idx, AisCore::Table::CAP);
+                if (m == 0) { showToast("No vessels"); break; }
+                if (aisSel >= m) aisSel = m - 1;
+                const AisCore::Vessel* v = AIS_Utils::table().at(idx[aisSel]);
+                if (!v || !v->hasPos) { showToast("Vessel has no position"); break; }
+                AIS_Utils::goTo(v->mmsi);
+                break;
+            }
+            case C_AIS_CH:
+                Config.ais.channel = (Config.ais.channel + 1) % 3;
+                AIS_Utils::setChannelMode(Config.ais.channel);
+                Config.writeFile();
+                break;
+            case C_AIS_ALARM:
+                Config.ais.cpaAlarm = !Config.ais.cpaAlarm;
+                Config.writeFile();
+                showToast(Config.ais.cpaAlarm ? "Collision alarm ON" : "Collision alarm OFF");
+                break;
+            case C_AIS_CLEAR: AIS_Utils::clear(); aisSel = 0; showToast("List cleared"); break;
             case C_WX_NET:
                 showToast(BLE_Control::netRequest("wx") ? "Asked the phone" : "No app connected");
                 break;

@@ -197,7 +197,7 @@ namespace PAGES_Core {
     float       frostMinC(float temp18C, float dew18C, float groundK = 2.0f);          // T18 - 0,55 (T18 - Td18) - K
 
     // ---------- Alarmas de emergencia ----------
-    enum AlarmKind : uint8_t { ALARM_NONE = 0, ALARM_EMERGENCY = 1, ALARM_MOB = 2 };
+    enum AlarmKind : uint8_t { ALARM_NONE = 0, ALARM_EMERGENCY = 1, ALARM_MOB = 2, ALARM_AIS_CPA = 3, ALARM_AIS_SOS = 4 };
     // Busca palabras completas (sin distinguir mayusculas): SOS, EMERGENCY, MAYDAY -> emergencia; MOB, MAN OVERBOARD -> hombre al agua
     AlarmKind   alarmFromText(const char* text);
     const char* alarmTitle(AlarmKind kind);                                          // "EMERGENCY" / "MAN OVERBOARD"

@@ -65,6 +65,15 @@ namespace SA868 {
     float    cwRxLevel();
     void     cwRxEnd();
 
+    // AIS (modo 12): GMSK 9600 por el audio plano en 161,975 (A) o 162,025 MHz (B); solo recepcion
+    bool     modeAis();
+    bool     popAis(uint8_t* msg, size_t& nbytes, char& channel);  // siguiente mensaje recibido (octetos del mensaje)
+    bool     aisChannel(char ch);           // 'A' o 'B'
+    char     aisChannelNow();
+    uint32_t aisFrames();
+    uint32_t aisCrcErrors();
+    bool     aisCarrier();
+
     // FM (voz). Ver src/fm_utils.cpp
     bool     modeFm();
     bool     fmApply(const FmCore::Channel& c, int squelch);  // frecuencias, tonos, ancho, potencia y silenciador

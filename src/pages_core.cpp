@@ -1269,6 +1269,8 @@ PAGES_Core::AlarmKind PAGES_Core::alarmFromText(const char* text) {
 }
 
 const char* PAGES_Core::alarmTitle(AlarmKind kind) {
+    if (kind == ALARM_AIS_CPA) return "COLLISION RISK";
+    if (kind == ALARM_AIS_SOS) return "AIS DISTRESS";
     return kind == ALARM_MOB ? "MAN OVERBOARD" : "EMERGENCY";
 }
 

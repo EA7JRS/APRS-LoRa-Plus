@@ -313,6 +313,21 @@ namespace WEB_Utils {
             Config.sa868.cwToneHz  = constrain(getParamIntSafe("sa868.cwToneHz", Config.sa868.cwToneHz), 300, 1500);
         }
         #endif
+        if (request->hasParam("ais.rxPin", true)) {         // receptor AIS (todas las placas; el modo AIS solo en la T-TWR)
+            Config.ais.module        = request->hasParam("ais.module", true);
+            Config.ais.rxPin         = constrain(getParamIntSafe("ais.rxPin", Config.ais.rxPin), -1, 48);
+            Config.ais.baud          = constrain(getParamIntSafe("ais.baud", Config.ais.baud), 4800, 115200);
+            Config.ais.channel       = constrain(getParamIntSafe("ais.channel", Config.ais.channel), 0, 2);
+            Config.ais.altSec        = constrain(getParamIntSafe("ais.altSec", Config.ais.altSec), 5, 600);
+            Config.ais.cpaAlarm      = request->hasParam("ais.cpaAlarm", true);
+            if (request->hasParam("ais.cpaNm", true))   Config.ais.cpaTenthNm = constrain((int)lroundf(request->getParam("ais.cpaNm", true)->value().toFloat() * 10.0f), 1, 100);
+            Config.ais.tcpaMin       = constrain(getParamIntSafe("ais.tcpaMin", Config.ais.tcpaMin), 1, 120);
+            if (request->hasParam("ais.guardNm", true)) Config.ais.guardTenthNm = constrain((int)lroundf(request->getParam("ais.guardNm", true)->value().toFloat() * 10.0f), 0, 200);
+            Config.ais.maxAgeMin     = constrain(getParamIntSafe("ais.maxAgeMin", Config.ais.maxAgeMin), 1, 120);
+            Config.ais.distressAlarm = request->hasParam("ais.distressAlarm", true);
+            Config.ais.forwardNmea   = request->hasParam("ais.forwardNmea", true);
+            Config.ais.hpfHz         = constrain(getParamIntSafe("ais.hpfHz", Config.ais.hpfHz), 0, 2000);
+        }
         if (request->hasParam("bcast.resetPin", true)) {    // radio comercial por I2C (todas las placas)
             Config.bcast.enabled  = request->hasParam("bcast.enabled", true);
             Config.bcast.resetPin = constrain(getParamIntSafe("bcast.resetPin", Config.bcast.resetPin), -1, 48);

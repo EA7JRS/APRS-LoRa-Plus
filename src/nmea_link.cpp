@@ -102,6 +102,7 @@ namespace {
     WiFiClient          clients[MAX_CLIENTS];
     HardwareSerial      nmeaSerial(2);
     bool                uartActive          = false;
+    bool                uartShared          = false;            // tambien lo usa el receptor AIS (RX del modulo externo)
     __attribute__((unused)) uint32_t            lastNetworkCheck    = 0;
 
     // Garmin GPSMAP 7x3/9x3/12x3/16x3: por NMEA 0183 solo se reciben VDM (AIS) y MDA entre las sentencias que genera el tracker
@@ -258,8 +259,11 @@ namespace NMEA_Link {
             if (POWER_Utils::pinReserved(Config.nmeaUart.txPin) || BOARD_PINS::inputOnly(Config.nmeaUart.txPin)) {
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "NMEA", "UART pin %d conflicts with an internal bus, disabled", Config.nmeaUart.txPin);
             } else {
-                nmeaSerial.begin(Config.nmeaUart.baud, SERIAL_8N1, -1, Config.nmeaUart.txPin);
+                // con el modulo AIS externo configurado, el mismo UART lo escucha (RX) mientras da la salida NMEA (TX)
+                const int aisRx = (Config.ais.module && Config.ais.rxPin >= 0 && !POWER_Utils::pinReserved(Config.ais.rxPin)) ? Config.ais.rxPin : -1;
+                nmeaSerial.begin(aisRx >= 0 ? Config.ais.baud : Config.nmeaUart.baud, SERIAL_8N1, aisRx, Config.nmeaUart.txPin);
                 uartActive = true;
+                uartShared = aisRx >= 0;
             }
         }
         startNetwork();
@@ -278,6 +282,9 @@ namespace NMEA_Link {
         engine.update(now, readGnss(), readEnvironment());
     }
 
+    void sendRaw(const char* text, size_t length) { deliver(text, length, nullptr); }
+    HardwareSerial* uartForAis() { return uartShared ? &nmeaSerial : nullptr; }
+
     void onAprsPosition(const char* callsign, double lat, double lon, double speedKmh, double courseDeg, const char* packetText) {
         double sogKnots = speedKmh >= 0.0 ? speedKmh / 1.852 : -1.0;
         double cog      = speedKmh > 1.0 ? courseDeg : -1.0;       // el rumbo solo es fiable en movimiento
@@ -290,10 +297,14 @@ namespace NMEA_Link {
 
 #else
 
+#include "ble_control.h"
+
 namespace NMEA_Link {
     void setup() {}
     void update() {}
     void onAprsPosition(const char*, double, double, double, double, const char*) {}
+    void sendRaw(const char* text, size_t length) { BLE_Control::nmea(text, length); }
+    HardwareSerial* uartForAis() { return nullptr; }
 }
 
 #endif

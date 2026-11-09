@@ -8,6 +8,7 @@
 #define BLE_CONTROL_H_
 
 #include <Arduino.h>
+#include "ais_core.h"
 
 class NimBLEServer;
 
@@ -35,7 +36,8 @@ namespace BLE_Control {
     bool     keyEventWaiting();
     uint16_t keyDelayMs();                              // retardo de reproduccion pedido por el movil (orden "kcfg")
     bool     linkUp();                                  // movil conectado
-    bool     netRequest(const char* what);              // pide a la app que baje algo de internet: "wx" (tiempo de TELEMETRY) o "sat" (archivo de satelites); false sin app
+    bool     netRequest(const char* what);
+    void     aisEvent(const AisCore::Vessel& v);        // barco nuevo o actualizado (receptor AIS): evento "ais"              // pide a la app que baje algo de internet: "wx" (tiempo de TELEMETRY) o "sat" (archivo de satelites); false sin app
 
     // Escucha CW por RF pedida desde la app (orden "cwrx"): la sesion bloquea el bucle; el texto sale como evento "cwrx" y la
     // app la para con "cwrx" s=stop, que se mira al llegar (la cola de ordenes no se procesa mientras dura) (EA7JRS)

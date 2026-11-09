@@ -198,7 +198,7 @@ public:
 #else
     #define APRS_MAIN_MODE_NAME "APRS LoRa"
 #endif
-enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11 };
+enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11, MODE_AIS = 12 };
 
 // Modos que emiten APRS (balizas, mensajes, KISS...): LoRa (AFSK 1200 en la T-TWR), FSK 9600, M17 (T-TWR) y FM (T-TWR: voz;
 // el APRS sale por la frecuencia APRS y vuelve al canal de voz, sin digipeater)
@@ -284,6 +284,24 @@ public:
     int     dapnetHpfHz;                        // modo DAPNET: corte del acoplo de alterna de la entrada de audio que se compensa (Hz; 0 = sin compensar)
     bool    cwMcw;                              // modo MORSE: false = A1A (portadora on / off), true = MCW (tono por el microfono del modulo)
     int     cwToneHz;                           // tono del MCW (Hz)
+};
+
+// Receptor AIS (VHF marino): modo AIS de la T-TWR (SA868) y modulo externo por UART (!AIVDM) en cualquier placa (Manuel - EA7JRS)
+class AisConfig {
+public:
+    bool    module;                             // modulo AIS externo (dAISy, Quark-elec...) en el UART 2
+    int     rxPin;                              // RX del ESP32 <- TX del modulo (-1 = sin modulo)
+    int     baud;                               // 38400 (el habitual de AIS)
+    int     channel;                            // T-TWR: 0 canal A (161,975), 1 canal B (162,025), 2 alternar
+    int     altSec;                             // segundos en cada canal al alternar
+    bool    cpaAlarm;                           // alarma de colision (CPA / TCPA)
+    int     cpaTenthNm;                         // CPA minimo (decimas de milla)
+    int     tcpaMin;                            // en los proximos minutos
+    int     guardTenthNm;                       // zona de guardia (decimas de milla; 0 = sin zona)
+    bool    distressAlarm;                      // AIS-SART, MOB y EPIRB
+    int     maxAgeMin;                          // se borran los barcos que no se oyen en estos minutos
+    bool    forwardNmea;                        // !AIVDM a la salida NMEA (USB, TCP, UART) y a la app (BLE)
+    int     hpfHz;                              // T-TWR: acoplo de alterna de la entrada de audio a compensar (320 Hz)
 };
 
 // Radio comercial con un receptor I2C externo (RDA5807M, Si4703, Si4735): include/bcast_radio.h (Manuel - EA7JRS)
@@ -503,6 +521,7 @@ public:
     Sa868Config             sa868;
     FmConfig                fm;
     BcastConfig             bcast;
+    AisConfig               ais;
     SatConfig               sat;
     RotorConfig             rotor;
     GPSConfig               gps;
@@ -533,6 +552,7 @@ public:
     void setSa868Defaults();
     void setFmDefaults();
     void setBcastDefaults();
+    void setAisDefaults();
     void enforceAisBeacon(Beacon& beacon);              // SSID, simbolo, SmartBeacon y datos AIS coherentes con el tipo de embarcacion
     bool ensureAisProfiles();                           // anade el perfil nautico y el perfil LoRa AIS si faltan (true si cambio algo)
     int  aisLoraIndex() const;                          // -1 si no hay perfil LoRa AIS

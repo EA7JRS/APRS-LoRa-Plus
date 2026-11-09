@@ -1055,6 +1055,32 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div id="fm-mems"></div>
                             </div>
                         </div>
+                        <div class="row my-5 d-flex align-items-top" id="grp-ais">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>AIS receiver (marine VHF)</h5>
+                                <small>Vessels on 161.975 / 162.025 MHz. <strong>T-TWR (VHF module)</strong>: SELECT MODE &rarr; <em>AIS receiver</em> (receive only, flat audio). <strong>Any board</strong>: an external AIS module with NMEA output (dAISy, Quark-elec...) on UART 2 (shared with the NMEA output if that is on). The Android app can also feed it from its RTL-SDR. Page AIS (list, details, GO TO), collision alarm (CPA / TCPA, guard zone), AIS-SART / MOB / EPIRB alarm, and the <code>!AIVDM</code> sentences to the NMEA output and the app.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch"><input type="checkbox" name="ais.module" id="ais.module" class="form-check-input" /><label for="ais.module" class="form-label">External AIS module (UART)</label></div>
+                                <div class="row g-0">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="ais.rxPin" id="ais.rxPin" min="-1" max="48" value="-1" /><label for="ais.rxPin">Module TX &rarr; GPIO (RX)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="ais.baud" id="ais.baud"><option value="38400">38400</option><option value="4800">4800</option><option value="9600">9600</option><option value="115200">115200</option></select><label for="ais.baud">Baud</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="ais.channel" id="ais.channel"><option value="0">A 161.975</option><option value="1">B 162.025</option><option value="2">Alternate A / B</option></select><label for="ais.channel">T-TWR channel</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="ais.altSec" id="ais.altSec" min="5" max="600" value="30" /><label for="ais.altSec">Seconds per channel</label></div>
+                                </div>
+                                <div class="form-check form-switch"><input type="checkbox" name="ais.cpaAlarm" id="ais.cpaAlarm" class="form-check-input" /><label for="ais.cpaAlarm" class="form-label">Collision alarm (CPA / TCPA)</label></div>
+                                <div class="row g-0">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="ais.cpaNm" id="ais.cpaNm" min="0.1" max="10" step="0.1" value="0.5" /><label for="ais.cpaNm">CPA below (nm)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="ais.tcpaMin" id="ais.tcpaMin" min="1" max="120" value="15" /><label for="ais.tcpaMin">within (minutes)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="ais.guardNm" id="ais.guardNm" min="0" max="20" step="0.1" value="0" /><label for="ais.guardNm">Guard zone (nm, 0 off)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="ais.maxAgeMin" id="ais.maxAgeMin" min="1" max="120" value="10" /><label for="ais.maxAgeMin">Forget after (min)</label></div>
+                                </div>
+                                <div class="form-check form-switch"><input type="checkbox" name="ais.distressAlarm" id="ais.distressAlarm" class="form-check-input" /><label for="ais.distressAlarm" class="form-label">AIS-SART / MOB / EPIRB alarm</label></div>
+                                <div class="form-check form-switch"><input type="checkbox" name="ais.forwardNmea" id="ais.forwardNmea" class="form-check-input" /><label for="ais.forwardNmea" class="form-label">!AIVDM to the NMEA output and the app</label></div>
+                                <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="ais.hpfHz" id="ais.hpfHz" min="0" max="2000" value="320" /><label for="ais.hpfHz">T-TWR audio coupling (Hz)</label></div>
+                            </div>
+                        </div>
+
                         <div class="row my-5 d-flex align-items-top" id="grp-bcast">
                             <div class="col-lg-3 col-sm-12">
                                 <h5><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M3 4.5h10a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V6A1.5 1.5 0 0 1 3 4.5m0 1a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V6a.5.5 0 0 0-.5-.5zM10.5 7a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3M3.5 7h4v1h-4zm0 2h4v1h-4zM4 1l6 3.5H9L4 2z"/></svg> Broadcast radio (I2C)</h5>

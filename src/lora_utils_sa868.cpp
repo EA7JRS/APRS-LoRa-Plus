@@ -25,6 +25,7 @@
 #include "fm_utils.h"
 #include "sat_config.h"
 #include "sat_rx.h"
+#include "ais_utils.h"
 
 extern logging::Logger  logger;
 extern Configuration    Config;
@@ -59,6 +60,7 @@ namespace LoRa_Utils {
     bool m17Available()             { return true; }        // M17 (4FSK 4800 simbolos/s) por el mismo audio plano
     bool dapnetAvailable()          { return true; }        // POCSAG de banda base por el audio plano (144,8625 VHF / 439,9875 UHF)
     bool fmAvailable()              { return true; }        // modo FM (voz)
+    bool aisAvailable()             { return !SA868::ready() || !SA868::uhf(); }     // AIS (161,975 / 162,025 MHz): con el modulo de VHF
     bool cwAvailable()              { return true; }        // CW A1A (portadora con el PTT) o MCW en VHF / UHF: modo MORSE
     bool wsprAvailable()            { return false; }       // WSPR, FT8, FT4, FST4W: el SA868 no hace pasos de 1,46 Hz
     void cwSelect(bool beacon)      { SA868::cwSelect(beacon); }
@@ -194,6 +196,12 @@ namespace LoRa_Utils {
     ReceivedLoRaPacket receivePacket() {
         ReceivedLoRaPacket rx;
         rx.rssi = 0; rx.snr = 0; rx.freqError = 0;
+        if (Config.operatingMode == MODE_AIS) {            // AIS: los mensajes al receptor AIS (lista de barcos, alarmas, NMEA)
+            uint8_t m[AisCore::MAX_MSG_BYTES];
+            size_t n = 0; char ch = 'A';
+            while (SA868::popAis(m, n, ch)) AIS_Utils::onMessage(m, n * 8, ch, AIS_Utils::SRC_RADIO);
+            return rx;
+        }
         if (Config.operatingMode == MODE_DAPNET) {         // POCSAG: los bytes del demodulador al decodificador de siempre
             uint8_t block[128];
             const size_t n = SA868::popDapnet(block, sizeof(block));

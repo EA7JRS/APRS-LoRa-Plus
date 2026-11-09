@@ -21,6 +21,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "net_wx.h"
+#include "ais_utils.h"
 #include "rotor_utils.h"
 #include "rotor_follow.h"
 #include "sat_rx.h"
@@ -229,6 +230,7 @@ namespace {
             }
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) out[n++] = ModeOption{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) out[n++] = ModeOption{ MODE_DAPNET, "DAPNET pager" };
+            if (LoRa_Utils::aisAvailable()) out[n++] = ModeOption{ MODE_AIS, "AIS receiver" };
             #ifdef HAS_SAT
             out[n++] = ModeOption{ MODE_SAT, "Satellites" };
             #endif
@@ -237,7 +239,7 @@ namespace {
     }
 
     bool modeAvailable(int mode) {
-        ModeOption options[12];
+        ModeOption options[16];
         const uint8_t n = listModes(options);
         for (uint8_t i = 0; i < n; i++) if (options[i].mode == mode) return true;
         return false;
@@ -301,12 +303,13 @@ namespace {
                 caps["satFm"] = true;                                // el VFO de FM sigue al satelite (FM / APRS AFSK, ruta sat.aprsPath)
             #endif
         #endif
+        caps["ais"] = true;                                      // receptor AIS: eventos "ais", ordenes "aislist", "aisin", "aisset" (modo 12 en la T-TWR, modulo por UART)
         caps["netreq"] = true;                                   // el tracker puede pedir a la app que baje el tiempo o los satelites (evento "netreq")
         caps["wxnet"] = true;                                    // tiempo de internet de la app para TELEMETRY (orden "wxnet")
         caps["bcast"] = BCAST::chipName();                       // radio comercial por I2C: "none", "RDA5807M", "Si4703", "Si4735"
         doc["mode"] = Config.operatingMode;
         JsonArray modes = doc["modes"].to<JsonArray>();
-        ModeOption options[12];
+        ModeOption options[16];
         const uint8_t n = listModes(options);
         for (uint8_t i = 0; i < n; i++) {
             JsonObject m = modes.add<JsonObject>();
@@ -1276,6 +1279,25 @@ namespace {
             #endif
         }
         else if (strcmp(cmd, "sat") == 0) { satEnsureLoaded(); sendSat(); }
+        else if (strcmp(cmd, "aislist") == 0) {                   // barcos AIS por distancia: from, cnt (1..15)
+            sendAisList(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 10), 1, 15));
+        }
+        else if (strcmp(cmd, "aisin") == 0) {                     // frase !AIVDM del receptor de la app (RTL-SDR): l
+            const char* l = doc["l"] | "";
+            AIS_Utils::feedNmea(l, AIS_Utils::SRC_APP);
+        }
+        else if (strcmp(cmd, "aisset") == 0) {                    // ch (0 A, 1 B, 2 alternar), cpa (decimas de milla), tcpa (min), guard (decimas), alarm, sart, clear, goto (MMSI)
+            if (!doc["ch"].isNull())    { Config.ais.channel = constrain((int)(doc["ch"] | 0), 0, 2); AIS_Utils::setChannelMode(Config.ais.channel); }
+            if (!doc["cpa"].isNull())   Config.ais.cpaTenthNm = constrain((int)(doc["cpa"] | 5), 1, 100);
+            if (!doc["tcpa"].isNull())  Config.ais.tcpaMin = constrain((int)(doc["tcpa"] | 15), 1, 120);
+            if (!doc["guard"].isNull()) Config.ais.guardTenthNm = constrain((int)(doc["guard"] | 0), 0, 200);
+            if (!doc["alarm"].isNull()) Config.ais.cpaAlarm = doc["alarm"] | true;
+            if (!doc["sart"].isNull())  Config.ais.distressAlarm = doc["sart"] | true;
+            if (doc["clear"] | false)   AIS_Utils::clear();
+            if (!doc["goto"].isNull())  AIS_Utils::goTo((uint32_t)(doc["goto"] | 0UL));
+            if (!doc["ch"].isNull() || !doc["cpa"].isNull() || !doc["tcpa"].isNull() || !doc["guard"].isNull() || !doc["alarm"].isNull() || !doc["sart"].isNull()) Config.writeFile();
+            reply(cmd, id);
+        }
         else if (strcmp(cmd, "wxnet") == 0) {                     // tiempo de internet (la app: OpenWeatherMap / IQAir) para la pagina TELEMETRY
             NET_WX::Data d;
             memset(&d, 0, sizeof(d));
@@ -1908,6 +1930,67 @@ namespace BLE_Control {
 
     bool cwRxStopRequested() { return cwRxStop; }
 
+    static void vesselJson(JW& j, const AisCore::Vessel& v, const AisCore::Own& o, bool full) {
+        j.num("m", v.mmsi);
+        const char cl[2] = { v.cls, 0 }; j.text("cl", cl);
+        if (v.name[0]) j.text("n", v.name);
+        if (v.call[0]) j.text("c", v.call);
+        if (v.shipType) j.num("t", v.shipType);
+        if (v.status != 15) j.num("st", v.status);
+        if (v.hasPos) { j.flt("lat", v.lat, 5); j.flt("lon", v.lon, 5); j.num("pa", (millis() - v.posMs) / 1000); }
+        if (v.hasSog) j.flt("sog", v.sogKn, 1);
+        if (v.hasCog) j.flt("cog", v.cogDeg, 1);
+        if (v.hdg != 511) j.num("hdg", v.hdg);
+        j.num("age", (millis() - v.lastMs) / 1000);
+        if (v.hasPos && o.valid) {
+            double nm, brg, c = 0, t = 0;
+            AisCore::rangeBearing(o, v.lat, v.lon, nm, brg);
+            j.flt("nm", nm, 2); j.num("brg", lround(brg));
+            if (AisCore::cpa(o, v, c, t)) { j.flt("cpa", c, 2); j.flt("tcpa", t, 1); }
+            j.flag("dng", AIS_Utils::dangerous(v));
+        }
+        if (!full) return;
+        if (v.dest[0]) j.text("ds", v.dest);
+        if (v.length) j.num("len", v.length);
+        if (v.beam) j.num("bm", v.beam);
+        if (v.draughtM > 0) j.flt("dr", v.draughtM, 1);
+        if (v.etaMonth) { char e[16]; snprintf(e, sizeof(e), "%02u-%02u %02u:%02u", v.etaMonth, v.etaDay, v.etaHour, v.etaMinute); j.text("eta", e); }
+        if (v.imo) j.num("imo", v.imo);
+        if (v.cls == AisCore::CL_SAR && v.altM) j.num("alt", v.altM);
+        if (v.lastText[0]) j.text("txt", v.lastText);
+        if (v.channel) { const char ch[2] = { v.channel, 0 }; j.text("ch", ch); }
+        j.num("msgs", v.msgs);
+    }
+
+    void aisEvent(const AisCore::Vessel& v) {
+        if (!connected || !authed) return;
+        AisCore::Own o; AIS_Utils::own(o);
+        JW j("ais");
+        vesselJson(j, v, o, true);
+        j.send(sendLine);
+    }
+
+    static void sendAisList(int from, int cnt) {
+        AisCore::Own o; AIS_Utils::own(o);
+        static int idx[AisCore::Table::CAP];
+        const int m = AIS_Utils::sorted(idx, AisCore::Table::CAP);
+        JW j("aislist");
+        j.num("tot", m);
+        j.num("from", from);
+        j.num("msgs", AIS_Utils::messages());
+        j.text("src", AIS_Utils::sourceName());
+        const char ch = AIS_Utils::channel();
+        if (ch) { const char c[2] = { ch, 0 }; j.text("ch", c); }
+        j.arr("items");
+        for (int k = from; k < m && k < from + cnt; k++) {
+            const AisCore::Vessel* v = AIS_Utils::table().at(idx[k]);
+            if (!v) continue;
+            j.obj(); vesselJson(j, *v, o, false); j.endObj();
+        }
+        j.endArr();
+        j.send(sendLine);
+    }
+
     bool netRequest(const char* what) {
         if (!connected || !authed) return false;
         JW j("netreq");
@@ -1936,7 +2019,7 @@ namespace BLE_Control {
     int takeBootMode() {
         if (bootModeMagic != BOOT_MODE_MAGIC) return -1;
         bootModeMagic = 0;
-        if (bootModeValue < MODE_APRS_LORA || bootModeValue > MODE_FM) return -1;
+        if (bootModeValue < MODE_APRS_LORA || bootModeValue > MODE_AIS) return -1;
         return (int)bootModeValue;
     }
 
