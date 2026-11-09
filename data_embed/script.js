@@ -67,32 +67,44 @@ const IARU_CHANNELS_VHF = {
     3: [["144.390  APRS (Indonesia, Malaysia, Thailand)", 144.39], ["145.175  APRS (Australia)", 145.175], ["144.575  APRS (New Zealand)", 144.575],
         ["144.640  APRS (China)", 144.64], ["144.660  APRS 1200 baud (Japan)", 144.66]]
 };
+// 70 cm (T-TWR UHF): 432.500 IARU R1 70 cm plan ("APRS frequency"), 439.100 WIA 70 cm plan (Australia), 431.040 Japanese table. Region 2: no common channel.
+const IARU_CHANNELS_UHF = {
+    1: [["432.500  APRS (IARU Region 1)", 432.5]],
+    2: [],
+    3: [["439.100  APRS (Australia)", 439.1], ["431.040  APRS 1200 baud (Japan)", 431.04]]
+};
+let SA868_BAND = "";                                        // "VHF" / "UHF" from /api/info; until then, from the frequency
+let sa868Refill = null;
 function sa868IaruWire() {
     const g = id => document.getElementById(id);
     const reg = g("sa868.iaruRegion"), preset = g("sa868.preset"), rx = g("sa868.rxMHz"), tx = g("sa868.txMHz"), info = g("sa868.bandinfo");
     const key = v => String(Math.round(parseFloat(v) * 1e4));
+    const uhf = () => SA868_BAND ? SA868_BAND === "UHF" : parseFloat(rx.value) >= 300;
+    const table = () => uhf() ? IARU_CHANNELS_UHF : IARU_CHANNELS_VHF;
     const refresh = () => {
-        const r = parseInt(reg.value, 10), b = IARU_VHF_BANDS[r], f = parseFloat(rx.value);
-        const vhf = f < 300, ok = !vhf || (f >= b[0] && f <= b[1]);
+        const r = parseInt(reg.value, 10), f = parseFloat(rx.value);
+        const bands = uhf() ? IARU_REGIONS[r].bands.filter(b => b[1] < 500) : [IARU_VHF_BANDS[r]];
+        const ok = bands.some(b => f >= b[0] && f <= b[1]);
         info.className = ok ? "text-muted" : "text-danger fw-semibold";
-        info.textContent = vhf ? "2 m amateur allocation, " + IARU_REGIONS[r].name + ": " + b[0] + "\u2013" + b[1] + " MHz" + (ok ? "" : " \u2014 the frequency is OUTSIDE it") + ". National rules prevail."
-                               : "UHF module: set the APRS frequency used in your area.";
+        info.textContent = (uhf() ? "70 cm" : "2 m") + " amateur allocation, " + IARU_REGIONS[r].name + ": " + bands.map(b => b[0] + "\u2013" + b[1]).join(" / ") + " MHz"
+            + (ok ? "" : " \u2014 the frequency is OUTSIDE it") + ". National rules prevail."
+            + (table()[r].length ? "" : " No common APRS channel in this region: enter the local one.");
     };
     const fill = () => {
         const r = parseInt(reg.value, 10);
-        preset.innerHTML = ['<option value="">Custom</option>'].concat(IARU_CHANNELS_VHF[r].map(c => '<option value="' + c[1] + '">' + c[0] + '</option>')).join("");
+        preset.innerHTML = ['<option value="">Custom</option>'].concat(table()[r].map(c => '<option value="' + c[1] + '">' + c[0] + '</option>')).join("");
         const cur = [...preset.options].find(o => o.value && key(o.value) === key(rx.value));
         preset.value = cur ? cur.value : "";
     };
     preset.addEventListener("change", () => { if (preset.value) { rx.value = preset.value; tx.value = preset.value; } refresh(); });
     reg.addEventListener("change", () => {
         // a channel of the old region that does not exist in the new one becomes the new region's first channel (as the automatic region does)
-        const oldList = [].concat(...Object.values(IARU_CHANNELS_VHF)).map(c => key(c[1]));
-        const newList = IARU_CHANNELS_VHF[parseInt(reg.value, 10)];
-        if (oldList.includes(key(rx.value)) && !newList.some(c => key(c[1]) === key(rx.value))) { rx.value = newList[0][1].toFixed(4); tx.value = rx.value; }
+        const t = table(), all = [].concat(...Object.values(t)).map(c => key(c[1])), next = t[parseInt(reg.value, 10)];
+        if (next.length && all.includes(key(rx.value)) && !next.some(c => key(c[1]) === key(rx.value))) { rx.value = next[0][1].toFixed(4); tx.value = rx.value; }
         fill(); refresh();
     });
     rx.addEventListener("input", () => { fill(); refresh(); });
+    sa868Refill = () => { fill(); refresh(); };
     fill(); refresh();
 }
 function iaruList(o, region) {
@@ -1653,6 +1665,7 @@ function boardPinInit() {
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
                 document.getElementById("grp-sa868").classList.remove("d-none");
                 ["grp-dapnet", "grp-ft", "grp-lrfhss", "grp-freqcal"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
+                if (i.sa868) { SA868_BAND = i.sa868.band || ""; if (sa868Refill) sa868Refill(); }
                 if (i.sa868) document.getElementById("sa868-status").textContent = "Detected: " + (i.sa868.ok ? "Rev" + (i.sa868.rev / 10).toFixed(1) + ", " + i.sa868.band + ", " + i.sa868.fw + " firmware" : "no answer from the radio module");
             }
             const isSupreme = name.toLowerCase().indexOf("supreme") >= 0;

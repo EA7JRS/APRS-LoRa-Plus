@@ -38,7 +38,17 @@ APRS LoRa, APRS FSK 9600, CW / Morse, WSPR, FT8, FT4, FST4W, LR-FHSS, DAPNET y l
 | 2 (Américas) | 144,390 (Norteamérica, Chile, Colombia) · 144,930 (Argentina, Uruguay) · 145,570 (Brasil) | 144,390 |
 | 3 (Asia-Pacífico) | 144,390 (Indonesia, Malasia, Tailandia) · 145,175 (Australia) · 144,575 (Nueva Zelanda) · 144,640 (China) · 144,660 (Japón, 1200 baudios) | 144,390 |
 
-Fuentes: [sigidwiki](https://sigidwiki.com/wiki/APRS), VK2KFJ (Australia y Nueva Zelanda) y la tabla japonesa de frecuencias APRS. Banda de 2 m que se comprueba: 144–146 MHz en la Región 1 y 144–148 MHz en las Regiones 2 y 3 (las normas nacionales mandan). Con la **región IARU automática** activada (WebUI *IARU region (auto)*), al cambiar de región el canal pasa al equivalente: si existe en la nueva región se conserva (144,390 entre la 2 y la 3); si no, el de por defecto. Una frecuencia propia se respeta si cabe en la banda de la nueva región. Mismas tablas en el firmware (`src/iaru_plan.cpp`, tipo `VHF`) y en la WebUI; `tools/check_iaru_tables.py` comprueba que coinciden. Con el módulo de UHF la frecuencia es propia (no hay lista).
+**Módulo de UHF** (la misma variante y el mismo firmware; la banda se detecta sola):
+
+| Región | Canales APRS de 70 cm (MHz) | Por defecto |
+|---|---|---|
+| 1 | 432,500 (plan de 70 cm de la IARU R1, «APRS frequency») | 432,500 |
+| 2 | sin canal común: se escribe el local | se conserva el que haya |
+| 3 | 439,100 (Australia, plan del WIA) · 431,040 (Japón, 1200 baudios) | 439,100 |
+
+Al arrancar, si la frecuencia guardada no es de la banda del módulo (la configuración de fábrica es la de VHF), el tracker pone el canal por defecto de la región para esa banda y lo guarda, así que la WebUI muestra lo que usa la radio. La versión «350» de la T-TWR (320–400 MHz) no está contemplada.
+
+Fuentes: [sigidwiki](https://sigidwiki.com/wiki/APRS), VK2KFJ (Australia y Nueva Zelanda), la tabla japonesa de frecuencias APRS y el plan de VHF/UHF de la IARU R1. Banda de 2 m que se comprueba: 144–146 MHz en la Región 1 y 144–148 MHz en las Regiones 2 y 3 (las normas nacionales mandan). Con la **región IARU automática** activada (WebUI *IARU region (auto)*), al cambiar de región el canal pasa al equivalente: si existe en la nueva región se conserva (144,390 entre la 2 y la 3); si no, el de por defecto. Una frecuencia propia se respeta si cabe en la banda de la nueva región. Mismas tablas en el firmware (`src/iaru_plan.cpp`, tipos `VHF` y `UHF`) y en la WebUI; `tools/check_iaru_tables.py` comprueba que coinciden.
 
 *Escuchar antes de transmitir* (WebUI, el mismo ajuste que el CAD de LoRa) espera a que el silenciador se cierre (Rev2.1) y a que no haya datos AFSK en el aire.
 

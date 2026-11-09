@@ -12,9 +12,9 @@ static int fails = 0;
 
 int main(int argc, char** argv) {
     if (argc > 1 && !strcmp(argv[1], "--tables")) {
-        const char* names[] = {"lora", "fsk", "cw", "cwb", "vhf"};
+        const char* names[] = {"lora", "fsk", "cw", "cwb", "vhf", "uhf"};
         printf("{");
-        for (int k = 0; k < 5; k++) for (int r = 1; r <= 3; r++) {
+        for (int k = 0; k < 6; k++) for (int r = 1; r <= 3; r++) {
             printf("%s\"%s%d\":[", (k || r > 1) ? "," : "", names[k], r);
             for (int i = 0; i < channelCount((Kind)k, r); i++) printf("%s%ld", i ? "," : "", channelHz((Kind)k, r, i));
             printf("]");
@@ -60,6 +60,12 @@ int main(int argc, char** argv) {
     CHECK(mapFrequency(VHF, 2, 1, 147000000L) == 144800000L);         // Custom fuera de la banda de R1 -> por defecto
     CHECK(mapFrequency(VHF, 1, 2, 432500000L) == 432500000L);         // modulo de UHF: frecuencia propia dentro de la banda
     CHECK(channelCount(VHF, 3) == 5 && defaultHz(VHF, 2) == 144390000L);
+    // 70 cm APRS (T-TWR de UHF)
+    CHECK(mapFrequency(UHF, 1, 3, 432500000L) == 439100000L);         // R1 -> Australia (por defecto de R3)
+    CHECK(mapFrequency(UHF, 3, 1, 431040000L) == 432500000L);         // Japon -> R1
+    CHECK(mapFrequency(UHF, 1, 2, 432500000L) == 432500000L);         // R2 no tiene lista: se conserva
+    CHECK(mapFrequency(UHF, 2, 1, 445925000L) == 432500000L);         // fuera de la banda de R1 -> por defecto
+    CHECK(channelCount(UHF, 2) == 0 && defaultHz(UHF, 2) == 0L && channelHz(UHF, 2, 0) == 0L);
     CHECK(mapFrequency(LORA, 2, 2, 12345L) == 12345L);                // misma region: no se toca
     CHECK(mapFrequency(LORA, 1, 2, 0L) == 0L);
     printf(fails ? "%d fallos\n" : "OK\n", fails);

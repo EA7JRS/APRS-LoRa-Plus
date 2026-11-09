@@ -38,6 +38,10 @@ namespace IARU_Plan {
         const long VHF_1[]  = {144800000};
         const long VHF_2[]  = {144390000, 144930000, 145570000};
         const long VHF_3[]  = {144390000, 145175000, 144575000, 144640000, 144660000};
+        // APRS AFSK 1200 en 70 cm (T-TWR de UHF): 432,500 (plan de 70 cm de la IARU R1, "APRS frequency"), 439,100 (plan de 70 cm del WIA,
+        // Australia) y 431,040 (tabla japonesa de frecuencias APRS). La Region 2 no tiene una frecuencia comun: la frecuencia es propia
+        const long UHF_1[]  = {432500000};
+        const long UHF_3[]  = {439100000, 431040000};
 
         #define ARR(a) a, (int)(sizeof(a) / sizeof(a[0]))
         struct List { const long* hz; int n; };
@@ -48,6 +52,7 @@ namespace IARU_Plan {
                 case CW:   return region == 1 ? List{ARR(CW_1)}   : (region == 2 ? List{ARR(CW_2)}   : List{ARR(CW_3)});
                 case CWB:  return region == 1 ? List{ARR(CWB_1)}  : (region == 2 ? List{ARR(CWB_2)}  : List{ARR(CWB_3)});
                 case VHF:  return region == 1 ? List{ARR(VHF_1)}  : (region == 2 ? List{ARR(VHF_2)}  : List{ARR(VHF_3)});
+                case UHF:  return region == 1 ? List{ARR(UHF_1)}  : (region == 2 ? List{nullptr, 0}  : List{ARR(UHF_3)});
                 default:   return region == 1 ? List{ARR(LORA_1)} : (region == 2 ? List{ARR(LORA_2)} : List{ARR(LORA_3)});
             }
         }
@@ -76,6 +81,7 @@ namespace IARU_Plan {
             case CW:  return 432050000L;                          // centro de actividad de telegrafia (existe en las tres regiones)
             case CWB: return region == 1 ? 432410000L : (region == 2 ? 432320000L : 432050000L);
             case VHF: return region == 1 ? 144800000L : 144390000L;   // R3: 144,390 (Indonesia, Malasia, Tailandia); Australia, Nueva Zelanda, China y Japon en la lista
+            case UHF: return region == 1 ? 432500000L : (region == 3 ? 439100000L : 0L);
             default:  return 433775000L;                          // LoRa APRS (existe en las tres regiones, tambien en la lista FSK)
         }
     }
@@ -88,8 +94,10 @@ namespace IARU_Plan {
 
     long mapFrequency(Kind kind, int fromRegion, int toRegion, long hz) {
         if (hz <= 0 || fromRegion == toRegion) return hz;
-        if (isPreset(kind, fromRegion, hz)) return isPreset(kind, toRegion, hz) ? hz : defaultHz(kind, toRegion);
-        return allowed(toRegion, hz) ? hz : defaultHz(kind, toRegion);
+        const long def = defaultHz(kind, toRegion);
+        if (def > 0 && isPreset(kind, fromRegion, hz)) return isPreset(kind, toRegion, hz) ? hz : def;
+        if (allowed(toRegion, hz) || def == 0) return hz;           // Custom (o region sin lista): se respeta si cabe; sin lista no hay otra
+        return def;
     }
 
 }

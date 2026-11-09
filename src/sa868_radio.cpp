@@ -23,6 +23,7 @@
 #include "configuration.h"
 #include "board_pinout.h"
 #include "afsk1200.h"
+#include "iaru_plan.h"
 #include "sa868_radio.h"
 #include "logger.h"
 
@@ -206,6 +207,19 @@ namespace SA868 {
         return isUhf ? (hz >= 400000000L && hz <= 480000000L) : (hz >= 134000000L && hz <= 174000000L);
     }
 
+    // Frecuencias de la otra banda (la configuracion de fabrica es la de VHF): el canal APRS por defecto de la region IARU para la banda
+    // del modulo, guardado para que la WebUI muestre lo que de verdad usa la radio
+    static void fixBandDefaults() {
+        const bool rxOk = validFreq(Config.sa868.rxFreqHz), txOk = validFreq(Config.sa868.txFreqHz);
+        if (rxOk && txOk) return;
+        long def = IARU_Plan::defaultHz(isUhf ? IARU_Plan::UHF : IARU_Plan::VHF, Config.sa868.iaruRegion);
+        if (def <= 0 || !validFreq(def)) def = isUhf ? 432500000L : 144800000L;
+        if (!rxOk) Config.sa868.rxFreqHz = (int)def;
+        if (!txOk) Config.sa868.txFreqHz = rxOk ? Config.sa868.rxFreqHz : (int)def;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "%s module: frequency set to %.4f MHz", isUhf ? "UHF" : "VHF", Config.sa868.rxFreqHz / 1e6);
+        Config.writeFile();
+    }
+
     bool setFrequencies(long rxHz, long txHz) {
         if (!ok || !validFreq(rxHz) || !validFreq(txHz)) return false;
         if (fw == Firmware::OPENRTX) {
@@ -225,7 +239,7 @@ namespace SA868 {
         if (!ok) return false;
         bool good = true;
         long rx = Config.sa868.rxFreqHz, tx = Config.sa868.txFreqHz;
-        if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;
+        if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;           // no deberia pasar: fixBandDefaults() al arrancar
         if (!validFreq(tx)) tx = rx;
         if (fw == Firmware::OPENRTX) {
             at1846Bandwidth(Config.sa868.wide);
@@ -367,6 +381,7 @@ namespace SA868 {
             at1846Init();
         }
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "T-TWR Rev%d.%d, %s firmware, %s", rev / 10, rev % 10, firmwareName(), isUhf ? "UHF" : "VHF");
+        fixBandDefaults();
         applyConfig();
         if (!audioTxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "PDM audio output failed");
         if (!audioRxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "ADC audio input failed");

@@ -12,17 +12,17 @@
 
 namespace IARU_Plan {
 
-    enum Kind { LORA = 0, FSK = 1, CW = 2, CWB = 3, VHF = 4 };     // tipo de perfil: determina la lista de canales (VHF = APRS AFSK 1200 de la T-TWR)
+    enum Kind { LORA = 0, FSK = 1, CW = 2, CWB = 3, VHF = 4, UHF = 5 };    // tipo de perfil: determina la lista de canales (VHF / UHF = APRS AFSK 1200 de la T-TWR)
 
     int  regionAt(float lat, float lon);                    // 1, 2 o 3 segun la posicion (grados decimales)
     bool allowed(int region, long hz);                      // dentro de la banda de aficionados de la region (2 m, 70 cm y, en R2, 33 cm)
     int  channelCount(Kind kind, int region);
     long channelHz(Kind kind, int region, int index);
-    long defaultHz(Kind kind, int region);                  // canal por defecto de la region para ese tipo de perfil
+    long defaultHz(Kind kind, int region);                  // canal por defecto de la region para ese tipo de perfil (0 = la region no tiene lista)
     bool isPreset(Kind kind, int region, long hz);          // la frecuencia es un canal de la lista de la region
     // Frecuencia equivalente al pasar de una region a otra:
     //   - canal de la lista y existe en la nueva  -> el mismo
-    //   - canal de la lista sin equivalente       -> canal por defecto de la nueva region
+    //   - canal de la lista sin equivalente       -> canal por defecto de la nueva region (sin lista en la nueva region: como Custom)
     //   - frecuencia personalizada (Custom)       -> se respeta si cae en la banda de la nueva region; si no, el canal por defecto
     long mapFrequency(Kind kind, int fromRegion, int toRegion, long hz);
 
