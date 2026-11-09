@@ -42,6 +42,7 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | T-TWR (radio FM SA868): revisión, firmware, banda, módem y frecuencias en uso; modo M17 y SMS a otras radios M17 | `info.sa868`, `mode` 10, `m17sms` | sí | sí |
 | T-TWR modo FM de voz: canal, sintonía, tonos, potencia, silenciador (manual / automático), reducción de ruido, memorias, escaneo, ARTS, EAI, balizas APRS durante la voz; QSY desde estaciones oídas | `mode` 11, `fm`, `fmset`, `fmdial`, `fmmem`, `fmscan`, `fmarts`, `fmeai`, `qsy`, eventos `fm` / `fmmems` | sí | sí |
 | T-TWR: portadora de calibración de frecuencia | `carrier` | sí | sí |
+| Radio comercial por I2C (RDA5807M, Si4703, Si4735): sintonía, búsqueda, volumen, banda, mono, presintonías, RDS (nombre, texto, hora), RSSI / SNR / estéreo | `bcast`, `bcastset`, evento `bcast` | sí | sí |
 | T-TWR: DAPNET (VHF / UHF) y CW A1A / MCW (modo MORSE) | los de DAPNET y MORSE de siempre | sí | sí |
 | Sesiones interactivas con el pulsador (entrenador, sintonías WSPR / CW-baliza) | pendiente de orden propia | no | no |
 
