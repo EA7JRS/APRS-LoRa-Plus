@@ -8,7 +8,7 @@
  *
  *  - Emision: trama AX.25 (sin FCS) -> banderas + HDLC (relleno de bits, FCS) -> NRZI -> tonos con fase continua.
  *  - Recepcion: muestras de audio -> paso banda -> correladores de marca y espacio -> CAG de cada tono -> PLL digital
- *    del reloj de bit -> NRZI -> HDLC (AX25G3::Hdlc, el mismo del G3RUH). La idea del demodulador es la del perfil "A"
+ *    del reloj de bit -> AX25G3::Decoder sin aleatorizador (NRZI + HDLC, FX.25, IL2P: el mismo del G3RUH). La idea del demodulador es la del perfil "A"
  *    de Dire Wolf (WB2OSZ), reescrita desde cero.
  */
 
@@ -25,11 +25,13 @@ namespace AFSK {
     constexpr int MARK_HZ    = 1200;
     constexpr int SPACE_HZ   = 2200;
 
-    // Trama AX.25 sin FCS -> bits de tono ya en NRZI (1 = marca, 0 = espacio), empaquetados LSB primero en out.
+    // Trama AX.25 sin FCS -> bits de tono (1 = marca, 0 = espacio), empaquetados MSB primero en out. Mismos codificadores que el
+    // G3RUH 9600 de todas las placas, sin el aleatorizador: fec 0 = AX.25 (HDLC + NRZI), 1..3 = FX.25 con 16 / 32 / 64 bytes de
+    // control (NRZI), 4 = IL2P (sin NRZI, como Dire Wolf); si la trama no cabe en FX.25 / IL2P sale como AX.25.
     // leadFlags banderas delante (TXDELAY: 1 bandera = 6,67 ms) y tailFlags detras. Devuelve el numero de bits o 0 si no cabe
-    size_t encodeBits(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOutBytes, size_t leadFlags, size_t tailFlags);
+    size_t encodeBits(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOutBytes, size_t leadFlags, size_t tailFlags, int fec = 0);
 
-    inline uint8_t bitAt(const uint8_t* bits, size_t i) { return (uint8_t)((bits[i >> 3] >> (i & 7)) & 1); }
+    inline uint8_t bitAt(const uint8_t* bits, size_t i) { return (uint8_t)((bits[i >> 3] >> (7 - (i & 7))) & 1); }
 
     // Generador de tonos con fase continua a partir de los bits de encodeBits. amplitude 0..1 sobre la escala de int16
     class ToneGen {
@@ -75,9 +77,11 @@ namespace AFSK {
         // PLL y bits
         int32_t  pll = 0; uint32_t pllStep = 0; float prevDemod = 0;
         uint8_t  prevData = 0, lastBit = 0;
-        uint8_t  flagReg = 0;
+        uint8_t  flagReg = 0, byteAcc = 0, byteBits = 0;
         int      lockedBits = 0;
-        AX25G3::Hdlc hdlc;
+    public:
+        AX25G3::Decoder decoder;                                 // HDLC, FX.25 e IL2P sobre los bits de tono (sin aleatorizador)
+    private:
         AX25G3::FrameCallback userCb = nullptr; void* userCtx = nullptr;
         static void onFrame(const uint8_t* f, size_t len, void* self);
         void bitOut(uint8_t b);

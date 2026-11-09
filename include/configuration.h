@@ -266,6 +266,7 @@ public:
     int     squelch;                            // silenciador del modulo (0 = abierto .. 8); con 0 el demodulador oye tambien las senales mas debiles
     int     txLevel;                            // nivel del audio AFSK hacia el modulo (1..100 %): ajusta la desviacion
     int     txLevel9600;                        // nivel de la banda base G3RUH en el modo APRS FSK 9600 (1..100 %): unos 3 kHz de desviacion
+    int     fec;                                // protocolo en AFSK 1200: 0 AX.25, 1..3 FX.25 (16 / 32 / 64 bytes de control), 4 IL2P (en 9600, el del perfil FSK)
     int     txDelayMs;                          // banderas delante de la trama (TXDELAY)
     int     txTailMs;                           // banderas detras de la trama
     bool    filters;                            // filtros de voz del modulo (pre/desenfasis, paso alto y paso bajo) activos

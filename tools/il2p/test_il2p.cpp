@@ -28,7 +28,7 @@ static size_t decodeAll(const uint8_t* enc, size_t n, uint8_t* frame, size_t max
     return IL2P::decode(hdr, enc + IL2P::HEADER_TOTAL, frame, maxFrame);
 }
 
-// IL2P bytes -> air bytes the way a 9600 baud G3RUH transmitter does it for IL2P (G3RUH scrambler, no NRZI), after a preamble of 0x55
+// IL2P bytes -> air bytes the way Dire Wolf sends IL2P at 9600 baud (gen_tone.c: no G3RUH scrambler and no NRZI), after a preamble of 0x55
 static std::vector<uint8_t> toAir(const uint8_t* body, size_t n, int lead) {
     std::vector<uint8_t> bits;
     for (int i = 0; i < lead; i++) for (int b = 7; b >= 0; b--) bits.push_back((0x55 >> b) & 1);
@@ -37,11 +37,9 @@ static std::vector<uint8_t> toAir(const uint8_t* body, size_t n, int lead) {
     for (size_t i = 0; i < n; i++) for (int b = 7; b >= 0; b--) bits.push_back((body[i] >> b) & 1);
     for (int i = 0; i < 16; i++) bits.push_back(i & 1);
     std::vector<uint8_t> air;
-    uint32_t lfsr = 0; uint8_t cur = 0; int nb = 0;
+    uint8_t cur = 0; int nb = 0;
     for (uint8_t bit : bits) {
-        uint8_t x = (uint8_t)(bit ^ ((lfsr >> 16) & 1) ^ ((lfsr >> 11) & 1));
-        lfsr = ((lfsr << 1) | x) & 0x1FFFF;
-        cur = (uint8_t)((cur << 1) | x);
+        cur = (uint8_t)((cur << 1) | bit);
         if (++nb == 8) { air.push_back(cur); cur = 0; nb = 0; }
     }
     while (nb) { cur <<= 1; if (++nb == 8) { air.push_back(cur); nb = 0; } }
@@ -92,7 +90,7 @@ int main(int argc, char** argv) {
             bl = decodeAll(bad, el, back, sizeof back);
             CHECK(bl > 0 && AX25G3::frameToTnc2(back, bl, t2, sizeof t2) && strcmp(t2, tnc2) == 0, "1 payload byte error: %s", tnc2);
         }
-        // over the air: Dire Wolf's bytes -> scrambler -> our streaming decoder (blocks of 255 bytes, like the radio)
+        // over the air: Dire Wolf's bytes -> our streaming decoder (blocks of 255 bytes, like the radio)
         {
             std::vector<uint8_t> ref8;
             for (size_t i = 0; i + 1 < ref.size(); i += 2) ref8.push_back((uint8_t)strtol(ref.substr(i, 2).c_str(), nullptr, 16));
@@ -123,9 +121,8 @@ int main(int argc, char** argv) {
                     if (gotFrames.size() == 1 && gotFrames[0] == tnc2) okErr++;
                 }
                 printf("  %-3zu byte frame, %3zu air bytes: 1 channel bit error in 50 tries: %d recovered\n", fl, on, okErr);
-                // The G3RUH scrambler turns one channel error into up to 3 byte errors; the header (2 parity bytes) and the small
-                // payloads (2 parity bytes) fix one byte only, so only the long frames (6 or more parity bytes, header apart) must survive it
-                if (fl >= 140) CHECK(okErr >= 42, "IL2P with 1 channel bit error recovered only %d/50", okErr);
+                // Without the G3RUH scrambler one channel bit error is one byte error: Reed-Solomon fixes it in the header and in any payload
+                CHECK(okErr >= 48, "IL2P with 1 channel bit error recovered only %d/50", okErr);
             }
         }
         n++;

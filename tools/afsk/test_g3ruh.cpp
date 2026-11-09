@@ -22,11 +22,14 @@ static void onFrame(const uint8_t* f, size_t len, void* ctx) {
     ((Rx*)ctx)->got.push_back(AX25G3::frameToTnc2(f, len, t, sizeof(t)) ? t : "<no UI>");
 }
 
-static std::vector<float> modulate(const std::string& tnc2, uint32_t fs, float amp, double clockErr = 0, size_t lead = 40) {
+static std::vector<float> modulate(const std::string& tnc2, uint32_t fs, float amp, double clockErr = 0, size_t lead = 40, int fec = 0) {
     uint8_t frame[AX25G3::MAX_FRAME], air[600];
     size_t fl = AX25G3::tnc2ToFrame(tnc2.c_str(), frame, sizeof(frame));
     CHECK(fl > 0);
-    size_t nb = AX25G3::g3ruhEncode(frame, fl, air, sizeof(air), lead);
+    size_t nb = 0;                                  // como lora_utils.cpp: 1..3 FX.25, 4 IL2P, si no cabe AX.25
+    if (fec >= 1 && fec <= 3) nb = AX25G3::g3ruhEncodeFx25(frame, fl, air, sizeof(air), lead, 16 << (fec - 1));
+    if (fec == 4)             nb = AX25G3::g3ruhEncodeIl2p(frame, fl, air, sizeof(air), lead);
+    if (nb == 0)              nb = AX25G3::g3ruhEncode(frame, fl, air, sizeof(air), lead);
     CHECK(nb > 0);
     G3RUH::BaseTx tx;
     tx.start(air, nb, (uint32_t)lrint(fs * (1.0 + clockErr)), amp);
@@ -93,10 +96,11 @@ int main(int argc, char** argv) {
     }
     if (argc >= 4 && !strcmp(argv[1], "encode")) {
         uint32_t fs = (uint32_t)atoi(argv[3]);
+        const int fec = argc >= 5 ? atoi(argv[4]) : 0;
         std::vector<float> all;
         for (int i = 0; i < 100; i++) {
             char t[200]; snprintf(t, sizeof(t), "EA7JRS-7>APZLRP,WIDE1-1:>trama %03d del modulador 9600 APRS LoRa+", i);
-            auto x = modulate(t, fs, 0.7f);
+            auto x = modulate(t, fs, 0.7f, 0, 40, fec);
             all.insert(all.end(), x.begin(), x.end());
         }
         writeWav(argv[2], all, fs);
@@ -113,6 +117,7 @@ int main(int argc, char** argv) {
     for (float a : { 0.02f, 0.9f }) { Rx rx; decode(modulate(MSGS[1], 48000, a), 48000, rx); CHECK(rx.got.size() == 1); }
     { auto x = modulate(MSGS[2], 48000, 0.6f); radioPath(x, 48000, 20.0f, 7000.0f); Rx rx; decode(x, 48000, rx); CHECK(rx.got.size() == 1); }
     for (double e : { -0.01, 0.01 }) { Rx rx; decode(modulate(MSGS[0], 48000, 0.6f, e), 48000, rx); CHECK(rx.got.size() == 1); }
+    for (int fec = 1; fec <= 4; fec++) for (const char* m : MSGS) { Rx rx; decode(modulate(m, 48000, 0.6f, 0, 40, fec), 48000, rx); CHECK(rx.got.size() == 1); }
     // ruido
     std::mt19937 rng(77);
     std::normal_distribution<float> g(0.0f, 1.0f);

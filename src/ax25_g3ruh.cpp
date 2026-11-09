@@ -132,6 +132,7 @@ namespace AX25G3 {
             uint8_t* out; size_t max; size_t nbits;
             uint32_t lfsr; uint8_t level; uint8_t ones;
             bool overflow;
+            bool plain;                             // sin aleatorizador (AFSK 1200)
 
             void raw(uint8_t x) {                   // scrambled bit on air
                 if ((nbits >> 3) >= max) { overflow = true; return; }
@@ -141,6 +142,7 @@ namespace AX25G3 {
             }
             void line(uint8_t bit) {                // HDLC bit -> NRZI -> scrambler
                 if (!bit) level ^= 1;
+                if (plain) { raw(level); return; }
                 uint8_t x = (uint8_t)(level ^ ((lfsr >> 16) & 1) ^ ((lfsr >> 11) & 1));
                 lfsr = ((lfsr << 1) | x) & 0x1FFFF;
                 raw(x);
@@ -150,6 +152,7 @@ namespace AX25G3 {
                 ones = 0;
             }
             void scrambledBit(uint8_t bit) {        // IL2P: G3RUH scrambler only, no NRZI
+                if (plain) { raw(bit); return; }
                 uint8_t x = (uint8_t)(bit ^ ((lfsr >> 16) & 1) ^ ((lfsr >> 11) & 1));
                 lfsr = ((lfsr << 1) | x) & 0x1FFFF;
                 raw(x);
@@ -171,17 +174,16 @@ namespace AX25G3 {
         };
     }
 
-    size_t g3ruhEncode(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags) {
+    size_t g3ruhEncode(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags, bool scramble, size_t trailing) {
         // worst case size: every byte may need up to 20% extra bits; compute exactly with a dry run
         for (;;) {
-            BitWriter w = { out, maxOut, 0, 0, 0, 0, false };
+            BitWriter w = { out, maxOut, 0, 0, 0, 0, false, !scramble };
             for (size_t i = 0; i < leadFlags; i++) w.flagByte();
             for (size_t i = 0; i < len; i++) w.dataByte(frame[i]);
             uint16_t fcs = crc16(frame, len);
             w.dataByte((uint8_t)(fcs & 0xFF));
             w.dataByte((uint8_t)(fcs >> 8));
-            w.flagByte();
-            w.flagByte();
+            for (size_t i = 0; i < (trailing ? trailing : 1); i++) w.flagByte();
             while (w.nbits & 7) w.line((uint8_t)(((0x7E >> (w.nbits & 7)) & 1)));   // pad to a whole byte
             if (!w.overflow) return w.nbits >> 3;
             if (leadFlags == 0) return 0;
@@ -189,7 +191,7 @@ namespace AX25G3 {
         }
     }
 
-    size_t g3ruhEncodeFx25(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags, int checkBytes) {
+    size_t g3ruhEncodeFx25(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags, int checkBytes, bool scramble, size_t trailing) {
         uint8_t data[FX25::MAX_DATA];
         size_t  used = FX25::stuffFrame(frame, len, data);
         if (used == 0) return 0;
@@ -199,10 +201,10 @@ namespace AX25G3 {
         uint8_t blk[FX25::BLOCK_SIZE] = {0}, check[FX25::MAX_CHECK];
         memcpy(blk, data, k);                       // the bytes that are not sent stay at zero
         FX25::rsEncode((int)nr, blk, check);
-        const size_t trailing = 2;
+        if (trailing == 0) trailing = 1;
         if (8 + k + nr + trailing > maxOut) return 0;
         while (leadFlags + 8 + k + nr + trailing > maxOut) leadFlags--;
-        BitWriter w = { out, maxOut, 0, 0, 0, 0, false };
+        BitWriter w = { out, maxOut, 0, 0, 0, 0, false, !scramble };
         for (size_t i = 0; i < leadFlags; i++) w.flagByte();
         const uint64_t tv = FX25::tagValue(tag);
         for (int i = 0; i < 8; i++) w.rawByte((uint8_t)(tv >> (8 * i)));
@@ -212,14 +214,17 @@ namespace AX25G3 {
         return w.overflow ? 0 : (w.nbits >> 3);
     }
 
-    size_t g3ruhEncodeIl2p(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadBytes) {
+    size_t g3ruhEncodeIl2p(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadBytes, bool scramble, size_t trailing) {
         uint8_t body[IL2P::HEADER_TOTAL + 300];
         size_t  bl = IL2P::encode(frame, len, body, sizeof(body));
         if (bl == 0) return 0;
-        const size_t trailing = 2;
+        if (trailing == 0) trailing = 1;
         if (3 + bl + trailing > maxOut) return 0;
         while (leadBytes + 3 + bl + trailing > maxOut) leadBytes--;
-        BitWriter w = { out, maxOut, 0, 0, 0, 0, false };
+        // IL2P no usa el aleatorizador G3RUH ni NRZI (lleva su propio aleatorizador): asi lo emiten Dire Wolf (gen_tone.c) y la
+        // NinoTNC. Hasta 5.3.5 se aleatorizaba y solo lo entendian otras placas APRS LoRa+. 'scramble' se ignora aqui
+        (void)scramble;
+        BitWriter w = { out, maxOut, 0, 0, 0, 0, false, true };
         for (size_t i = 0; i < leadBytes; i++) w.il2pByte(0x55);
         w.il2pByte((uint8_t)(IL2P::SYNC_WORD >> 16));
         w.il2pByte((uint8_t)(IL2P::SYNC_WORD >> 8));
@@ -356,11 +361,11 @@ namespace AX25G3 {
         for (size_t k = 0; k < len; k++) {
             for (int i = 7; i >= 0; i--) {
                 uint8_t in = (data[k] >> i) & 1;
-                uint8_t d  = (uint8_t)(in ^ ((lfsr >> 16) & 1) ^ ((lfsr >> 11) & 1));    // descrambler
+                uint8_t d  = scrambled ? (uint8_t)(in ^ ((lfsr >> 16) & 1) ^ ((lfsr >> 11) & 1)) : in;    // descrambler (no en AFSK 1200)
                 lfsr = ((lfsr << 1) | in) & 0x1FFFF;
                 uint8_t bit = (d == prevLevel) ? 1 : 0;                                     // NRZI: no change = 1
                 prevLevel = d;
-                ilBit(d);
+                ilBit(in);                                                                  // IL2P: el bit tal cual (sin aleatorizador ni NRZI)
                 fxBit(bit);
                 hdlc.pushBit(bit, onHdlc, this);
             }

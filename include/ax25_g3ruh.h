@@ -24,16 +24,17 @@ namespace AX25G3 {
 
     // Builds the on-air bytes: leading flags + HDLC frame (bit stuffing + FCS) + closing flags, NRZI + G3RUH scrambler, MSB first.
     // leadFlags is reduced if the result would not fit in maxOut. Returns 0 if the frame itself does not fit
-    size_t g3ruhEncode(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags);
+    // scramble = false: sin aleatorizador G3RUH (AFSK 1200: AX.25 y FX.25 solo con NRZI, IL2P sin NRZI); trailing = banderas finales
+    size_t g3ruhEncode(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags, bool scramble = true, size_t trailing = 2);
 
     // Same as g3ruhEncode but the frame is sent as an FX.25 block: correlation tag + Reed-Solomon (checkBytes = 16, 32 or 64).
     // AX.25 receivers that do not know FX.25 still decode the frame inside the block. Returns 0 if the frame does not fit
     // (the caller then falls back to plain AX.25)
-    size_t g3ruhEncodeFx25(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags, int checkBytes);
+    size_t g3ruhEncodeFx25(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadFlags, int checkBytes, bool scramble = true, size_t trailing = 2);
 
-    // Same again for IL2P (preamble, sync word, header and Reed-Solomon payload; scrambled by the G3RUH scrambler, no NRZI).
+    // Same again for IL2P (preamble, sync word, header and Reed-Solomon payload; no G3RUH scrambler and no NRZI, like Dire Wolf).
     // Only IL2P stations decode it. Returns 0 if the frame does not fit (the caller then falls back to plain AX.25)
-    size_t g3ruhEncodeIl2p(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadBytes);
+    size_t g3ruhEncodeIl2p(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOut, size_t leadBytes, bool scramble = true, size_t trailing = 2);
 
     typedef void (*FrameCallback)(const uint8_t* frame, size_t len, void* ctx);   // frame without FCS (FCS already verified)
 
@@ -55,7 +56,8 @@ namespace AX25G3 {
     // the plain HDLC path already delivered is not delivered twice
     class Decoder {
     public:
-        Decoder() : fx25Blocks(0), fx25Fixed(0), il2pFrames(0) { reset(); }
+        Decoder() : fx25Blocks(0), fx25Fixed(0), il2pFrames(0), scrambled(true) { reset(); }
+        void setScrambled(bool s) { scrambled = s; }      // false: bits de AFSK 1200 (sin aleatorizador; IL2P sin NRZI)
         void reset();
         void feed(const uint8_t* data, size_t len, FrameCallback cb, void* ctx);
         uint32_t fx25Blocks;                // FX.25 blocks received (statistics)
@@ -68,6 +70,7 @@ namespace AX25G3 {
         void fxFinish();
         void ilBit(uint8_t b);
         void ilDeliver();
+        bool     scrambled;
         uint32_t lfsr;
         uint8_t  prevLevel;
         Hdlc     hdlc, fxHdlc;

@@ -16,43 +16,14 @@ namespace AFSK {
 
     // ---- Emision ----------------------------------------------------------------------------------------------------
 
-    namespace {
-        struct ToneWriter {
-            uint8_t* out; size_t maxBits; size_t nbits; uint8_t level; uint8_t ones; bool overflow;
-            void tone(uint8_t t) {
-                if (nbits >= maxBits) { overflow = true; return; }
-                if (t) out[nbits >> 3] |= (uint8_t)(1 << (nbits & 7));
-                else   out[nbits >> 3] &= (uint8_t)~(1 << (nbits & 7));
-                nbits++;
-            }
-            void line(uint8_t bit) {                // NRZI: un 0 cambia de tono, un 1 lo mantiene
-                if (!bit) level ^= 1;
-                tone(level);
-            }
-            void flag() {                           // 0x7E, LSB primero, sin relleno
-                for (int i = 0; i < 8; i++) line((uint8_t)((0x7E >> i) & 1));
-                ones = 0;
-            }
-            void data(uint8_t v) {                  // LSB primero con relleno de bits (un 0 tras cinco 1)
-                for (int i = 0; i < 8; i++) {
-                    uint8_t b = (uint8_t)((v >> i) & 1);
-                    line(b);
-                    if (b) { if (++ones == 5) { line(0); ones = 0; } } else ones = 0;
-                }
-            }
-        };
-    }
-
-    size_t encodeBits(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOutBytes, size_t leadFlags, size_t tailFlags) {
+    size_t encodeBits(const uint8_t* frame, size_t len, uint8_t* out, size_t maxOutBytes, size_t leadFlags, size_t tailFlags, int fec) {
         if (!frame || !out || len == 0) return 0;
-        ToneWriter w = { out, maxOutBytes * 8, 0, 1, 0, false };
-        for (size_t i = 0; i < leadFlags; i++) w.flag();
-        for (size_t i = 0; i < len; i++) w.data(frame[i]);
-        const uint16_t fcs = AX25G3::crc16(frame, len);
-        w.data((uint8_t)(fcs & 0xFF));
-        w.data((uint8_t)(fcs >> 8));
-        for (size_t i = 0; i < (tailFlags ? tailFlags : 1); i++) w.flag();
-        return w.overflow ? 0 : w.nbits;
+        size_t n = 0;
+        const size_t tail = tailFlags ? tailFlags : 1;
+        if (fec >= 1 && fec <= 3) n = AX25G3::g3ruhEncodeFx25(frame, len, out, maxOutBytes, leadFlags, 16 << (fec - 1), false, tail);
+        if (fec == 4)             n = AX25G3::g3ruhEncodeIl2p(frame, len, out, maxOutBytes, leadFlags, false, tail);
+        if (n == 0)               n = AX25G3::g3ruhEncode(frame, len, out, maxOutBytes, leadFlags, false, tail);
+        return n * 8;
     }
 
     void ToneGen::start(const uint8_t* b, size_t n, uint32_t sampleRate, float amplitude) {
@@ -151,8 +122,9 @@ namespace AFSK {
         phM = phS = 0;
         mPeak = mValley = sPeak = sValley = 0;
         dcAvg = 0; peakIn = 0;
-        pll = 0; prevDemod = 0; prevData = 0; lastBit = 0; flagReg = 0; lockedBits = 0;
-        hdlc.reset();
+        pll = 0; prevDemod = 0; prevData = 0; lastBit = 0; flagReg = 0; lockedBits = 0; byteAcc = 0; byteBits = 0;
+        decoder.reset();
+        decoder.setScrambled(false);
     }
 
     void Demod::onFrame(const uint8_t* f, size_t len, void* self) {
@@ -162,12 +134,13 @@ namespace AFSK {
     }
 
     void Demod::bitOut(uint8_t b) {
-        const uint8_t decoded = (b == lastBit) ? 1 : 0;     // NRZI
+        const uint8_t decoded = (b == lastBit) ? 1 : 0;     // NRZI (solo para el DCD; el decodificador hace el suyo)
         lastBit = b;
         flagReg = (uint8_t)((flagReg >> 1) | (decoded << 7));
         if (flagReg == 0x7E) lockedBits = 64;              // bandera: hay datos durante al menos 8 bytes mas
         else if (lockedBits > 0) lockedBits--;
-        hdlc.pushBit(decoded, onFrame, this);
+        byteAcc = (uint8_t)((byteAcc << 1) | b);           // bits de tono, MSB primero, al decodificador (HDLC, FX.25, IL2P)
+        if (++byteBits == 8) { decoder.feed(&byteAcc, 1, onFrame, this); byteBits = 0; }
     }
 
     void Demod::feed(float x, AX25G3::FrameCallback cb, void* ctx) {

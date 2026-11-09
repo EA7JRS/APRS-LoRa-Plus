@@ -31,6 +31,7 @@
 extern Configuration    Config;
 extern logging::Logger  logger;
 extern XPowersAXP2101   PMU;            // power_utils.cpp
+extern LoraType         *currentLoRaType;
 
 #if ARDUINO_USB_CDC_ON_BOOT
     #define SA_SERIAL Serial0           // UART0 libre: el registro va por el USB nativo
@@ -243,6 +244,10 @@ namespace SA868 {
         if (!ok) return false;
         bool good = true;
         long rx = Config.sa868.rxFreqHz, tx = Config.sa868.txFreqHz;
+        if (mode96 && currentLoRaType && validFreq(currentLoRaType->fskFrequency)) {
+            // 9600 en UHF: la frecuencia FSK del perfil, la misma que usan las demas placas en APRS FSK 9600 (lista IARU FSK)
+            rx = tx = currentLoRaType->fskFrequency;
+        }
         if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;           // no deberia pasar: fixBandDefaults() al arrancar
         if (!validFreq(tx)) tx = rx;
         if (fw == Firmware::OPENRTX) {
@@ -432,14 +437,18 @@ namespace SA868 {
         static uint8_t bits[1400];                          // AFSK: bits de tono; G3RUH: bytes en el aire
         size_t nb = 0;
         if (mode96) {
-            // una bandera son 8 bits a 9600 baudios: 0,83 ms. Las de cola las pone g3ruhEncode (2)
+            // una bandera son 8 bits a 9600 baudios: 0,83 ms. Protocolo del perfil FSK, como lora_utils.cpp en las demas placas:
+            // 1..3 FX.25 (16 / 32 / 64), 4 IL2P; si no cabe, AX.25
             const size_t lead = (size_t)((Config.sa868.txDelayMs * G3RUH::BAUD + 7999) / 8000);
-            nb = AX25G3::g3ruhEncode(frame, fl, bits, sizeof(bits), lead);
+            const int fec = currentLoRaType ? currentLoRaType->fskFec : 0;
+            if (fec >= 1 && fec <= 3) nb = AX25G3::g3ruhEncodeFx25(frame, fl, bits, sizeof(bits), lead, 16 << (fec - 1));
+            if (fec == 4)             nb = AX25G3::g3ruhEncodeIl2p(frame, fl, bits, sizeof(bits), lead);
+            if (nb == 0)              nb = AX25G3::g3ruhEncode(frame, fl, bits, sizeof(bits), lead);
         } else {
-            // una bandera son 8 bits a 1200 baudios: 6,67 ms
+            // una bandera son 8 bits a 1200 baudios: 6,67 ms. Protocolo: sa868.fec (0 AX.25, 1..3 FX.25, 4 IL2P)
             const size_t lead = (size_t)((Config.sa868.txDelayMs * AFSK::BAUD + 7999) / 8000);
             const size_t tail = (size_t)((Config.sa868.txTailMs  * AFSK::BAUD + 7999) / 8000);
-            nb = AFSK::encodeBits(frame, fl, bits, sizeof(bits), lead, tail ? tail : 1);
+            nb = AFSK::encodeBits(frame, fl, bits, sizeof(bits), lead, tail ? tail : 1, Config.sa868.fec) / 8;
         }
         if (nb == 0) return false;
 
@@ -455,7 +464,7 @@ namespace SA868 {
         AFSK::ToneGen gen;
         G3RUH::BaseTx g3tx;
         if (mode96) g3tx.start(bits, nb, TX_FS, constrain(Config.sa868.txLevel9600, 1, 100) / 100.0f);
-        else        gen.start(bits, nb, TX_FS, constrain(Config.sa868.txLevel, 1, 100) / 100.0f);
+        else        gen.start(bits, nb * 8, TX_FS, constrain(Config.sa868.txLevel, 1, 100) / 100.0f);
         static int16_t buf[512];
         const uint32_t start = millis();
         size_t n;

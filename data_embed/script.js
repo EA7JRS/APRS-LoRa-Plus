@@ -667,6 +667,7 @@ function loadSettings(settings) {
             document.getElementById("sa868.highPower").value = sa.highPower ? "1" : "0";
             ["volume", "squelch", "txLevel", "txLevel9600", "txDelayMs", "txTailMs"].forEach(k => { if (sa[k] !== undefined) document.getElementById("sa868." + k).value = sa[k]; });
             document.getElementById("sa868.revision").value = String(sa.revision ?? 0);
+            document.getElementById("sa868.fec").value = String(sa.fec ?? 0);
             document.getElementById("sa868.iaruRegion").value = String(sa.iaruRegion ?? 1);
             sa868IaruWire();
             document.getElementById("sa868.filters").checked = sa.filters !== false;

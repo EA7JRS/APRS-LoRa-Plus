@@ -24,11 +24,11 @@ static void onFrame(const uint8_t* f, size_t len, void* ctx) {
 }
 
 // TNC2 -> muestras de audio (float, -1..1) a fs, con silencio delante y detras
-static std::vector<float> modulate(const std::string& tnc2, uint32_t fs, float amp, size_t lead = 30, size_t tail = 3, double clockErr = 0) {
+static std::vector<float> modulate(const std::string& tnc2, uint32_t fs, float amp, size_t lead = 30, size_t tail = 3, double clockErr = 0, int fec = 0) {
     uint8_t frame[AX25G3::MAX_FRAME], bits[1024];
     size_t fl = AX25G3::tnc2ToFrame(tnc2.c_str(), frame, sizeof(frame));
     CHECK(fl > 0);
-    size_t nb = AFSK::encodeBits(frame, fl, bits, sizeof(bits), lead, tail);
+    size_t nb = AFSK::encodeBits(frame, fl, bits, sizeof(bits), lead, tail, fec);
     CHECK(nb > 0);
     // error de reloj: se genera a una frecuencia de muestreo distinta y se trata como si fuera fs
     uint32_t genFs = (uint32_t)lrint(fs * (1.0 + clockErr));
@@ -106,10 +106,11 @@ int main(int argc, char** argv) {
     }
     if (argc >= 4 && !strcmp(argv[1], "encode")) {
         uint32_t fs = (uint32_t)atoi(argv[3]);
+        const int fec = argc >= 5 ? atoi(argv[4]) : 0;      // 0 AX.25, 1..3 FX.25, 4 IL2P
         std::vector<float> all;
         for (int i = 0; i < 100; i++) {
             char t[200]; snprintf(t, sizeof(t), "EA7JRS-7>APZLRP,WIDE1-1:>trama %03d del modulador APRS LoRa+", i);
-            auto x = modulate(t, fs, 0.5f, 20, 2);
+            auto x = modulate(t, fs, 0.5f, 20, 2, 0, fec);
             all.insert(all.end(), x.begin(), x.end());
         }
         writeWav(argv[2], all, fs);
@@ -122,8 +123,8 @@ int main(int argc, char** argv) {
         size_t fl = AX25G3::tnc2ToFrame(MSGS[0], frame, sizeof(frame));
         size_t nb = AFSK::encodeBits(frame, fl, bits, sizeof(bits), 1, 1);
         CHECK(nb > 16);
-        const uint8_t want[8] = { 0, 0, 0, 0, 0, 0, 0, 1 };
-        for (int i = 0; i < 8; i++) CHECK(AFSK::bitAt(bits, i) == want[i]);
+        for (int i = 1; i < 7; i++) CHECK(AFSK::bitAt(bits, i) == AFSK::bitAt(bits, 0));   // 0 1 1 1 1 1 1 0: el 0 cambia, seis 1 no
+        CHECK(AFSK::bitAt(bits, 7) != AFSK::bitAt(bits, 6));
         CHECK(AFSK::encodeBits(frame, fl, bits, 4, 1, 1) == 0);    // no cabe
     }
 
@@ -135,6 +136,25 @@ int main(int argc, char** argv) {
             CHECK(rx.got.size() == 1);
             if (rx.got.size() == 1) CHECK(rx.got[0] == m);
         }
+    }
+    // ---- FX.25 (16 / 32 / 64) e IL2P: ida y vuelta, y con ruido el FEC rescata tramas que el AX.25 pierde
+    for (int fec = 1; fec <= 4; fec++) for (const char* m : MSGS) {
+        Rx rx; decode(modulate(m, 13200, 0.5f, 30, 3, 0, fec), 13200, rx);
+        CHECK(rx.got.size() == 1);
+        if (rx.got.size() == 1) CHECK(rx.got[0] == m);
+    }
+    {
+        std::mt19937 r2(99); std::normal_distribution<float> gg(0.0f, 1.0f);
+        int ok[5] = {0};
+        for (int fec : { 0, 2, 4 }) for (int k = 0; k < 40; k++) {
+            auto x = modulate(MSGS[k % 3], 13200, 0.3f, 30, 3, 0, fec);
+            const float noise = (0.3f / sqrtf(2.0f)) / powf(10.0f, 3.0f / 20.0f);
+            for (auto& v : x) v += noise * gg(r2);
+            Rx rx; decode(x, 13200, rx);
+            if (rx.got.size() >= 1 && rx.got[0] == MSGS[k % 3]) ok[fec]++;
+        }
+        printf("SNR 3 dB: AX.25 %d/40, FX.25(32) %d/40, IL2P %d/40\n", ok[0], ok[2], ok[4]);
+        CHECK(ok[2] >= ok[0] && ok[4] >= ok[0]);
     }
     // ---- niveles muy distintos (CAG)
     for (float amp : { 0.01f, 0.1f, 0.9f }) { Rx rx; decode(modulate(MSGS[1], 13200, amp), 13200, rx); CHECK(rx.got.size() == 1); }

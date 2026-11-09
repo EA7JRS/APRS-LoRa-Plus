@@ -285,6 +285,7 @@ namespace WEB_Utils {
             Config.sa868.txLevel   = constrain(getParamIntSafe("sa868.txLevel", Config.sa868.txLevel), 1, 100);
             Config.sa868.txLevel9600 = constrain(getParamIntSafe("sa868.txLevel9600", Config.sa868.txLevel9600), 1, 100);
             Config.sa868.txDelayMs = constrain(getParamIntSafe("sa868.txDelayMs", Config.sa868.txDelayMs), 50, 1000);
+            Config.sa868.fec       = constrain(getParamIntSafe("sa868.fec", Config.sa868.fec), 0, 4);
             Config.sa868.txTailMs  = constrain(getParamIntSafe("sa868.txTailMs", Config.sa868.txTailMs), 10, 300);
             const int r = getParamIntSafe("sa868.revision", Config.sa868.revision);
             Config.sa868.revision  = (r == 20 || r == 21) ? r : 0;
