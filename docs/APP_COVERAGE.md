@@ -24,6 +24,7 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | DAPNET | `dapnet`, evento `page` | sí | sí |
 | Telegrafía: mensajes, texto libre, manipulador remoto | `cw`, `k`, `kcfg` | sí | sí |
 | Modo SAT: estado, lista, selección, receptor, emisión, transmisores, datos | `sat`, `satlist`, `satsel`, `satrx`, `sattx`, `sattxlist`, `satdata`, `pos` | sí | sí |
+| Tiempo y calidad del aire de internet (OpenWeatherMap, IQAir) en la página TELEMETRY: la app lo descarga en la posición del tracker (o del móvil) con las claves del usuario | `wxnet`, `caps.wxnet` | sí | sí |
 | Satélites: favoritos, categorías de la lista, archivo completo por grupos de CelesTrak (la app y la WebUI filtran) | `satfav`, `satcat`, `satlist` (`b`, `fav`, `in`), `sat` (`fav`, `cat`, `tot`, `nfav`, `stamp`), `caps.satMax` / `satFav` | sí | sí |
 | T-TWR: el VFO de FM sigue al satélite (Doppler, subida, CTCSS), APRS por satélite (ISS, ruta `sat.aprsPath`), posición por satélite | `satrx` / `sattx` en FM y SAT, `sattx` `pos`, evento `fm` (`sat`), `caps.satFm` | sí | sí |
 | Rotor y objetivos (inclinómetro con los sensores del móvil; repetidores de RepeaterBook como objetivos) | evento `rot`, `att`, `tgtlist`, `tgt` | sí | sí |

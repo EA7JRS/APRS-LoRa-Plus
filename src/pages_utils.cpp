@@ -61,6 +61,7 @@
 #include "dapnet_utils.h"
 #include "sat_config.h"
 #include "sat_utils.h"
+#include "net_wx.h"
 #include "rotor_utils.h"
 #include "rotor_follow.h"
 #include "sat_rx.h"
@@ -1769,15 +1770,50 @@ namespace {
         text(128 - 1 - 3 * 6, 56, "now");
     }
 
+    // Tiempo de internet (la app lo manda con "wxnet": OpenWeatherMap / IQAir); arriba a la derecha "NET" para no confundirlo con un sensor
+    void drawNetWx(const NET_WX::Data& d) {
+        header(PAGE_TITLES[PAGE_WX], "NET");
+        char age[8];
+        const uint32_t a = NET_WX::ageS();
+        if (a < 3600) snprintf(age, sizeof(age), "%lum", (unsigned long)(a / 60)); else snprintf(age, sizeof(age), "%luh", (unsigned long)(a / 3600));
+        row(0, "%.9s %.10s", d.src, d.place);
+        char t[10] = "---", h[6] = "", p[10] = "";
+        if (d.hasT) snprintf(t, sizeof(t), "%.1f" DEG_C, d.tempC);
+        if (d.hasH) snprintf(h, sizeof(h), "%.0f%%", d.humidity);
+        if (d.hasP) snprintf(p, sizeof(p), "%.0fhPa", d.pressureHpa);
+        row(1, "%s %s %s", t, h, p);
+        if (d.hasWind) {
+            char g[10] = "";
+            if (d.hasGust) snprintf(g, sizeof(g), " G%.0f", d.gustMs * 3.6f);
+            if (d.windDeg >= 0) row(2, "Wind %.0fkm/h %s%s", d.windMs * 3.6f, cardinal16(d.windDeg), g);
+            else                row(2, "Wind %.0fkm/h%s", d.windMs * 3.6f, g);
+        }
+        if (d.hasClouds || d.hasRain) {
+            char c[12] = "", r[12] = "";
+            if (d.hasClouds) snprintf(c, sizeof(c), "Cloud %d%%", d.clouds);
+            if (d.hasRain) snprintf(r, sizeof(r), " %.1fmm/h", d.rainMmH);
+            row(3, "%s%s", c, r);
+        } else if (d.desc[0]) row(3, "%.20s", d.desc);
+        if (d.aqiUs >= 0)      row(4, "AQI %d %s%s%s", d.aqiUs, NET_WX::usAqiName(d.aqiUs), d.pollutant[0] ? " " : "", d.pollutant);
+        else if (d.aqiOwm > 0) row(4, "AQI %d/5 %s", d.aqiOwm, NET_WX::owmAqiName(d.aqiOwm));
+        if (d.hasPm25)         row(5, "PM2.5 %.0f%s %s ago", d.pm25, d.hasPm10 ? (String(" PM10 ") + String(d.pm10, 0)).c_str() : "", age);
+        else                   row(5, "%s ago (internet)", age);
+    }
+
     void drawWx() {
-        header(PAGE_TITLES[PAGE_WX]);
         WX_Utils::refreshForScreen();
         WX_Utils::Reading r;
-        if (!WX_Utils::getReading(r)) {
+        NET_WX::Data nd;
+        const bool haveNet = NET_WX::get(nd);
+        const bool haveSensor = WX_Utils::getReading(r);
+        if (haveNet && (!haveSensor || (millis() / 6000) % 2 == 1)) { drawNetWx(nd); return; }      // con sensor y datos de internet: se alternan cada 6 s
+        header(PAGE_TITLES[PAGE_WX]);
+        if (!haveSensor) {
             row(1, "Sensor: none/no data");
-            row(3, "Enable Telemetry in");
-            row(4, "WebConfig & connect");
-            row(5, "BME280/BMP280/BME680");
+            row(2, "Enable Telemetry in");
+            row(3, "WebConfig & connect");
+            row(4, "BME280/BMP280/BME680");
+            row(5, "or app: internet WX");
             return;
         }
         // filas cada 9 px: T/Td/Hr, presion y tendencia, gas, pronostico y motivo
