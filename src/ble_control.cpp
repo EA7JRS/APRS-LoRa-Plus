@@ -301,6 +301,7 @@ namespace {
                 caps["satFm"] = true;                                // el VFO de FM sigue al satelite (FM / APRS AFSK, ruta sat.aprsPath)
             #endif
         #endif
+        caps["netreq"] = true;                                   // el tracker puede pedir a la app que baje el tiempo o los satelites (evento "netreq")
         caps["wxnet"] = true;                                    // tiempo de internet de la app para TELEMETRY (orden "wxnet")
         caps["bcast"] = BCAST::chipName();                       // radio comercial por I2C: "none", "RDA5807M", "Si4703", "Si4735"
         doc["mode"] = Config.operatingMode;
@@ -1906,6 +1907,14 @@ namespace BLE_Control {
     bool linkUp() { return connected; }
 
     bool cwRxStopRequested() { return cwRxStop; }
+
+    bool netRequest(const char* what) {
+        if (!connected || !authed) return false;
+        JW j("netreq");
+        j.text("what", what);
+        j.send(sendLine);
+        return true;
+    }
 
     void cwRxEvent(bool on, char c, float dbm, float snr, int wpm) {
         if (!connected || !authed) return;

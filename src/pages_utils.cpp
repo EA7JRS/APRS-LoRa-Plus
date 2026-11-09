@@ -164,7 +164,7 @@ namespace {
         X(SATRX_FINE_DN) X(SATRX_LORA) X(SATRX_CLEAR) X(SATTX_SEND) X(ROT_SOURCE) X(ROT_NEXT) X(ROT_PREV) X(ROT_PARK) X(MODE_CHANGE) X(TEAM_BROWSE) \
         X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
         X(SYS_IARU) X(FM_VM) X(FM_EDIT) X(FM_SHIFT) X(FM_TONEMODE) X(FM_STEP) X(FM_POWER) X(FM_WIDE) X(FM_SQLAUTO) X(FM_NR) \
-        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) X(FM_SAT) X(FM_SATNEXT) X(FM_SATTX) X(SAT_FAV) X(SATTX_POS) \
+        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) X(FM_SAT) X(FM_SATNEXT) X(FM_SATTX) X(SAT_FAV) X(SATTX_POS) X(WX_NET) X(SAT_PHONE) \
         X(BC_SEEKUP) X(BC_SEEKDN) X(BC_VOLUP) X(BC_VOLDN) X(BC_MUTE) X(BC_BAND) X(BC_MONO) X(BC_STORE) X(BC_PRESET) X(BC_POWER)
     enum Command : uint8_t {
     #define X(n) C_##n,
@@ -213,6 +213,7 @@ namespace {
     const Item ITEMS_LORA[]    = { {"Next profile", C_LORA_PROFILE}, {"Power", C_LORA_POWER}, {"Reset counters", C_LORA_RESET}, {"Heard list", C_LORA_HEARD}, {"Back", C_BACK} };
     const Item ITEMS_POWER[]   = { {"Power", C_PW_SHOW}, {"+1 dBm", C_PW_UP}, {"-1 dBm", C_PW_DN}, {"Back", C_BACK} };
     const Item ITEMS_BACK[]    = { {"Back", C_BACK} };
+    const Item ITEMS_WX[]      = { {"Update from phone", C_WX_NET}, {"Back", C_BACK} };
     // GROUP (estilo Group Monitor de Yaesu): lista, cursor sobre un miembro, o radar tipo APL
     const Item ITEMS_TEAM[]       = { {"Browse", C_TEAM_BROWSE}, {"Radar", C_TEAM_RADAR}, {"Quick msg: all", C_TEAM_QUICK}, {"Ping all", C_TEAM_PING}, {"Back", C_BACK} };
     const Item ITEMS_TEAM_PICK[]  = { {"GO TO", C_TEAM_GOTO}, {"Quick msg", C_TEAM_QUICK}, {"Ping", C_TEAM_PING}, {"Back", C_BACK} };
@@ -422,6 +423,7 @@ namespace {
                 }
             #endif
                 if (Config.rotor.enabled) { snprintf(rotSourceLabel, sizeof(rotSourceLabel), "Rotor: %s", RotorFollow::sourceName(Config.rotor.source)); satItems[count++] = Item{rotSourceLabel, C_ROT_SOURCE}; }
+                satItems[count++] = Item{"Update data (phone)", C_SAT_PHONE};
                 satItems[count++] = Item{"Change mode", C_MODE_CHANGE};
                 satItems[count++] = Item{"Back", C_BACK};
                 return satItems;
@@ -502,6 +504,7 @@ namespace {
             case PAGE_COMPASS:  PAGES_ITEMS(ITEMS_COMPASS);
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:    PAGES_ITEMS(ITEMS_CLOCK);
+            case PAGE_WX:       PAGES_ITEMS(ITEMS_WX);
 #ifdef HAS_SA868
             case PAGE_LINK:     PAGES_ITEMS(ITEMS_RADIO);
             case PAGE_FM: {
@@ -5365,6 +5368,12 @@ namespace PAGES_Utils {
                 SATRX_Utils::clearLog();
                 showToast("RX log cleared");
             #endif
+                break;
+            case C_WX_NET:
+                showToast(BLE_Control::netRequest("wx") ? "Asked the phone" : "No app connected");
+                break;
+            case C_SAT_PHONE:
+                showToast(BLE_Control::netRequest("sat") ? "Asked the phone" : "No app connected");
                 break;
             case C_SATTX_POS:
             #ifdef HAS_SAT
