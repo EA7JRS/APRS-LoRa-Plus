@@ -79,8 +79,11 @@ ____________________________________________________________________*/
 #include "iaru_auto.h"
 #include "kiss_net.h"
 #include "bcast_radio.h"
+#include "sat_config.h"
+#include "sat_utils.h"
 #ifdef HAS_SA868
     #include "fm_utils.h"
+    #include "sa868_radio.h"
 #endif
 #ifdef HAS_TOUCHSCREEN
 #include "touch_utils.h"
@@ -280,9 +283,10 @@ void loop() {
 
     ReceivedLoRaPacket packet = LoRa_Utils::receivePacket();
     #ifdef HAS_SA868
-        if (Config.operatingMode == MODE_FM) FM_Utils::loop();     // T-TWR: PTT, escaneo, ARTS, EAI (EA7JRS)
+        if (SA868::modeFm()) FM_Utils::loop();     // T-TWR: PTT, escaneo, ARTS, EAI; modos FM y SAT (VFO que sigue al satelite) (EA7JRS)
     #endif
     BCAST::loop();
+    SAT_Utils::service();                                           // subida del archivo de satelites por la WebUI (EA7JRS)
 
     MSG_Utils::checkReceivedMessage(packet);
     MSG_Utils::processOutputBuffer();

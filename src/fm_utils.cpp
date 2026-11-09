@@ -17,10 +17,16 @@
 #include "fm_utils.h"
 #include "display.h"
 #include "pages_utils.h"
+#include "sat_config.h"
+#include "sat_utils.h"
+#include "gps_utils.h"
+#include <APRSPacketLib.h>
+#include <TinyGPS++.h>
 
 extern logging::Logger  logger;
 extern Configuration    Config;
 extern Beacon           *currentBeacon;
+extern TinyGPSPlus      gps;
 
 namespace FM_Utils {
 
@@ -35,6 +41,7 @@ namespace FM_Utils {
     static uint32_t pttEdgeMs = 0, txStartMs = 0, applyAt = 0, dirtyAt = 0, noticeAt = 0;
     static char     noticeText[24] = "";
     static String   pendingAprs;
+    static bool     satActive = false;                  // el VFO sigue a un satelite (ver "Satelite" mas abajo)
 
     // ---- Encoder (interrupciones) ------------------------------------------------------------------------------------
 
@@ -128,7 +135,7 @@ namespace FM_Utils {
 
     // el VFO se guarda en la configuracion (unos segundos despues del ultimo cambio, para no gastar la flash)
     static void vfoChanged() {
-        if (!Config.fm.memMode) toMem(cur, Config.fm.vfo);
+        if (!Config.fm.memMode && !satActive) toMem(cur, Config.fm.vfo);
         Config.fm.vfo.name = "";
         markDirty();
         requestApply();
@@ -164,6 +171,7 @@ namespace FM_Utils {
     bool setChannel(const FmCore::Channel& c) {
         if (!SA868::validFreq(c.rxHz) || !SA868::validFreq(FmCore::txHz(c))) { note("Out of band"); return false; }
         if (arts.running()) { note("ARTS on"); return false; }
+        if (satActive) { satActive = false; Config.fm.satOn = false; }      // sintonizar a mano (o por CAT) deja de seguir al satelite
         cur = c;
         cur.name[0] = 0;
         Config.fm.memMode = false;
@@ -181,6 +189,7 @@ namespace FM_Utils {
 
     void toggleVfoMem() {
         if (arts.running()) { note("ARTS on"); return; }
+        if (satActive) { satStop(); return; }
         if (Config.fm.memMode) {
             Config.fm.memMode = false;
             cur = fromMem(Config.fm.vfo);
@@ -200,6 +209,7 @@ namespace FM_Utils {
     bool recall(int i) {
         if (!memUsed(i)) { note("Empty memory"); return false; }
         if (arts.running()) { note("ARTS on"); return false; }
+        if (satActive) { satActive = false; Config.fm.satOn = false; }
         Config.fm.memMode = true; Config.fm.memIndex = i;
         cur = fromMem(Config.fm.mem[i]);
         markDirty();
@@ -307,6 +317,7 @@ namespace FM_Utils {
         const int dir = clicks > 0 ? 1 : -1;
         const int n = abs(clicks);
         if (scanner.running()) { scanner.dir = (int8_t)dir; return; }          // durante el escaneo: cambia el sentido
+        if (satActive && editField == ED_FREQ) { satFine(dir * n * 100); return; }   // con un satelite: ajuste fino de 100 Hz por paso
         for (int k = 0; k < n; k++) {
             switch (editField) {
                 case ED_TONE:    toneStep(dir); break;
@@ -331,6 +342,7 @@ namespace FM_Utils {
 
     void scanStart() {
         if (arts.running()) { note("ARTS on"); return; }
+        if (satActive) { note("SAT on"); return; }
         if (Config.fm.scanMemories && nextMem(Config.fm.memIndex, 1) < 0) { note("No memories"); return; }
         scanner.start(millis(), (uint8_t)Config.fm.scanResume);
         note(Config.fm.scanMemories ? "Scan memories" : "Scan band");
@@ -356,6 +368,7 @@ namespace FM_Utils {
     }
 
     void artsToggle() {
+        if (satActive && !arts.running()) { note("SAT on"); return; }
         if (arts.running()) {
             arts.stop();
             cur = beforeArts;
@@ -395,13 +408,238 @@ namespace FM_Utils {
         markDirty();
     }
 
+    // ---- Satelite -----------------------------------------------------------------------------------------------------
+
+    static bool     satRxOk = false, satTxOk = false, satDopOkFlag = false, satDataLoaded = false;
+    static int      satIdx = 0, satFineOff = 0, satDop = 0, satNorad = 0;
+    static SatCore::Transmitter satT;
+    static long     satTunedRx = 0, satTunedTx = 0, satWantRx = 0, satWantTx = 0;
+    static uint32_t satCalcMs = 0, satRetuneMs = 0, satLastTxMs = 0, satNSent = 0, satNHeard = 0;
+    static FmCore::Channel beforeSat;
+
+    // banda de aficionados del modulo para emitir (2 m: 144-146 MHz en la Region 1, 144-148 en la 2 y la 3; 70 cm: 430-440, 420-450 en la 2)
+    static long     satExtHz = 0;
+    static uint32_t satExtMs = 0;
+
+    static bool hamUplink(long hz) {
+        if (!SA868::validFreq(hz)) return false;
+        const int r = Config.sa868.iaruRegion;
+        if (SA868::uhf()) return r == 2 ? (hz >= 420000000L && hz <= 450000000L) : (hz >= 430000000L && hz <= 440000000L);
+        return hz >= 144000000L && hz <= (r == 1 ? 146000000L : 148000000L);
+    }
+
+    static bool satLoad() {
+        if (!satDataLoaded || SAT_Utils::count() == 0) { SAT_Utils::begin(); satDataLoaded = true; }
+        return SAT_Utils::block() != nullptr;
+    }
+
+    bool satUsable(int i) {
+        const SatCore::Block* b = SAT_Utils::block();
+        if (!b || i < 0 || i >= b->txCount) return false;
+        return SA868::validFreq((long)SatCore::txDownCenter(b->tx[i])) || hamUplink((long)SatCore::txUpCenter(b->tx[i]));
+    }
+
+    static bool satCallOk() {
+        String c = currentBeacon ? currentBeacon->callsign : String("");
+        c.trim(); c.toUpperCase();
+        return c.length() >= 3 && !c.startsWith("NOCALL") && !c.startsWith("N0CALL");
+    }
+
+    bool satCanTx(char* why, size_t n) {
+        if (n) why[0] = 0;
+        if (!satActive)               { snprintf(why, n, "No satellite"); return false; }
+        if (!satTxOk)                 { snprintf(why, n, "Uplink not in band"); return false; }
+        if (!Config.sat.txEnabled)    { snprintf(why, n, "SAT TX off (WebUI)"); return false; }
+        if (!satCallOk())             { snprintf(why, n, "Set your callsign"); return false; }
+        SatCore::Look lk;
+        if (!SAT_Utils::live(lk))     { snprintf(why, n, "No time/position"); return false; }
+        if (lk.elDeg < Config.sat.txMinEl) { snprintf(why, n, "El %d < %d", (int)lround(lk.elDeg), Config.sat.txMinEl); return false; }
+        return true;
+    }
+
+    // el PTT: en el modo SAT solo hacia el satelite; en FM, con un satelite, solo si se puede emitir hacia el
+    static bool satPttOk() {
+        if (!satActive) {
+            if (Config.operatingMode == MODE_SAT) { note("No sat: Listen first"); return false; }
+            return true;
+        }
+        char why[28];
+        if (!satCanTx(why, sizeof(why))) { note(why); return false; }
+        // subida al dia antes de emitir
+        if (satWantTx && satWantTx != satTunedTx && SA868::fmRetune(satTunedRx, satWantTx)) satTunedTx = satWantTx;
+        satLastTxMs = millis();
+        return true;
+    }
+
+    static void satCompute() {
+        double rx = 0, tx = 0;
+        SAT_Utils::doppler(satT, rx, tx);
+        satDopOkFlag = rx > 0 || tx > 0;
+        const long dn = (long)SatCore::txDownCenter(satT), up = (long)SatCore::txUpCenter(satT);
+        satDop = (rx > 0 && dn) ? (int)lround(rx - (double)dn) : 0;
+        const bool ext = satExtMs && millis() - satExtMs < 15000UL && SA868::validFreq(satExtHz);
+        if (ext)          satWantRx = satExtHz;
+        else if (satRxOk) satWantRx = (rx > 0 ? (long)lround(rx) : dn) + satFineOff;
+        else if (satTxOk) satWantRx = tx > 0 ? (long)lround(tx) : up;           // banda cruzada: se oye la subida (otras estaciones)
+        satWantTx = satTxOk ? (tx > 0 ? (long)lround(tx) : up) : satWantRx;
+    }
+
+    static int satThreshold() { return SA868::firmware() == SA868::Firmware::OPENRTX ? 250 : 500; }
+
+    bool satStart(int txIndex) {
+        if (arts.running()) { note("ARTS on"); return false; }
+        if (!satLoad())     { note("No satellite data"); return false; }
+        const SatCore::Block* b = SAT_Utils::block();
+        if (txIndex < 0 || txIndex >= b->txCount) { note("No transmitter"); return false; }
+        const SatCore::Transmitter& t = b->tx[txIndex];
+        const long dn = (long)SatCore::txDownCenter(t), up = (long)SatCore::txUpCenter(t);
+        const bool rxOk = dn > 0 && SA868::validFreq(dn), txOk = up > 0 && hamUplink(up);
+        if (!rxOk && !txOk) { note(SA868::uhf() ? "Not in 70cm band" : "Not in 2m band"); return false; }
+        scanStop();
+        if (!satActive) beforeSat = cur;
+        satActive = true; satIdx = txIndex; satT = t; satNorad = b->noradId; satRxOk = rxOk; satTxOk = txOk;
+        satTunedRx = satTunedTx = 0; satCalcMs = 0;
+        satCompute();
+        FmCore::Channel c = cur;
+        snprintf(c.name, sizeof(c.name), "%.8s", b->name);
+        c.rxHz = satWantRx;
+        if (satWantTx != satWantRx) { c.shift = satWantTx > satWantRx ? 1 : -1; c.offsetHz = labs(satWantTx - satWantRx); } else c.shift = 0;
+        c.toneMode = t.tone ? FmCore::TONE_ENC : FmCore::TONE_OFF;
+        if (t.tone) c.tone = t.tone;
+        c.wide = true;                                          // 25 kHz: margen para el Doppler que queda y para el error del oscilador del satelite
+        cur = c;
+        applyNow();
+        satTunedRx = satWantRx; satTunedTx = satWantTx; satRetuneMs = millis();
+        if (Config.fm.satTx != txIndex || !Config.fm.satOn) { Config.fm.satTx = txIndex; Config.fm.satOn = true; markDirty(); }
+        char f[12]; FmCore::formatFreq(satWantRx, f, sizeof(f));
+        char m[24]; snprintf(m, sizeof(m), "SAT %s", f); note(m);
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "FM SAT", "%s tx %d: down %.4f up %.4f MHz%s%s, tone %.1f Hz", b->name, txIndex,
+                   dn / 1e6, up / 1e6, rxOk ? "" : " (listening on the uplink)", txOk ? "" : " (no TX: uplink not in band)", t.tone / 10.0);
+        return true;
+    }
+
+    void satStop() {
+        if (!satActive) return;
+        satActive = false;
+        cur = beforeSat;
+        applyNow();
+        if (Config.fm.satOn) { Config.fm.satOn = false; markDirty(); }
+        note("SAT off");
+    }
+
+    bool satNextTx(int dir) {
+        if (!satLoad()) return false;
+        const SatCore::Block* b = SAT_Utils::block();
+        for (int k = 1; k <= b->txCount; k++) {
+            const int i = ((satIdx + dir * k) % b->txCount + b->txCount) % b->txCount;
+            if (satUsable(i)) return satStart(i);
+        }
+        note("No other usable TX");
+        return false;
+    }
+
+    bool     satOn()          { return satActive; }
+    int      satTxIndex()     { return satIdx; }
+    void     satFine(int d)   { satFineOff = constrain(satFineOff + d, -20000, 20000); satCalcMs = 0; }
+    int      satFineHz()      { return satFineOff; }
+    long     satRxHz()        { return satActive ? satTunedRx : 0; }
+    long     satUpHz()        { return (satActive && satTxOk) ? satWantTx : 0; }
+    int      satDopplerHz()   { return satDop; }
+    bool     satDopplerOk()   { return satDopOkFlag; }
+    bool     satListenUplink(){ return satActive && !satRxOk; }
+    bool     satAprs()        { return satActive && SatCore::aprsDigi(satT); }
+    uint16_t satTone()        { return satActive && cur.toneMode == FmCore::TONE_ENC ? cur.tone : 0; }
+    uint32_t satSent()        { return satNSent; }
+    uint32_t satHeard()       { return satNHeard; }
+    void     satOnFrame()     { if (satActive) satNHeard++; }
+    void     satExternalHz(long hz) { satExtHz = hz; satExtMs = millis() ? millis() : 1; satCalcMs = 0; }
+    bool     uplinkInBand(long hz)  { return hamUplink(hz); }
+
+    // cada 500 ms: Doppler; se resintoniza al pasar el umbral (y como mucho una vez por segundo), nunca emitiendo
+    static void satTick(uint32_t now) {
+        if (!satActive) return;
+        const SatCore::Block* b = SAT_Utils::block();
+        if (!b || b->noradId != satNorad) { satStop(); return; }            // otro satelite elegido (modo SAT, app)
+        if (Config.operatingMode == MODE_FM) SAT_Utils::loop();            // en el modo SAT lo llama la pagina
+        if (now - satCalcMs < 500) return;
+        satCalcMs = now;
+        satCompute();
+        if (SA868::fmTransmitting() || now - satRetuneMs < 1000) return;
+        const int thr = satThreshold();
+        if (labs(satWantRx - satTunedRx) >= thr || labs(satWantTx - satTunedTx) >= thr * 2) {
+            if (SA868::fmRetune(satWantRx, satWantTx)) { satTunedRx = satWantRx; satTunedTx = satWantTx; cur = SA868::fmChannel(); }
+            satRetuneMs = now;
+        }
+    }
+
+    // "EA7JRS-7>APLRT1,WIDE1-1:info" -> "EA7JRS-7>APLRT1,ARISS:info"
+    static String satPath(const char* tnc2) {
+        const char* gt = strchr(tnc2, '>');
+        const char* colon = strchr(tnc2, ':');
+        if (!gt || !colon || colon < gt) return String(tnc2);
+        const char* comma = gt;
+        while (comma < colon && *comma != ',') comma++;
+        String out(tnc2);
+        out = out.substring(0, comma - tnc2);
+        String path = Config.sat.aprsPath; path.trim();
+        if (path.length()) { out += ','; out += path; }
+        out += colon;
+        return out;
+    }
+
+    static bool satAprsTx(const String& tnc2) {
+        char why[28];
+        if (!satCanTx(why, sizeof(why))) { note(why); return false; }
+        if (satLastTxMs && millis() - satLastTxMs < (uint32_t)Config.sat.txMinIntervalS * 1000UL) { note("SAT: wait"); return false; }
+        if (SA868::fmTransmitting() || pttDown) { note("Busy"); return false; }
+        if (satWantTx != satTunedTx && SA868::fmRetune(satTunedRx, satWantTx)) satTunedTx = satWantTx;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "FM SAT", "Tx %.4f MHz ---> %s", satTunedTx / 1e6, tnc2.c_str());
+        const bool okTx = SA868::transmit(tnc2.c_str());
+        satLastTxMs = millis();
+        if (okTx) { satNSent++; PAGES_Utils::onTx((int)tnc2.length()); note("Sent via SAT"); }
+        return okTx;
+    }
+
+    bool satSendAprs(const char* info) {
+        if (!satAprs()) { note("Not an APRS sat"); return false; }
+        if (!info || !info[0]) { note("No message"); return false; }
+        String call = currentBeacon ? currentBeacon->callsign : String("");
+        call.trim();
+        return satAprsTx(satPath((call + ">APLRT1:" + info).c_str()));
+    }
+
+    bool satSendPosition(const char* comment) {
+        if (!satAprs()) { note("Not an APRS sat"); return false; }
+        double lat, lon;
+        if (gps.location.isValid() && gps.location.age() < 10000UL) { lat = gps.location.lat(); lon = gps.location.lng(); }
+        else { SatCore::Observer o; if (!SAT_Utils::observer(o)) { note("No position"); return false; } lat = o.latDeg; lon = o.lonDeg; }
+        if (!currentBeacon) return false;
+        String p = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, "APLRT1", Config.sat.aprsPath, currentBeacon->overlay,
+                       APRSPacketLib::encodeGPSIntoBase91(lat, lon, 0, 0, currentBeacon->symbol, false, 0, false));
+        String c = comment && comment[0] ? String(comment) : currentBeacon->comment;
+        if (c.length() > 40) c = c.substring(0, 40);                   // corto: el digipetidor de la ISS es muy concurrido
+        if (c.length()) p += c;
+        return satAprsTx(p);
+    }
+
     // ---- APRS -------------------------------------------------------------------------------------------------------
+
+    static bool satAprsNow() {
+        if (!satAprs()) return false;
+        char why[28];
+        return satCanTx(why, sizeof(why));
+    }
 
     bool aprsTransmit(const char* tnc2) {
         if (SA868::fmTransmitting() || pttDown || eai.running()) {          // se esta hablando: sale al soltar el PTT
             pendingAprs = tnc2;
             return true;
         }
+        if (satAprsNow()) {                                                // satelite APRS a la vista: por el satelite (ruta ARISS), si no toca esperar
+            if (satLastTxMs && millis() - satLastTxMs < (uint32_t)Config.sat.txMinIntervalS * 1000UL) return true;     // descartada: no saturar el digipetidor
+            return satAprsTx(satPath(tnc2));
+        }
+        if (Config.operatingMode == MODE_SAT) { note("SAT not in view"); return false; }      // en el modo SAT solo por el satelite
         return SA868::fmAprsTransmit(tnc2);
     }
 
@@ -428,6 +666,8 @@ namespace FM_Utils {
         manDown.configure(Config.fm.manDownMin);
         manDown.activity(millis());
         started = true;
+        // FM: vuelve a seguir al satelite si se dejo asi (en el modo SAT se empieza con "Listen")
+        if (Config.operatingMode == MODE_FM && Config.fm.satOn) { if (!satStart(Config.fm.satTx)) { Config.fm.satOn = false; markDirty(); } }
         char f[12]; FmCore::formatFreq(cur.rxHz, f, sizeof(f));
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "FM", "Voice mode on %s MHz (%s), squelch %s", f, Config.fm.memMode ? "memory" : "VFO",
                    Config.fm.squelchAuto ? "auto" : "manual");
@@ -441,7 +681,7 @@ namespace FM_Utils {
             activity();
             if (down) {
                 if (scanner.running()) scanStop();
-                if (!pttLock && !SA868::fmTransmitting() && SA868::fmVoice(true)) txStartMs = now;
+                if (!pttLock && !SA868::fmTransmitting() && satPttOk() && SA868::fmVoice(true)) txStartMs = now;
             } else {
                 pttLock = false;
                 if (SA868::fmVoiceActive() && !eai.micOn) {
@@ -503,6 +743,7 @@ namespace FM_Utils {
             handleArts(now, isBusy);
         }
         lastBusy = isBusy;
+        satTick(now);
         if (manDown.enabled()) {
             const uint8_t m = manDown.tick(now);
             if (m == 1) { note("MAN DOWN in 30 s"); displayToggle(true); displayPopup("MAN DOWN", "EAI in 30 s", "Press any key", -1, 1500); }
@@ -511,7 +752,7 @@ namespace FM_Utils {
         if (pendingAprs.length() && !SA868::fmTransmitting() && !pttDown && !eai.running() && !isBusy) {
             const String p = pendingAprs;
             pendingAprs = "";
-            SA868::fmAprsTransmit(p.c_str());
+            aprsTransmit(p.c_str());
         }
         if (applyPending && now - applyAt >= 150 && !SA868::fmTransmitting()) applyNow();
         if (dirty && now - dirtyAt > 5000 && !SA868::fmTransmitting()) { dirty = false; Config.writeFile(); }

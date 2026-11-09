@@ -472,7 +472,7 @@ namespace MSG_Utils {
                 }
                 if (freshPacket) {
 
-                    if (digipeaterActive && Config.operatingMode != MODE_FM && lastReceivedPacket.addressee != currentBeacon->callsign) {      // FM (T-TWR): sin digipeater
+                    if (digipeaterActive && Config.operatingMode != MODE_FM && Config.operatingMode != MODE_SAT && lastReceivedPacket.addressee != currentBeacon->callsign) {      // FM y SAT (T-TWR): sin digipeater
                         String digipeatedPacket = APRSPacketLib::checkForStartingBytes(APRSPacketLib::generateDigipeatedPacket(packet.text, currentBeacon->callsign, "WIDE1-1"));    // tracker digi = WIDE1-1 fill-in only (not the beacon path)
                         if (digipeatedPacket == "X") {
                             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "%s", "Packet won't be Repeated (Missing WIDEn-N)");

@@ -18,6 +18,9 @@
 #include "sat_utils.h"
 #include "configuration.h"
 #include "gps_utils.h"
+#ifdef HAS_SA868
+#include "sa868_radio.h"
+#endif
 
 extern Configuration    Config;
 extern logging::Logger  logger;
@@ -29,8 +32,43 @@ namespace SAT_Utils {
 
         const char*  FILE_PATH       = "/sats.txt";
         const char*  FILE_TMP        = "/sats.tmp";
-        const size_t MAX_FILE_BYTES  = 64000;          // la particion de datos es de 192 kB y durante la descarga conviven el archivo viejo y el nuevo
-        const int    MAX_ENTRIES     = 300;
+        // la particion de datos de la mayoria de placas es de 192 kB y durante la descarga conviven el archivo viejo y el nuevo: 64 kB;
+        // con una particion grande (T-TWR, 16 MB de flash: ~3,4 MB) cabe el archivo completo por grupos
+        size_t       MAX_FILE_BYTES  = 64000;
+        int          MAX_ENTRIES     = 300;
+        bool         limitsSet       = false;
+
+        void setLimits() {
+            if (limitsSet) return;
+            if (!SPIFFS.begin(true)) return;
+            limitsSet = true;
+            const size_t total = SPIFFS.totalBytes();
+            if (total >= 1500000) MAX_FILE_BYTES = total / 2 - 200000 > 900000 ? 900000 : total / 2 - 200000;
+            MAX_ENTRIES = psramFound() ? 3000 : (total >= 1500000 ? 800 : 300);    // ~40 bytes por satelite en el indice (PSRAM si la hay)
+        }
+
+        // ---- favoritos (Config.sat.favorites: "25544,27607,...") ----
+        const int MAX_FAV = 32;
+        int  favs[MAX_FAV];
+        int  favN = -1;                                          // -1 = sin leer
+
+        void loadFavs() {
+            favN = 0;
+            const char* p = Config.sat.favorites.c_str();
+            while (*p && favN < MAX_FAV) {
+                while (*p && (*p < '0' || *p > '9')) p++;
+                if (!*p) break;
+                const long v = strtol(p, (char**)&p, 10);
+                if (v > 0 && v < 10000000) { bool dup = false; for (int k = 0; k < favN; k++) dup |= favs[k] == (int)v; if (!dup) favs[favN++] = (int)v; }
+            }
+        }
+
+        void saveFavs() {
+            String s;
+            for (int k = 0; k < favN; k++) { if (k) s += ','; s += String(favs[k]); }
+            Config.sat.favorites = s;
+            Config.writeFile();
+        }
 
         std::vector<Entry> index;
         int                sel       = -1;
@@ -123,48 +161,105 @@ namespace SAT_Utils {
         void setMsg(const char* m) { snprintf(updMsg, sizeof(updMsg), "%s", m); }
 
         // ---- indice del archivo ----
+        // Una linea del archivo (sin el salto); pos = su posicion. Devuelve false si el indice esta lleno.
+        Entry idxCur;
+        bool  idxOpen = false;
+
+        bool indexLine(const char* line, size_t n, uint32_t pos) {
+            if (n < 2) return true;
+            if (line[0] == '#') {
+                // "# APRS LoRa+ satellites (70 cm) 2026-11-06T03:17Z"
+                if (stamp[0] == '\0' && n < 160) {
+                    char l[160]; memcpy(l, line, n); l[n] = 0;
+                    const char* sp = strrchr(l, ' ');
+                    if (sp && strstr(l, "satellites")) snprintf(stamp, sizeof(stamp), "%s", sp + 1);
+                }
+                return true;
+            }
+            if (line[0] == 'S' && line[1] == '|') {
+                if (idxOpen) { idxCur.length = (uint16_t)(pos - idxCur.offset); index.push_back(idxCur); idxOpen = false; }
+                if ((int)index.size() >= MAX_ENTRIES) return false;
+                memset(&idxCur, 0, sizeof(idxCur));
+                idxCur.offset = pos;
+                idxCur.cat = 'U';
+                // S|<norad>|<nombre>|<categoria>|<grupos>
+                const char* f[5] = { line + 2, nullptr, nullptr, nullptr, nullptr };
+                size_t fl[5] = { 0, 0, 0, 0, 0 };
+                int nf = 1;
+                for (size_t k = 2; k < n; k++) {
+                    if (line[k] == '|') { if (nf < 5) { f[nf] = line + k + 1; nf++; } continue; }
+                    if (nf <= 5) fl[nf - 1]++;
+                }
+                char num[12]; const size_t m = fl[0] < sizeof(num) - 1 ? fl[0] : sizeof(num) - 1;
+                memcpy(num, f[0], m); num[m] = 0;
+                idxCur.noradId = atoi(num);
+                if (nf > 1) {
+                    size_t ln = fl[1];
+                    const char* nm = f[1];
+                    while (ln && *nm == ' ') { nm++; ln--; }
+                    while (ln && nm[ln - 1] == ' ') ln--;
+                    if (ln > sizeof(idxCur.name) - 1) ln = sizeof(idxCur.name) - 1;
+                    memcpy(idxCur.name, nm, ln); idxCur.name[ln] = 0;
+                }
+                if (nf > 2 && fl[2] > 0 && (f[2][0] == 'L' || f[2][0] == 'G' || f[2][0] == 'V')) idxCur.cat = f[2][0];
+                if (nf > 3) for (size_t k = 0; k < fl[3]; k++) { const char c = f[3][k]; if (c >= 'a' && c <= 'z') idxCur.groups |= 1UL << (c - 'a'); }
+                idxOpen = true;
+            } else if (idxOpen && line[0] == 'T' && line[1] == '|') {
+                idxCur.txCount++;
+                char l[200];
+                size_t m = n < sizeof(l) - 1 ? n : sizeof(l) - 1;
+                while (m && (line[m - 1] == '\r' || line[m - 1] == ' ')) m--;
+                memcpy(l, line, m); l[m] = 0;
+                SatCore::Transmitter t;
+                if (SatCore::parseTxLine(l, t)) idxCur.bands |= SatCore::txBands(t);
+            }
+            return true;
+        }
+
         void buildIndex() {
             index.clear();
             sel = -1;
             satReady = false;
             stamp[0] = '\0';
+            setLimits();
             if (!SPIFFS.begin(true)) return;
             File f = SPIFFS.open(FILE_PATH, "r");
             if (!f) return;
-            index.reserve(MAX_ENTRIES);
-            Entry cur;
-            bool open = false;
-            while (f.available()) {
-                const uint32_t pos = f.position();
-                String line = f.readStringUntil('\n');
-                if (line.length() < 2) continue;
-                if (line[0] == '#') {
-                    // "# APRS LoRa+ satellites (70 cm) 2026-11-06T03:17Z"
-                    int sp = line.lastIndexOf(' ');
-                    if (stamp[0] == '\0' && sp > 0 && line.indexOf("satellites") > 0) snprintf(stamp, sizeof(stamp), "%s", line.c_str() + sp + 1);
-                    continue;
+            index.reserve(MAX_ENTRIES < 400 ? MAX_ENTRIES : 400);
+            idxOpen = false;
+            // lectura por bloques de 2 kB (el archivo completo pasa de 500 kB): las lineas no superan 200 caracteres
+            static char buf[2304];
+            size_t have = 0;
+            uint32_t base = 0;                                   // posicion en el archivo de buf[0]
+            bool full = false, eof = false;
+            while (!full) {
+                if (!eof && have < sizeof(buf)) {
+                    const size_t r = f.read((uint8_t*)buf + have, sizeof(buf) - have);
+                    if (r == 0) eof = true;
+                    have += r;
                 }
-                if (line[0] == 'S' && line[1] == '|') {
-                    if (open) { cur.length = (uint16_t)(pos - cur.offset); index.push_back(cur); }
-                    if ((int)index.size() >= MAX_ENTRIES) { open = false; break; }
-                    memset(&cur, 0, sizeof(cur));
-                    cur.offset = pos;
-                    cur.cat = 'U';
-                    int p2 = line.indexOf('|', 2);
-                    cur.noradId = line.substring(2, p2 > 0 ? p2 : line.length()).toInt();
-                    if (p2 > 0) {
-                        int p3 = line.indexOf('|', p2 + 1);
-                        String n = line.substring(p2 + 1, p3 > 0 ? p3 : line.length());
-                        n.trim();
-                        snprintf(cur.name, sizeof(cur.name), "%s", n.c_str());
-                        if (p3 > 0 && p3 + 1 < (int)line.length() && (line[p3 + 1] == 'L' || line[p3 + 1] == 'G')) cur.cat = line[p3 + 1];
-                    }
-                    open = true;
-                } else if (open && line[0] == 'T' && line[1] == '|') {
-                    cur.txCount++;
+                size_t start = 0;
+                bool any = false;
+                for (size_t k = 0; k < have; k++) {
+                    if (buf[k] != '\n') continue;
+                    any = true;
+                    if (!indexLine(buf + start, k - start, base + (uint32_t)start)) { full = true; break; }
+                    start = k + 1;
                 }
+                if (full) break;
+                if (eof) {
+                    if (start < have) indexLine(buf + start, have - start, base + (uint32_t)start);
+                    break;
+                }
+                if (!any && have == sizeof(buf)) start = have;        // linea demasiado larga: se descarta
+                memmove(buf, buf + start, have - start);
+                have -= start;
+                base += (uint32_t)start;
+                if ((index.size() & 63) == 0) delay(0);
             }
-            if (open) { cur.length = (uint16_t)(f.position() - cur.offset); index.push_back(cur); }
+            const uint32_t endPos = full ? (uint32_t)idxCur.offset : (uint32_t)f.size();
+            if (idxOpen && !full) { idxCur.length = (uint16_t)(endPos - idxCur.offset); index.push_back(idxCur); }
+            idxOpen = false;
             f.close();
         }
 
@@ -236,23 +331,76 @@ namespace SAT_Utils {
 
     bool geo() { return geoSat; }
 
-    bool inCategory(const Entry& e) {
-        switch (Config.sat.category) {
-            case 1:  return e.cat == 'U';
+    bool radioBand(uint8_t bands) {
+        #ifdef HAS_SA868
+            return (bands & (SA868::uhf() ? SatCore::BAND_UHF : SatCore::BAND_VHF)) != 0;
+        #else
+            return (bands & SatCore::BAND_70CM) != 0;
+        #endif
+    }
+
+    bool inCategory(const Entry& e, int c) {
+        switch (c) {
+            case 1:  return e.cat == 'U' || (e.bands & SatCore::BAND_70CM);
             case 2:  return e.cat == 'L';
             case 3:  return e.cat == 'G';
+            case 4:  return isFavorite(e.noradId);
+            case 5:  return e.cat == 'V' || (e.bands & SatCore::BAND_2M);
+            case 6:  return radioBand(e.bands);
             default: return true;
         }
     }
 
-    const char* categoryName() {
-        switch (Config.sat.category) {
+    bool inCategory(const Entry& e) { return inCategory(e, Config.sat.category); }
+
+    int categoryCount(int c) {
+        int n = 0;
+        for (const Entry& e : index) if (inCategory(e, c)) n++;
+        return n;
+    }
+
+    const char* categoryName(int c) {
+        switch (c) {
             case 1:  return "70cm";
             case 2:  return "LoRa/TinyGS";
             case 3:  return "GEO/Inmarsat";
+            case 4:  return "Favorites";
+            case 5:  return "2m";
+            case 6:  return "This radio";
             default: return "All";
         }
     }
+
+    const char* categoryName() { return categoryName(Config.sat.category); }
+
+    bool isFavorite(int norad) {
+        if (favN < 0) loadFavs();
+        for (int k = 0; k < favN; k++) if (favs[k] == norad) return true;
+        return false;
+    }
+
+    bool setFavorite(int norad, bool on) {
+        if (favN < 0) loadFavs();
+        if (norad <= 0) return false;
+        for (int k = 0; k < favN; k++) {
+            if (favs[k] != norad) continue;
+            if (on) return true;
+            for (int j = k; j + 1 < favN; j++) favs[j] = favs[j + 1];
+            favN--;
+            saveFavs();
+            return true;
+        }
+        if (!on) return true;
+        if (favN >= MAX_FAV) return false;
+        favs[favN++] = norad;
+        saveFavs();
+        return true;
+    }
+
+    int favoriteCount() { if (favN < 0) loadFavs(); return favN; }
+
+    size_t maxDataBytes() { setLimits(); return MAX_FILE_BYTES; }
+    int    maxEntries()   { setLimits(); return MAX_ENTRIES; }
 
     int step(int direction) {
         const int n = (int)index.size();
@@ -265,13 +413,27 @@ namespace SAT_Utils {
         return -1;
     }
 
-    int nextCategory() {
-        Config.sat.category = (Config.sat.category + 1) % 4;
+    bool setCategory(int c) {
+        if (c < 0 || c > 6) return false;
+        Config.sat.category = c;
         if (sel < 0 || sel >= (int)index.size() || !inCategory(index[sel])) {
             const int i = step(1);
             if (i >= 0) select(i); else Config.writeFile();
         } else {
             Config.writeFile();
+        }
+        return true;
+    }
+
+    // orden en el que se recorren: todos, favoritos, los de esta radio, 2 m, 70 cm, LoRa, GEO (se saltan las vacias)
+    int nextCategory() {
+        static const int ORDER[] = { 0, 4, 6, 5, 1, 2, 3 };
+        const int n = sizeof(ORDER) / sizeof(ORDER[0]);
+        int pos = 0;
+        for (int k = 0; k < n; k++) if (ORDER[k] == Config.sat.category) pos = k;
+        for (int k = 1; k <= n; k++) {
+            const int c = ORDER[(pos + k) % n];
+            if (c == 0 || categoryCount(c) > 0) { setCategory(c); break; }
         }
         return Config.sat.category;
     }
@@ -349,20 +511,50 @@ namespace SAT_Utils {
     const char* updateMessage() { return updMsg; }
 
     // ---- Subida del archivo desde el movil (BLE) ----
-    namespace { File upFile; bool upOpen = false; size_t upTotal = 0; }
+    namespace { File upFile; bool upOpen = false; size_t upTotal = 0; volatile bool endPending = false; }
 
     void dataAbort() {
         if (upOpen) { upFile.close(); SPIFFS.remove(FILE_TMP); }
+        if (upOpen && updState == UPD_WORKING) updState = UPD_IDLE;
         upOpen = false; upTotal = 0;
     }
 
+    void dataEndLater() { if (upOpen) endPending = true; }
+
+    void service() {
+        if (!endPending) return;
+        endPending = false;
+        dataEnd();
+    }
+
+    String statusJson() {
+        setLimits();
+        String o = "{\"count\":";
+        o += String((int)index.size());
+        size_t bytes = 0;
+        if (SPIFFS.begin(true)) { File f = SPIFFS.open(FILE_PATH, "r"); if (f) { bytes = f.size(); f.close(); } }
+        if (index.empty() && bytes > 0) o += ",\"loaded\":false"; else o += ",\"loaded\":true";
+        o += ",\"bytes\":"; o += String((unsigned long)bytes);
+        o += ",\"max\":"; o += String((unsigned long)MAX_FILE_BYTES);
+        o += ",\"stamp\":\""; o += stamp; o += "\"";
+        o += ",\"state\":"; o += String((int)updState);
+        o += ",\"msg\":\""; o += updMsg; o += "\"";
+        o += ",\"pending\":"; o += endPending ? "true" : "false";
+        o += ",\"fav\":"; o += String(favoriteCount());
+        o += "}";
+        return o;
+    }
+
     bool dataBegin(size_t expectedBytes) {
-        if (updState == UPD_WORKING) return false;
+        if (endPending) return false;
         dataAbort();
+        setLimits();
         if (expectedBytes > MAX_FILE_BYTES || !SPIFFS.begin(true)) return false;
         upFile = SPIFFS.open(FILE_TMP, "w");
         if (!upFile) return false;
         upOpen = true; upTotal = 0;
+        updState = UPD_WORKING;
+        setMsg("Receiving...");
         return true;
     }
 
@@ -390,9 +582,10 @@ namespace SAT_Utils {
         const int keep = sel >= 0 && sel < (int)index.size() ? index[sel].noradId : Config.sat.noradId;
         buildIndex();
         for (int i = 0; i < (int)index.size(); i++) if (index[i].noradId == keep) { sel = i; break; }
+        if (sel < 0 && !index.empty()) sel = 0;
         if (sel >= 0) loadBlock(sel);
         restartSearch();
-        char m[40]; snprintf(m, sizeof(m), "%d satellites (app)", (int)index.size());
+        char m[40]; snprintf(m, sizeof(m), "%d satellites stored", (int)index.size());
         setMsg(m);
         updState = UPD_OK;
         return true;
@@ -411,6 +604,16 @@ namespace SAT_Utils {
     int  selected() { return -1; }
     bool select(int) { return false; }
     bool inCategory(const Entry&) { return false; }
+    bool inCategory(const Entry&, int) { return false; }
+    int  categoryCount(int) { return 0; }
+    const char* categoryName(int) { return ""; }
+    bool isFavorite(int) { return false; }
+    bool setFavorite(int, bool) { return false; }
+    int  favoriteCount() { return 0; }
+    size_t maxDataBytes() { return 0; }
+    int  maxEntries() { return 0; }
+    bool radioBand(uint8_t) { return false; }
+    bool setCategory(int) { return false; }
     int  step(int) { return -1; }
     const char* categoryName() { return ""; }
     int  nextCategory() { return 0; }
@@ -430,6 +633,9 @@ namespace SAT_Utils {
     bool dataChunk(const char*, size_t) { return false; }
     bool dataEnd() { return false; }
     void dataAbort() {}
+    void dataEndLater() {}
+    void service() {}
+    String statusJson() { return "{}"; }
     UpdateState updateState() { return UPD_IDLE; }
     const char* updateMessage() { return ""; }
 }

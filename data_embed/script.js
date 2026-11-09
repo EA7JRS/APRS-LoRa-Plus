@@ -649,6 +649,9 @@ function loadSettings(settings) {
         document.getElementById("sat.txPower").value = sat.txPower ?? 10;
         document.getElementById("sat.txMinIntervalS").value = sat.txMinIntervalS ?? 30;
         document.getElementById("sat.txText").value = sat.txText ?? "";
+        document.getElementById("sat.aprsPath").value = sat.aprsPath ?? "ARISS";
+        document.getElementById("sat.favorites").value = (sat.favorites ?? "").split(",").filter(x => x).join(", ");
+        satGroupsSet(sat.groups ?? "");
         document.getElementById("sat.lnaPin").value = sat.lnaPin ?? -1;
         document.getElementById("sat.paPin").value = sat.paPin ?? -1;
         document.getElementById("sat.pttPin").value = sat.pttPin ?? -1;
@@ -1795,3 +1798,107 @@ function boardPinInit() {
         .catch(() => {});
 }
 window.addEventListener("load", () => setTimeout(boardPinInit, 300));
+
+
+// ---- Archivo de satelites por WiFi (EA7JRS): el navegador lo baja de internet, lo filtra por grupos y lo sube al tracker ----
+const SAT_ALL_URL = "https://raw.githubusercontent.com/EA7JRS/APRS-LoRa-Plus/satdata/sats_all.txt";
+const SAT_OLD_URL = "https://raw.githubusercontent.com/EA7JRS/APRS-LoRa-Plus/satdata/sats.txt";
+const SAT_GROUPS = [["s", "Space stations"], ["a", "Amateur radio"], ["c", "CubeSats"], ["n", "SatNOGS"], ["w", "Weather"], ["v", "Brightest (visual)"],
+                    ["x", "Science"], ["d", "Education"], ["e", "Engineering"], ["l", "LoRa / TinyGS"], ["g", "Geostationary"]];
+let satMaxBytes = 64000;
+
+function satGroupsSet(letters) {
+    const box = document.getElementById("satdata-groups");
+    if (!box) return;
+    box.innerHTML = "";
+    SAT_GROUPS.forEach(([c, name]) => {
+        const d = document.createElement("div");
+        d.className = "form-check form-check-inline";
+        d.innerHTML = '<input type="checkbox" class="form-check-input" id="satg-' + c + '"' + (letters.indexOf(c) >= 0 ? " checked" : "") +
+                      ' /><label class="form-check-label small" for="satg-' + c + '">' + name + "</label>";
+        box.appendChild(d);
+        d.querySelector("input").addEventListener("change", satGroupsSave);
+    });
+    document.getElementById("sat.groups").value = letters;
+}
+
+function satGroupsGet() { return SAT_GROUPS.map(([c]) => c).filter(c => { const e = document.getElementById("satg-" + c); return e && e.checked; }).join(""); }
+function satGroupsSave() { document.getElementById("sat.groups").value = satGroupsGet(); }
+
+// Bloques "S|..." del archivo; quedan los de los grupos elegidos y los favoritos, hasta lo que cabe en el tracker
+function satFilter(text, groups, favs, maxBytes) {
+    const lines = text.split("\n");
+    const head = [], blocks = [];
+    let cur = null;
+    lines.forEach(l => {
+        if (l.startsWith("S|")) { cur = [l]; blocks.push(cur); }
+        else if (cur) { if (l.length) cur.push(l); }
+        else if (l.startsWith("#")) head.push(l);
+    });
+    const pick = b => {
+        const f = b[0].split("|");
+        const id = parseInt(f[1], 10);
+        if (favs.has(id)) return 2;
+        if (!groups) return 1;
+        const g = (f[4] || "") + (f[3] === "L" ? "l" : "") + (f[3] === "G" ? "g" : "");
+        return [...groups].some(c => g.indexOf(c) >= 0) ? 1 : 0;
+    };
+    const chosen = blocks.map(b => [pick(b), b]).filter(x => x[0] > 0);
+    chosen.sort((a, b) => b[0] - a[0]);                     // los favoritos primero, por si no cabe todo
+    let out = head.join("\n") + "\n", n = 0, dropped = 0;
+    chosen.forEach(([, b]) => {
+        const t = b.join("\n") + "\n";
+        if (out.length + t.length > maxBytes) { dropped++; return; }
+        out += t; n++;
+    });
+    return { text: out, count: n, dropped: dropped };
+}
+
+function satStatus() {
+    fetch("/api/satdata?_t=" + Date.now()).then(r => r.json()).then(j => {
+        satMaxBytes = j.max || satMaxBytes;
+        const el = document.getElementById("satdata-status");
+        if (!el) return;
+        let t = j.bytes ? ((j.loaded ? j.count + " satellites, " : "") + Math.round(j.bytes / 1024) + " kB" + (j.stamp ? ", data of " + j.stamp : "")) : "No satellite file yet";
+        t += " · room for " + Math.round(satMaxBytes / 1024) + " kB · " + (j.fav || 0) + " favorites";
+        if (j.pending || j.state === 1) t += " · storing…";
+        if (j.msg && (j.state === 2 || j.state === 3)) t += " · " + j.msg;
+        el.textContent = t;
+        if (j.pending || j.state === 1) setTimeout(satStatus, 1500);
+    }).catch(() => {});
+}
+
+function satUpload(text, label) {
+    const el = document.getElementById("satdata-status");
+    const favs = new Set(document.getElementById("sat.favorites").value.split(/[^0-9]+/).filter(x => x).map(x => parseInt(x, 10)));
+    const r = satFilter(text, satGroupsGet(), favs, satMaxBytes);
+    if (r.count === 0) { el.textContent = "No satellite of those groups in " + label; return; }
+    el.textContent = "Sending " + r.count + " satellites (" + Math.round(r.text.length / 1024) + " kB)" + (r.dropped ? ", " + r.dropped + " left out (no room)" : "") + "…";
+    const fd = new FormData();
+    fd.append("file", new Blob([r.text], { type: "text/plain" }), "sats.txt");
+    fetch("/api/satdata", { method: "POST", body: fd }).then(x => x.json()).then(j => {
+        if (!j.ok) { el.textContent = "The tracker refused the file: " + (j.msg || "?"); return; }
+        setTimeout(satStatus, 1200);
+    }).catch(e => { el.textContent = "Upload failed: " + e; });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const dl = document.getElementById("satdata-download");
+    if (!dl) return;
+    satGroupsSet(document.getElementById("sat.groups").value || "");
+    satStatus();
+    dl.addEventListener("click", () => {
+        const el = document.getElementById("satdata-status");
+        el.textContent = "Downloading from GitHub…";
+        fetch(SAT_ALL_URL, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+            .catch(() => fetch(SAT_OLD_URL, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); }))
+            .then(t => satUpload(t, "the downloaded file"))
+            .catch(e => { el.textContent = "Download failed (" + e.message + "): is there internet on this computer / phone? Use Send a file."; });
+    });
+    document.getElementById("satdata-file").addEventListener("change", ev => {
+        const f = ev.target.files[0];
+        if (!f) return;
+        f.text().then(t => satUpload(t, f.name));
+        ev.target.value = "";
+    });
+});

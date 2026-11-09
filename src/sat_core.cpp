@@ -237,8 +237,99 @@ namespace SatCore {
         t.baud = atoi(f);
         p = nextField(p, end, f, sizeof(f));            if (!p) return false;
         t.invert = f[0] == '1';
-        nextField(p, end, t.desc, sizeof(t.desc));
+        p = nextField(p, end, t.desc, sizeof(t.desc));
+        if (p) { nextField(p, end, f, sizeof(f)); const int v = atoi(f); if (v >= 600 && v <= 2600) t.tone = (uint16_t)v; }
+        if (!t.tone) t.tone = toneFromText(t.desc);
         return true;
+    }
+
+    // Tonos CTCSS estandar (decimas de Hz)
+    static const uint16_t CTCSS_STD[] = { 670, 693, 719, 744, 770, 797, 825, 854, 885, 915, 948, 974, 1000, 1035, 1072, 1109, 1148, 1188, 1230, 1273,
+        1318, 1365, 1413, 1462, 1514, 1567, 1598, 1622, 1655, 1679, 1713, 1738, 1773, 1799, 1835, 1862, 1899, 1928, 1966, 1995, 2035, 2065, 2107,
+        2181, 2257, 2291, 2336, 2418, 2503, 2541 };
+
+    static uint16_t nearestTone(double hz) {
+        const int v = (int)lround(hz * 10.0);
+        for (size_t i = 0; i < sizeof(CTCSS_STD) / sizeof(CTCSS_STD[0]); i++) if (abs((int)CTCSS_STD[i] - v) <= 10) return CTCSS_STD[i];
+        return 0;
+    }
+
+    uint16_t toneFromText(const char* text) {
+        if (!text) return 0;
+        char d[64];
+        size_t n = 0;
+        for (const char* p = text; *p && n + 1 < sizeof(d); p++) d[n++] = (char)((*p >= 'a' && *p <= 'z') ? *p - 32 : *p);
+        d[n] = 0;
+        // "CTCSS 67.0", "PL 74.4", "TONE 88.5", "T067" no (podria ser otra cosa); "67 HZ", "67.0HZ"
+        static const char* const keys[] = { "CTCSS", "PL", "TONE", "SUBTONE", "SUB-TONE" };
+        for (size_t k = 0; k < sizeof(keys) / sizeof(keys[0]); k++) {
+            const char* p = strstr(d, keys[k]);
+            while (p) {
+                const char* q = p + strlen(keys[k]);
+                while (*q == ' ' || *q == ':' || *q == '=') q++;
+                if (*q >= '0' && *q <= '9') { const uint16_t t = nearestTone(atof(q)); if (t) return t; }
+                p = strstr(p + 1, keys[k]);
+            }
+        }
+        for (const char* p = strstr(d, "HZ"); p; p = strstr(p + 1, "HZ")) {
+            const char* q = p;
+            while (q > d && q[-1] == ' ') q--;
+            const char* e = q;
+            while (q > d && ((q[-1] >= '0' && q[-1] <= '9') || q[-1] == '.' || q[-1] == ',')) q--;
+            if (q == e || (q > d && q[-1] == '.')) continue;
+            if (q > d && (q[-1] == 'K' || q[-1] == 'M')) continue;
+            char num[12]; size_t m = 0;
+            for (const char* r = q; r < e && m + 1 < sizeof(num); r++) num[m++] = *r == ',' ? '.' : *r;
+            num[m] = 0;
+            const double v = atof(num);
+            if (v >= 60.0 && v <= 260.0) { const uint16_t t = nearestTone(v); if (t) return t; }
+        }
+        return 0;
+    }
+
+    uint8_t bandsOf(int64_t hz) {
+        if (hz <= 0) return 0;
+        uint8_t b = 0;
+        if (hz >= 144000000LL && hz <= 148000000LL) b |= BAND_2M;
+        if (hz >= 420000000LL && hz <= 450000000LL) b |= BAND_70CM;
+        if (hz >= 134000000LL && hz <= 174000000LL) b |= BAND_VHF;
+        if (hz >= 400000000LL && hz <= 480000000LL) b |= BAND_UHF;
+        return b;
+    }
+
+    uint8_t txBands(const Transmitter& t) {
+        return (uint8_t)(bandsOf(txUpCenter(t)) | bandsOf(txDownCenter(t)));
+    }
+
+    bool aprsDigi(const Transmitter& t) {
+        char m[12]; size_t n = 0;
+        for (const char* p = t.mode; *p && n + 1 < sizeof(m); p++) m[n++] = (char)((*p >= 'a' && *p <= 'z') ? *p - 32 : *p);
+        m[n] = 0;
+        if (strncmp(m, "AFSK", 4) != 0) return false;
+        if (t.baud != 0 && t.baud != 1200) return false;
+        char d[sizeof(t.desc) + 1]; n = 0;
+        for (const char* p = t.desc; *p && n + 1 < sizeof(d); p++) d[n++] = (char)((*p >= 'a' && *p <= 'z') ? *p - 32 : *p);
+        d[n] = 0;
+        if (strstr(d, "APRS") || strstr(d, "DIGI")) return true;
+        const int64_t up = txUpCenter(t), dn = txDownCenter(t);
+        return up > 0 && dn > 0 && (up > dn ? up - dn : dn - up) < 5000;
+    }
+
+    const char* groupName(char c) {
+        switch (c) {
+            case 's': return "Space stations";
+            case 'v': return "Brightest (visual)";
+            case 'a': return "Amateur radio";
+            case 'c': return "CubeSats";
+            case 'n': return "SatNOGS";
+            case 'w': return "Weather";
+            case 'x': return "Science";
+            case 'd': return "Education";
+            case 'e': return "Engineering";
+            case 'g': return "Geostationary";
+            case 'l': return "LoRa / TinyGS";
+            default:  return "";
+        }
     }
 
     int64_t txUpCenter(const Transmitter& t)   { return t.upLo ? (t.upLo + t.upHi) / 2 : 0; }
@@ -317,7 +408,8 @@ namespace SatCore {
         out.noradId = atoi(f);
         out.cat = 'U';
         if (p) p = nextField(p, end, out.name, sizeof(out.name));
-        if (p) { nextField(p, end, f, sizeof(f)); if (f[0] == 'U' || f[0] == 'L' || f[0] == 'G') out.cat = f[0]; }
+        if (p) { p = nextField(p, end, f, sizeof(f)); if (f[0] == 'U' || f[0] == 'V' || f[0] == 'L' || f[0] == 'G') out.cat = f[0]; }
+        if (p) nextField(p, end, out.groups, sizeof(out.groups));
         while (i < len && text[i] != '\n') i++;
         if (i < len) i++;
         // lineas del bloque hasta la proxima "S|"

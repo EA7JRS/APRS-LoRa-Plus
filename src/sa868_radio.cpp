@@ -617,7 +617,7 @@ namespace SA868 {
         mode96 = (Config.operatingMode == MODE_APRS_FSK);
         m17    = (Config.operatingMode == MODE_M17);
         dap    = (Config.operatingMode == MODE_DAPNET);
-        fmMode = (Config.operatingMode == MODE_FM);
+        fmMode = (Config.operatingMode == MODE_FM || Config.operatingMode == MODE_SAT);    // SAT: el VFO sigue al satelite (FM_Utils)
         cwMode = (Config.operatingMode == MODE_MORSE);
         flat   = mode96 || m17 || dap;
         if (cwMode) espAudio = rev == 21;                   // Rev2.1: tono local y tono de la CW recibida por el altavoz
@@ -651,7 +651,7 @@ namespace SA868 {
     uint32_t framesOk()       { return m17 ? m17rx.packets : (mode96 ? g3rx.frames : demod.frames); }
     bool mode9600()           { return mode96; }
     bool modeM17()            { return m17; }
-    const char* modemName()   { return m17 ? "M17" : (dap ? "POCSAG" : (fmMode ? "FM voice" : (cwMode ? (Config.sa868.cwMcw ? "CW (MCW)" : "CW (A1A)") : (mode96 ? "G3RUH 9600" : "AFSK 1200")))); }
+    const char* modemName()   { return m17 ? "M17" : (dap ? "POCSAG" : (fmMode ? (Config.operatingMode == MODE_SAT ? "SAT FM" : "FM voice") : (cwMode ? (Config.sa868.cwMcw ? "CW (MCW)" : "CW (A1A)") : (mode96 ? "G3RUH 9600" : "AFSK 1200")))); }
     bool modeFm()             { return fmMode; }
     bool modeDapnet()         { return dap; }
     long rxFreqHz()           { return curRx ? curRx : Config.sa868.rxFreqHz; }
@@ -995,6 +995,23 @@ namespace SA868 {
         if (!fmToneOk) logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "FM", "%s not available with the %s firmware: sent without it",
                                    c.toneMode == FmCore::TONE_DCS ? "DCS" : "This CTCSS tone", firmwareName());
         return good;
+    }
+
+    // Doppler: solo las frecuencias (sin volumen, filtros ni potencia), para resintonizar cada pocos segundos sin cortes largos
+    bool fmRetune(long rx, long tx) {
+        if (!ok || !fmLoaded || txActive || !validFreq(rx) || !validFreq(tx)) return false;
+        fmCh.rxHz = rx;
+        if (tx != rx) { fmCh.shift = tx > rx ? 1 : -1; fmCh.offsetHz = labs(tx - rx); } else fmCh.shift = 0;
+        curRx = rx; curTx = tx;
+        if (fw == Firmware::OPENRTX) { at1846Freq(rx); return true; }
+        char txs[8], rxs[8], cmd[80], ft[16], fr[16];
+        niceRfSub(fmCh, false, txs, sizeof(txs));
+        niceRfSub(fmCh, true, rxs, sizeof(rxs));
+        niceRfFreq(tx, ft, sizeof(ft));
+        niceRfFreq(rx, fr, sizeof(fr));
+        const int moduleSql = (espAudio && Config.fm.squelchAuto) ? 1 : fmSquelch;
+        snprintf(cmd, sizeof(cmd), "AT+DMOSETGROUP=%d,%s,%s,%s,%d,%s", fmCh.wide ? 1 : 0, ft, fr, txs, moduleSql, rxs);
+        return commandOk(cmd, "+DMOSETGROUP:0", 800);
     }
 
     const FmCore::Channel& fmChannel() { return fmCh; }

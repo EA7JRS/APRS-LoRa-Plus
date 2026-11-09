@@ -773,9 +773,9 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                         <div class="row my-5 d-flex align-items-top" id="grp-sat">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
-                                    Satellites 70 cm
+                                    Satellites
                                 </h5>
-                                <small>Selected at boot (SELECT MODE &rarr; Satellites 70cm). Pass prediction (SGP4), azimuth / elevation and Doppler for the satellites with an uplink and/or downlink in 70 cm. Orbital elements and frequencies (CelesTrak + SatNOGS) are downloaded from the project by WiFi, using the network set in <em>Firmware update</em>. The position comes from the GPS; with no GPS fix the fixed position below is used. It can also listen to CW, FSK (AX.25) and LoRa satellites with Doppler correction, and transmit when you enable it below.</small>
+                                <small>Selected at boot (SELECT MODE &rarr; Satellites). Pass prediction (SGP4), azimuth / elevation and Doppler. Orbital elements and frequencies (CelesTrak + SatNOGS) come from the project's daily file: send it from the Android app (SAT tab, Bluetooth) or below (WiFi), choosing the CelesTrak groups. The position comes from the GPS; with no GPS fix the fixed position below is used. LoRa boards listen to CW, FSK (AX.25) and LoRa satellites in 70 cm; the T-TWR follows FM and APRS satellites of its band (2 m or 70 cm) with its FM VFO: Doppler, uplink and CTCSS of the satellite.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="form-floating mb-2">
@@ -796,8 +796,22 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                         <label for="sat.lon">Fixed longitude (&deg;, east +)</label>
                                     </div>
                                 </div>
+                                <h6 class="mt-3">Satellite data</h6>
+                                <div class="small text-muted mb-2" id="satdata-status">Loading&hellip;</div>
+                                <div class="small mb-1">CelesTrak groups to send (none ticked = all; favorites are always sent):</div>
+                                <div class="mb-2" id="satdata-groups"></div>
+                                <input type="hidden" name="sat.groups" id="sat.groups" />
+                                <div class="form-floating mb-2">
+                                    <input type="text" class="form-control form-control-sm" name="sat.favorites" id="sat.favorites" maxlength="260" placeholder="25544, 27607" />
+                                    <label for="sat.favorites">Favorites (NORAD numbers, up to 32; also from the tracker menu and the app)</label>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mb-2">
+                                    <button type="button" class="btn btn-sm btn-primary" id="satdata-download">Download from internet and send</button>
+                                    <label class="btn btn-sm btn-outline-secondary mb-0">Send a file&hellip;<input type="file" id="satdata-file" accept=".txt,text/plain" class="d-none" /></label>
+                                </div>
+                                <div class="small text-muted mb-3">The browser downloads the file (it needs internet: the tracker does not) and sends the chosen groups to the tracker. Connected to the tracker's own WiFi there is no internet: use <em>Send a file</em> with <code>sats_all.txt</code> downloaded before.</div>
                                 <h6 class="mt-3">Transmit to the satellite (uplink)</h6>
-                                <div class="small text-muted mb-2">Off by default. Only 430&ndash;440 MHz, above the minimum elevation, only when you ask (menu or app), with Doppler correction. You answer for your licence, the satellite's rules and your power. Needs a real callsign in the active beacon profile. CW sends Morse; FSK an AX.25 UI frame (<code>CALL&gt;APLRT1:text</code>); LoRa the payload.</div>
+                                <div class="small text-muted mb-2">Off by default. Only in an amateur band of the radio (LoRa boards: 430&ndash;440 MHz; T-TWR: 2 m or 70 cm of the IARU region), above the minimum elevation, only when you ask (menu or app), with Doppler correction. You answer for your licence, the satellite's rules and your power. Needs a real callsign in the active beacon profile. CW sends Morse; FSK an AX.25 UI frame (<code>CALL&gt;APLRT1:text</code>); LoRa the payload. T-TWR: APRS through a digipeater (position or message, path below) and FM voice with the PTT, both with the uplink Doppler and the satellite's CTCSS.</div>
                                 <div class="form-check form-switch mb-2">
                                     <input type="checkbox" name="sat.txEnabled" id="sat.txEnabled" class="form-check-input" />
                                     <label for="sat.txEnabled" class="form-label">Allow transmitting to satellites</label>
@@ -819,6 +833,10 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div class="form-floating mb-2">
                                     <input type="text" class="form-control form-control-sm" name="sat.txText" id="sat.txText" maxlength="64" />
                                     <label for="sat.txText">Message (max 64 characters)</label>
+                                </div>
+                                <div class="form-floating mb-2">
+                                    <input type="text" class="form-control form-control-sm" name="sat.aprsPath" id="sat.aprsPath" maxlength="24" value="ARISS" />
+                                    <label for="sat.aprsPath">APRS path via satellite (T-TWR: ISS digipeater ARISS, or APRSAT)</label>
                                 </div>
                                 <h6 class="mt-3">Switching sequencer (preamplifier / PA / external PTT)</h6>
                                 <div class="small text-muted mb-2">Sequence: preamp off and PA / relay on &rarr; <em>lead</em> &rarr; PTT on &rarr; <em>pre</em> &rarr; RF &rarr; <em>post</em> &rarr; PTT off, PA off &rarr; <em>tail</em> &rarr; preamp on. -1 = not used. The preamp pin is <em>on while listening</em>. Use a transistor / relay driver: the GPIO cannot power a relay or a preamp directly.</div>

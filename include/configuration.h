@@ -339,6 +339,8 @@ public:
     bool    qsyInBeacon;                        // anade la frecuencia, el tono y el desplazamiento del canal a la baliza (QSY de Kenwood)
     bool    squelchAuto;                        // silenciador automatico (Rev2.1: por software; Rev2.0: ajusta el nivel del modulo)
     int     nrLevel;                            // reduccion de ruido del audio recibido (Rev2.1): 0 apagada, 1 suave, 2 media, 3 fuerte
+    bool    satOn;                              // el VFO sigue al satelite elegido (Config.sat.noradId): Doppler y tono del transmisor satTx
+    int     satTx;                              // transmisor del satelite (indice en el archivo de datos)
     FmMemory mem[MEMORIES];
 };
 
@@ -346,7 +348,10 @@ public:
 class SatConfig {
 public:
     int     noradId;                            // satelite elegido (numero NORAD; 0 = el primero de la lista)
-    int     category;                           // filtro de la lista: 0 todos, 1 70 cm, 2 LoRa / LR-FHSS / TinyGS, 3 geoestacionarios (Inmarsat: solo seguimiento)
+    int     category;                           // filtro de la lista: 0 todos, 1 70 cm, 2 LoRa / LR-FHSS / TinyGS, 3 geoestacionarios (Inmarsat: solo seguimiento), 4 favoritos, 5 2 m, 6 los de la banda de esta radio
+    String  favorites;                          // favoritos: numeros NORAD separados por comas (hasta 32)
+    String  groups;                             // grupos de CelesTrak que se descargan (letras de SatCore::groupName; vacio = todos): lo usan la app y la WebUI al bajar el archivo
+    String  aprsPath;                           // ruta de las tramas APRS por satelite (digipetidores: ISS "ARISS", "APRSAT"...)
     int     posSource;                          // posicion de la estacion: 0 = GPS del tracker (referencia; sin fix, el movil), 1 = fusion tracker + movil, 2 = solo el movil
     int     minEl;                              // elevacion minima de un paso util (grados)
     double  lat, lon;                           // posicion fija de la estacion cuando no hay GPS (0,0 = sin definir)

@@ -19,7 +19,9 @@ namespace SAT_Utils {
         int32_t  noradId;
         char     name[22];
         uint8_t  txCount;
-        char     cat;                       // 'U' 70 cm, 'L' LoRa / LR-FHSS / TinyGS, 'G' geoestacionario
+        char     cat;                       // 'U' 70 cm, 'V' 2 m / VHF, 'L' LoRa / LR-FHSS / TinyGS, 'G' geoestacionario
+        uint8_t  bands;                     // bandas de sus transmisores (SatCore::BAND_*)
+        uint32_t groups;                    // grupos de CelesTrak (bit = letra - 'a')
     };
 
     enum UpdateState : uint8_t { UPD_IDLE, UPD_WORKING, UPD_OK, UPD_ERROR };
@@ -31,10 +33,21 @@ namespace SAT_Utils {
     const Entry*   at(int index);
     int            selected();                          // indice del satelite elegido (-1 = ninguno)
     bool           select(int index);                   // lo carga y lo guarda en la configuracion
-    bool           inCategory(const Entry& e);          // segun la categoria elegida (Config.sat.category: 0 todas, 1 70 cm, 2 LoRa / LR-FHSS / TinyGS, 3 geoestacionarios)
+    bool           inCategory(const Entry& e);          // segun la categoria elegida (Config.sat.category: 0 todas, 1 70 cm, 2 LoRa / LR-FHSS / TinyGS, 3 geoestacionarios, 4 favoritos, 5 2 m, 6 banda de esta radio)
+    bool           inCategory(const Entry& e, int category);
+    int            categoryCount(int category);         // satelites de una categoria
+    const char*    categoryName(int category);
+    // Favoritos (Config.sat.favorites, hasta 32 numeros NORAD)
+    bool           isFavorite(int noradId);
+    bool           setFavorite(int noradId, bool on);   // false si la lista esta llena
+    int            favoriteCount();
+    size_t         maxDataBytes();                      // lo que cabe del archivo de datos en esta placa (64 kB; ~900 kB con 16 MB de flash)
+    int            maxEntries();
+    bool           radioBand(uint8_t bands);            // algun transmisor en la banda de la radio de esta placa (SA868 VHF / UHF; SX126x: 70 cm)
     int            step(int direction);                 // siguiente (+1) o anterior (-1) satelite de la categoria; -1 si no hay ninguno
     const char*    categoryName();
-    int            nextCategory();                      // pasa a la categoria siguiente, elige el primer satelite de ella y la guarda
+    int            nextCategory();                      // pasa a la categoria siguiente con satelites, elige el primero de ella y la guarda
+    bool           setCategory(int category);
     bool           geo();                               // el satelite elegido es geoestacionario (sin pasos)
     const SatCore::Block* block();                      // TLE y transmisores del satelite elegido
 
@@ -58,6 +71,9 @@ namespace SAT_Utils {
     bool           dataChunk(const char* text, size_t n);
     bool           dataEnd();
     void           dataAbort();
+    void           dataEndLater();                      // WebUI: la subida acaba en la tarea del servidor web; se cierra en el bucle principal (service)
+    void           service();                           // desde el bucle principal (todos los modos): cierra la subida de la WebUI
+    String         statusJson();                        // estado del archivo para la WebUI (/api/satdata)
     UpdateState    updateState();
     const char*    updateMessage();
 

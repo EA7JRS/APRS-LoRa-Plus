@@ -5,6 +5,8 @@
  *   LoRa    -> modem LoRa (SF / BW / CR de la descripcion del transmisor o los que elija el usuario), carga util en texto o hexadecimal
  * AFSK 1200, BPSK, SSB, FM de voz, SSTV, LRPT, banda L... no se pueden demodular con un SX126x: se usa un SDR u otro equipo
  * (la pantalla de frecuencias da la frecuencia corregida por Doppler para sintonizarlos).
+ * En la T-TWR (SA868, FM de 2 m o 70 cm) la escucha es la del VFO de FM siguiendo al satelite (FM_Utils::sat*): FM de voz por el altavoz y
+ * APRS AFSK 1200 (ISS 145,825 MHz) con el modem del ESP32; las tramas pasan tambien a la lista de estaciones.
  *
  * Copyright (c) 2026 Manuel - EA7JRS. GPL-3.0-or-later.
  */
@@ -17,7 +19,7 @@
 
 namespace SATRX_Utils {
 
-    enum Kind : uint8_t { K_NONE = 0, K_CW = 1, K_FSK = 2, K_LORA = 3, K_NO = 4 };      // K_NO = no demodulable con esta radio
+    enum Kind : uint8_t { K_NONE = 0, K_CW = 1, K_FSK = 2, K_LORA = 3, K_NO = 4, K_FM = 5, K_AFSK = 6 };   // K_NO = no demodulable con esta radio; FM y AFSK (APRS): T-TWR (SA868)
 
     Kind        classify(const SatCore::Transmitter& t, const char** why = nullptr);    // clase de recepcion de un transmisor
     const char* kindText(Kind k);
@@ -45,6 +47,7 @@ namespace SATRX_Utils {
     void        nextLoraPreset();                  // SF / BW siguientes
     void        loraText(char* out, size_t n);     // "SF10 BW125 CR5"
     void        clearLog();
+    void        logExternal(const char* text, int rssi);  // T-TWR: trama APRS oida en el canal del satelite (la decodifica el modem AFSK del SA868)
 
     size_t      logCount();
     bool        logLine(size_t newestFirst, char* out, size_t n, int* rssi = nullptr);

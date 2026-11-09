@@ -4,6 +4,7 @@
  *   CW      -> el texto en Morse con la portadora del SX126x
  *   FSK     -> trama AX.25 UI "INDICATIVO>APLRT1:texto" en G3RUH
  *   LoRa    -> el texto como carga util
+ * En la T-TWR (SA868): APRS AFSK 1200 por un digipetidor (ISS 145,825 MHz, ruta sat.aprsPath) y FM de voz con el PTT (FM_Utils::sat*).
  * Nunca emite solo: cada emision la pide el usuario (menu o app) y solo si la habilita la WebUI, hay un indicativo real, el
  * satelite esta por encima de la elevacion minima, la subida cae en 430-440 MHz y ha pasado el intervalo minimo.
  *
@@ -23,6 +24,8 @@ namespace SATTX_Utils {
     SATRX_Utils::Kind classifyUp(const SatCore::Transmitter& t, const char** why = nullptr);   // como se podria emitir en la subida de ese transmisor
     bool        check(uint8_t txIndex, char* why, size_t n);                // true si se puede emitir ahora; si no, el motivo
     bool        send(uint8_t txIndex, const char* text);                   // emite (bloquea); false y message() si no se pudo
+    bool        sendPosition(uint8_t txIndex);                             // T-TWR: posicion APRS por un digipetidor (ISS); comentario = sat.txText
+    bool        canSendPosition();                                         // el transmisor que se escucha es un digipetidor APRS
     const char* message();
     uint32_t    sinceLastS();                                               // segundos desde la ultima emision (0xFFFFFFFF = ninguna)
     uint32_t    count();

@@ -22,6 +22,10 @@
 #include "sat_utils.h"
 #include "cw_morse.h"
 #include "notification_utils.h"
+#ifdef HAS_SA868
+#include "fm_utils.h"
+#include "sa868_radio.h"
+#endif
 
 extern Configuration    Config;
 extern logging::Logger  logger;
@@ -225,15 +229,40 @@ namespace SATRX_Utils {
             case K_CW:   return "CW";
             case K_FSK:  return "FSK";
             case K_LORA: return "LoRa";
+            case K_FM:   return "FM";
+            case K_AFSK: return "APRS";
             case K_NO:   return "n/a";
             default:     return "-";
         }
     }
 
+    #ifdef HAS_SA868
+    bool available() { return SA868::ready(); }
+    #else
     bool available() { return LoRa_Utils::satRxAvailable(); }
+    #endif
 
     void loraDefaults(const SatCore::Transmitter& t, uint8_t& sf, float& bwKHz, uint8_t& cr) { parseLoraInto(t, sf, cr, bwKHz); }
 
+    #ifdef HAS_SA868
+    // T-TWR: FM de voz y APRS AFSK 1200 en la banda del modulo; si la bajada esta en otra banda, se escucha la subida (otras estaciones)
+    Kind classify(const SatCore::Transmitter& t, const char** why) {
+        char m[12];
+        size_t n = 0;
+        for (const char* p = t.mode; *p && n + 1 < sizeof(m); p++) if (isalnum((unsigned char)*p)) m[n++] = (char)tolower((unsigned char)*p);
+        m[n] = 0;
+        if (why) *why = "";
+        const long dn = (long)SatCore::txDownCenter(t), up = (long)SatCore::txUpCenter(t);
+        const bool dnOk = dn > 0 && SA868::validFreq(dn), upOk = up > 0 && FM_Utils::uplinkInBand(up);
+        if (!dnOk && !upOk) { if (why) *why = SA868::uhf() ? "Not in 70cm band" : "Not in 2m band"; return K_NO; }
+        Kind k = K_NO;
+        if (SatCore::aprsDigi(t) || strncmp(m, "afsk", 4) == 0) k = (t.baud == 0 || t.baud == 1200) ? K_AFSK : K_NO;
+        else if ((strstr(m, "fm") && !strstr(m, "fsk")) || strcmp(m, "apt") == 0) k = K_FM;      // APT (NOAA, 137 MHz): se oye, no se decodifica
+        if (k == K_NO) { if (why) *why = "Use an SDR / radio"; return K_NO; }
+        if (!dnOk && why) *why = "Down on other band";
+        return k;
+    }
+    #else
     Kind classify(const SatCore::Transmitter& t, const char** why) {
         char m[12];
         size_t n = 0;
@@ -259,7 +288,15 @@ namespace SATRX_Utils {
         return K_NO;
     }
 
+    #endif
+
     bool setExternalHz(uint32_t hz) {
+        #ifdef HAS_SA868
+            if (!running || !SA868::validFreq((long)hz)) return false;
+            FM_Utils::satExternalHz((long)hz);              // GPredict por CAT manda la bajada ya corregida
+            extAtMs = millis() ? millis() : 1;
+            return true;
+        #endif
         if (hz < 400000000UL || hz > 510000000UL) return false;
         extHz = (int64_t)hz;
         extAtMs = millis() ? millis() : 1;
@@ -267,26 +304,49 @@ namespace SATRX_Utils {
     }
     bool externalActive() { return extAtMs != 0 && millis() - extAtMs < EXT_MAX_AGE_MS; }
     uint32_t currentDownHz() {
+        #ifdef HAS_SA868
+            if (running) return (uint32_t)FM_Utils::satRxHz();
+        #endif
         if (running) return (uint32_t)rxHz();
         const SatCore::Block* b = SAT_Utils::block();
         if (b && b->txCount > 0) return (uint32_t)SatCore::txDownCenter(b->tx[curTx < b->txCount ? curTx : 0]);
         return 0;
     }
 
+    #ifdef HAS_SA868
+    bool active() { return FM_Utils::satOn(); }
+    Kind kind() { return FM_Utils::satOn() ? (FM_Utils::satAprs() ? K_AFSK : K_FM) : K_NONE; }
+    uint8_t txIndex() { return FM_Utils::satOn() ? (uint8_t)FM_Utils::satTxIndex() : curTx; }
+    #else
     bool active() { return running; }
     Kind kind() { return running ? curKind : K_NONE; }
     uint8_t txIndex() { return curTx; }
+    #endif
     const char* message() { return msg; }
 
+    #ifdef HAS_SA868
+    double rxHz() { return (double)FM_Utils::satRxHz(); }
+    int dopplerHz() { return FM_Utils::satDopplerHz(); }
+    bool dopplerOk() { return FM_Utils::satDopplerOk(); }
+    float rssi() { const int r = SA868::fmRssi(); return r ? (float)r : -150.0f; }
+    int fineHz() { return FM_Utils::satFineHz(); }
+    void fine(int deltaHz) { FM_Utils::satFine(deltaHz); }
+    #else
     double rxHz() { portENTER_CRITICAL(&mux); const int64_t v = tunedHz; portEXIT_CRITICAL(&mux); return (double)v; }
     int dopplerHz() { return dopHz; }
     bool dopplerOk() { return dopOk; }
     float rssi() { return lastRssi; }
-    uint32_t frames() { return nFrames; }
     int fineHz() { return fineOffset; }
+    void fine(int deltaHz) { fineOffset = constrain(fineOffset + deltaHz, -20000, 20000); lastCalcMs = 0; forceRetune = true; }
+    #endif
+    uint32_t frames() { return nFrames; }
     uint32_t eventSeq() { return seq; }
 
-    void fine(int deltaHz) { fineOffset = constrain(fineOffset + deltaHz, -20000, 20000); lastCalcMs = 0; forceRetune = true; }
+    void logExternal(const char* text, int rssi) {
+        if (!active()) return;
+        lastRssi = (float)rssi;
+        pushLog(text, rssi);
+    }
 
     void loraText(char* out, size_t n) { snprintf(out, n, "SF%u BW%g CR4/%u", (unsigned)loraSf, (double)loraBw, (unsigned)loraCr); }
 
@@ -321,6 +381,16 @@ namespace SATRX_Utils {
         const char* why = "";
         const Kind k = classify(b->tx[txIdx], &why);
         if (k == K_NO)                    { setMsg(why[0] ? why : "Not receivable"); return false; }
+        #ifdef HAS_SA868
+            // T-TWR: el VFO de FM sigue al satelite (Doppler, tono, PTT de voz y APRS por el satelite)
+            if (!FM_Utils::satStart(txIdx)) { setMsg(FM_Utils::notice()[0] ? FM_Utils::notice() : "Cannot tune"); return false; }
+            curT = b->tx[txIdx]; curKind = k; curTx = txIdx; curSat = SAT_Utils::selected();
+            nominalHz = SatCore::txDownCenter(curT);
+            nFrames = 0;
+            running = true;
+            setMsg(why[0] ? why : (k == K_AFSK ? "APRS: listening" : "FM: listening"));
+            return true;
+        #endif
         if (!radioMutex) radioMutex = xSemaphoreCreateMutex();
         if (!radioMutex)                  { setMsg("Out of memory"); return false; }
         if (!task && xTaskCreate(rxTask, "satrx", 6144, nullptr, 2, &task) != pdPASS) { task = nullptr; setMsg("Out of memory"); return false; }
@@ -355,6 +425,14 @@ namespace SATRX_Utils {
     }
 
     void stop() {
+        #ifdef HAS_SA868
+            const bool was = running || FM_Utils::satOn();
+            running = false;
+            FM_Utils::satStop();
+            curKind = K_NONE;
+            if (was) setMsg("Stopped");
+            return;
+        #endif
         if (!running) return;
         running = false;
         xSemaphoreTake(radioMutex, portMAX_DELAY);           // la tarea ya no toca la radio
@@ -369,6 +447,10 @@ namespace SATRX_Utils {
 
     void loop() {
         if (!running) return;
+        #ifdef HAS_SA868
+            if (!FM_Utils::satOn()) { running = false; curKind = K_NONE; }      // FM_Utils deja de seguirlo al elegir otro satelite o sintonizar a mano
+            return;
+        #endif
         if (Config.operatingMode != MODE_SAT || SAT_Utils::selected() != curSat) { stop(); return; }
         const uint32_t now = millis();
         if (now - lastCalcMs < 500) return;
@@ -444,6 +526,7 @@ namespace SATRX_Utils {
     void nextLoraPreset() {}
     void loraText(char* out, size_t n) { if (n) out[0] = 0; }
     void clearLog() {}
+    void logExternal(const char*, int) {}
     size_t logCount() { return 0; }
     bool logLine(size_t, char*, size_t, int*) { return false; }
     void cwLine(char* out, size_t n) { if (n) out[0] = 0; }

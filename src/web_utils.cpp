@@ -18,6 +18,8 @@
 
 #include <ArduinoJson.h>
 #include "configuration.h"
+#include "sat_config.h"
+#include "sat_utils.h"
 #include "rotor_follow.h"
 #include "board_pinout.h"
 #include "lora_utils.h"
@@ -463,6 +465,19 @@ namespace WEB_Utils {
                 if (t.length() > 64) t = t.substring(0, 64);
                 Config.sat.txText = t;
             }
+            if (request->hasParam("sat.aprsPath", true)) { String t = request->getParam("sat.aprsPath", true)->value(); t.trim(); t.toUpperCase(); Config.sat.aprsPath = t.substring(0, 24); }
+            if (request->hasParam("sat.groups", true)) { String t = request->getParam("sat.groups", true)->value(); t.trim(); Config.sat.groups = t.substring(0, 16); }
+            if (request->hasParam("sat.favorites", true)) {
+                String t = request->getParam("sat.favorites", true)->value(), o;     // numeros NORAD separados por comas o espacios
+                int n = 0;
+                for (int i = 0; i < (int)t.length() && n < 32; ) {
+                    while (i < (int)t.length() && !isDigit(t[i])) i++;
+                    int j = i; while (j < (int)t.length() && isDigit(t[j])) j++;
+                    if (j > i) { if (n++) o += ','; o += t.substring(i, j); }
+                    i = j;
+                }
+                Config.sat.favorites = o;
+            }
             Config.sat.lnaPin = constrain(getParamIntSafe("sat.lnaPin", Config.sat.lnaPin), -1, 99);
             Config.sat.paPin  = constrain(getParamIntSafe("sat.paPin", Config.sat.paPin), -1, 99);
             Config.sat.pttPin = constrain(getParamIntSafe("sat.pttPin", Config.sat.pttPin), -1, 99);
@@ -809,6 +824,25 @@ namespace WEB_Utils {
             AsyncWebServerResponse *r = request->beginResponse(200, "application/json", IARU_Auto::json());
             r->addHeader("Cache-Control", "no-store");
             request->send(r);
+        });
+        // Archivo de satelites (modo SAT) por WiFi: estado y subida (lo baja el navegador de internet, filtrado por grupos, o se elige un archivo)
+        server.on("/api/satdata", HTTP_GET, [](AsyncWebServerRequest *request) {
+            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", SAT_Utils::statusJson());
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
+        server.on("/api/satdata", HTTP_POST, [](AsyncWebServerRequest *request) {
+            const bool ok = SAT_Utils::updateState() != SAT_Utils::UPD_ERROR;
+            String out = String("{\"ok\":") + (ok ? "true" : "false") + ",\"msg\":\"" + SAT_Utils::updateMessage() + "\"}";
+            AsyncWebServerResponse *r = request->beginResponse(ok ? 200 : 400, "application/json", out);
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        }, [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+            (void)request; (void)filename;
+            static bool good = false;
+            if (index == 0) good = SAT_Utils::dataBegin(0);
+            if (good && len) good = SAT_Utils::dataChunk((const char*)data, len);
+            if (good && final) SAT_Utils::dataEndLater();
         });
         FW_Update::registerRoutes(server);
 

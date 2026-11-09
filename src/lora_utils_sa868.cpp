@@ -5,8 +5,8 @@
  *
  * LoRa_Utils para la LilyGO T-TWR Plus: la misma interfaz que usa el resto del firmware, pero la radio es el SA868 (FM) con los
  * modems del ESP32-S3: APRS AFSK 1200 (modo 0, el analogico de VHF), APRS FSK 9600 G3RUH (modo 1) y M17 (modo 10: el APRS va en
- * paquetes M17 de protocolo APRS, y se oyen los SMS y los indicativos / posiciones de las emisiones M17). No hay LoRa, CW,
- * WSPR, LR-FHSS, DAPNET ni receptor de satelites, y las funciones de esos modos contestan que no estan disponibles.
+ * paquetes M17 de protocolo APRS, y se oyen los SMS y los indicativos / posiciones de las emisiones M17), DAPNET, CW, FM de voz y
+ * satelites de FM / APRS (modo SAT: el VFO de FM sigue al satelite, FM_Utils::sat*). No hay LoRa, WSPR ni LR-FHSS.
  */
 
 #ifdef HAS_SA868
@@ -23,6 +23,8 @@
 #include "display.h"
 #include "dapnet_utils.h"
 #include "fm_utils.h"
+#include "sat_config.h"
+#include "sat_rx.h"
 
 extern logging::Logger  logger;
 extern Configuration    Config;
@@ -129,6 +131,7 @@ namespace LoRa_Utils {
     // Cada modo emite solo lo suyo: en esta placa, APRS AFSK 1200 (modo 0), APRS FSK 9600 G3RUH (modo 1) y M17 (modo 10)
     bool aprsTxAllowed() {
         if (Config.operatingMode == MODE_FM) return Config.fm.aprsBeacon;      // FM: solo si se piden balizas APRS durante la voz
+        if (Config.operatingMode == MODE_SAT) return FM_Utils::satAprs();      // SAT: mensajes y acuses por un digipetidor APRS (ISS)
         return isAprsMode(Config.operatingMode);
     }
 
@@ -191,7 +194,6 @@ namespace LoRa_Utils {
     ReceivedLoRaPacket receivePacket() {
         ReceivedLoRaPacket rx;
         rx.rssi = 0; rx.snr = 0; rx.freqError = 0;
-        if (Config.operatingMode == MODE_SAT) return rx;
         if (Config.operatingMode == MODE_DAPNET) {         // POCSAG: los bytes del demodulador al decodificador de siempre
             uint8_t block[128];
             const size_t n = SA868::popDapnet(block, sizeof(block));
@@ -204,6 +206,10 @@ namespace LoRa_Utils {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, SA868::modemName(), "Rx ---> %s", tnc2.c_str());
             rx.text = String("\x3c\xff\x01") + tnc2;
             rx.rssi = rssi;
+            if (FM_Utils::satOn()) {                        // APRS por satelite (ISS): al registro del modo SAT y a la lista de estaciones
+                FM_Utils::satOnFrame();
+                SATRX_Utils::logExternal(tnc2.c_str(), rssi);
+            }
         }
         return rx;
     }

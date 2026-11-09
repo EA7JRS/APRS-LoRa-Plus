@@ -78,8 +78,10 @@ namespace SatCore {
     //   S|<norad>|<nombre>
     //   1 <linea 1 del TLE>
     //   2 <linea 2 del TLE>
-    //   T|<subida_min Hz>|<subida_max Hz>|<bajada_min Hz>|<bajada_max Hz>|<modo>|<baudios>|<inversor 0/1>|<descripcion>
+    //   T|<subida_min Hz>|<subida_max Hz>|<bajada_min Hz>|<bajada_max Hz>|<modo>|<baudios>|<inversor 0/1>|<descripcion>[|<CTCSS de la subida, decimas de Hz>]
     // (0 = sin dato; las lineas que empiezan por # son comentarios)
+    // El archivo completo (sats_all.txt) anade a la linea S| los grupos de CelesTrak: S|<norad>|<nombre>|<categoria>|<grupos>, con
+    // categoria V (2 m / VHF) ademas de U, L y G, y bloques sin transmisores (solo seguimiento). Los lectores antiguos lo ignoran.
     const int MAX_TX = 6;
     struct Transmitter {
         int64_t upLo, upHi, dnLo, dnHi;     // Hz (64 bits: hasta la banda L y los 2,4 GHz); un solo valor fijo si Lo == Hi; un transpondedor lineal si difieren
@@ -87,11 +89,13 @@ namespace SatCore {
         int  baud;
         bool invert;
         char desc[26];
+        uint16_t tone;                      // CTCSS de la subida en decimas de Hz (campo 9 o el de la descripcion: "67 Hz", "CTCSS 67.0", "PL 74.4"); 0 = sin tono
     };
     struct Block {
         int  noradId;
-        char cat;                           // 'U' = 70 cm (valor por defecto), 'L' = LoRa / LR-FHSS / TinyGS, 'G' = geoestacionario (Inmarsat...)
+        char cat;                           // 'U' = 70 cm (valor por defecto), 'V' = 2 m / VHF, 'L' = LoRa / LR-FHSS / TinyGS, 'G' = geoestacionario (Inmarsat...)
         char name[25];
+        char groups[16];                    // letras de los grupos de CelesTrak (groupLetter); vacio en el archivo antiguo
         char line1[72], line2[72];
         Transmitter tx[MAX_TX];
         int  txCount;
@@ -100,6 +104,16 @@ namespace SatCore {
     size_t parseBlock(const char* text, size_t len, Block& out);
     bool   parseTxLine(const char* line, Transmitter& t);
     bool   txIn70cm(const Transmitter& t);                                         // sube o baja dentro de 420-450 MHz
+    // Bandas de un transmisor (subida o bajada): bits BAND_*
+    enum : uint8_t { BAND_2M = 1, BAND_70CM = 2, BAND_VHF = 4, BAND_UHF = 8 };     // 144-148 MHz, 420-450 MHz, 134-174 MHz (SA868 VHF), 400-480 MHz (SA868 UHF)
+    uint8_t txBands(const Transmitter& t);
+    uint8_t bandsOf(int64_t hz);
+    // Digipetidor APRS (ISS 145,825 MHz, satelites APRS): AFSK 1200 con la misma frecuencia de subida y bajada, o "APRS" / "digi" en la descripcion
+    bool   aprsDigi(const Transmitter& t);
+    // CTCSS en una descripcion ("FM 67Hz", "CTCSS 67.0", "PL 74.4", "tone 88.5"): decimas de Hz de un tono estandar, o 0
+    uint16_t toneFromText(const char* text);
+    // Grupos de CelesTrak del archivo completo: letra <-> nombre ("s" stations, "a" amateur...); groupName devuelve "" si no se conoce
+    const char* groupName(char letter);
     int64_t txDownCenter(const Transmitter& t);
     int64_t txUpCenter(const Transmitter& t);
     bool   isGeo(const Sat& s);                                                    // periodo cercano a un dia sideral: no tiene pasos, esta fija en el cielo (o nunca sale)

@@ -163,7 +163,7 @@ namespace {
         X(SATRX_FINE_DN) X(SATRX_LORA) X(SATRX_CLEAR) X(SATTX_SEND) X(ROT_SOURCE) X(ROT_NEXT) X(ROT_PREV) X(ROT_PARK) X(MODE_CHANGE) X(TEAM_BROWSE) \
         X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
         X(SYS_IARU) X(FM_VM) X(FM_EDIT) X(FM_SHIFT) X(FM_TONEMODE) X(FM_STEP) X(FM_POWER) X(FM_WIDE) X(FM_SQLAUTO) X(FM_NR) \
-        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) \
+        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) X(FM_SAT) X(FM_SATNEXT) X(FM_SATTX) X(SAT_FAV) X(SATTX_POS) \
         X(BC_SEEKUP) X(BC_SEEKDN) X(BC_VOLUP) X(BC_VOLDN) X(BC_MUTE) X(BC_BAND) X(BC_MONO) X(BC_STORE) X(BC_PRESET) X(BC_POWER)
     enum Command : uint8_t {
     #define X(n) C_##n,
@@ -190,8 +190,8 @@ namespace {
     const Item ITEMS_LAST[]    = { {"Next view", C_LAST_VIEW}, {"Older station", C_LAST_NEXT}, {"Newer station", C_LAST_PREV}, {"GO TO", C_GOTO},
                                    {"QSY (FM voice)", C_QSY}, {"Back", C_BACK} };
     const Item ITEMS_RADIO[]   = { {"Tune carrier", C_RADIO_TUNE}, {"Power", C_LORA_POWER}, {"Reset counters", C_LORA_RESET}, {"Heard list", C_LORA_HEARD}, {"Back", C_BACK} };
-    Item            fmItems[18];
-    char            fmLabels[10][24];
+    Item            fmItems[24];
+    char            fmLabels[12][24];
 #else
     const Item ITEMS_LAST[]    = { {"Next view", C_LAST_VIEW}, {"Older station", C_LAST_NEXT}, {"Newer station", C_LAST_PREV}, {"GO TO", C_GOTO}, {"Back", C_BACK} };
 #endif
@@ -290,11 +290,12 @@ namespace {
     Item            dapItems[6];
     char            dapMonLabel[24];
     uint8_t         dapIndex = 0;                // 0 = mensaje mas reciente
-    Item            satItems[18];
+    Item            satItems[20];
     char            satListenLabel[24];
     Item            rotItems[5];
     char            rotSourceLabel[28];
     char            satCatLabel[28];
+    char            satFavLabel[20];
     uint8_t         satView = 0;                 // 0 = ahora (az/el/Doppler), 1 = proximo paso, 2 = frecuencias de los transmisores
     uint8_t         satTx = 0;                   // transmisor mostrado en la vista de frecuencias
     uint32_t        dapSeen = 0;                 // contador de mensajes ya atendidos
@@ -399,12 +400,18 @@ namespace {
                 snprintf(satCatLabel, sizeof(satCatLabel), "List: %s", SAT_Utils::categoryName());
                 satItems[3] = Item{satCatLabel, C_SAT_CAT};
                 count = 4;
+                {
+                    const SatCore::Block* fb = SAT_Utils::block();
+                    snprintf(satFavLabel, sizeof(satFavLabel), "Favorite: %s", fb && SAT_Utils::isFavorite(fb->noradId) ? "ON" : "OFF");
+                    if (fb) satItems[count++] = Item{satFavLabel, C_SAT_FAV};
+                }
             #ifdef HAS_SAT
                 if (SATRX_Utils::available()) {
                     snprintf(satListenLabel, sizeof(satListenLabel), "Listen: %s", SATRX_Utils::active() ? "ON" : "OFF");
                     satItems[count++] = Item{satListenLabel, C_SATRX_TOGGLE};
                     satItems[count++] = Item{"Next transmitter", C_SATRX_TX};
                     if (Config.sat.txEnabled) satItems[count++] = Item{"Send message (TX)", C_SATTX_SEND};
+                    if (Config.sat.txEnabled && SATTX_Utils::canSendPosition()) satItems[count++] = Item{"Send position (TX)", C_SATTX_POS};
                     if (SATRX_Utils::active()) {
                         satItems[count++] = Item{"Fine +100 Hz", C_SATRX_FINE_UP};
                         satItems[count++] = Item{"Fine -100 Hz", C_SATRX_FINE_DN};
@@ -517,6 +524,17 @@ namespace {
                 add(FM_Utils::artsOn() ? "ARTS: stop" : "ARTS: start", C_FM_ARTS);
                 add(FM_Utils::eaiOn() ? "EAI: stop" : "EAI: start", C_FM_EAI);
                 add(Config.fm.aprsBeacon ? "APRS beacon: ON" : "APRS beacon: OFF", C_FM_APRS);
+                #ifdef HAS_SAT
+                if (FM_Utils::satOn()) {
+                    const SatCore::Block* sb = SAT_Utils::block();
+                    lab(C_FM_SAT, "SAT %.10s: OFF", sb ? sb->name : "");
+                    add("SAT: next transmitter", C_FM_SATTX);
+                    if (FM_Utils::satAprs()) add("SAT: send position", C_SATTX_POS);
+                } else {
+                    add("Satellite: ON", C_FM_SAT);
+                }
+                add("SAT: next satellite", C_FM_SATNEXT);
+                #endif
                 add("Tune carrier", C_RADIO_TUNE);
                 add("Change mode", C_MODE_CHANGE);
                 add("Back", C_BACK);
@@ -1993,7 +2011,8 @@ namespace {
     void drawFmPage() {
         const FmCore::Channel& c = FM_Utils::channel();
         char right[8];
-        if (FM_Utils::memMode()) snprintf(right, sizeof(right), "M%02d", FM_Utils::memIndex() + 1);
+        if (FM_Utils::satOn()) snprintf(right, sizeof(right), "SAT");
+        else if (FM_Utils::memMode()) snprintf(right, sizeof(right), "M%02d", FM_Utils::memIndex() + 1);
         else snprintf(right, sizeof(right), "VFO");
         header("FM", right);
         const bool tx = FM_Utils::ptt();
@@ -2017,7 +2036,8 @@ namespace {
         // nombre de la memoria o paso; silenciador a la derecha
         char sq[10];
         snprintf(sq, sizeof(sq), "SQL%s%d", Config.fm.squelchAuto ? "A" : " ", FM_Utils::squelch());
-        if (FM_Utils::memMode() && c.name[0]) snprintf(line, sizeof(line), "%.8s", c.name);
+        if (FM_Utils::satOn()) snprintf(line, sizeof(line), "%.8s F%+d", c.name, FM_Utils::satFineHz());
+        else if (FM_Utils::memMode() && c.name[0]) snprintf(line, sizeof(line), "%.8s", c.name);
         else snprintf(line, sizeof(line), "%.2fk", FM_Utils::stepHz() / 1000.0);
         text(0, 38, line);
         text(128 - 6 * (int)strlen(sq), 38, sq);
@@ -2026,6 +2046,13 @@ namespace {
         else if (FM_Utils::eaiOn()) snprintf(line, sizeof(line), "EAI %lu:%02lu", (unsigned long)(FM_Utils::eaiRemainingS() / 60), (unsigned long)(FM_Utils::eaiRemainingS() % 60));
         else if (FM_Utils::scanning()) snprintf(line, sizeof(line), "SCAN %s", FM_Utils::scanPaused() ? "HOLD" : ">>");
         else if (FM_Utils::artsOn()) snprintf(line, sizeof(line), "ARTS %s", FM_Utils::artsState() == FmCore::ARTS_IN ? "IN RANGE" : (FM_Utils::artsState() == FmCore::ARTS_OUT ? "OUT RANGE" : "..."));
+        #ifdef HAS_SAT
+        else if (FM_Utils::satOn() && !FM_Utils::busy()) {
+            SatCore::Look lk;
+            if (SAT_Utils::live(lk)) snprintf(line, sizeof(line), "El%+d D%+.1fk%s", (int)lround(lk.elDeg), FM_Utils::satDopplerHz() / 1000.0, FM_Utils::satListenUplink() ? " UP" : "");
+            else snprintf(line, sizeof(line), "SAT: no time/pos");
+        }
+        #endif
         else if (FM_Utils::busy()) {
             const int r = FM_Utils::rssi();
             if (r != 0) { char sm[10]; sMeterText(r, sm, sizeof(sm)); snprintf(line, sizeof(line), "%s %d dBm", sm, r); }
@@ -2037,7 +2064,7 @@ namespace {
         const char* n = FM_Utils::notice();
         const char* const EDITS[FM_Utils::ED_COUNT] = { "frequency", "tone", "offset", "squelch" };
         if (n[0]) snprintf(line, sizeof(line), "%s", n);
-        else snprintf(line, sizeof(line), "Dial: %s", FM_Utils::edit() == FM_Utils::ED_FREQ ? (FM_Utils::memMode() ? "channel" : "frequency") : EDITS[FM_Utils::edit()]);
+        else snprintf(line, sizeof(line), "Dial: %s", FM_Utils::edit() == FM_Utils::ED_FREQ ? (FM_Utils::satOn() ? "fine 100Hz" : (FM_Utils::memMode() ? "channel" : "frequency")) : EDITS[FM_Utils::edit()]);
         text(0, 56, line);
     }
 
@@ -2770,6 +2797,15 @@ namespace PAGES_Utils {
             if (clicks) {
                 if (page == PAGE_FM && fmDialActive()) FM_Utils::dial(clicks);
                 else if (page == PAGE_BCAST && viewing() && !submenuOpen) BCAST::step(clicks);
+                #ifdef HAS_SAT
+                else if (page == PAGE_SAT && viewing() && !submenuOpen) {
+                    if (FM_Utils::satOn()) FM_Utils::satFine(clicks * 100);            // escuchando: ajuste fino de 100 Hz
+                    else if (satView != 3 && satView != 4) {                          // si no, satelite siguiente / anterior de la lista
+                        const int i = SAT_Utils::step(clicks > 0 ? 1 : -1);
+                        if (i >= 0) { SAT_Utils::select(i); satTx = 0; }
+                    }
+                }
+                #endif
                 else FM_Utils::activity();
             }
         }
@@ -3286,8 +3322,8 @@ namespace PAGES_Utils {
         if (!SAT_Utils::hasData() || !b) {
             row(0, "No satellite data");
             row(1, "Send it from the");
-            row(2, "Android app");
-            row(3, "(SAT tab)");
+            row(2, "Android app (SAT)");
+            row(3, "or WebUI > SAT data");
             if (SAT_Utils::updateState() == SAT_Utils::UPD_ERROR) row(5, "%s", SAT_Utils::updateMessage());
             return;
         }
@@ -3350,7 +3386,17 @@ namespace PAGES_Utils {
                 row(1, "%s %.4f MHz", SATRX_Utils::kindText(SATRX_Utils::kind()), SATRX_Utils::rxHz() / 1e6);
                 row(2, "Dop %+dHz Fn %+d%s", SATRX_Utils::dopplerHz(), SATRX_Utils::fineHz(), SATRX_Utils::dopplerOk() ? "" : " !");
                 if (SATRX_Utils::kind() == SATRX_Utils::K_LORA) { char lt[24]; SATRX_Utils::loraText(lt, sizeof(lt)); row(3, "%ddBm %s", (int)lroundf(SATRX_Utils::rssi()), lt); }
+            #ifdef HAS_SA868
+                else if (FM_Utils::satUpHz()) {
+                    char tn[14];
+                    if (FM_Utils::satTone()) snprintf(tn, sizeof(tn), "T%.1f", FM_Utils::satTone() / 10.0);
+                    else snprintf(tn, sizeof(tn), "n=%lu", (unsigned long)SATRX_Utils::frames());
+                    row(3, "UP %.4f %s", FM_Utils::satUpHz() / 1e6, tn);
+                }
+                else                          row(3, "No TX here n=%lu", (unsigned long)SATRX_Utils::frames());
+            #else
                 else                                            row(3, "%ddBm n=%lu", (int)lroundf(SATRX_Utils::rssi()), (unsigned long)SATRX_Utils::frames());
+            #endif
                 char line[112];
                 line[0] = 0;
                 if (SATRX_Utils::kind() == SATRX_Utils::K_CW) SATRX_Utils::cwLine(line, 41);
@@ -4443,7 +4489,7 @@ namespace PAGES_Utils {
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) options[n++] = Option{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) options[n++] = Option{ MODE_DAPNET, "DAPNET pager" };
             #ifdef HAS_SAT
-            options[n++] = Option{ MODE_SAT, "Satellites 70cm" };
+            options[n++] = Option{ MODE_SAT, "Satellites" };
             #endif
             uint8_t sel = 0;
             for (uint8_t i = 0; i < n; i++) if (options[i].mode == Config.savedMode) sel = i;
@@ -5043,6 +5089,42 @@ namespace PAGES_Utils {
                 beaconManualMode = !Config.fm.aprsBeacon;
                 break;
             case C_RADIO_TUNE:  radioTuneCarrier(); break;
+            #ifdef HAS_SAT
+            case C_FM_SAT: {                                            // el VFO sigue al satelite elegido (o deja de hacerlo)
+                if (FM_Utils::satOn()) { FM_Utils::satStop(); break; }
+                if (!SAT_Utils::hasData()) SAT_Utils::begin();
+                const SatCore::Block* sb = SAT_Utils::block();
+                if (!sb) { showToast("No satellite data"); break; }
+                int t = Config.fm.satTx < sb->txCount && FM_Utils::satUsable(Config.fm.satTx) ? Config.fm.satTx : -1;
+                for (int k = 0; t < 0 && k < sb->txCount; k++) if (FM_Utils::satUsable(k)) t = k;
+                if (t < 0) { showToast(SA868::uhf() ? "Sat not on 70cm" : "Sat not on 2m"); break; }
+                if (!FM_Utils::satStart(t)) showToast(FM_Utils::notice());
+                break;
+            }
+            case C_FM_SATTX:   FM_Utils::satNextTx(1); break;
+            case C_FM_SATNEXT: {                                        // siguiente satelite de la lista (categoria del modo SAT: favoritos, esta radio...)
+                if (!SAT_Utils::hasData()) SAT_Utils::begin();
+                const bool was = FM_Utils::satOn();
+                const int n = SAT_Utils::count();
+                int i = SAT_Utils::selected();
+                for (int k = 0; k < n; k++) {
+                    i = SAT_Utils::step(1);
+                    if (i < 0) break;
+                    SAT_Utils::select(i);
+                    const SatCore::Block* sb = SAT_Utils::block();
+                    bool usable = false;
+                    for (int t = 0; sb && t < sb->txCount && !usable; t++) usable = FM_Utils::satUsable(t);
+                    if (usable) break;
+                }
+                const SatCore::Block* sb = SAT_Utils::block();
+                if (!sb) { showToast("No satellite data"); break; }
+                int t = -1;
+                for (int k = 0; t < 0 && k < sb->txCount; k++) if (FM_Utils::satUsable(k)) t = k;
+                if (t >= 0) FM_Utils::satStart(t);                  // y el VFO pasa a seguirlo
+                else { if (was) FM_Utils::satStop(); showToast("No usable TX"); }
+                break;
+            }
+            #endif
             case C_QSY:         qsyToStation(heard.byRecent(lastIndex)); break;
             #endif
             case C_GOTO:
@@ -5246,6 +5328,30 @@ namespace PAGES_Utils {
             #ifdef HAS_SAT
                 SATRX_Utils::clearLog();
                 showToast("RX log cleared");
+            #endif
+                break;
+            case C_SATTX_POS:
+            #ifdef HAS_SAT
+            {
+                #ifdef HAS_SA868
+                const uint8_t pi = (uint8_t)(FM_Utils::satOn() ? FM_Utils::satTxIndex() : satTx);
+                #else
+                const uint8_t pi = satTx;
+                #endif
+                const bool okTx = SATTX_Utils::sendPosition(pi);
+                showToast(okTx ? "Position sent" : SATTX_Utils::message());
+            }
+            #endif
+                break;
+            case C_SAT_FAV:
+            #ifdef HAS_SAT
+            {
+                const SatCore::Block* fb = SAT_Utils::block();
+                if (!fb) break;
+                const bool on = !SAT_Utils::isFavorite(fb->noradId);
+                if (!SAT_Utils::setFavorite(fb->noradId, on)) showToast("Favorites full (32)");
+                else showToast(on ? "Added to favorites" : "Removed from favorites");
+            }
             #endif
                 break;
             case C_SATTX_SEND:

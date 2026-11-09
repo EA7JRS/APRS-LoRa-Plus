@@ -78,7 +78,35 @@ namespace FM_Utils {
     uint32_t eaiRemainingS();
     void     toggleAprsBeacon();
 
-    bool     aprsTransmit(const char* tnc2);           // baliza / mensaje APRS en la frecuencia APRS (espera si se esta hablando)
+    bool     aprsTransmit(const char* tnc2);           // baliza / mensaje APRS en la frecuencia APRS (espera si se esta hablando); con un satelite APRS a la vista, por el satelite
+
+    // ---- Satelite: el VFO sigue al satelite elegido (modo SAT o pagina FM) ----
+    // Bajada con Doppler (+ ajuste fino), subida precompensada, CTCSS del transmisor (archivo de datos) y canal de 25 kHz. Si la bajada no cae en
+    // la banda del modulo (satelite de banda cruzada) se escucha la subida; si la subida no cae en una banda de aficionado del modulo, no se emite.
+    // El PTT y el APRS por el satelite exigen sat.txEnabled (WebUI), un indicativo y el satelite por encima de sat.txMinEl.
+    bool     satStart(int txIndex);                     // false + notice()
+    void     satStop();
+    bool     satOn();
+    int      satTxIndex();
+    bool     satNextTx(int dir);                        // transmisor siguiente que se pueda usar en esta banda
+    bool     satUsable(int txIndex);                    // la bajada o la subida caen en la banda del modulo
+    void     satFine(int deltaHz);                      // ajuste fino de la bajada (error del oscilador del satelite)
+    int      satFineHz();
+    long     satRxHz();                                 // frecuencia de escucha en uso
+    long     satUpHz();                                 // subida con Doppler (0 = no se puede emitir en esta banda)
+    int      satDopplerHz();                            // de la bajada
+    bool     satDopplerOk();                            // false = sin hora o posicion: nominal
+    bool     satListenUplink();                         // la bajada esta en otra banda: se escucha la subida
+    bool     satAprs();                                 // el transmisor es un digipetidor APRS (ISS 145,825 MHz...)
+    uint16_t satTone();                                 // CTCSS de la subida en uso (decimas de Hz; 0 = sin tono)
+    bool     satCanTx(char* why, size_t n);             // se puede emitir ahora (y si no, por que)
+    bool     satSendAprs(const char* info);             // trama APRS con este campo de informacion por el satelite (ruta sat.aprsPath)
+    bool     satSendPosition(const char* comment);      // posicion (GPS / ultima / QTH del modo SAT) por el satelite
+    uint32_t satSent();
+    uint32_t satHeard();                                // tramas APRS oidas en el canal del satelite
+    void     satOnFrame();                              // una trama oida mientras se sigue al satelite
+    void     satExternalHz(long hz);                    // bajada ya corregida por un programa externo (GPredict por CAT): manda 15 s
+    bool     uplinkInBand(long hz);                     // banda de aficionados del modulo (2 m o 70 cm de la region)
     size_t   qsySpec(char* out, size_t outMax);        // "145.650MHz T088 -060" del canal, para la baliza (0 si no toca)
 }
 

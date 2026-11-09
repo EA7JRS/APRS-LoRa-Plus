@@ -68,6 +68,7 @@ namespace SA868 {
     // FM (voz). Ver src/fm_utils.cpp
     bool     modeFm();
     bool     fmApply(const FmCore::Channel& c, int squelch);  // frecuencias, tonos, ancho, potencia y silenciador
+    bool     fmRetune(long rxHz, long txHz);  // solo las frecuencias del canal (Doppler de un satelite)
     const FmCore::Channel& fmChannel();
     bool     fmToneSupported(const FmCore::Channel& c);     // DCS solo con NiceRF; CTCSS de NiceRF: los 38 de su tabla
     bool     fmLastToneOk();

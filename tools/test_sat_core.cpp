@@ -162,6 +162,27 @@ static void selfTests() {
         CHECK(fabs(c1 - c2) < 1e-12, "rotacion ortogonal %.12f %.12f", c1, c2);
     }
     CHECK(strcmp(cardinal(0), "N") == 0 && strcmp(cardinal(44), "NE") == 0 && strcmp(cardinal(359), "N") == 0 && strcmp(cardinal(181), "S") == 0, "puntos cardinales");
+    {   // archivo de datos: tono, bandas, grupos, categoria V y digipetidor APRS
+        Transmitter t;
+        CHECK(parseTxLine("T|145990000|145990000|437800000|437800000|FM|0|0|FM voice rptr|670", t) && t.tone == 670, "tono del campo 9 (%u)", t.tone);
+        CHECK(parseTxLine("T|145850000|145850000|436795000|436795000|FM|0|0|FM rpt 67Hz CTCSS", t) && t.tone == 670, "tono de la descripcion (%u)", t.tone);
+        CHECK(parseTxLine("T|437500000|437500000|145900000|145900000|FM|0|0|PL 141.3", t) && t.tone == 1413, "PL 141.3 (%u)", t.tone);
+        CHECK(parseTxLine("T|0|0|145800000|145800000|FM|0|0|Voice 12.5 kHz", t) && t.tone == 0, "sin tono (%u)", t.tone);
+        CHECK(parseTxLine("T|0|0|437025000|437025000|GMSK|9600|0|9k6 1200Hz", t) && t.tone == 0, "1200Hz no es CTCSS (%u)", t.tone);
+        CHECK(toneFromText("CTCSS: 74.4") == 744 && toneFromText("tone 88,5") == 885 && toneFromText("67.0 Hz") == 670, "toneFromText");
+        CHECK(parseTxLine("T|145825000|145825000|145825000|145825000|AFSK|1200|0|APRS digipeater", t) && aprsDigi(t), "ISS APRS digi");
+        CHECK((txBands(t) & (BAND_2M | BAND_VHF)) == (BAND_2M | BAND_VHF) && !(txBands(t) & BAND_70CM), "bandas 2 m (%u)", txBands(t));
+        CHECK(parseTxLine("T|0|0|437550000|437550000|AFSK|1200|0|Telemetry", t) && !aprsDigi(t) && (txBands(t) & BAND_70CM), "AFSK de telemetria no es digi");
+        CHECK(bandsOf(137100000) == BAND_VHF && bandsOf(435000000) == (BAND_70CM | BAND_UHF) && bandsOf(0) == 0, "bandsOf");
+        const char* txt = "# x\nS|25544|ISS (ZARYA)|V|sa\n1 25544U 98067A   26310.50000000  .00016717  00000-0  10270-3 0  9005\n"
+                          "2 25544  51.6400 208.9163 0006317  69.9862 290.2201 15.50000000 10001\nT|145825000|145825000|145825000|145825000|AFSK|1200|0|APRS|0\nS|1|X|U\n";
+        Block b;
+        const size_t used = parseBlock(txt, strlen(txt), b);
+        CHECK(used > 0 && b.cat == 'V' && strcmp(b.groups, "sa") == 0 && b.txCount == 1 && b.tx[0].tone == 0, "bloque nuevo: cat %c grupos '%s' tx %d", b.cat, b.groups, b.txCount);
+        const char* old = "S|25544|ISS|U\nT|0|0|437800000|437800000|FM|0|0|rpt\n";
+        CHECK(parseBlock(old, strlen(old), b) > 0 && b.cat == 'U' && b.groups[0] == 0 && b.txCount == 1, "bloque antiguo");
+        CHECK(groupName('s')[0] && !groupName('?')[0], "nombres de grupos");
+    }
     // TLE incorrecto
     Sat s;
     CHECK(!parseTle("x", "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4750", "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667", s), "checksum malo aceptado");

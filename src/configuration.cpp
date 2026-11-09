@@ -381,11 +381,16 @@ namespace {
         FB(FmConfig, qsyInBeacon,  FF_KEEP, 1),
         FB(FmConfig, squelchAuto,  FF_KEEP, 1),
         FC(FmConfig, nrLevel,      FF_KEEP, 0, 0, 3),
+        FB(FmConfig, satOn,        FF_KEEP, 0),
+        FC(FmConfig, satTx,        FF_KEEP, 0, 0, 5),
     };
 #endif
     const Field kSatFields[] = {                                                    // los valores que faltan parten de setDapnetDefaults()
         FB(SatConfig, noradId,        FF_KEEP, 0),
-        FC(SatConfig, category,       FF_KEEP, 0, 0, 3),
+        FC(SatConfig, category,       FF_KEEP, 0, 0, 6),
+        FS(SatConfig, favorites,      0, ""),
+        FS(SatConfig, groups,         0, ""),
+        FS(SatConfig, aprsPath,       0, "ARISS"),
         FC(SatConfig, posSource,      FF_KEEP, 0, 0, 2),
         FC(SatConfig, minEl,          FF_REQUIRED | FF_KEEP, 0, 0, 60),
         FC(SatConfig, lat,            FF_KEEP, 0, -90, 90),
@@ -754,6 +759,8 @@ bool Configuration::readFile() {
         }
         READ("sat", sat, kSatFields);
         if (sat.txText.length() > 64) sat.txText = sat.txText.substring(0, 64);
+        if (sat.favorites.length() > 260) sat.favorites = sat.favorites.substring(0, 260);
+        if (sat.aprsPath.length() > 24) sat.aprsPath = sat.aprsPath.substring(0, 24);
 
         READ("rotor", rotor, kRotorFields);
         if (!RotorFollow::validSource(rotor.source)) rotor.source = 0;
@@ -1016,6 +1023,8 @@ void Configuration::setFmDefaults() {
     fm.qsyInBeacon   = true;
     fm.squelchAuto   = true;
     fm.nrLevel       = 0;
+    fm.satOn         = false;
+    fm.satTx         = 0;
 }
 
 void Configuration::setDapnetDefaults() {
@@ -1037,6 +1046,9 @@ void Configuration::setDapnetDefaults() {
     sat.txPower          = 10;
     sat.txMinIntervalS   = 30;
     sat.txText           = "";
+    sat.favorites        = "";
+    sat.groups           = "";
+    sat.aprsPath         = "ARISS";
     sat.lnaPin = sat.paPin = sat.pttPin = -1;
     sat.lnaRev = sat.paRev = sat.pttRev = false;
     sat.seqLeadMs        = 20;

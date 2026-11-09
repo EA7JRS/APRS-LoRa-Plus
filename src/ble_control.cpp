@@ -229,7 +229,7 @@ namespace {
             if (Config.lrfhss.enabled && LoRa_Utils::lrfhssAvailable()) out[n++] = ModeOption{ MODE_LRFHSS, "LR-FHSS beacon" };
             if (LoRa_Utils::dapnetAvailable()) out[n++] = ModeOption{ MODE_DAPNET, "DAPNET pager" };
             #ifdef HAS_SAT
-            out[n++] = ModeOption{ MODE_SAT, "Satellites 70cm" };
+            out[n++] = ModeOption{ MODE_SAT, "Satellites" };
             #endif
         #endif
         return n;
@@ -292,6 +292,13 @@ namespace {
             caps["radio"] = "lora";
             caps["m17"]   = false;
             caps["fm"]    = false;
+        #endif
+        #ifdef HAS_SAT
+            caps["satMax"] = (long)SAT_Utils::maxDataBytes();       // bytes del archivo de satelites que caben (ordenes "satdata"; la app filtra por grupos)
+            caps["satFav"] = true;                                   // favoritos y categorias ("satfav", "satcat")
+            #ifdef HAS_SA868
+                caps["satFm"] = true;                                // el VFO de FM sigue al satelite (FM / APRS AFSK, ruta sat.aprsPath)
+            #endif
         #endif
         caps["bcast"] = BCAST::chipName();                       // radio comercial por I2C: "none", "RDA5807M", "Si4703", "Si4735"
         doc["mode"] = Config.operatingMode;
@@ -699,6 +706,16 @@ namespace {
         j.send(sendLine);
     }
 
+    // satrx / sattx: modo SAT; en la T-TWR tambien en FM (el VFO sigue al satelite)
+    static bool satModeOk() {
+        if (Config.operatingMode == MODE_SAT) return true;
+        #ifdef HAS_SA868
+            return Config.operatingMode == MODE_FM;
+        #else
+            return false;
+        #endif
+    }
+
     // Recepcion de satelites (modo SAT, fase 2): cada linea nueva (trama, paquete LoRa o texto CW) y cada 5 s mientras se escucha
     void sendSatRx(bool withText) {
         #ifdef HAS_SAT
@@ -755,7 +772,12 @@ namespace {
                 j.flag("geo", SAT_Utils::geo());
                 j.num("tx", b->txCount);
                 j.flt("tle", SAT_Utils::tleAgeDays(), 1);
+                j.flag("fav", SAT_Utils::isFavorite(b->noradId));
             }
+            j.num("cat", Config.sat.category);
+            j.num("tot", SAT_Utils::count());
+            j.num("nfav", SAT_Utils::favoriteCount());
+            j.text("stamp", SAT_Utils::dataStamp());
             j.text("pos", SAT_Utils::haveQth() ? SAT_Utils::qthSource() : "");
             SatCore::Look lk;
             if (b && SAT_Utils::live(lk)) {
@@ -774,7 +796,11 @@ namespace {
 
     void checkSat() {
         #ifdef HAS_SAT
-            if (!connected || !authed || Config.operatingMode != MODE_SAT) return;
+            bool want = Config.operatingMode == MODE_SAT;
+            #ifdef HAS_SA868
+                want = want || FM_Utils::satOn();                    // FM siguiendo a un satelite
+            #endif
+            if (!connected || !authed || !want) return;
             static uint32_t lastMs = 0;
             const uint32_t now = millis();
             if (now - lastMs < 2000) return;
@@ -797,6 +823,9 @@ namespace {
                 const char cat[2] = { (char)e->cat, '\0' };
                 j.obj();
                 j.num("i", i); j.num("id", e->noradId); j.text("n", e->name); j.text("c", cat); j.num("t", e->txCount);
+                j.num("b", e->bands);
+                if (SAT_Utils::isFavorite(e->noradId)) j.flag("fav", true);
+                if (SAT_Utils::inCategory(*e)) j.flag("in", true);       // en la categoria elegida
                 j.endObj();
             }
             j.endArr();
@@ -819,6 +848,8 @@ namespace {
                     j.num("up", (long long)SatCore::txUpCenter(t)); j.num("dn", (long long)SatCore::txDownCenter(t));
                     j.text("rx", SATRX_Utils::kindText(SATRX_Utils::classify(t)));
                     j.text("tx", SATRX_Utils::kindText(SATTX_Utils::classifyUp(t)));
+                    if (t.tone) j.flt("tone", t.tone / 10.0, 1);
+                    if (SatCore::aprsDigi(t)) j.flag("aprs", true);
                     double rx = 0, tx = 0;
                     SAT_Utils::doppler(t, rx, tx);
                     if (rx > 0) j.num("rxd", llround(rx));
@@ -1061,6 +1092,29 @@ namespace {
         doc["qsyb"] = Config.fm.qsyInBeacon;
         doc["tok"]  = SA868::fmLastToneOk();
         doc["spk"]  = SA868::fmSpeakerFromEsp();
+        #ifdef HAS_SAT
+        if (FM_Utils::satOn()) {                                    // el VFO sigue a un satelite
+            JsonObject so = doc["sat"].to<JsonObject>();
+            const SatCore::Block* b = SAT_Utils::block();
+            if (b) { so["n"] = b->name; so["id"] = b->noradId; }
+            so["tx"]   = FM_Utils::satTxIndex();
+            so["f"]    = FM_Utils::satRxHz();
+            so["up"]   = FM_Utils::satUpHz();
+            so["dop"]  = FM_Utils::satDopplerHz();
+            so["fine"] = FM_Utils::satFineHz();
+            so["dok"]  = FM_Utils::satDopplerOk();
+            so["xup"]  = FM_Utils::satListenUplink();
+            so["aprs"] = FM_Utils::satAprs();
+            so["tone"] = FM_Utils::satTone() / 10.0;
+            so["sent"] = FM_Utils::satSent();
+            so["heard"] = FM_Utils::satHeard();
+            SatCore::Look lk;
+            if (SAT_Utils::live(lk)) { so["az"] = lround(lk.azDeg * 10) / 10.0; so["el"] = lround(lk.elDeg * 10) / 10.0; }
+            char why[28];
+            so["txok"] = FM_Utils::satCanTx(why, sizeof(why));
+            if (why[0]) so["why"] = why;
+        }
+        #endif
         const char* n = FM_Utils::notice();
         if (n[0]) doc["note"] = n;
         sendDoc(doc);
@@ -1090,7 +1144,7 @@ namespace {
         const uint32_t sig = (uint32_t)c.rxHz ^ ((uint32_t)c.toneMode << 28) ^ ((uint32_t)c.tone << 12) ^ (FM_Utils::busy() ? 1u : 0) ^ (FM_Utils::ptt() ? 2u : 0) ^
                              ((uint32_t)FM_Utils::scanning() << 2) ^ ((uint32_t)FM_Utils::artsState() << 3) ^ ((uint32_t)FM_Utils::memIndex() << 5) ^
                              ((uint32_t)c.shift << 26) ^ ((uint32_t)FM_Utils::squelch() << 20) ^ (c.high ? 0x40000000u : 0) ^ (c.wide ? 0x80000000u : 0) ^
-                             ((uint32_t)FM_Utils::eaiOn() << 4) ^ (uint32_t)(FM_Utils::notice()[0]);
+                             ((uint32_t)FM_Utils::eaiOn() << 4) ^ (uint32_t)(FM_Utils::notice()[0]) ^ ((uint32_t)FM_Utils::satOn() << 1) ^ (uint32_t)(FM_Utils::satFineHz() * 7);
         const uint32_t now = millis();
         if ((sig != lastSig && now - lastMs >= 250) || now - lastMs >= 5000) { lastSig = sig; lastMs = now; sendFm(); }
     }
@@ -1166,7 +1220,7 @@ namespace {
         }
         else if (strcmp(cmd, "satrx") == 0) {                     // receptor de satelites (modo SAT): on = true/false, tx = indice del transmisor (opcional), fine = ajuste en Hz (opcional)
             #ifdef HAS_SAT
-                if (Config.operatingMode != MODE_SAT) { reply(cmd, id, "not in SAT mode"); return; }
+                if (!satModeOk()) { reply(cmd, id, "not in SAT mode"); return; }
                 if (!doc["fine"].isNull()) SATRX_Utils::fine((int)(doc["fine"] | 0));
                 if (!doc["on"].isNull()) {
                     if (doc["on"] | false) {
@@ -1183,7 +1237,17 @@ namespace {
         }
         else if (strcmp(cmd, "sattx") == 0) {                     // emision hacia el satelite (modo SAT): tx = indice del transmisor, txt = mensaje (si falta, el de la WebUI). Bloquea mientras emite
             #ifdef HAS_SAT
-                if (Config.operatingMode != MODE_SAT) { reply(cmd, id, "not in SAT mode"); return; }
+                if (!satModeOk()) { reply(cmd, id, "not in SAT mode"); return; }
+                const uint8_t txp = (uint8_t)(doc["tx"] | 0);
+                if (doc["pos"] | false) {                         // T-TWR: posicion APRS por el digipetidor (ISS)
+                    if (!SATTX_Utils::sendPosition(txp)) { reply(cmd, id, SATTX_Utils::message()); return; }
+                    reply(cmd, id);
+                    JsonDocument ev;
+                    ev["e"] = "sattx"; ev["ok"] = true; ev["pos"] = true;
+                    ev["f"] = (long)llround(SATTX_Utils::lastHz()); ev["n"] = SATTX_Utils::count();
+                    sendDoc(ev);
+                    return;
+                }
                 String text = doc["txt"] | "";
                 text.trim();
                 if (text.isEmpty()) text = Config.sat.txText;
@@ -1202,6 +1266,27 @@ namespace {
             #endif
         }
         else if (strcmp(cmd, "sat") == 0) { sendSat(); }
+        else if (strcmp(cmd, "satfav") == 0) {                    // favorito: id = NORAD (si falta, el elegido), on = true / false
+            #ifdef HAS_SAT
+                int nid = doc["id"] | 0;
+                if (nid <= 0 && SAT_Utils::block()) nid = SAT_Utils::block()->noradId;
+                if (nid <= 0) { reply(cmd, id, "no satellite"); return; }
+                if (!SAT_Utils::setFavorite(nid, doc["on"] | true)) { reply(cmd, id, "favorites full (32)"); return; }
+                reply(cmd, id);
+                sendSat();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "satcat") == 0) {                    // categoria de la lista: c = 0 todos, 1 70 cm, 2 LoRa, 3 GEO, 4 favoritos, 5 2 m, 6 esta radio
+            #ifdef HAS_SAT
+                if (!SAT_Utils::setCategory(doc["c"] | 0)) { reply(cmd, id, "bad category"); return; }
+                reply(cmd, id);
+                sendSat();
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
         else if (strcmp(cmd, "satlist") == 0) { sendSatList(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 20), 1, 40)); }
         else if (strcmp(cmd, "sattxlist") == 0) { sendSatTx(); }
         else if (strcmp(cmd, "satsel") == 0) {                    // elige el satelite: i = indice de la lista, o id = numero NORAD

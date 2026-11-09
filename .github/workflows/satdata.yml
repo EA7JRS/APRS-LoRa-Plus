@@ -1,4 +1,5 @@
-# Datos del modo SAT (EA7JRS): cada dia genera sats.txt (TLE de CelesTrak + frecuencias de 70 cm de SatNOGS DB) y lo publica en la rama "satdata",
+# Datos del modo SAT (EA7JRS): cada dia genera sats.txt (TLE de CelesTrak + frecuencias de 70 cm de SatNOGS DB) y sats_all.txt (todas las bandas
+# del tracker, grupos de CelesTrak y CTCSS; lo filtran por grupos la app y la WebUI) y los publica en la rama "satdata",
 # de donde lo descarga el tracker por WiFi (https://raw.githubusercontent.com/EA7JRS/APRS-LoRa-Plus/satdata/sats.txt).
 # La rama tiene siempre un solo commit (se reescribe), para no acumular historial.
 name: Satellite data
@@ -25,9 +26,11 @@ jobs:
             - name: Generate sats.txt
               run: |
                   mkdir -p out
-                  python3 -u tools/make_sat_data.py out/sats.txt
+                  python3 -u tools/make_sat_data.py out/sats.txt --all out/sats_all.txt
                   head -c 600 out/sats.txt
                   grep -c '^S|' out/sats.txt
+                  grep -c '^S|' out/sats_all.txt
+                  ls -l out
 
             - name: Publish to the satdata branch
               run: |
@@ -35,6 +38,6 @@ jobs:
                   git init -q -b satdata
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git add sats.txt
+                  git add sats.txt sats_all.txt
                   git commit -q -m "Satellite data $(date -u +%Y-%m-%dT%H:%MZ)"
                   git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" satdata

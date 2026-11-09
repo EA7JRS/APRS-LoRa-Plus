@@ -18,6 +18,10 @@
 #include "power_utils.h"
 #include "sat_utils.h"
 #include "cw_morse.h"
+#ifdef HAS_SA868
+#include "fm_utils.h"
+#include "sa868_radio.h"
+#endif
 
 extern Configuration    Config;
 extern logging::Logger  logger;
@@ -149,6 +153,22 @@ namespace SATTX_Utils {
     uint32_t sinceLastS() { return haveLast ? (millis() - lastMs) / 1000 : 0xFFFFFFFFUL; }
 
     SATRX_Utils::Kind classifyUp(const SatCore::Transmitter& t, const char** why) {
+        #ifdef HAS_SA868
+        {   // T-TWR: APRS AFSK 1200 (texto o posicion) y FM de voz (con el PTT) en la banda de aficionados del modulo
+            if (why) *why = "";
+            const long up = (long)SatCore::txUpCenter(t);
+            if (up <= 0) { if (why) *why = "No uplink"; return SATRX_Utils::K_NO; }
+            if (!FM_Utils::uplinkInBand(up)) { if (why) *why = SA868::uhf() ? "Uplink not 70cm" : "Uplink not 2m"; return SATRX_Utils::K_NO; }
+            const SATRX_Utils::Kind k = SATRX_Utils::classify(t);
+            if (k == SATRX_Utils::K_AFSK || SatCore::aprsDigi(t)) return SATRX_Utils::K_AFSK;
+            char mm[12]; size_t nn = 0;
+            for (const char* p = t.mode; *p && nn + 1 < sizeof(mm); p++) if (isalnum((unsigned char)*p)) mm[nn++] = (char)tolower((unsigned char)*p);
+            mm[nn] = 0;
+            if (strstr(mm, "fm") && !strstr(mm, "fsk")) return SATRX_Utils::K_FM;
+            if (why) *why = "Mode not supported";
+            return SATRX_Utils::K_NO;
+        }
+        #endif
         char m[12];
         size_t n = 0;
         for (const char* p = t.mode; *p && n + 1 < sizeof(m); p++) if (isalnum((unsigned char)*p)) m[n++] = (char)tolower((unsigned char)*p);
@@ -175,6 +195,23 @@ namespace SATTX_Utils {
 
     bool check(uint8_t txIdx, char* why, size_t n) {
         why[0] = 0;
+        #ifdef HAS_SA868
+        {
+            const SatCore::Block* b = SAT_Utils::block();
+            if (!b || txIdx >= b->txCount)  { snprintf(why, n, "No transmitter"); return false; }
+            const char* r = "";
+            const SATRX_Utils::Kind k = classifyUp(b->tx[txIdx], &r);
+            if (k == SATRX_Utils::K_NO)     { snprintf(why, n, "%s", r[0] ? r : "Not possible"); return false; }
+            if (!FM_Utils::satOn() || FM_Utils::satTxIndex() != txIdx) { snprintf(why, n, "Listen first"); return false; }
+            if (!FM_Utils::satCanTx(why, n)) return false;
+            if (k == SATRX_Utils::K_FM)     { snprintf(why, n, "Voice: hold PTT"); return false; }
+            if (haveLast && millis() - lastMs < (uint32_t)Config.sat.txMinIntervalS * 1000UL) {
+                snprintf(why, n, "Wait %ds", (int)(Config.sat.txMinIntervalS - (millis() - lastMs) / 1000));
+                return false;
+            }
+            return true;
+        }
+        #endif
         if (!SATRX_Utils::available())  { snprintf(why, n, "Board cannot TX"); return false; }
         if (!Config.sat.txEnabled)      { snprintf(why, n, "TX off (WebUI)"); return false; }
         String call;
@@ -199,7 +236,18 @@ namespace SATTX_Utils {
     bool send(uint8_t txIdx, const char* text) {
         char why[28];
         if (!text || !text[0]) { setMsg("No message"); return false; }
+        #ifdef HAS_SA868
+            if (SATRX_Utils::txIndex() != txIdx || !FM_Utils::satOn()) SATRX_Utils::start(txIdx);     // sigue a ese transmisor
+        #endif
         if (!check(txIdx, why, sizeof(why))) { setMsg(why); return false; }
+        #ifdef HAS_SA868
+        {   // T-TWR: trama APRS con el texto como campo de informacion ("ruta" sat.aprsPath), en la subida con Doppler
+            const bool good = FM_Utils::satSendAprs(text);
+            lastMs = millis(); haveLast = true; lastFreq = (double)FM_Utils::satUpHz();
+            if (good) { sent++; setMsg("Sent"); } else setMsg(FM_Utils::notice()[0] ? FM_Utils::notice() : "TX failed");
+            return good;
+        }
+        #endif
 
         const SatCore::Transmitter t = SAT_Utils::block()->tx[txIdx];
         const SATRX_Utils::Kind kind = classifyUp(t);
@@ -260,6 +308,30 @@ namespace SATTX_Utils {
         return good;
     }
 
+    bool sendPosition(uint8_t txIdx) {
+        #ifdef HAS_SA868
+            char why[28];
+            if (SATRX_Utils::txIndex() != txIdx || !FM_Utils::satOn()) SATRX_Utils::start(txIdx);
+            if (!check(txIdx, why, sizeof(why))) { setMsg(why); return false; }
+            const bool good = FM_Utils::satSendPosition(Config.sat.txText.c_str());
+            lastMs = millis(); haveLast = true; lastFreq = (double)FM_Utils::satUpHz();
+            if (good) { sent++; setMsg("Position sent"); } else setMsg(FM_Utils::notice()[0] ? FM_Utils::notice() : "TX failed");
+            return good;
+        #else
+            (void)txIdx;
+            setMsg("Not on this board");
+            return false;
+        #endif
+    }
+
+    bool canSendPosition() {
+        #ifdef HAS_SA868
+            return FM_Utils::satAprs();
+        #else
+            return false;
+        #endif
+    }
+
 }
 
 #else   // !HAS_SAT
@@ -269,6 +341,8 @@ namespace SATTX_Utils {
     SATRX_Utils::Kind classifyUp(const SatCore::Transmitter&, const char** why) { if (why) *why = ""; return SATRX_Utils::K_NO; }
     bool check(uint8_t, char* why, size_t n) { if (n) why[0] = 0; return false; }
     bool send(uint8_t, const char*) { return false; }
+    bool sendPosition(uint8_t) { return false; }
+    bool canSendPosition() { return false; }
     const char* message() { return ""; }
     uint32_t sinceLastS() { return 0xFFFFFFFFUL; }
     uint32_t count() { return 0; }
