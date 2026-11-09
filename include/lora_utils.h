@@ -55,6 +55,7 @@ namespace LoRa_Utils {
     void setFlag();
     int  validPower(int requested);
     bool fskAvailable();                // true si el chip tiene FSK (no el LLCC68)
+    bool m17Available();                // modo M17 (solo la T-TWR: 4FSK por el audio plano del SA868)
     bool dapnetAvailable();             // true si el chip puede recibir POCSAG (FSK del SX1262/SX1268): modo DAPNET
     bool cwAvailable();                 // true si el chip puede emitir portadora continua (SX1262/SX1268)
     void cwSelect(bool beacon);         // MORSE: perfil de radio CW (true = CW Beacon, false = Telegrafia); sintoniza su frecuencia y potencia

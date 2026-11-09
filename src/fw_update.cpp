@@ -274,6 +274,8 @@ namespace FW_Update {
             sa["rev"]          = SA868::revision();
             sa["band"]         = SA868::uhf() ? "UHF" : "VHF";
             sa["fw"]           = SA868::firmwareName();
+            sa["modem"]        = SA868::modemName();
+            sa["rx"]           = SA868::rxFreqHz();
         #else
             doc["radio"]       = "lora";
         #endif

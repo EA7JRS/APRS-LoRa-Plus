@@ -327,6 +327,9 @@ namespace {
         FB(Sa868Config, speaker,   FF_KEEP, 0),
         FB(Sa868Config, revision,  FF_KEEP, 0),
         FC(Sa868Config, iaruRegion, FF_KEEP, 0, 1, 3),
+        FB(Sa868Config, m17FreqHz, FF_KEEP, 0),
+        FC(Sa868Config, m17Can,    FF_KEEP, 0, 0, 15),
+        FC(Sa868Config, txLevelM17, FF_KEEP, 0, 1, 100),
     };
 #endif
     const Field kSatFields[] = {                                                    // los valores que faltan parten de setDapnetDefaults()
@@ -627,7 +630,11 @@ bool Configuration::readFile() {
         if (data["radioPpm1000"].isNull()) needsRewrite = true;
         if (!data["radioPpm1000"].isNull()) radioPpm1000 = constrain((int)(data["radioPpm1000"] | 0), -50000, 50000);
         else                                radioPpm1000 = constrain((int)(data["radioPpm100"] | 0) * 10, -50000, 50000);          // configuraciones de 5.2.11 (centesimas de ppm)
-        savedMode = constrain((int)(data["operatingMode"] | (int)MODE_APRS_LORA), (int)MODE_APRS_LORA, (int)MODE_APRS_FSK);   // MORSE nunca arranca solo
+        savedMode = (int)(data["operatingMode"] | (int)MODE_APRS_LORA);
+        if (!isAprsMode(savedMode)) savedMode = MODE_APRS_LORA;                                       // MORSE nunca arranca solo; M17 solo en la T-TWR
+        #ifndef HAS_SA868
+        if (savedMode == MODE_M17) savedMode = MODE_APRS_LORA;
+        #endif
         operatingMode = savedMode;
 
         if (data["cw"]["messages"].isNull()) needsRewrite = true;
@@ -881,6 +888,9 @@ void Configuration::setSa868Defaults() {
     sa868.speaker    = true;
     sa868.revision   = 0;
     sa868.iaruRegion = 1;
+    sa868.m17FreqHz  = 0;                       // la sugerida para la banda del modulo
+    sa868.m17Can     = 0;
+    sa868.txLevelM17 = 40;
 }
 
 void Configuration::setDapnetDefaults() {

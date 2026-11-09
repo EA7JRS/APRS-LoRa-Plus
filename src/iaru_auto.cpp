@@ -115,7 +115,7 @@ namespace IARU_Auto {
             int regs = 0;
             const int freqs = walk(r, false, &regs);
             Config.writeFile();
-            if (Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK) LoRa_Utils::retune();
+            if (isAprsMode(Config.operatingMode)) LoRa_Utils::retune();
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "IARU", "Region %d applied (%d region fields, %d frequencies changed)", r, regs, freqs);
             notice(String("Region ") + r + " applied", freqs ? String(freqs) + " freq. changed" : "Frequencies kept");
         }

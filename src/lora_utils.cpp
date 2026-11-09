@@ -338,6 +338,8 @@ namespace LoRa_Utils {
         return RADIO_HAS_FSK && ((Config.operatingMode == MODE_APRS_FSK && !currentLoRaType->ais) || Config.operatingMode == MODE_DAPNET);   // DAPNET (POCSAG) tambien usa el modem FSK
     }
 
+    bool m17Available() { return false; }                   // M17 (4FSK por audio) solo en la T-TWR (lora_utils_sa868.cpp)
+
     bool fskAvailable() {
         return RADIO_HAS_FSK;
     }
@@ -677,7 +679,7 @@ namespace LoRa_Utils {
     // Cada modo emite solo lo suyo: en MORSE/CW, WSPR y LR-FHSS el SX126x esta configurado para ese modo y un paquete APRS
     // (SOS, mensaje, ACK, digipeater, telemetria, Bluetooth...) saldria con la modulacion y la frecuencia equivocadas.
     bool aprsTxAllowed() {
-        return Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK;
+        return Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK;      // M17 solo existe en la T-TWR
     }
 
     void sendNewPacket(const String& newPacket) {

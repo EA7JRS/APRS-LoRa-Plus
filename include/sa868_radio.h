@@ -9,9 +9,11 @@
  *    registros del AT1846S). Se detecta solo.
  *  - Revision de la placa: la Rev2.1 alimenta el modulo desde la bateria y la Rev2.0 desde el DC3 de la PMU; si el modulo contesta
  *    sin DC3 es una Rev2.1. Se puede fijar en la configuracion (sa868.revision).
- *  - Modos: APRS AFSK 1200 (modo 0) y APRS FSK 9600 G3RUH (modo 1: filtros de voz puenteados, canal de 25 kHz, ADC a 48 kHz).
+ *  - Modos: APRS AFSK 1200 (modo 0), APRS FSK 9600 G3RUH (modo 1) y M17 (modo 10). En 9600 y M17: audio plano (filtros de voz
+ *    puenteados), canal de 25 kHz y ADC a 48 kHz. M17: el APRS va en paquetes M17 de protocolo APRS; se oyen ademas los SMS y los
+ *    indicativos y posiciones GNSS de las emisiones de voz (include/m17_modem.h).
  *  - Audio: emision por PDM (I2S0, modo DAC) en GPIO18 hacia la entrada de microfono del modulo (MIC_CH_SEL en alto); recepcion por
- *    el ADC1 (GPIO1) en modo continuo a 13200 Hz (48000 Hz en 9600) en una tarea propia.
+ *    el ADC1 (GPIO1) en modo continuo a 13200 Hz (48000 Hz en 9600 y M17) en una tarea propia.
  */
 
 #ifndef SA868_RADIO_H_
@@ -38,6 +40,14 @@ namespace SA868 {
     float    audioLevel();                  // nivel de pico de la entrada de audio (0..1)
     uint32_t framesOk();
     bool     mode9600();                    // arrancado en APRS FSK 9600 (G3RUH, audio plano)
+    bool     modeM17();                     // arrancado en M17
+    const char* modemName();                // "AFSK 1200", "G3RUH 9600" o "M17"
+    long     rxFreqHz();                    // frecuencias en uso (las del modo: sa868, perfil FSK en 9600, sa868.m17FreqHz en M17, CAT)
+    long     txFreqHz();
+    long     m17FreqHz();                   // la de M17 (la de la configuracion o la sugerida para la banda del modulo)
+    bool     m17Sms(const char* dst, const char* text);    // SMS M17 (protocolo 0x05) a un indicativo o a "@ALL"; bloquea mientras emite
+    uint32_t m17Lsfs();                     // M17: cabeceras (LSF) oidas
+    uint32_t m17CrcErrors();
     void     sleep();
     void     wake();
     bool     validFreq(long hz);            // dentro de la banda del modulo (134..174 MHz VHF, 400..480 MHz UHF)

@@ -1,0 +1,9 @@
+{
+  "name": "libm17",
+  "version": "1.4.1",
+  "description": "M17 C library (M17 Foundation, SP5WWP), GPL-2.0-or-later. Vendored for the LilyGO T-TWR M17 mode of APRS LoRa+.",
+  "license": "GPL-2.0-or-later",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": { "flags": "-Wno-unused-parameter -Wno-sign-compare", "srcFilter": "+<*> +<encode/*> +<decode/*> +<math/*> +<payload/*> +<phy/*>" }
+}

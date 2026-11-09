@@ -1,4 +1,4 @@
-# LilyGO T-TWR Plus: APRS analógico en VHF (AFSK 1200)
+# LilyGO T-TWR Plus: APRS analógico en VHF (AFSK 1200), 9600 y M17
 
 Copyright (C) 2026 Manuel - EA7JRS. GPL-3.0-or-later.
 
@@ -8,7 +8,7 @@ La T-TWR no lleva radio LoRa. Lleva un módulo **SA868** de NiceRF: un transcept
 
 ## Qué funciona igual que en las demás placas
 
-Balizas (SmartBeacon, perfiles), mensajes y ACK, digipeater, estaciones oídas, pantallas, GPS (L76K), Bluetooth (KISS y control de la app), WebUI, NMEA, telemetría. El modo de arranque se llama **APRS AFSK 1200** (es el modo 0, el que en las demás placas es APRS LoRa). Hay un segundo modo, **APRS FSK 9600** (G3RUH, el mismo AX.25 a 9600 baudios que las otras placas emiten con el SX126x), ver más abajo.
+Balizas (SmartBeacon, perfiles), mensajes y ACK, digipeater, estaciones oídas, pantallas, GPS (L76K), Bluetooth (KISS y control de la app), WebUI, NMEA, telemetría. El modo de arranque se llama **APRS AFSK 1200** (es el modo 0, el que en las demás placas es APRS LoRa). Hay otros dos modos: **APRS FSK 9600** (G3RUH, el mismo AX.25 a 9600 baudios que las otras placas emiten con el SX126x) y **M17** (digital, 4FSK), ver más abajo.
 
 ## Qué no hay en esta placa
 
@@ -31,6 +31,9 @@ APRS LoRa, CW / Morse, WSPR, FT8, FT4, FST4W, LR-FHSS, DAPNET y la recepción o 
 | Filtros de voz | Sí | Pre/desénfasis y paso alto / bajo del módulo |
 | Altavoz | Sí | Rev2.1 y firmware OpenRTX; la Rev2.0 no lo puede silenciar |
 | Placa | Auto | Rev2.0 / Rev2.1 si la detección falla |
+| Frecuencia M17 | vacía | Vacía = la sugerida por la IARU R1: 144,875 MHz (VHF) o 433,475 MHz (UHF) |
+| CAN M17 | 0 (0–15) | *Channel Access Number* de las tramas M17 |
+| Nivel TX M17 | 40 % | Banda base 4FSK: unos ±2,4 kHz de desviación en los símbolos ±3 (medir) |
 
 ### Canales APRS de 2 m por región IARU
 
@@ -76,6 +79,19 @@ SELECT MODE → **APRS FSK 9600**. Emite y recibe AX.25 a 9600 baudios G3RUH (al
 - **Emisión:** bytes de `AX25G3::g3ruhEncode` → pulsos de coseno alzado (caída 0,5) a 48 kHz → PDM. **Recepción:** ADC a 48 kHz (5 muestras por bit) → paso bajo → control de ganancia → PLL de reloj con interpolación → `AX25G3::Decoder` (también FX.25 e IL2P al recibir).
 - **Comprobado en el PC** (`tools/afsk/test_g3ruh.cpp`, en la CI): ida y vuelta a 38,4 / 44,1 / 48 / 96 kHz, polaridad invertida, niveles, acoplo de 20 Hz y paso bajo de 7 kHz, ±1 % de reloj y ruido. Frente a Dire Wolf (`gen_packets -B 9600 -n 100`, `atest -B 9600`): 66 / 66 tramas a 48 kHz y 60 / 62 a 44,1 kHz; Dire Wolf decodifica 100 de 100 de las nuestras.
 - **Sin verificar:** que el SA868 deje pasar 9600 limpio (respuesta en baja frecuencia de la entrada de micrófono y de la salida de audio, sobre todo con el firmware de NiceRF). Si no se decodifica, probar con el firmware de OpenRTX y ajustar *TX level 9600*.
+
+## M17 (etapa 1: paquetes y escucha)
+
+SELECT MODE → **M17** (modo 10; BLE `mode` 10). Radio digital M17 (4FSK, 4800 símbolos/s, filtro RRC α 0,5) por el mismo audio plano que el 9600 (filtros de voz puenteados, canal de 25 kHz), en la **frecuencia M17** de la sección del SA868. El modo M17 es un modo APRS más: balizas, mensajes y ACK, digipeater, KISS y control de la app funcionan igual, pero por M17.
+
+- **Emisión:** todo lo que emite el tracker va en **paquetes M17 de protocolo APRS** (0x02) con el texto TNC2 entero, dirigidos a `@ALL` y con el indicativo de origen de la trama en la cabecera (LSF). Otra T-TWR en modo M17 los lee como APRS normal. Delante, portadora sin modular hasta completar el TXDELAY.
+- **Recepción:** se entienden los paquetes M17 de protocolo APRS (pasan tal cual) y **SMS** (0x05: pasan a un mensaje APRS `ORIGEN>APZM17,NOGATE::DESTINO :texto`, 67 caracteres como mucho; si va a nuestro indicativo aparece como mensaje recibido) y se oyen las **emisiones de voz y datos** de otras radios M17: el indicativo y, si la cabecera lleva posición GNSS (META), la posición, el rumbo, la velocidad y la altura pasan a la lista de estaciones como `ORIGEN>APZM17,NOGATE:!posición… M17 voice to DESTINO` (sin posición, un estado `>M17 voice to DESTINO`), como mucho cada 30 s por estación. La cabecera se toma del LSF del principio o, si se engancha a mitad, de los trozos del LICH. Lo que no es APRS de verdad lleva `NOGATE`: ningún iGate lo sube a APRS-IS. Los indicativos M17 con `/` o `.` pasan a `-`.
+- **SMS a otras radios M17** (OpenRTX, M17 Project...): orden BLE `m17sms` (`to` = indicativo, vacío = `@ALL`; `t` = texto). Un solo envío, sin confirmación (el SMS M17 no la tiene); los mensajes APRS normales siguen con sus reintentos.
+- **Sin voz** en esta etapa: el audio Codec2 de las emisiones no se reproduce (etapa 2, solo Rev2.1). Lo cifrado se ignora.
+- **Código:** tramas, código convolucional, Viterbi, Golay, intercalado y aleatorizado de **libm17** (M17 Foundation, GPL-2.0-or-later, `lib/libm17`, sin cambios); filtro RRC a 48 kHz, búsqueda de las palabras de sincronía con normalización de nivel, armado de paquetes y paso a APRS en `src/m17_modem.cpp`.
+- **Comprobado en el PC** (`tools/afsk/test_m17.cpp`, en la CI): SMS de 1 a 300 caracteres, niveles de 0,05 a 0,95, continua, ±0,1 % de reloj, ruido (30/30 a 10 dB), sin tramas falsas con 10 s de ruido, emisión de voz con GNSS (por el LSF, por el LICH y enganchando a mitad) y las conversiones a APRS. Frente a las herramientas de referencia (`m17-packet-encode` / `m17-packet-decode` de M17_Implementations): decodificamos 6 de 6 de las suyas (hasta 800 caracteres) y ellas 4 de 4 de las nuestras.
+- **Frecuencia:** M17 no tiene canal fijo; la sugerencia de la IARU R1 (boletín VHF+ de junio de 2023) es 144,875 y 433,475 MHz. En otras regiones, escribe la que se use en tu zona.
+- **Sin verificar:** como en 9600, que el SA868 deje pasar el 4FSK limpio (mejor con el firmware de OpenRTX, que es el que OpenRTX usa para su propio M17 en esta placa) y el nivel de emisión.
 
 ## Pines (de la librería de LilyGO, `utilities.h`, y de los esquemas)
 

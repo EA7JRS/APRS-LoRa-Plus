@@ -198,7 +198,10 @@ public:
 #else
     #define APRS_MAIN_MODE_NAME "APRS LoRa"
 #endif
-enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9 };
+enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10 };
+
+// Modos que emiten APRS (balizas, mensajes, digipeater, KISS...): LoRa (AFSK 1200 en la T-TWR), FSK 9600 y M17 (T-TWR)
+inline bool isAprsMode(int mode) { return mode == MODE_APRS_LORA || mode == MODE_APRS_FSK || mode == MODE_M17; }
 
 // Baliza WSPR (modo WSPR): mensaje tipo 1 con el indicativo del perfil de baliza (sin SSID), locator de 4 caracteres y potencia
 class WSPRConfig {
@@ -273,6 +276,9 @@ public:
     bool    speaker;                            // se oye por el altavoz lo que entra por la radio
     int     revision;                           // placa: 0 = deteccion automatica, 20 = Rev2.0, 21 = Rev2.1
     int     iaruRegion;                         // region IARU de las frecuencias (canales de 2 m de cada region; la region automatica la cambia)
+    int     m17FreqHz;                          // modo M17: frecuencia (Hz; 0 = la sugerida por la IARU R1: 144,875 MHz en VHF, 433,475 MHz en UHF)
+    int     m17Can;                             // modo M17: Channel Access Number (0..15)
+    int     txLevelM17;                         // modo M17: nivel de la banda base 4FSK (1..100 %): unos 2,4 kHz de desviacion en los simbolos +-3
 };
 
 // Modo SAT (satelites en 70 cm): prediccion de pasos y Doppler. Los TLE y las frecuencias se descargan por WiFi (la red de Firmware update)

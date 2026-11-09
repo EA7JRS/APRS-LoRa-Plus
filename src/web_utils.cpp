@@ -284,6 +284,13 @@ namespace WEB_Utils {
             Config.sa868.squelch   = constrain(getParamIntSafe("sa868.squelch", Config.sa868.squelch), 0, 8);
             Config.sa868.txLevel   = constrain(getParamIntSafe("sa868.txLevel", Config.sa868.txLevel), 1, 100);
             Config.sa868.txLevel9600 = constrain(getParamIntSafe("sa868.txLevel9600", Config.sa868.txLevel9600), 1, 100);
+            Config.sa868.txLevelM17 = constrain(getParamIntSafe("sa868.txLevelM17", Config.sa868.txLevelM17), 1, 100);
+            Config.sa868.m17Can    = constrain(getParamIntSafe("sa868.m17Can", Config.sa868.m17Can), 0, 15);
+            if (request->hasParam("sa868.m17MHz", true)) {  // vacio o fuera de banda = la sugerida para la banda del modulo
+                const double m = request->getParam("sa868.m17MHz", true)->value().toDouble();
+                const long hz = lround(m * 1e6);
+                Config.sa868.m17FreqHz = ((hz >= 134000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L)) ? (int)hz : 0;
+            }
             Config.sa868.txDelayMs = constrain(getParamIntSafe("sa868.txDelayMs", Config.sa868.txDelayMs), 50, 1000);
             Config.sa868.fec       = constrain(getParamIntSafe("sa868.fec", Config.sa868.fec), 0, 4);
             Config.sa868.txTailMs  = constrain(getParamIntSafe("sa868.txTailMs", Config.sa868.txTailMs), 10, 300);

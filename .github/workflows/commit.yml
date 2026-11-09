@@ -36,7 +36,7 @@ jobs:
               run: pio run --target buildfs -e ${{ matrix.target.name }}
 
     afsk:
-        # Modem AFSK 1200 de la T-TWR (include/afsk1200.h): pruebas en el PC
+        # Modems de la T-TWR (AFSK 1200, G3RUH 9600, IL2P, M17): pruebas en el PC
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
@@ -48,3 +48,10 @@ jobs:
                   /tmp/test_g3ruh
                   g++ -O2 -Iinclude tools/il2p/test_il2p.cpp src/il2p.cpp src/fx25.cpp src/ax25_g3ruh.cpp -o /tmp/test_il2p
                   /tmp/test_il2p tools/il2p/vectors.txt
+            - name: M17
+              run: |
+                  # libm17 en C (cada fichero por separado: los nombres se repiten en subcarpetas) y el modem M17 en C++
+                  mkdir -p /tmp/m17o
+                  for f in $(find lib/libm17/src -name '*.c'); do gcc -O2 -Ilib/libm17/src -c "$f" -o "/tmp/m17o/$(echo "$f" | tr / _).o"; done
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude -Ilib/libm17/src tools/afsk/test_m17.cpp src/m17_modem.cpp /tmp/m17o/*.o -lm -o /tmp/test_m17
+                  /tmp/test_m17

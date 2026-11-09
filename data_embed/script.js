@@ -665,7 +665,8 @@ function loadSettings(settings) {
             document.getElementById("sa868.txMHz").value = ((sa.txFreqHz ?? 144800000) / 1e6).toFixed(4);
             document.getElementById("sa868.wide").value = sa.wide === true ? "1" : "0";        // APRS: narrow by default
             document.getElementById("sa868.highPower").value = sa.highPower ? "1" : "0";
-            ["volume", "squelch", "txLevel", "txLevel9600", "txDelayMs", "txTailMs"].forEach(k => { if (sa[k] !== undefined) document.getElementById("sa868." + k).value = sa[k]; });
+            document.getElementById("sa868.m17MHz").value = sa.m17FreqHz ? (sa.m17FreqHz / 1e6).toFixed(4) : "";
+            ["volume", "squelch", "txLevel", "txLevel9600", "txLevelM17", "m17Can", "txDelayMs", "txTailMs"].forEach(k => { if (sa[k] !== undefined) document.getElementById("sa868." + k).value = sa[k]; });
             document.getElementById("sa868.revision").value = String(sa.revision ?? 0);
             document.getElementById("sa868.fec").value = String(sa.fec ?? 0);
             document.getElementById("sa868.iaruRegion").value = String(sa.iaruRegion ?? 1);
@@ -1667,7 +1668,7 @@ function boardPinInit() {
                 document.getElementById("grp-sa868").classList.remove("d-none");
                 ["grp-dapnet", "grp-ft", "grp-lrfhss", "grp-freqcal"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
                 if (i.sa868) { SA868_BAND = i.sa868.band || ""; if (sa868Refill) sa868Refill(); }
-                if (i.sa868) document.getElementById("sa868-status").textContent = "Detected: " + (i.sa868.ok ? "Rev" + (i.sa868.rev / 10).toFixed(1) + ", " + i.sa868.band + ", " + i.sa868.fw + " firmware" : "no answer from the radio module");
+                if (i.sa868) document.getElementById("sa868-status").textContent = "Detected: " + (i.sa868.ok ? "Rev" + (i.sa868.rev / 10).toFixed(1) + ", " + i.sa868.band + ", " + i.sa868.fw + " firmware" + (i.sa868.modem ? " · now " + i.sa868.modem + (i.sa868.rx ? " on " + (i.sa868.rx / 1e6).toFixed(4) + " MHz" : "") : "") : "no answer from the radio module");
             }
             const isSupreme = name.toLowerCase().indexOf("supreme") >= 0;
             const show = () => {

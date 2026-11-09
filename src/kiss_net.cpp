@@ -62,7 +62,7 @@ namespace {
     }
 
     bool modeOk() {
-        const bool aprs = Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK;
+        const bool aprs = isAprsMode(Config.operatingMode);
         const bool sat  = Config.operatingMode == MODE_SAT && (Config.cat.enabled || Config.rotor.serverEnabled);       // modo SAT: solo CAT (GPredict) y servidor de rotor, sin KISS
         return (aprs || sat) && !Config.wifiAP.active;      // FSK: la misma cabecera y el mismo envio que LoRa (lora_utils)
     }

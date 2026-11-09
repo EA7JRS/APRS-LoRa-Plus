@@ -24,14 +24,17 @@
 #include "board_pinout.h"
 #include "afsk1200.h"
 #include "g3ruh_modem.h"
+#include "m17_modem.h"
 #include "iaru_plan.h"
 #include "sa868_radio.h"
 #include "logger.h"
+#include "esp_heap_caps.h"
 
 extern Configuration    Config;
 extern logging::Logger  logger;
 extern XPowersAXP2101   PMU;            // power_utils.cpp
 extern LoraType         *currentLoRaType;
+extern Beacon           *currentBeacon;
 
 #if ARDUINO_USB_CDC_ON_BOOT
     #define SA_SERIAL Serial0           // UART0 libre: el registro va por el USB nativo
@@ -43,10 +46,13 @@ extern LoraType         *currentLoRaType;
 namespace SA868 {
 
     static constexpr uint32_t RX_FS      = 13200;           // AFSK 1200: 11 muestras por bit
-    static constexpr uint32_t RX_FS_9600 = 48000;           // G3RUH 9600: 5 muestras por bit
+    static constexpr uint32_t RX_FS_9600 = 48000;           // G3RUH 9600: 5 muestras por bit; M17: 10 muestras por simbolo
     static constexpr uint32_t TX_FS      = 48000;
     static constexpr size_t   RX_QUEUE   = 4;
     static constexpr uint32_t TX_MAX_MS  = 6000;            // tope de seguridad de una emision
+    static constexpr long     M17_VHF_HZ = 144875000L;      // M17: sugeridas por la IARU R1 (boletin VHF+ de junio de 2023)
+    static constexpr long     M17_UHF_HZ = 433475000L;
+    static constexpr uint32_t M17_HEARD_MS = 30000;         // una misma estacion M17 (voz) se pasa a APRS como mucho cada 30 s
 
     struct RxItem { char text[AX25G3::MAX_FRAME + 120]; };
 
@@ -58,7 +64,12 @@ namespace SA868 {
     static volatile bool        resetDemod  = false;
     static AFSK::Demod          demod;
     static G3RUH::BaseRx        g3rx;
+    static M17M::Rx             m17rx;
     static bool                 mode96      = false;        // modo APRS FSK 9600 (G3RUH): audio plano, canal de 25 kHz
+    static bool                 m17         = false;        // modo M17: audio plano, canal de 25 kHz
+    static bool                 flat        = false;        // 9600 o M17
+    static long                 curRx       = 0, curTx = 0; // frecuencias en uso
+    static float*               m17Syms     = nullptr;      // simbolos de la emision M17 (PSRAM)
     static adc_continuous_handle_t adc      = nullptr;
     static i2s_chan_handle_t    txChan      = nullptr;
     static QueueHandle_t        rxQueue     = nullptr;
@@ -227,13 +238,14 @@ namespace SA868 {
 
     bool setFrequencies(long rxHz, long txHz) {
         if (!ok || !validFreq(rxHz) || !validFreq(txHz)) return false;
+        curRx = rxHz; curTx = txHz;
         if (fw == Firmware::OPENRTX) {
             at1846Freq(rxHz);
             at1846Mode(1);
             return true;
         }
         char c[64];
-        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%03ld.%04ld,%03ld.%04ld,0000,%d,0000", (Config.sa868.wide || mode96) ? 1 : 0,
+        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%03ld.%04ld,%03ld.%04ld,0000,%d,0000", (Config.sa868.wide || flat) ? 1 : 0,
                  txHz / 1000000L, (txHz % 1000000L) / 100L, rxHz / 1000000L, (rxHz % 1000000L) / 100L, constrain(Config.sa868.squelch, 0, 8));
         const bool good = commandOk(c, "+DMOSETGROUP:0", 800);
         if (!good) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "%s rejected", c);
@@ -248,11 +260,12 @@ namespace SA868 {
             // 9600 en UHF: la frecuencia FSK del perfil, la misma que usan las demas placas en APRS FSK 9600 (lista IARU FSK)
             rx = tx = currentLoRaType->fskFrequency;
         }
+        if (m17) rx = tx = m17FreqHz();
         if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;           // no deberia pasar: fixBandDefaults() al arrancar
         if (!validFreq(tx)) tx = rx;
         if (fw == Firmware::OPENRTX) {
-            if (mode96) {
-                // 9600: como el M17 de OpenRTX en esta placa (radio_setOpmode): registros del modo DMR (sin filtros de voz ni
+            if (flat) {
+                // 9600 y M17: como el M17 de OpenRTX en esta placa (radio_setOpmode): registros del modo DMR (sin filtros de voz ni
                 // pre/desenfasis: 0x58 = 0xBCFD) y despues el canal de 25 kHz
                 static const uint16_t dmr[][2] = { {0x3A, 0x00C2}, {0x33, 0x45F5}, {0x41, 0x4731}, {0x42, 0x1036}, {0x43, 0x00BB},
                                                    {0x58, 0xBCFD}, {0x44, 0x06CC}, {0x40, 0x0031} };
@@ -263,21 +276,21 @@ namespace SA868 {
                 at1846Bandwidth(Config.sa868.wide);
                 maskSet(0x58, 0x00F8, Config.sa868.filters ? 0x0000 : 0x00F8);
             }
-            if (!mode96) maskSet(0x44, 0x00F0, (uint16_t)((constrain(Config.sa868.volume, 1, 8) * 15 / 8) << 4));    // ganancia del DAC de audio
+            if (!flat) maskSet(0x44, 0x00F0, (uint16_t)((constrain(Config.sa868.volume, 1, 8) * 15 / 8) << 4));    // ganancia del DAC de audio
             good = setFrequencies(rx, tx);
         } else {
             good = setFrequencies(rx, tx);
             char c[40];
             snprintf(c, sizeof(c), "AT+DMOSETVOLUME=%d", constrain(Config.sa868.volume, 1, 8));
             good &= commandOk(c, "+DMOSETVOLUME:0");
-            const int f = (Config.sa868.filters && !mode96) ? 0 : 1;          // 9600: los tres filtros puenteados (1 = fuera)
+            const int f = (Config.sa868.filters && !flat) ? 0 : 1;            // 9600 y M17: los tres filtros puenteados (1 = fuera)
             snprintf(c, sizeof(c), "AT+SETFILTER=%d,%d,%d", f, f, f);
             good &= commandOk(c, "+DMOSETFILTER:0");
         }
         applyPower();
         applySpeaker();
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "RX %.4f / TX %.4f MHz, %s, SQ %d, vol %d, %s power: %s",
-                   rx / 1e6, tx / 1e6, (Config.sa868.wide || mode96) ? (mode96 ? "25 kHz, 9600 flat audio" : "25 kHz") : "12.5 kHz", Config.sa868.squelch, Config.sa868.volume,
+                   rx / 1e6, tx / 1e6, (Config.sa868.wide || flat) ? (flat ? "25 kHz, flat audio" : "25 kHz") : "12.5 kHz", Config.sa868.squelch, Config.sa868.volume,
                    Config.sa868.highPower ? "high" : "low", good ? "ok" : "ERROR");
         return good;
     }
@@ -315,18 +328,50 @@ namespace SA868 {
         if (rxQueue) xQueueSend(rxQueue, &item, 0);         // cola llena: se pierde (el bucle principal va retrasado)
     }
 
+    // ---- M17: lo recibido pasa a APRS (TNC2) -------------------------------------------------------------------------
+
+    static void queueText(const char* text) {
+        RxItem item;
+        snprintf(item.text, sizeof(item.text), "%s", text);
+        if (rxQueue) xQueueSend(rxQueue, &item, 0);
+    }
+
+    static void onM17Packet(const M17M::Lsf& lsf, const uint8_t* data, size_t len, void*) {
+        static char t[sizeof(RxItem::text)];
+        if (M17M::packetToTnc2(lsf, data, len, t, sizeof(t)) == 0) return;
+        queueText(t);
+    }
+
+    // Emisiones de voz / datos: la cabecera llega al principio y otra vez por el LICH cada 6 tramas (240 ms). Cada estacion se pasa
+    // a APRS como mucho cada 30 s (antes si aparece la posicion)
+    static void onM17Lsf(const M17M::Lsf& lsf, void*) {
+        if (!lsf.stream) return;                            // la del paquete ya va en onM17Packet
+        struct Seen { char src[10]; uint32_t ms; bool pos; };
+        static Seen seen[8];
+        static uint8_t next = 0;
+        const uint32_t now = millis();
+        Seen* hit = nullptr;
+        for (auto& e : seen) if (e.src[0] && strcmp(e.src, lsf.src) == 0) hit = &e;
+        if (hit && now - hit->ms < M17_HEARD_MS && (hit->pos || !lsf.hasPosition)) return;
+        if (!hit) { hit = &seen[next]; next = (uint8_t)((next + 1) % 8); snprintf(hit->src, sizeof(hit->src), "%s", lsf.src); }
+        hit->ms = now; hit->pos = lsf.hasPosition;
+        static char t[sizeof(RxItem::text)];
+        if (M17M::lsfToTnc2(lsf, t, sizeof(t)) == 0) return;
+        queueText(t);
+    }
+
     static void rxTaskFn(void*) {
         static uint8_t buf[256 * SOC_ADC_DIGI_RESULT_BYTES];
         for (;;) {
             uint32_t got = 0;
             if (adc_continuous_read(adc, buf, sizeof(buf), &got, 100) != ESP_OK) continue;
-            if (resetDemod) { if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
+            if (resetDemod) { if (m17) m17rx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
             if (txActive) continue;                         // en emision el ADC oye la propia senal: se descarta
             for (uint32_t i = 0; i + SOC_ADC_DIGI_RESULT_BYTES <= got; i += SOC_ADC_DIGI_RESULT_BYTES) {
                 const adc_digi_output_data_t* p = (const adc_digi_output_data_t*)&buf[i];
                 const int v = (int)p->type2.data;
                 const float x = (float)(v - 2048) / 2048.0f;
-                if (mode96) g3rx.feed(x, onFrame, nullptr); else demod.feed(x, onFrame, nullptr);
+                if (m17) m17rx.feed(x); else if (mode96) g3rx.feed(x, onFrame, nullptr); else demod.feed(x, onFrame, nullptr);
             }
         }
     }
@@ -344,15 +389,18 @@ namespace SA868 {
         adc_continuous_config_t cfg = {};
         cfg.pattern_num    = 1;
         cfg.adc_pattern    = &pat;
-        cfg.sample_freq_hz = mode96 ? RX_FS_9600 : RX_FS;
+        cfg.sample_freq_hz = flat ? RX_FS_9600 : RX_FS;
         cfg.conv_mode      = ADC_CONV_SINGLE_UNIT_1;
         cfg.format         = ADC_DIGI_OUTPUT_FORMAT_TYPE2;
         if (adc_continuous_config(adc, &cfg) != ESP_OK) return false;
-        if (mode96 ? !g3rx.begin(RX_FS_9600) : !demod.begin(RX_FS)) return false;
+        if (m17) {
+            if (!m17rx.begin()) return false;
+            m17rx.setCallbacks(onM17Lsf, onM17Packet, nullptr);
+        } else if (mode96 ? !g3rx.begin(RX_FS_9600) : !demod.begin(RX_FS)) return false;
         rxQueue = xQueueCreate(RX_QUEUE, sizeof(RxItem));
         if (!rxQueue) return false;
         if (adc_continuous_start(adc) != ESP_OK) return false;
-        return xTaskCreatePinnedToCore(rxTaskFn, "afskRx", 6144, nullptr, 5, &rxTask, 0) == pdPASS;
+        return xTaskCreatePinnedToCore(rxTaskFn, "afskRx", m17 ? 12288 : 6144, nullptr, 5, &rxTask, 0) == pdPASS;   // M17: Viterbi
     }
 
     // ---- Arranque ----------------------------------------------------------------------------------------------------
@@ -404,7 +452,13 @@ namespace SA868 {
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "T-TWR Rev%d.%d, %s firmware, %s", rev / 10, rev % 10, firmwareName(), isUhf ? "UHF" : "VHF");
         fixBandDefaults();
         mode96 = (Config.operatingMode == MODE_APRS_FSK);
-        if (mode96) logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "APRS FSK 9600 (G3RUH): flat audio, 25 kHz channel");
+        m17    = (Config.operatingMode == MODE_M17);
+        flat   = mode96 || m17;
+        if (flat) logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "%s: flat audio, 25 kHz channel", modemName());
+        if (m17) {
+            m17Syms = (float*)heap_caps_malloc(M17M::maxPacketSymbols() * sizeof(float), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            if (!m17Syms) m17Syms = (float*)malloc(M17M::maxPacketSymbols() * sizeof(float));
+        }
         applyConfig();
         if (!audioTxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "PDM audio output failed");
         if (!audioRxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "ADC audio input failed");
@@ -416,8 +470,19 @@ namespace SA868 {
     int  revision()           { return rev; }
     bool uhf()                { return isUhf; }
     float audioLevel()        { return demod.level(); }
-    uint32_t framesOk()       { return mode96 ? g3rx.frames : demod.frames; }
+    uint32_t framesOk()       { return m17 ? m17rx.packets : (mode96 ? g3rx.frames : demod.frames); }
     bool mode9600()           { return mode96; }
+    bool modeM17()            { return m17; }
+    const char* modemName()   { return m17 ? "M17" : (mode96 ? "G3RUH 9600" : "AFSK 1200"); }
+    long rxFreqHz()           { return curRx ? curRx : Config.sa868.rxFreqHz; }
+    long txFreqHz()           { return curTx ? curTx : Config.sa868.txFreqHz; }
+    uint32_t m17Lsfs()        { return m17rx.lsfs; }
+    uint32_t m17CrcErrors()   { return m17rx.crcErrors; }
+
+    long m17FreqHz() {
+        if (validFreq(Config.sa868.m17FreqHz)) return Config.sa868.m17FreqHz;
+        return isUhf ? M17_UHF_HZ : M17_VHF_HZ;
+    }
 
     const char* firmwareName() {
         switch (fw) {
@@ -429,8 +494,87 @@ namespace SA868 {
 
     // ---- Emision -----------------------------------------------------------------------------------------------------
 
+    // Pulsa el PTT, saca el audio que da fill() (muestras a 48 kHz; 0 = fin) y vuelve a recepcion
+    template <typename Fill> static void keyAndPlay(Fill fill) {
+        txActive = true;
+        if (fw == Firmware::OPENRTX) {
+            at1846Freq(txFreqHz());
+            at1846Mode(2);
+        }
+        digitalWrite(SA868_MIC_SEL_PIN, HIGH);              // el ESP32 hacia la entrada de microfono del modulo
+        digitalWrite(SA868_PTT_PIN, LOW);
+        i2s_channel_enable(txChan);
+        static int16_t buf[512];
+        const uint32_t start = millis();
+        size_t n;
+        while ((n = fill(buf, 512)) > 0) {
+            size_t written = 0;
+            i2s_channel_write(txChan, buf, n * sizeof(int16_t), &written, 200);
+            if (millis() - start > TX_MAX_MS) break;
+        }
+        memset(buf, 0, sizeof(buf));                        // empuja el final por el DMA antes de soltar el PTT
+        for (int i = 0; i < 6; i++) { size_t w; i2s_channel_write(txChan, buf, sizeof(buf), &w, 100); }
+
+        digitalWrite(SA868_PTT_PIN, HIGH);
+        i2s_channel_disable(txChan);
+        digitalWrite(SA868_MIC_SEL_PIN, LOW);
+        if (fw == Firmware::OPENRTX) {
+            at1846Freq(rxFreqHz());
+            at1846Mode(1);
+        }
+        resetDemod = true;
+        txActive = false;
+    }
+
+    // M17: preambulo, LSF, tramas de paquete y EOT. Delante, portadora sin modular (TXDELAY menos los 40 ms del preambulo)
+    static bool m17Send(const char* src, const char* dst, const uint8_t* data, size_t len) {
+        if (!ok || !txChan || !m17Syms) return false;
+        const uint8_t can = (uint8_t)constrain(Config.sa868.m17Can, 0, 15);
+        size_t ns = M17M::packetSymbols(src, dst, can, data, len, m17Syms, M17M::maxPacketSymbols());
+        if (ns == 0 && currentBeacon) ns = M17M::packetSymbols(currentBeacon->callsign.c_str(), dst, can, data, len, m17Syms, M17M::maxPacketSymbols());
+        if (ns == 0) return false;
+        M17M::BasebandTx tx;
+        tx.start(m17Syms, ns, constrain(Config.sa868.txLevelM17, 1, 100) / 100.0f);
+        const int lead = Config.sa868.txDelayMs > 40 ? Config.sa868.txDelayMs - 40 : 0;
+        size_t silence = (size_t)lead * (TX_FS / 1000);
+        keyAndPlay([&](int16_t* out, size_t max) -> size_t {
+            if (silence > 0) {
+                const size_t k = silence < max ? silence : max;
+                memset(out, 0, k * sizeof(int16_t));
+                silence -= k;
+                return k;
+            }
+            return tx.fill(out, max);
+        });
+        return true;
+    }
+
+    bool m17Sms(const char* dst, const char* text) {
+        if (!m17 || !currentBeacon) return false;
+        static uint8_t pk[M17M::MAX_PACKET];
+        const size_t n = M17M::smsPacket(text, pk, sizeof(pk));
+        if (n == 0) return false;
+        char to[12] = "@ALL";
+        if (dst && dst[0]) {
+            size_t k = 0;
+            for (; dst[k] && k + 1 < sizeof(to); k++) to[k] = (char)toupper((unsigned char)dst[k]);
+            to[k] = 0;
+        }
+        return m17Send(currentBeacon->callsign.c_str(), to, pk, n);
+    }
+
     bool transmit(const char* tnc2) {
         if (!ok || !txChan) return false;
+        if (m17) {
+            // APRS en un paquete M17 de protocolo APRS a "@ALL"; en el LSF, el origen de la trama (o el indicativo del perfil)
+            static uint8_t pk[M17M::MAX_PACKET];
+            const size_t n = M17M::tnc2ToPacket(tnc2, pk, sizeof(pk));
+            if (n == 0) return false;
+            char src[12] = "";
+            const char* gt = strchr(tnc2, '>');
+            if (gt && gt - tnc2 < (int)sizeof(src)) { memcpy(src, tnc2, gt - tnc2); src[gt - tnc2] = 0; }
+            return m17Send(src, "@ALL", pk, n);
+        }
         uint8_t frame[AX25G3::MAX_FRAME];
         const size_t fl = AX25G3::tnc2ToFrame(tnc2, frame, sizeof(frame));
         if (fl == 0) return false;
@@ -452,39 +596,15 @@ namespace SA868 {
         }
         if (nb == 0) return false;
 
-        txActive = true;
-        if (fw == Firmware::OPENRTX) {
-            at1846Freq(Config.sa868.txFreqHz);
-            at1846Mode(2);
+        if (mode96) {
+            G3RUH::BaseTx g3tx;
+            g3tx.start(bits, nb, TX_FS, constrain(Config.sa868.txLevel9600, 1, 100) / 100.0f);
+            keyAndPlay([&](int16_t* out, size_t max) { return g3tx.fill(out, max); });
+        } else {
+            AFSK::ToneGen gen;
+            gen.start(bits, nb * 8, TX_FS, constrain(Config.sa868.txLevel, 1, 100) / 100.0f);
+            keyAndPlay([&](int16_t* out, size_t max) { return gen.fill(out, max); });
         }
-        digitalWrite(SA868_MIC_SEL_PIN, HIGH);              // el ESP32 hacia la entrada de microfono del modulo
-        digitalWrite(SA868_PTT_PIN, LOW);
-        i2s_channel_enable(txChan);
-
-        AFSK::ToneGen gen;
-        G3RUH::BaseTx g3tx;
-        if (mode96) g3tx.start(bits, nb, TX_FS, constrain(Config.sa868.txLevel9600, 1, 100) / 100.0f);
-        else        gen.start(bits, nb * 8, TX_FS, constrain(Config.sa868.txLevel, 1, 100) / 100.0f);
-        static int16_t buf[512];
-        const uint32_t start = millis();
-        size_t n;
-        while ((n = mode96 ? g3tx.fill(buf, 512) : gen.fill(buf, 512)) > 0) {
-            size_t written = 0;
-            i2s_channel_write(txChan, buf, n * sizeof(int16_t), &written, 200);
-            if (millis() - start > TX_MAX_MS) break;
-        }
-        memset(buf, 0, sizeof(buf));                        // empuja el final por el DMA antes de soltar el PTT
-        for (int i = 0; i < 6; i++) { size_t w; i2s_channel_write(txChan, buf, sizeof(buf), &w, 100); }
-
-        digitalWrite(SA868_PTT_PIN, HIGH);
-        i2s_channel_disable(txChan);
-        digitalWrite(SA868_MIC_SEL_PIN, LOW);
-        if (fw == Firmware::OPENRTX) {
-            at1846Freq(Config.sa868.rxFreqHz);
-            at1846Mode(1);
-        }
-        resetDemod = true;
-        txActive = false;
         return true;
     }
 
@@ -503,7 +623,7 @@ namespace SA868 {
         #ifdef SA868_SQL_PIN
         if (rev == 21 && digitalRead(SA868_SQL_PIN) == LOW) return true;    // silenciador abierto: hay portadora
         #endif
-        return mode96 ? g3rx.dataCarrier() : demod.dataCarrier();
+        return m17 ? m17rx.dataCarrier() : (mode96 ? g3rx.dataCarrier() : demod.dataCarrier());
     }
 
     int rssi() {

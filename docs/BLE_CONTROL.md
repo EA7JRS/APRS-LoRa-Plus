@@ -85,7 +85,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
  "cwMsgs":["CQ CQ DE {CALL}","..."]}
 ```
 
-`caps.radio` dice qué radio lleva la placa: `"lora"` (SX12xx / LLCC68) o `"sa868"` (LilyGO T-TWR Plus, radio FM con APRS AFSK 1200). Con `"sa868"` el evento añade `"sa868":{"rev":21,"fw":"NiceRF","band":"VHF","ok":true}` (revisión de la placa, firmware del módulo: `NiceRF` u `OpenRTX`, banda y si el módulo contesta), el modo 0 se llama `APRS AFSK 1200` y no hay más modos de radio. Sus ajustes (frecuencias, potencia, volumen, silenciador, nivel de emisión, TXDELAY...) están en el grupo `sa868` de la configuración (`cfgget` / `cfgset`); ver `docs/T_TWR.md`.
+`caps.radio` dice qué radio lleva la placa: `"lora"` (SX12xx / LLCC68) o `"sa868"` (LilyGO T-TWR Plus, radio FM con APRS AFSK 1200). Con `"sa868"` el evento añade `"sa868":{"rev":21,"fw":"NiceRF","band":"VHF","ok":true,"modem":"AFSK 1200","rx":144800000,"tx":144800000,"m17":144875000}` (revisión de la placa, firmware del módulo: `NiceRF` u `OpenRTX`, banda, si el módulo contesta, módem en uso: `AFSK 1200`, `G3RUH 9600` o `M17`, frecuencias en uso y la de M17), el modo 0 se llama `APRS AFSK 1200` y los otros modos de radio son 1 (APRS FSK 9600) y 10 (M17). `caps.m17` = la placa tiene M17 (orden `m17sms`). Sus ajustes (frecuencias, potencia, volumen, silenciador, nivel de emisión, TXDELAY...) están en el grupo `sa868` de la configuración (`cfgget` / `cfgset`); ver `docs/T_TWR.md`.
 
 `status`:
 ```json
@@ -135,7 +135,8 @@ Regla del proyecto: **todas las funciones del tracker se controlan desde la app 
 | `act` | `a` = nombre (`n` de `actlist`, sin distinguir mayúsculas) | `ok` o `err` (`accion desconocida`, `no disponible por BLE`, `no disponible en este modo`). Ejecuta **cualquier** opción de los menús del equipo (baliza, perfil, mensajes, brújula, SOS, rotor, SAT, DAPNET, CW, reloj...). Si la opción es de otra página, el equipo cambia a esa página. No se ejecutan por `act`: abrir submenús, `MENU`, `MODE_CHANGE` (usa `mode`), escucha / entrenador CW interactivos y las sintonías WSPR / CW-baliza (tienen su orden propia) |
 | `screen` | `p` página (opc.), `every` segundos (opc., 0 = no) | `ok` si cambia algo y evento `screen`: `{"e":"screen","p","cur","t":título,"r":derecha,"age":ms,"on":pantalla encendida,"rows":["...", ...]}`: el texto de la última pantalla dibujada (las filas de texto; gráficos como brújula o mapas no salen). También `sub` con `"screen":s` |
 | `msgs` | `from`, `cnt` (1–20, 10) | `{"e":"msgs","tot","unread","from","items":[{"i","d":"R"\|"T","ep","st","ack","c","t"}]}`; `st`: 0 sin leer, 1 leído, 2 enviado, 3 esperando ack, 4 con ack, 5 fallido. 0 = el más reciente |
-| `msg` | `to`, `t` (≤ 67), `ack` (true) | `{"e":"ok","c":"msg","ack":n}` y el mensaje sale por el aire con la siguiente ventana. Solo en modos APRS |
+| `msg` | `to`, `t` (≤ 67), `ack` (true) | `{"e":"ok","c":"msg","ack":n}` y el mensaje sale por el aire con la siguiente ventana. Solo en modos APRS (también M17: va como paquete M17 de protocolo APRS) |
+| `m17sms` | `to` (≤ 9; vacío = `@ALL`), `t` (≤ 800, una línea) | SMS M17 (protocolo 0x05) a otra radio M17; un solo envío, sin confirmación. `ok` cuando ha salido; `err` `not in M17 mode`, `not sent (callsign not valid for M17?)`. Solo con `caps.m17` y en el modo M17. Emite: la app exige indicativo validado |
 | evento `msg` | — | Se emite solo ante cualquier cambio del registro (llega uno, se envía, ack, leído): `{"e":"msg","tot","unread", + el más reciente}` |
 | `heard` | `from`, `cnt` (1–12, 6) | `{"e":"heard","tot","pkts","items":[{"c","sym","k","lat","lon","alt","spd","crs","rssi","snr","age","pa","n","dev","path","cmt","sts","wx":{...}}]}`; `age` = segundos desde el último paquete, `pa` = desde la última posición; 0 = la más reciente |
 | `cfgget` | `o` = desplazamiento en bytes (0) | `{"e":"cfg","o","n":tamaño total,"b":bytes de este trozo,"d":texto}`: un trozo (hasta 320 bytes, sin cortar caracteres UTF-8) del fichero `/tracker_conf.json`, el mismo que edita la WebUI. La app lo pide con `o` creciente (`o += b`) hasta `o >= n`, lo junta y lo interpreta ella (el tracker no analiza el JSON aquí) |
@@ -145,7 +146,7 @@ Regla del proyecto: **todas las funciones del tracker se controlan desde la app 
 
 ## Modos
 
-`m`: 0 APRS LoRa, 1 APRS FSK, 2 MORSE, 3 WSPR, 4 LR-FHSS, 5 DAPNET, 6 FT8, 7 FT4, 8 FST4W, 9 SAT (satélites 70 cm). `info.modes` dice cuáles admite la placa.
+`m`: 0 APRS LoRa (APRS AFSK 1200 en la T-TWR), 1 APRS FSK, 2 MORSE, 3 WSPR, 4 LR-FHSS, 5 DAPNET, 6 FT8, 7 FT4, 8 FST4W, 9 SAT (satélites 70 cm), 10 M17 (solo la T-TWR). `info.modes` dice cuáles admite la placa.
 
 - APRS LoRa y APRS FSK se guardan en la configuración (modo de arranque por defecto) y el tracker reinicia en ese modo.
 - Los demás se piden para **el siguiente arranque** (memoria RTC, sin escribir la flash): el tracker reinicia directamente en ese modo sin mostrar el menú de selección. El arranque siguiente vuelve al modo APRS guardado, como al elegirlos con el botón.

@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * LoRa_Utils para la LilyGO T-TWR Plus: la misma interfaz que usa el resto del firmware, pero la radio es el SA868 (FM) con los
- * modems del ESP32-S3: APRS AFSK 1200 (modo 0, el analogico de VHF) y APRS FSK 9600 G3RUH (modo 1). No hay LoRa, CW,
+ * modems del ESP32-S3: APRS AFSK 1200 (modo 0, el analogico de VHF), APRS FSK 9600 G3RUH (modo 1) y M17 (modo 10: el APRS va en
+ * paquetes M17 de protocolo APRS, y se oyen los SMS y los indicativos / posiciones de las emisiones M17). No hay LoRa, CW,
  * WSPR, LR-FHSS, DAPNET ni receptor de satelites, y las funciones de esos modos contestan que no estan disponibles.
  */
 
@@ -51,6 +52,7 @@ namespace LoRa_Utils {
     }
 
     bool fskAvailable()             { return true; }        // APRS FSK 9600 (G3RUH) por el audio plano del SA868
+    bool m17Available()             { return true; }        // M17 (4FSK 4800 simbolos/s) por el mismo audio plano
     bool dapnetAvailable()          { return false; }
     bool cwAvailable()              { return false; }
     void cwSelect(bool)             {}
@@ -79,7 +81,7 @@ namespace LoRa_Utils {
     void satTxEnd()                 {}
 
     long profileFreqHz()            { return Config.sa868.rxFreqHz; }
-    long liveFreqHz()               { return catRxHz > 0 ? catRxHz : Config.sa868.rxFreqHz; }
+    long liveFreqHz()               { return catRxHz > 0 ? catRxHz : SA868::rxFreqHz(); }       // la del modo (9600: perfil FSK; M17: sa868.m17FreqHz)
     long ppmCorrectionHz(long)      { return 0; }           // el SA868 lleva su propio cristal: la correccion global no se aplica
     double ppmCorrectionHzExact(long) { return 0.0; }
 
@@ -110,11 +112,11 @@ namespace LoRa_Utils {
             displayShow("SA868 ERROR", "", "Radio module", "not answering", "", "", 3000);
             return;
         }
-        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "AFSK 1200 ready");
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "%s ready", SA868::modemName());
     }
 
-    // Cada modo emite solo lo suyo: en esta placa, APRS AFSK 1200 (modo 0) y APRS FSK 9600 G3RUH (modo 1)
-    bool aprsTxAllowed() { return Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK; }
+    // Cada modo emite solo lo suyo: en esta placa, APRS AFSK 1200 (modo 0), APRS FSK 9600 G3RUH (modo 1) y M17 (modo 10)
+    bool aprsTxAllowed() { return isAprsMode(Config.operatingMode); }
 
     // Escuchar antes de transmitir: silenciador abierto o datos AFSK en el aire. Espera con reintentos aleatorios hasta el tope
     // de la WebUI (cadWaitSec) y emite igualmente al agotarlo, como en LoRa
@@ -123,7 +125,7 @@ namespace LoRa_Utils {
         bool shown = false;
         while (SA868::channelBusy()) {
             if (millis() - start > maxWait) {
-                logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "AFSK Tx", "Channel busy for too long, transmitting anyway");
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "SA868 Tx", "Channel busy for too long, transmitting anyway");
                 return;
             }
             if (!shown) { displayShow("<<< DCD >>>", "Waiting for", "free channel...", 0); shown = true; }
@@ -134,15 +136,15 @@ namespace LoRa_Utils {
 
     void sendNewPacket(const String& newPacket) {
         if (!aprsTxAllowed()) {
-            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "AFSK Tx", "APRS packet dropped: mode %d is not an APRS mode", (int)Config.operatingMode);
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "SA868 Tx", "APRS packet dropped: mode %d is not an APRS mode", (int)Config.operatingMode);
             return;
         }
         if (!SA868::ready()) {
-            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "AFSK Tx", "Radio module not ready: %s", newPacket.c_str());
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868 Tx", "Radio module not ready: %s", newPacket.c_str());
             return;
         }
         if (Config.cadActive) waitClearChannel();
-        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "AFSK Tx", "---> %s", newPacket.c_str());
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, SA868::modemName(), "Tx ---> %s", newPacket.c_str());
 
         if (Config.ptt.active) {                    // PTT externo (amplificador)
             digitalWrite(Config.ptt.io_pin, Config.ptt.reverse ? LOW : HIGH);
@@ -158,7 +160,7 @@ namespace LoRa_Utils {
                 PAGES_Utils::onTx((int)newPacket.length());
             #endif
         } else {
-            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "AFSK Tx", "Packet not valid for AX.25 or too long: %s", newPacket.c_str());
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868 Tx", "Packet not valid for AX.25 or too long: %s", newPacket.c_str());
         }
 
         if (Config.notification.ledTx) digitalWrite(Config.notification.ledTxPin, LOW);
@@ -179,7 +181,7 @@ namespace LoRa_Utils {
         String tnc2;
         int rssi = 0;
         if (SA868::popFrame(tnc2, rssi)) {
-            logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "AFSK Rx", "---> %s", tnc2.c_str());
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, SA868::modemName(), "Rx ---> %s", tnc2.c_str());
             rx.text = String("\x3c\xff\x01") + tnc2;
             rx.rssi = rssi;
         }

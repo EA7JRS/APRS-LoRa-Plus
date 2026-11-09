@@ -42,6 +42,9 @@
 #include "wx_utils.h"
 #include "utils.h"
 #include "lora_utils.h"
+#ifdef HAS_SA868
+    #include "sa868_radio.h"
+#endif
 #include "cw_morse.h"
 #include "wspr.h"
 #include "ft_beacon.h"
@@ -1913,6 +1916,11 @@ namespace {
         int cr = lora.codingRate4;
         const bool fskNow = Config.operatingMode == MODE_APRS_FSK && !lora.ais && LoRa_Utils::fskAvailable();
         char rate[12];
+        #ifdef HAS_SA868                                // T-TWR: radio FM SA868 (AFSK 1200, G3RUH 9600 o M17)
+        (void)fskNow; (void)rate; (void)sf; (void)bw; (void)cr;
+        row(0, "%.4fMHz %ddBm", LoRa_Utils::liveFreqHz() / 1000000.0, LoRa_Utils::getPower());
+        row(1, "%s %s", SA868::modemName(), (Config.sa868.wide || SA868::mode9600() || SA868::modeM17()) ? "25k" : "12.5k");
+        #else
         if (fskNow) {
             row(0, "%.3fMHz FSK %ddBm", (lora.fskFrequency > 0 ? lora.fskFrequency : lora.frequency) / 1000000.0, LoRa_Utils::getPower());
             row(1, "G3RUH %.1fk dev%.1fk", lora.fskBitRate, lora.fskFreqDev);
@@ -1923,6 +1931,7 @@ namespace {
             else snprintf(rate, sizeof(rate), "%.2fkbps", bitrate / 1000.0);
             row(1, "BW%ld CR4/%d %s", bw / 1000, cr, rate);
         }
+        #endif
         if (digiCount > 0) row(2, "Rx %lu Tx %lu Dig %lu", (unsigned long)rxCount, (unsigned long)txCount, (unsigned long)digiCount);
         else row(2, "Rx %lu  Tx %lu", (unsigned long)rxCount, (unsigned long)txCount);
         const Station* s = heard.byRecent(0);
@@ -4174,6 +4183,7 @@ namespace PAGES_Utils {
             uint8_t n = 0;
             options[n++] = Option{ MODE_APRS_LORA, APRS_MAIN_MODE_NAME };
             if (LoRa_Utils::fskAvailable()) options[n++] = Option{ MODE_APRS_FSK, "APRS FSK 9600" };
+            if (LoRa_Utils::m17Available()) options[n++] = Option{ MODE_M17, "M17" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_MORSE, "MORSE / CW" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_WSPR, "WSPR beacon" };
             if (LoRa_Utils::cwAvailable())  options[n++] = Option{ MODE_FT8, "FT8 beacon" };
@@ -4243,7 +4253,7 @@ namespace PAGES_Utils {
             }
         #endif
         }
-        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK) Config.operatingMode = MODE_APRS_LORA;
+        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK && !(Config.operatingMode == MODE_M17 && LoRa_Utils::m17Available())) Config.operatingMode = MODE_APRS_LORA;
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
@@ -4256,7 +4266,7 @@ namespace PAGES_Utils {
         #endif
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
-                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : APRS_MAIN_MODE_NAME)));
+                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : Config.operatingMode == MODE_M17 ? "M17" : APRS_MAIN_MODE_NAME)));
         return (uint8_t)Config.operatingMode;
     }
 

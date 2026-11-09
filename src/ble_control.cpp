@@ -124,7 +124,7 @@ namespace {
     int                     cwIndex         = -1;
     char                    cwText[64]      = "";
 
-    bool aprsMode(int mode) { return mode == MODE_APRS_LORA || mode == MODE_APRS_FSK; }
+    bool aprsMode(int mode) { return isAprsMode(mode); }
 
     // ---------------------------------------------------------------- envio al movil
 
@@ -214,6 +214,7 @@ namespace {
         uint8_t n = 0;
         out[n++] = ModeOption{ MODE_APRS_LORA, APRS_MAIN_MODE_NAME };
         if (LoRa_Utils::fskAvailable()) out[n++] = ModeOption{ MODE_APRS_FSK, "APRS FSK 9600" };
+        if (LoRa_Utils::m17Available()) out[n++] = ModeOption{ MODE_M17, "M17" };
         #ifdef HAS_APRS_PAGES
             if (LoRa_Utils::cwAvailable()) {
                 out[n++] = ModeOption{ MODE_MORSE,  "MORSE / CW" };
@@ -276,8 +277,14 @@ namespace {
             sa["fw"]   = SA868::firmwareName();
             sa["band"] = SA868::uhf() ? "UHF" : "VHF";
             sa["ok"]   = SA868::ready();
+            sa["modem"] = SA868::modemName();
+            sa["rx"]   = SA868::rxFreqHz();
+            sa["tx"]   = SA868::txFreqHz();
+            sa["m17"]  = SA868::m17FreqHz();
+            caps["m17"] = LoRa_Utils::m17Available();             // orden "m17sms" (en el modo M17)
         #else
             caps["radio"] = "lora";
+            caps["m17"]   = false;
         #endif
         doc["mode"] = Config.operatingMode;
         JsonArray modes = doc["modes"].to<JsonArray>();
@@ -1227,6 +1234,19 @@ namespace {
                 JsonDocument r;
                 r["e"] = "ok"; r["c"] = cmd; if (id >= 0) r["id"] = id; r["ack"] = ack;
                 sendDoc(r);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "m17sms") == 0) {                    // SMS M17 (protocolo 0x05, sin reintentos) a otra radio M17: to (vacio = @ALL), t
+            #ifdef HAS_SA868
+                const char* to = doc["to"] | "";
+                const char* text = doc["t"] | "";
+                if (Config.operatingMode != MODE_M17) { reply(cmd, id, "not in M17 mode"); return; }
+                if (strlen(to) > 9 || strlen(text) == 0 || strlen(text) > 800) { reply(cmd, id, "bad callsign or text (max 800)"); return; }
+                for (const char* q = text; *q; q++) if ((uint8_t)*q < 0x20) { reply(cmd, id, "text must be one line"); return; }
+                if (!SA868::m17Sms(to, text)) { reply(cmd, id, "not sent (callsign not valid for M17?)"); return; }
+                reply(cmd, id);
             #else
                 reply(cmd, id, "not available");
             #endif
