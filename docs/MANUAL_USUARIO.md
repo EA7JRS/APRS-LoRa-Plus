@@ -1,8 +1,8 @@
-# LoRa APRS Tracker V5.3.5 — Manual de usuario
+# LoRa APRS Tracker V5.3.6 — Manual de usuario
 
 **Placa de referencia:** LilyGO T-Beam S3 Supreme (ESP32-S3, SX1262, GPS u-blox M10, pantalla OLED 128×64)
 **Base:** LoRa APRS Tracker V4.0.1 de CA2RXU, con las mejoras para T-Beam S3 Supreme y la interfaz de pantallas APRS de EA7JRS.
-**Novedades de la 5.3.4 y la 5.3.5:** apartados 34 y 35. **Novedades de la 5.2.1:** LAST APRS muestra el icono del símbolo APRS de la estación; ALTIMETER marca velocidad vertical 0 con el tracker parado. **De la 5.2.0:** modo **WSPR beacon** (capítulo 22). **De la 5.1.0:** selector de modo al arrancar (APRS LoRa / APRS FSK 9600 / MORSE), FSK 9600 AX.25 G3RUH, plan de bandas IARU en la WebUI y modo MORSE con macros, manipulador, escucha CW y trainer (capítulos 19 a 21).
+**Novedades de la 5.3.6:** apartado 36. **De la 5.3.4 y la 5.3.5:** apartados 34 y 35. **Novedades de la 5.2.1:** LAST APRS muestra el icono del símbolo APRS de la estación; ALTIMETER marca velocidad vertical 0 con el tracker parado. **De la 5.2.0:** modo **WSPR beacon** (capítulo 22). **De la 5.1.0:** selector de modo al arrancar (APRS LoRa / APRS FSK 9600 / MORSE), FSK 9600 AX.25 G3RUH, plan de bandas IARU en la WebUI y modo MORSE con macros, manipulador, escucha CW y trainer (capítulos 19 a 21).
 **Documentos relacionados:** `GUIA_RAPIDA.md` (una página), `releases/RELEASE_5.1.0.md` (novedades y cambios), `APRS_PANTALLAS_TRACKER.md` (notas técnicas y estado de pruebas).
 
 > Las imágenes de este manual son **capturas simuladas** (se dibujan en un simulador de 128×64 con el mismo código de las pantallas, no son fotos de la placa real).
@@ -711,6 +711,19 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 - **Pantalla de bienvenida** con el nuevo logo (pin con L+ y tres ondas).
 - **Menos flash:** la configuración se lee y se escribe con una tabla de campos y la WebUI es más ligera (Bootstrap recortado, ayudas más cortas). La T-Beam Supreme pasa del 91,1 % al 85,2 % de su partición de aplicación.
 - **Instalador web** con lanzadores de Tracker, Rotor y Gateway (`#rotor`, `#gateway`), todos con la misma versión.
+- Sin probar en placa.
+
+## 36. T-TWR Plus, satélites por grupos, AIS y tiempo de internet (5.3.6)
+
+- **LilyGO T-TWR Plus** (entorno `lilygo_t_twr_plus`, Rev2.0 y Rev2.1): la radio es el transceptor FM **SA868** (1 W) y el módem lo hace el ESP32-S3. Modos: **APRS AFSK 1200** (modo 0), **M17** (modo 10: APRS en paquetes M17 y SMS), **FM de voz** (modo 11: VFO con el encoder, 32 memorias, CTCSS / DCS, escaneo, ARTS, EAI, balizas APRS y QSY), DAPNET (144,8625 MHz), CW A1A / MCW, calibración (*Tune carrier*) y GPS L76K. Detalles en `T_TWR.md`.
+- **Límites de emisión de la T-TWR:** recepción 136–174 / 400–480 MHz. Emisión solo en las bandas de aficionado de la región IARU según el GPS: Europa (R1) 144–146 y 430–440 MHz, América (R2) 144–148 y 430–450 MHz, R3 144–148 y 430–440 MHz; sin posición, 144–146 / 430–440 MHz. Fijo en el firmware, sin ajuste en la WebUI; fuera de banda el PTT avisa «No TX: out of band». Solo se amplía con un código de desbloqueo firmado para ese equipo (MAC).
+- **Satélites por grupos y favoritos:** nuevo archivo `sats_all.txt` con todas las bandas, grupos de CelesTrak y CTCSS. La app (o la WebUI, descargando en el navegador) lo filtra por grupos y favoritos hasta lo que cabe en la placa (900 kB en la T-TWR). Favoritos y categorías desde el menú SAT. En la T-TWR el VFO de FM sigue al satélite con Doppler y tono, y se puede mandar un mensaje o la posición por APRS vía satélite (ISS 145,825 MHz, camino `ARISS`). Ver `SAT_MODE.md`.
+- **Receptor AIS** (modo 12 *AIS receiver*): canal A 161,975 / B 162,025 MHz o alternando con el SA868 de la T-TWR; **módulo AIS externo** por UART (dAISy, Quark-elec...) en cualquier placa; o lo que oye el RTL-SDR de la app. Página **AIS** con la lista por distancia, detalle, GO TO, **alarma de colisión** (CPA / TCPA y zona de guardia) y de **socorro** (AIS-SART, MOB, EPIRB), y reenvío !AIVDM a la salida NMEA. Ver `AIS.md`.
+- **Tiempo de internet** (lo baja la app de OpenWeatherMap y / o IQAir con las claves del usuario): página **TELEMETRY** (con «NET»), *Update from phone*; la presión es el **QNH del altímetro** cuando no hay QNH manual ni uno aprendido del GPS en los últimos 20 min («QNH 1015N»). Nunca en las balizas de meteorología. La caja del rotor lo usa para aparcar con viento fuerte.
+- **Radio comercial por I2C** (cualquier placa con pantalla): RDA5807M, Si4703 o Si4735 (este también en onda media, corta y larga), página **BCAST** con RDS.
+- **IL2P a 9600** sin scrambler G3RUH, compatible con Dire Wolf y la NinoTNC.
+- **Cielo GNSS** para la app (satélites, elevación, azimut, SNR, DOP y error: evento BLE `sky`).
+- **WebUI e instalador web** con el icono de la app Android en la cabecera.
 - Sin probar en placa.
 
 ## Apéndice A — Mapa de pulsaciones por página
