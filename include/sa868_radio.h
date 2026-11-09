@@ -9,8 +9,9 @@
  *    registros del AT1846S). Se detecta solo.
  *  - Revision de la placa: la Rev2.1 alimenta el modulo desde la bateria y la Rev2.0 desde el DC3 de la PMU; si el modulo contesta
  *    sin DC3 es una Rev2.1. Se puede fijar en la configuracion (sa868.revision).
+ *  - Modos: APRS AFSK 1200 (modo 0) y APRS FSK 9600 G3RUH (modo 1: filtros de voz puenteados, canal de 25 kHz, ADC a 48 kHz).
  *  - Audio: emision por PDM (I2S0, modo DAC) en GPIO18 hacia la entrada de microfono del modulo (MIC_CH_SEL en alto); recepcion por
- *    el ADC1 (GPIO1) en modo continuo a 13200 Hz en una tarea propia.
+ *    el ADC1 (GPIO1) en modo continuo a 13200 Hz (48000 Hz en 9600) en una tarea propia.
  */
 
 #ifndef SA868_RADIO_H_
@@ -36,6 +37,7 @@ namespace SA868 {
     int      rssi();                        // dBm (solo con el firmware de OpenRTX; 0 si no se sabe)
     float    audioLevel();                  // nivel de pico de la entrada de audio (0..1)
     uint32_t framesOk();
+    bool     mode9600();                    // arrancado en APRS FSK 9600 (G3RUH, audio plano)
     void     sleep();
     void     wake();
     bool     validFreq(long hz);            // dentro de la banda del modulo (134..174 MHz VHF, 400..480 MHz UHF)

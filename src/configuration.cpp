@@ -319,6 +319,7 @@ namespace {
         FC(Sa868Config, volume,    FF_KEEP, 0, 1, 8),
         FC(Sa868Config, squelch,   FF_KEEP, 0, 0, 8),
         FC(Sa868Config, txLevel,   FF_KEEP, 0, 1, 100),
+        FC(Sa868Config, txLevel9600, FF_KEEP, 0, 1, 100),
         FC(Sa868Config, txDelayMs, FF_KEEP, 0, 50, 1000),
         FC(Sa868Config, txTailMs,  FF_KEEP, 0, 10, 300),
         FB(Sa868Config, filters,   FF_KEEP, 0),
@@ -871,6 +872,7 @@ void Configuration::setSa868Defaults() {
     sa868.volume     = 6;
     sa868.squelch    = 1;
     sa868.txLevel    = 25;
+    sa868.txLevel9600 = 40;
     sa868.txDelayMs  = 300;
     sa868.txTailMs   = 30;
     sa868.filters    = true;

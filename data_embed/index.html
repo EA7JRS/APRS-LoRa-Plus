@@ -955,7 +955,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                         <div class="row my-5 d-flex align-items-top d-none" id="grp-sa868">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>VHF radio (SA868)</h5>
-                                <small>LilyGO T-TWR Plus: analogue APRS, AFSK 1200 baud. The channel list follows the IARU region (and the automatic IARU region, when on). Rev2.1 cannot change the power. Set the TX level on a receiver for about 2.5 kHz deviation (Narrow) or 3 kHz (Wide).</small>
+                                <small>LilyGO T-TWR Plus: analogue APRS, AFSK 1200 baud. The channel list follows the IARU region (and the automatic IARU region, when on). Rev2.1 cannot change the power. Set the TX level on a receiver for about 2.5 kHz deviation (Narrow) or 3 kHz (Wide). SELECT MODE &rarr; APRS FSK 9600 uses G3RUH 9600 baud: the module's voice filters are bypassed and the channel is 25 kHz (needs a 9600-capable station at the other end; best with the OpenRTX module firmware).</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="row">
@@ -973,6 +973,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.volume" id="sa868.volume" min="1" max="8" value="6" /><label for="sa868.volume">Volume</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.squelch" id="sa868.squelch" min="0" max="8" value="1" /><label for="sa868.squelch">Squelch</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txLevel" id="sa868.txLevel" min="1" max="100" value="25" /><label for="sa868.txLevel">TX level %</label></div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txLevel9600" id="sa868.txLevel9600" min="1" max="100" value="40" /><label for="sa868.txLevel9600">TX level 9600 %</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txDelayMs" id="sa868.txDelayMs" min="50" max="1000" value="300" /><label for="sa868.txDelayMs">TXDELAY ms</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txTailMs" id="sa868.txTailMs" min="10" max="300" value="30" /><label for="sa868.txTailMs">TX tail ms</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.revision" id="sa868.revision"><option value="0">Auto</option><option value="20">Rev2.0</option><option value="21">Rev2.1</option></select><label for="sa868.revision">Board</label></div>

@@ -3,8 +3,8 @@
  * This file is part of APRS LoRa+ (LoRa APRS Tracker fork).
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * LoRa_Utils para la LilyGO T-TWR Plus: la misma interfaz que usa el resto del firmware, pero la radio es el SA868 (FM) con el
- * modem AFSK 1200 del ESP32-S3. El modo "APRS" de esta placa es APRS analogico de VHF (144,800 MHz); no hay LoRa, FSK 9600, CW,
+ * LoRa_Utils para la LilyGO T-TWR Plus: la misma interfaz que usa el resto del firmware, pero la radio es el SA868 (FM) con los
+ * modems del ESP32-S3: APRS AFSK 1200 (modo 0, el analogico de VHF) y APRS FSK 9600 G3RUH (modo 1). No hay LoRa, CW,
  * WSPR, LR-FHSS, DAPNET ni receptor de satelites, y las funciones de esos modos contestan que no estan disponibles.
  */
 
@@ -50,7 +50,7 @@ namespace LoRa_Utils {
         return getPower();
     }
 
-    bool fskAvailable()             { return false; }
+    bool fskAvailable()             { return true; }        // APRS FSK 9600 (G3RUH) por el audio plano del SA868
     bool dapnetAvailable()          { return false; }
     bool cwAvailable()              { return false; }
     void cwSelect(bool)             {}
@@ -113,8 +113,8 @@ namespace LoRa_Utils {
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "AFSK 1200 ready");
     }
 
-    // Cada modo emite solo lo suyo: en esta placa solo hay modo APRS (AFSK 1200)
-    bool aprsTxAllowed() { return Config.operatingMode == MODE_APRS_LORA; }
+    // Cada modo emite solo lo suyo: en esta placa, APRS AFSK 1200 (modo 0) y APRS FSK 9600 G3RUH (modo 1)
+    bool aprsTxAllowed() { return Config.operatingMode == MODE_APRS_LORA || Config.operatingMode == MODE_APRS_FSK; }
 
     // Escuchar antes de transmitir: silenciador abierto o datos AFSK en el aire. Espera con reintentos aleatorios hasta el tope
     // de la WebUI (cadWaitSec) y emite igualmente al agotarlo, como en LoRa

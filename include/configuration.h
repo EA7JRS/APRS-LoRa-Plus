@@ -264,7 +264,8 @@ public:
     bool    wide;                               // ancho de banda: true = Wide 25 kHz, false = Narrow 12,5 kHz (por defecto, APRS)
     int     volume;                             // volumen del altavoz y del audio hacia el ESP32 (1..8)
     int     squelch;                            // silenciador del modulo (0 = abierto .. 8); con 0 el demodulador oye tambien las senales mas debiles
-    int     txLevel;                            // nivel del audio AFSK hacia el modulo (1..100 %): ajusta la desviacion (unos 3 kHz)
+    int     txLevel;                            // nivel del audio AFSK hacia el modulo (1..100 %): ajusta la desviacion
+    int     txLevel9600;                        // nivel de la banda base G3RUH en el modo APRS FSK 9600 (1..100 %): unos 3 kHz de desviacion
     int     txDelayMs;                          // banderas delante de la trama (TXDELAY)
     int     txTailMs;                           // banderas detras de la trama
     bool    filters;                            // filtros de voz del modulo (pre/desenfasis, paso alto y paso bajo) activos

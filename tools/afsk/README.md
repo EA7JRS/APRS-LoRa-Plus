@@ -20,5 +20,13 @@ Comparacion con Dire Wolf 1.7 (`gen_packets` y `atest -P A`, perfil A, un solo u
 | `gen_packets -n 100 -r 44100` | 72 | 70-72 |
 | 100 tramas de nuestro modulador a 13200 / 44100 / 48000 Hz | 100 / 100 / 100 | 100 / 100 / 100 |
 
+G3RUH 9600 (`tools/afsk/test_g3ruh.cpp`, `include/g3ruh_modem.h`):
+
+| Prueba | Dire Wolf (`atest -B 9600`) | APRS LoRa+ |
+|---|---|---|
+| `gen_packets -B 9600 -n 100 -r 48000` | 66 | 66 |
+| `gen_packets -B 9600 -n 100 -r 44100` | 62 | 60 |
+| 100 tramas de nuestro modulador a 48000 / 44100 Hz | 100 / 100 | 100 / 100 |
+
 `gen_packets` reparte el ruido hasta la frecuencia de Nyquist: a mas frecuencia de muestreo, menos ruido en la banda de audio, por
 eso las cifras solo se comparan a la misma frecuencia. En la placa se muestrea a 13200 Hz (11 muestras por bit).

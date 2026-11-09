@@ -23,6 +23,7 @@
 #include "configuration.h"
 #include "board_pinout.h"
 #include "afsk1200.h"
+#include "g3ruh_modem.h"
 #include "iaru_plan.h"
 #include "sa868_radio.h"
 #include "logger.h"
@@ -40,7 +41,8 @@ extern XPowersAXP2101   PMU;            // power_utils.cpp
 
 namespace SA868 {
 
-    static constexpr uint32_t RX_FS      = 13200;           // 11 muestras por bit
+    static constexpr uint32_t RX_FS      = 13200;           // AFSK 1200: 11 muestras por bit
+    static constexpr uint32_t RX_FS_9600 = 48000;           // G3RUH 9600: 5 muestras por bit
     static constexpr uint32_t TX_FS      = 48000;
     static constexpr size_t   RX_QUEUE   = 4;
     static constexpr uint32_t TX_MAX_MS  = 6000;            // tope de seguridad de una emision
@@ -54,6 +56,8 @@ namespace SA868 {
     static volatile bool        txActive    = false;
     static volatile bool        resetDemod  = false;
     static AFSK::Demod          demod;
+    static G3RUH::BaseRx        g3rx;
+    static bool                 mode96      = false;        // modo APRS FSK 9600 (G3RUH): audio plano, canal de 25 kHz
     static adc_continuous_handle_t adc      = nullptr;
     static i2s_chan_handle_t    txChan      = nullptr;
     static QueueHandle_t        rxQueue     = nullptr;
@@ -228,7 +232,7 @@ namespace SA868 {
             return true;
         }
         char c[64];
-        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%03ld.%04ld,%03ld.%04ld,0000,%d,0000", Config.sa868.wide ? 1 : 0,
+        snprintf(c, sizeof(c), "AT+DMOSETGROUP=%d,%03ld.%04ld,%03ld.%04ld,0000,%d,0000", (Config.sa868.wide || mode96) ? 1 : 0,
                  txHz / 1000000L, (txHz % 1000000L) / 100L, rxHz / 1000000L, (rxHz % 1000000L) / 100L, constrain(Config.sa868.squelch, 0, 8));
         const bool good = commandOk(c, "+DMOSETGROUP:0", 800);
         if (!good) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "%s rejected", c);
@@ -242,22 +246,33 @@ namespace SA868 {
         if (!validFreq(rx)) rx = isUhf ? 432500000L : 144800000L;           // no deberia pasar: fixBandDefaults() al arrancar
         if (!validFreq(tx)) tx = rx;
         if (fw == Firmware::OPENRTX) {
-            at1846Bandwidth(Config.sa868.wide);
-            maskSet(0x58, 0x00F8, Config.sa868.filters ? 0x0000 : 0x00F8);
-            maskSet(0x44, 0x00F0, (uint16_t)((constrain(Config.sa868.volume, 1, 8) * 15 / 8) << 4));    // ganancia del DAC de audio
+            if (mode96) {
+                // 9600: como el M17 de OpenRTX en esta placa (radio_setOpmode): registros del modo DMR (sin filtros de voz ni
+                // pre/desenfasis: 0x58 = 0xBCFD) y despues el canal de 25 kHz
+                static const uint16_t dmr[][2] = { {0x3A, 0x00C2}, {0x33, 0x45F5}, {0x41, 0x4731}, {0x42, 0x1036}, {0x43, 0x00BB},
+                                                   {0x58, 0xBCFD}, {0x44, 0x06CC}, {0x40, 0x0031} };
+                for (auto& r : dmr) poke((uint8_t)r[0], r[1]);
+                reloadConfig();
+                at1846Bandwidth(true);
+            } else {
+                at1846Bandwidth(Config.sa868.wide);
+                maskSet(0x58, 0x00F8, Config.sa868.filters ? 0x0000 : 0x00F8);
+            }
+            if (!mode96) maskSet(0x44, 0x00F0, (uint16_t)((constrain(Config.sa868.volume, 1, 8) * 15 / 8) << 4));    // ganancia del DAC de audio
             good = setFrequencies(rx, tx);
         } else {
             good = setFrequencies(rx, tx);
             char c[40];
             snprintf(c, sizeof(c), "AT+DMOSETVOLUME=%d", constrain(Config.sa868.volume, 1, 8));
             good &= commandOk(c, "+DMOSETVOLUME:0");
-            snprintf(c, sizeof(c), "AT+SETFILTER=%d,%d,%d", Config.sa868.filters ? 0 : 1, Config.sa868.filters ? 0 : 1, Config.sa868.filters ? 0 : 1);
+            const int f = (Config.sa868.filters && !mode96) ? 0 : 1;          // 9600: los tres filtros puenteados (1 = fuera)
+            snprintf(c, sizeof(c), "AT+SETFILTER=%d,%d,%d", f, f, f);
             good &= commandOk(c, "+DMOSETFILTER:0");
         }
         applyPower();
         applySpeaker();
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "RX %.4f / TX %.4f MHz, %s, SQ %d, vol %d, %s power: %s",
-                   rx / 1e6, tx / 1e6, Config.sa868.wide ? "25 kHz" : "12.5 kHz", Config.sa868.squelch, Config.sa868.volume,
+                   rx / 1e6, tx / 1e6, (Config.sa868.wide || mode96) ? (mode96 ? "25 kHz, 9600 flat audio" : "25 kHz") : "12.5 kHz", Config.sa868.squelch, Config.sa868.volume,
                    Config.sa868.highPower ? "high" : "low", good ? "ok" : "ERROR");
         return good;
     }
@@ -300,12 +315,13 @@ namespace SA868 {
         for (;;) {
             uint32_t got = 0;
             if (adc_continuous_read(adc, buf, sizeof(buf), &got, 100) != ESP_OK) continue;
-            if (resetDemod) { demod.reset(); resetDemod = false; }
+            if (resetDemod) { if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
             if (txActive) continue;                         // en emision el ADC oye la propia senal: se descarta
             for (uint32_t i = 0; i + SOC_ADC_DIGI_RESULT_BYTES <= got; i += SOC_ADC_DIGI_RESULT_BYTES) {
                 const adc_digi_output_data_t* p = (const adc_digi_output_data_t*)&buf[i];
                 const int v = (int)p->type2.data;
-                demod.feed((float)(v - 2048) / 2048.0f, onFrame, nullptr);
+                const float x = (float)(v - 2048) / 2048.0f;
+                if (mode96) g3rx.feed(x, onFrame, nullptr); else demod.feed(x, onFrame, nullptr);
             }
         }
     }
@@ -323,11 +339,11 @@ namespace SA868 {
         adc_continuous_config_t cfg = {};
         cfg.pattern_num    = 1;
         cfg.adc_pattern    = &pat;
-        cfg.sample_freq_hz = RX_FS;
+        cfg.sample_freq_hz = mode96 ? RX_FS_9600 : RX_FS;
         cfg.conv_mode      = ADC_CONV_SINGLE_UNIT_1;
         cfg.format         = ADC_DIGI_OUTPUT_FORMAT_TYPE2;
         if (adc_continuous_config(adc, &cfg) != ESP_OK) return false;
-        if (!demod.begin(RX_FS)) return false;
+        if (mode96 ? !g3rx.begin(RX_FS_9600) : !demod.begin(RX_FS)) return false;
         rxQueue = xQueueCreate(RX_QUEUE, sizeof(RxItem));
         if (!rxQueue) return false;
         if (adc_continuous_start(adc) != ESP_OK) return false;
@@ -382,6 +398,8 @@ namespace SA868 {
         }
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "T-TWR Rev%d.%d, %s firmware, %s", rev / 10, rev % 10, firmwareName(), isUhf ? "UHF" : "VHF");
         fixBandDefaults();
+        mode96 = (Config.operatingMode == MODE_APRS_FSK);
+        if (mode96) logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "APRS FSK 9600 (G3RUH): flat audio, 25 kHz channel");
         applyConfig();
         if (!audioTxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "PDM audio output failed");
         if (!audioRxBegin()) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SA868", "ADC audio input failed");
@@ -393,7 +411,8 @@ namespace SA868 {
     int  revision()           { return rev; }
     bool uhf()                { return isUhf; }
     float audioLevel()        { return demod.level(); }
-    uint32_t framesOk()       { return demod.frames; }
+    uint32_t framesOk()       { return mode96 ? g3rx.frames : demod.frames; }
+    bool mode9600()           { return mode96; }
 
     const char* firmwareName() {
         switch (fw) {
@@ -410,11 +429,18 @@ namespace SA868 {
         uint8_t frame[AX25G3::MAX_FRAME];
         const size_t fl = AX25G3::tnc2ToFrame(tnc2, frame, sizeof(frame));
         if (fl == 0) return false;
-        // una bandera son 8 bits a 1200 baudios: 6,67 ms
-        const size_t lead = (size_t)((Config.sa868.txDelayMs * AFSK::BAUD + 7999) / 8000);
-        const size_t tail = (size_t)((Config.sa868.txTailMs  * AFSK::BAUD + 7999) / 8000);
-        static uint8_t bits[800];                           // hasta 1 s de TXDELAY + 330 bytes con relleno + 0,3 s de cola
-        const size_t nb = AFSK::encodeBits(frame, fl, bits, sizeof(bits), lead, tail ? tail : 1);
+        static uint8_t bits[1400];                          // AFSK: bits de tono; G3RUH: bytes en el aire
+        size_t nb = 0;
+        if (mode96) {
+            // una bandera son 8 bits a 9600 baudios: 0,83 ms. Las de cola las pone g3ruhEncode (2)
+            const size_t lead = (size_t)((Config.sa868.txDelayMs * G3RUH::BAUD + 7999) / 8000);
+            nb = AX25G3::g3ruhEncode(frame, fl, bits, sizeof(bits), lead);
+        } else {
+            // una bandera son 8 bits a 1200 baudios: 6,67 ms
+            const size_t lead = (size_t)((Config.sa868.txDelayMs * AFSK::BAUD + 7999) / 8000);
+            const size_t tail = (size_t)((Config.sa868.txTailMs  * AFSK::BAUD + 7999) / 8000);
+            nb = AFSK::encodeBits(frame, fl, bits, sizeof(bits), lead, tail ? tail : 1);
+        }
         if (nb == 0) return false;
 
         txActive = true;
@@ -427,11 +453,13 @@ namespace SA868 {
         i2s_channel_enable(txChan);
 
         AFSK::ToneGen gen;
-        gen.start(bits, nb, TX_FS, constrain(Config.sa868.txLevel, 1, 100) / 100.0f);
+        G3RUH::BaseTx g3tx;
+        if (mode96) g3tx.start(bits, nb, TX_FS, constrain(Config.sa868.txLevel9600, 1, 100) / 100.0f);
+        else        gen.start(bits, nb, TX_FS, constrain(Config.sa868.txLevel, 1, 100) / 100.0f);
         static int16_t buf[512];
         const uint32_t start = millis();
         size_t n;
-        while ((n = gen.fill(buf, 512)) > 0) {
+        while ((n = mode96 ? g3tx.fill(buf, 512) : gen.fill(buf, 512)) > 0) {
             size_t written = 0;
             i2s_channel_write(txChan, buf, n * sizeof(int16_t), &written, 200);
             if (millis() - start > TX_MAX_MS) break;
@@ -466,7 +494,7 @@ namespace SA868 {
         #ifdef SA868_SQL_PIN
         if (rev == 21 && digitalRead(SA868_SQL_PIN) == LOW) return true;    // silenciador abierto: hay portadora
         #endif
-        return demod.dataCarrier();
+        return mode96 ? g3rx.dataCarrier() : demod.dataCarrier();
     }
 
     int rssi() {

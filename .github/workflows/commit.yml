@@ -44,3 +44,5 @@ jobs:
               run: |
                   g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/afsk/test_afsk.cpp src/afsk1200.cpp src/ax25_g3ruh.cpp src/fx25.cpp src/il2p.cpp -o /tmp/test_afsk
                   /tmp/test_afsk
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/afsk/test_g3ruh.cpp src/g3ruh_modem.cpp src/ax25_g3ruh.cpp src/fx25.cpp src/il2p.cpp -o /tmp/test_g3ruh
+                  /tmp/test_g3ruh
