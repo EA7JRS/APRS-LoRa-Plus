@@ -719,8 +719,61 @@ namespace {
         #endif
     }
 
+    static void vesselJson(JW& j, const AisCore::Vessel& v, const AisCore::Own& o, bool full) {
+        j.num("m", v.mmsi);
+        const char cl[2] = { v.cls, 0 }; j.text("cl", cl);
+        if (v.name[0]) j.text("n", v.name);
+        if (v.call[0]) j.text("c", v.call);
+        if (v.shipType) j.num("t", v.shipType);
+        if (v.status != 15) j.num("st", v.status);
+        if (v.hasPos) { j.flt("lat", v.lat, 5); j.flt("lon", v.lon, 5); j.num("pa", (millis() - v.posMs) / 1000); }
+        if (v.hasSog) j.flt("sog", v.sogKn, 1);
+        if (v.hasCog) j.flt("cog", v.cogDeg, 1);
+        if (v.hdg != 511) j.num("hdg", v.hdg);
+        j.num("age", (millis() - v.lastMs) / 1000);
+        if (v.hasPos && o.valid) {
+            double nm, brg, c = 0, t = 0;
+            AisCore::rangeBearing(o, v.lat, v.lon, nm, brg);
+            j.flt("nm", nm, 2); j.num("brg", lround(brg));
+            if (AisCore::cpa(o, v, c, t)) { j.flt("cpa", c, 2); j.flt("tcpa", t, 1); }
+            j.flag("dng", AIS_Utils::dangerous(v));
+        }
+        if (!full) return;
+        if (v.dest[0]) j.text("ds", v.dest);
+        if (v.length) j.num("len", v.length);
+        if (v.beam) j.num("bm", v.beam);
+        if (v.draughtM > 0) j.flt("dr", v.draughtM, 1);
+        if (v.etaMonth) { char e[16]; snprintf(e, sizeof(e), "%02u-%02u %02u:%02u", v.etaMonth, v.etaDay, v.etaHour, v.etaMinute); j.text("eta", e); }
+        if (v.imo) j.num("imo", v.imo);
+        if (v.cls == AisCore::CL_SAR && v.altM) j.num("alt", v.altM);
+        if (v.lastText[0]) j.text("txt", v.lastText);
+        if (v.channel) { const char ch[2] = { v.channel, 0 }; j.text("ch", ch); }
+        j.num("msgs", v.msgs);
+    }
+
+    static void sendAisList(int from, int cnt) {
+        AisCore::Own o; AIS_Utils::own(o);
+        static int idx[AisCore::Table::CAP];
+        const int m = AIS_Utils::sorted(idx, AisCore::Table::CAP);
+        JW j("aislist");
+        j.num("tot", m);
+        j.num("from", from);
+        j.num("msgs", AIS_Utils::messages());
+        j.text("src", AIS_Utils::sourceName());
+        const char ch = AIS_Utils::channel();
+        if (ch) { const char c[2] = { ch, 0 }; j.text("ch", c); }
+        j.arr("items");
+        for (int k = from; k < m && k < from + cnt; k++) {
+            const AisCore::Vessel* v = AIS_Utils::table().at(idx[k]);
+            if (!v) continue;
+            j.obj(); vesselJson(j, *v, o, false); j.endObj();
+        }
+        j.endArr();
+        j.send(sendLine);
+    }
+
     // satrx / sattx: modo SAT; en la T-TWR tambien en FM (el VFO sigue al satelite)
-    static bool satModeOk() {
+    __attribute__((unused)) static bool satModeOk() {
         if (Config.operatingMode == MODE_SAT) return true;
         #ifdef HAS_SA868
             return Config.operatingMode == MODE_FM;
@@ -1930,64 +1983,11 @@ namespace BLE_Control {
 
     bool cwRxStopRequested() { return cwRxStop; }
 
-    static void vesselJson(JW& j, const AisCore::Vessel& v, const AisCore::Own& o, bool full) {
-        j.num("m", v.mmsi);
-        const char cl[2] = { v.cls, 0 }; j.text("cl", cl);
-        if (v.name[0]) j.text("n", v.name);
-        if (v.call[0]) j.text("c", v.call);
-        if (v.shipType) j.num("t", v.shipType);
-        if (v.status != 15) j.num("st", v.status);
-        if (v.hasPos) { j.flt("lat", v.lat, 5); j.flt("lon", v.lon, 5); j.num("pa", (millis() - v.posMs) / 1000); }
-        if (v.hasSog) j.flt("sog", v.sogKn, 1);
-        if (v.hasCog) j.flt("cog", v.cogDeg, 1);
-        if (v.hdg != 511) j.num("hdg", v.hdg);
-        j.num("age", (millis() - v.lastMs) / 1000);
-        if (v.hasPos && o.valid) {
-            double nm, brg, c = 0, t = 0;
-            AisCore::rangeBearing(o, v.lat, v.lon, nm, brg);
-            j.flt("nm", nm, 2); j.num("brg", lround(brg));
-            if (AisCore::cpa(o, v, c, t)) { j.flt("cpa", c, 2); j.flt("tcpa", t, 1); }
-            j.flag("dng", AIS_Utils::dangerous(v));
-        }
-        if (!full) return;
-        if (v.dest[0]) j.text("ds", v.dest);
-        if (v.length) j.num("len", v.length);
-        if (v.beam) j.num("bm", v.beam);
-        if (v.draughtM > 0) j.flt("dr", v.draughtM, 1);
-        if (v.etaMonth) { char e[16]; snprintf(e, sizeof(e), "%02u-%02u %02u:%02u", v.etaMonth, v.etaDay, v.etaHour, v.etaMinute); j.text("eta", e); }
-        if (v.imo) j.num("imo", v.imo);
-        if (v.cls == AisCore::CL_SAR && v.altM) j.num("alt", v.altM);
-        if (v.lastText[0]) j.text("txt", v.lastText);
-        if (v.channel) { const char ch[2] = { v.channel, 0 }; j.text("ch", ch); }
-        j.num("msgs", v.msgs);
-    }
-
     void aisEvent(const AisCore::Vessel& v) {
         if (!connected || !authed) return;
         AisCore::Own o; AIS_Utils::own(o);
         JW j("ais");
         vesselJson(j, v, o, true);
-        j.send(sendLine);
-    }
-
-    static void sendAisList(int from, int cnt) {
-        AisCore::Own o; AIS_Utils::own(o);
-        static int idx[AisCore::Table::CAP];
-        const int m = AIS_Utils::sorted(idx, AisCore::Table::CAP);
-        JW j("aislist");
-        j.num("tot", m);
-        j.num("from", from);
-        j.num("msgs", AIS_Utils::messages());
-        j.text("src", AIS_Utils::sourceName());
-        const char ch = AIS_Utils::channel();
-        if (ch) { const char c[2] = { ch, 0 }; j.text("ch", c); }
-        j.arr("items");
-        for (int k = from; k < m && k < from + cnt; k++) {
-            const AisCore::Vessel* v = AIS_Utils::table().at(idx[k]);
-            if (!v) continue;
-            j.obj(); vesselJson(j, *v, o, false); j.endObj();
-        }
-        j.endArr();
         j.send(sendLine);
     }
 

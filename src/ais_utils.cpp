@@ -166,7 +166,7 @@ namespace AIS_Utils {
             char id[12]; stationId(*v, id, sizeof(id));
             char d[42];
             const char* kind = AisCore::distressName(v->mmsi);
-            snprintf(d, sizeof(d), "%s %s", kind[0] ? kind : "AIS", r.type == 14 ? r.text : (v->name[0] ? v->name : "ACTIVE"));
+            snprintf(d, sizeof(d), "%.8s %.30s", kind[0] ? kind : "AIS", r.type == 14 ? r.text : (v->name[0] ? v->name : "ACTIVE"));
             #ifdef HAS_APRS_PAGES
             PAGES_Utils::aisAlarm(id, d, true, v->hasPos, v->lat, v->lon);
             #endif
