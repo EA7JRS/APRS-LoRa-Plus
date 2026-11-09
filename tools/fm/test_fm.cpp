@@ -26,7 +26,12 @@ int main() {
     // canal, desplazamientos
     Channel c; clearChannel(c, 145600000L);
     CHECK(c.offsetHz == 600000L && txHz(c) == 145600000L);
-    c.shift = -1; CHECK(txHz(c) == 145000000L && validChannel(c, 134000000L, 174000000L));
+    c.shift = -1; CHECK(txHz(c) == 145000000L && validChannel(c, 136000000L, 174000000L));
+    // emision solo en las bandas de aficionado
+    CHECK(txAllowed(144800000L, 1) && txAllowed(145990000L, 1) && !txAllowed(146500000L, 1) && txAllowed(146940000L, 2) && txAllowed(147000000L, 3));
+    CHECK(!txAllowed(146500000L, 0) && txAllowed(145500000L, 0) && txAllowed(433500000L, 0) && !txAllowed(446006250L, 0));
+    CHECK(txAllowed(420500000L, 2) && !txAllowed(420500000L, 1) && !txAllowed(441000000L, 1) && txAllowed(449000000L, 2));
+    CHECK(!txAllowed(161975000L, 1) && !txAllowed(156800000L, 2) && !txAllowed(137100000L, 3) && !txAllowed(162550000L, 2));
     CHECK(standardOffset(438650000L, 1) == 7600000L && standardOffset(442000000L, 2) == 5000000L);
     int8_t sh = 0; long off = 0;
     CHECK(autoRepeater(145650000L, 1, sh, off) && sh == -1 && off == 600000L);

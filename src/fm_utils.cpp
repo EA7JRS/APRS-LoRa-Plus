@@ -100,7 +100,7 @@ namespace FM_Utils {
         m.tone = c.tone; m.dcs = c.dcs; m.dcsInv = c.dcsInv; m.wide = c.wide; m.high = c.high;
     }
 
-    static long bandLo() { return SA868::uhf() ? 400000000L : 134000000L; }
+    static long bandLo() { return SA868::uhf() ? 400000000L : 136000000L; }
     static long bandHi() { return SA868::uhf() ? 480000000L : 174000000L; }
     // banda de aficionado de la region para escanear la banda (o los limites de la WebUI)
     static long scanLo() {
@@ -422,10 +422,7 @@ namespace FM_Utils {
     static uint32_t satExtMs = 0;
 
     static bool hamUplink(long hz) {
-        if (!SA868::validFreq(hz)) return false;
-        const int r = Config.sa868.iaruRegion;
-        if (SA868::uhf()) return r == 2 ? (hz >= 420000000L && hz <= 450000000L) : (hz >= 430000000L && hz <= 440000000L);
-        return hz >= 144000000L && hz <= (r == 1 ? 146000000L : 148000000L);
+        return SA868::txAllowed(hz);
     }
 
     static bool satLoad() {
@@ -681,7 +678,10 @@ namespace FM_Utils {
             activity();
             if (down) {
                 if (scanner.running()) scanStop();
-                if (!pttLock && !SA868::fmTransmitting() && satPttOk() && SA868::fmVoice(true)) txStartMs = now;
+                if (!pttLock && !SA868::fmTransmitting() && satPttOk()) {
+                    if (!SA868::txAllowed(FmCore::txHz(cur))) note("No TX: out of band");     // fuera de la banda de aficionado: solo escucha
+                    else if (SA868::fmVoice(true)) txStartMs = now;
+                }
             } else {
                 pttLock = false;
                 if (SA868::fmVoiceActive() && !eai.micOn) {

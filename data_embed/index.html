@@ -982,8 +982,8 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     <div class="col-12 px-1 mb-1"><small class="text-muted" id="sa868.bandinfo"></small></div>
                                 </div>
                                 <div class="row">
-                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.rxMHz" id="sa868.rxMHz" min="134" max="480" step="0.0125" value="144.8" /><label for="sa868.rxMHz">RX (MHz)</label></div>
-                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txMHz" id="sa868.txMHz" min="134" max="480" step="0.0125" value="144.8" /><label for="sa868.txMHz">TX (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.rxMHz" id="sa868.rxMHz" min="136" max="480" step="0.0125" value="144.8" /><label for="sa868.rxMHz">RX (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txMHz" id="sa868.txMHz" min="136" max="480" step="0.0125" value="144.8" /><label for="sa868.txMHz">TX (MHz)</label></div>
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.wide" id="sa868.wide"><option value="0">Narrow 12.5 kHz (APRS)</option><option value="1">Wide 25 kHz</option></select><label for="sa868.wide">Bandwidth</label></div>
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.highPower" id="sa868.highPower"><option value="0">Low</option><option value="1">High</option></select><label for="sa868.highPower">Power</label></div>
                                 </div>
@@ -1005,7 +1005,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 </div>
                                 <div class="small fw-semibold mt-1 mb-1 px-1">M17 mode</div>
                                 <div class="row g-0 mb-1">
-                                    <div class="form-floating col-12 col-md-4 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.m17MHz" id="sa868.m17MHz" min="134" max="480" step="0.0125" value="144.875" /><label for="sa868.m17MHz">M17 frequency (MHz)</label></div>
+                                    <div class="form-floating col-12 col-md-4 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.m17MHz" id="sa868.m17MHz" min="136" max="480" step="0.0125" value="144.875" /><label for="sa868.m17MHz">M17 frequency (MHz)</label></div>
                                     <div class="form-floating col-6 col-md-4 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.m17Can" id="sa868.m17Can" min="0" max="15" value="0" /><label for="sa868.m17Can">CAN (0-15)</label></div>
                                     <div class="form-floating col-6 col-md-4 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.txLevelM17" id="sa868.txLevelM17" min="1" max="100" value="40" /><label for="sa868.txLevelM17">TX level M17 %</label></div>
                                 </div>
@@ -1022,7 +1022,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             <div class="col-lg-9 col-sm-12">
                                 <div class="small fw-semibold mb-1 px-1">VFO</div>
                                 <div class="row g-0">
-                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.vfoMHz" id="fm.vfoMHz" min="134" max="480" step="0.00625" value="145.5" /><label for="fm.vfoMHz">Frequency (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.vfoMHz" id="fm.vfoMHz" min="136" max="480" step="0.00625" value="145.5" /><label for="fm.vfoMHz">Frequency (MHz)</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="fm.vfoShift" id="fm.vfoShift"><option value="0">Simplex</option><option value="-1">&minus;</option><option value="1">+</option></select><label for="fm.vfoShift">Shift</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="fm.vfoOffsetMHz" id="fm.vfoOffsetMHz" min="0" max="99.9" step="0.005" value="0.6" /><label for="fm.vfoOffsetMHz">Offset (MHz)</label></div>
                                     <div class="form-floating col-6 col-md-2 px-1 mb-2"><select class="form-select form-select-sm" name="fm.vfoToneMode" id="fm.vfoToneMode"><option value="0">No tone</option><option value="1">TONE</option><option value="2">TSQL</option><option value="3">DCS</option><option value="4">1750 Hz</option></select><label for="fm.vfoToneMode">Tone</label></div>
@@ -1111,7 +1111,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="row">
-                                    <div class="form-floating col-6 col-md-3 px-1 mb-2 d-none" id="dapnet-sa868-f"><input type="number" class="form-control form-control-sm" name="sa868.dapnetMHz" id="sa868.dapnetMHz" min="134" max="480" step="0.0125" value="144.8625" /><label for="sa868.dapnetMHz">Frequency (MHz)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2 d-none" id="dapnet-sa868-f"><input type="number" class="form-control form-control-sm" name="sa868.dapnetMHz" id="sa868.dapnetMHz" min="136" max="480" step="0.0125" value="144.8625" /><label for="sa868.dapnetMHz">Frequency (MHz)</label></div>
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2 d-none" id="dapnet-sa868-h"><input type="number" class="form-control form-control-sm" name="sa868.dapnetHpfHz" id="sa868.dapnetHpfHz" min="0" max="2000" value="320" title="AC coupling of the board audio input that is compensated (100 nF with 10k / 10k: about 320 Hz)" /><label for="sa868.dapnetHpfHz">Audio coupling (Hz)</label></div>
                                     <div class="form-floating col-12 col-md-3 px-1 mb-2">
                                         <input type="number" class="form-control form-control-sm" name="dapnet.freqMHz" id="dapnet.freqMHz" min="400" max="480" step="0.0125" value="439.9875" required />

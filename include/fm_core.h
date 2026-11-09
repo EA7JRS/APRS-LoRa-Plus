@@ -56,9 +56,13 @@ namespace FmCore {
     long  txHz(const Channel& c);
     bool  validChannel(const Channel& c, long lo, long hi);
 
-    // Banda del modulo: 134..174 MHz (VHF) o 400..480 MHz (UHF)
+    // Banda del modulo: 136..174 MHz (VHF) o 400..480 MHz (UHF) para recibir
     bool  inVhf(long hz);
     bool  inUhf(long hz);
+    // Emision: solo en las bandas de aficionado de la region IARU (2 m: 144-146 MHz en la R1, 144-148 en la R2 y la R3; 70 cm:
+    // 430-440 en la R1 y la R3, 420-450 en la R2). region 0 = sin saber donde se esta: solo lo comun a las tres (144-146, 430-440).
+    // Fijo en el firmware: no se cambia desde la WebUI ni la configuracion
+    bool  txAllowed(long hz, int region);
     // Desplazamiento habitual de los repetidores de la banda en cada region IARU (600 kHz en 2 m; 7,6 MHz en 70 cm en la R1, 5 MHz en la R2 / R3)
     long  standardOffset(long hz, int region);
     // ARS: si la frecuencia cae en un segmento de salidas de repetidor de la region, sentido y desplazamiento (si no, false)

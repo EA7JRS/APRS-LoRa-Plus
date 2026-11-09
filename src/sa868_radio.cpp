@@ -33,12 +33,15 @@
 #include "driver/sdm.h"
 #include "driver/gptimer.h"
 #include "iaru_plan.h"
+#include "gps_utils.h"
+#include <TinyGPS++.h>
 #include "sa868_radio.h"
 #include "logger.h"
 #include "esp_heap_caps.h"
 
 extern Configuration    Config;
 extern logging::Logger  logger;
+extern TinyGPSPlus      gps;
 extern XPowersAXP2101   PMU;            // power_utils.cpp
 extern LoraType         *currentLoRaType;
 extern Beacon           *currentBeacon;
@@ -285,7 +288,30 @@ namespace SA868 {
     static void applyPower() { applyPowerLevel(Config.sa868.highPower); }
 
     bool validFreq(long hz) {
-        return isUhf ? (hz >= 400000000L && hz <= 480000000L) : (hz >= 134000000L && hz <= 174000000L);
+        return isUhf ? (hz >= 400000000L && hz <= 480000000L) : (hz >= 136000000L && hz <= 174000000L);
+    }
+
+    // Region IARU donde se esta, por la posicion GPS (o la ultima guardada); 0 = no se sabe
+    static int txRegion() {
+        if (gps.location.isValid() && gps.location.age() < 60000UL) return IARU_Plan::regionAt((float)gps.location.lat(), (float)gps.location.lng());
+        if (GPS_Utils::hasLastPosition()) return IARU_Plan::regionAt((float)GPS_Utils::getLastLat(), (float)GPS_Utils::getLastLng());
+        return 0;
+    }
+
+    // Emision solo en las bandas de aficionado (fijo en el firmware). La region sale de la posicion GPS; sin posicion, solo lo comun a
+    // las tres regiones (144-146 y 430-440 MHz): la region elegida en la WebUI no amplia lo que se puede emitir
+    bool txAllowed(long hz) {
+        return validFreq(hz) && FmCore::txAllowed(hz, txRegion());
+    }
+
+    static bool txBlocked(long hz) {
+        if (txAllowed(hz)) return false;
+        static uint32_t lastLog = 0;
+        if (millis() - lastLog > 2000) {
+            lastLog = millis();
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "SA868", "TX on %.4f MHz refused: outside the amateur band (IARU region %d from the GPS position, 0 = no position: 144-146 / 430-440 only)", hz / 1e6, txRegion());
+        }
+        return true;
     }
 
     // Frecuencias de la otra banda (la configuracion de fabrica es la de VHF): el canal APRS por defecto de la region IARU para la banda
@@ -721,6 +747,7 @@ namespace SA868 {
 
     // Pulsa el PTT, saca el audio que da fill() (muestras a 48 kHz; 0 = fin) y vuelve a recepcion
     template <typename Fill> static void keyAndPlay(Fill fill) {
+        if (txBlocked(txFreqHz())) return;                  // seguridad: nunca fuera de banda
         txActive = true;
         if (fw == Firmware::OPENRTX) {
             at1846Freq(txFreqHz());
@@ -791,6 +818,7 @@ namespace SA868 {
     }
 
     bool transmit(const char* tnc2) {
+        if (txBlocked(txFreqHz())) return false;           // fuera de la banda de aficionado: no se emite
         if (!ok || !txChan) return false;
         if (m17) {
             // APRS en un paquete M17 de protocolo APRS a "@ALL"; en el LSF, el origen de la trama (o el indicativo del perfil)
@@ -840,7 +868,7 @@ namespace SA868 {
     bool carrier(bool on) {
         static bool keyed = false;
         if (on) {
-            if (!ok || txActive) return false;
+            if (!ok || txActive || txBlocked(txFreqHz())) return false;
             txActive = true;
             if (fw == Firmware::OPENRTX) { at1846Freq(txFreqHz()); at1846Mode(2); }
             if (fmMode && rev == 21) PMU.disableBLDO1();
@@ -910,6 +938,7 @@ namespace SA868 {
     // tono de cwToneHz por el microfono del modulo
     void cwKey(bool on) {
         if (!ok) return;
+        if (on && !cwSession && !cwKeyed && txBlocked(txFreqHz())) return;
         cwSidetone = on;
         if (Config.sa868.cwMcw) {
             if (on && !cwSession) {
@@ -1071,7 +1100,7 @@ namespace SA868 {
     bool fmVoice(bool on) {
         if (!ok) return false;
         if (on) {
-            if (txActive) return false;
+            if (txActive || txBlocked(curTx)) return false;
             if (fmCh.toneMode == FmCore::TONE_1750) {
                 static const uint16_t hz[1] = { 1750 }, ms[1] = { 500 };
                 fmPlayTones(hz, ms, 1);
@@ -1096,7 +1125,7 @@ namespace SA868 {
 
     // Tonos desde el ESP32 en el canal de voz (pitidos de la EAI, sondeo de ARTS, CW, 1750 Hz); hz = 0: portadora sin modular
     bool fmPlayTones(const uint16_t* hz, const uint16_t* ms, size_t n) {
-        if (!ok || !txChan || txActive || n == 0) return false;
+        if (!ok || !txChan || txActive || n == 0 || txBlocked(txFreqHz())) return false;
         size_t seg = 0, left = (size_t)ms[0] * (TX_FS / 1000);
         float ph = 0;
         const float amp = constrain(Config.sa868.txLevel, 1, 100) / 100.0f * 32000.0f;

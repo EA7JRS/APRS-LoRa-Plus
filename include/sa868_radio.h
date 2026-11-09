@@ -94,9 +94,10 @@ namespace SA868 {
     bool     fmSpeakerFromEsp();            // Rev2.1: el altavoz lo alimenta el ESP32 (silenciador por software / reduccion de ruido)
     void     sleep();
     void     wake();
-    bool     validFreq(long hz);
+    bool     validFreq(long hz);            // recepcion: 136..174 MHz (VHF) o 400..480 MHz (UHF)
+    bool     txAllowed(long hz);            // emision: solo en la banda de aficionado de la region IARU (fijo en el firmware)
     long     ppmCorrectionHz(long hz);      // correccion global (Config.radioPpm1000) que se suma al programar el modulo
-    bool     carrier(bool on);              // portadora sin modular en la frecuencia de emision en uso (calibracion)            // dentro de la banda del modulo (134..174 MHz VHF, 400..480 MHz UHF)
+    bool     carrier(bool on);              // portadora sin modular en la frecuencia de emision en uso (calibracion)            // dentro de la banda del modulo (136..174 MHz VHF, 400..480 MHz UHF)
 }
 
 #endif

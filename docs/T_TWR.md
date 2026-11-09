@@ -4,7 +4,7 @@ Copyright (C) 2026 Manuel - EA7JRS. GPL-3.0-or-later.
 
 Entorno de PlatformIO: `lilygo_t_twr_plus` (Rev2.0 y Rev2.1, una sola imagen). **Sin probar en la placa.**
 
-La T-TWR no lleva radio LoRa. Lleva un módulo **SA868** de NiceRF: un transceptor FM de 1 a 1,8 W (VHF 134–174 MHz o UHF 400–480 MHz) con el audio conectado al ESP32-S3. En esta placa el tracker hace **APRS analógico de 1200 baudios** (AX.25, Bell 202), el de las radios de VHF y los digipeaters e iGates de 144,800 MHz (Región 1) o 144,390 MHz (Norteamérica). El módem AFSK lo hace el ESP32-S3.
+La T-TWR no lleva radio LoRa. Lleva un módulo **SA868** de NiceRF: un transceptor FM de 1 a 1,8 W (VHF 136–174 MHz o UHF 400–480 MHz para recibir) con el audio conectado al ESP32-S3. En esta placa el tracker hace **APRS analógico de 1200 baudios** (AX.25, Bell 202), el de las radios de VHF y los digipeaters e iGates de 144,800 MHz (Región 1) o 144,390 MHz (Norteamérica). El módem AFSK lo hace el ESP32-S3.
 
 ## Qué funciona igual que en las demás placas
 
@@ -139,6 +139,10 @@ WebUI > *Frequency calibration*: la misma corrección en ppm que las demás plac
 ## GPS L76K
 
 Configurado como en la Supreme: el tracker detecta el L76K (no contesta a UBX: órdenes CASIC `$PCAS`), lo sube a 115200 baudios, elige constelaciones (GPS / BeiDou / GLONASS) desde la página GPS o la WebUI, lo apaga y enciende por el ALDO4, filtra la velocidad parado y guarda la última posición.
+
+## Límites de emisión (fijos en el firmware)
+
+La T-TWR recibe en 136–174 MHz (módulo de VHF) o 400–480 MHz (UHF), pero **solo emite en las bandas de aficionado** de la región IARU donde está, según la posición GPS (o la última guardada): 2 m 144–146 MHz en la Región 1 y 144–148 MHz en la 2 y la 3; 70 cm 430–440 MHz en la 1 y la 3 y 420–450 MHz en la 2. Sin posición, solo lo común a las tres (144–146 y 430–440 MHz). No se cambia desde la WebUI ni desde la configuración: la región que se elige en la WebUI sirve para las frecuencias por defecto, no amplía lo que se puede emitir. Fuera de banda el VFO escucha (marina, aviación no, meteorológicos, AIS...) y el PTT dice *No TX: out of band*; toda emisión (voz, APRS, M17, CW, tonos, portadora de calibración) pasa por la misma comprobación. Las normas de cada país pueden ser más estrictas que la región IARU (subbandas, potencia): eso es responsabilidad del operador.
 
 ## AIS (modo 12)
 

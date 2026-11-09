@@ -276,10 +276,10 @@ namespace WEB_Utils {
         #ifdef HAS_SA868
         if (request->hasParam("sa868.rxMHz", true)) {      // radio FM SA868 (LilyGO T-TWR): MHz en la WebUI, Hz en la configuracion
             const double rx = request->getParam("sa868.rxMHz", true)->value().toDouble();
-            Config.sa868.rxFreqHz = constrain((int)lround(rx * 1e6), 134000000, 480000000);
+            Config.sa868.rxFreqHz = constrain((int)lround(rx * 1e6), 136000000, 480000000);
             if (request->hasParam("sa868.txMHz", true)) {
                 const double tx = request->getParam("sa868.txMHz", true)->value().toDouble();
-                Config.sa868.txFreqHz = constrain((int)lround(tx * 1e6), 134000000, 480000000);
+                Config.sa868.txFreqHz = constrain((int)lround(tx * 1e6), 136000000, 480000000);
             }
             Config.sa868.wide      = getParamIntSafe("sa868.wide", Config.sa868.wide ? 1 : 0) == 1;     // 0 = Narrow 12,5 kHz, 1 = Wide 25 kHz
             Config.sa868.highPower = getParamIntSafe("sa868.highPower", Config.sa868.highPower ? 1 : 0) != 0;
@@ -292,7 +292,7 @@ namespace WEB_Utils {
             if (request->hasParam("sa868.m17MHz", true)) {  // vacio o fuera de banda = la sugerida para la banda del modulo
                 const double m = request->getParam("sa868.m17MHz", true)->value().toDouble();
                 const long hz = lround(m * 1e6);
-                const bool inBand = (hz >= 134000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L);
+                const bool inBand = (hz >= 136000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L);
                 Config.sa868.m17FreqHz = (inBand && hz != 144875000L && hz != 433475000L) ? (int)hz : 0;    // la sugerida se guarda como 0: sigue a la banda
             }
             Config.sa868.txDelayMs = constrain(getParamIntSafe("sa868.txDelayMs", Config.sa868.txDelayMs), 50, 1000);
@@ -305,7 +305,7 @@ namespace WEB_Utils {
             Config.sa868.speaker   = request->hasParam("sa868.speaker", true);
             if (request->hasParam("sa868.dapnetMHz", true)) {  // DAPNET por el SA868: la de la banda (144,8625 / 439,9875) se guarda como 0
                 const long hz = lround(request->getParam("sa868.dapnetMHz", true)->value().toDouble() * 1e6);
-                const bool inBand = (hz >= 134000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L);
+                const bool inBand = (hz >= 136000000L && hz <= 174000000L) || (hz >= 400000000L && hz <= 480000000L);
                 Config.sa868.dapnetFreqHz = (inBand && hz != 144862500L && hz != 439987500L) ? (int)hz : 0;
             }
             Config.sa868.dapnetHpfHz = constrain(getParamIntSafe("sa868.dapnetHpfHz", Config.sa868.dapnetHpfHz), 0, 2000);
@@ -369,7 +369,7 @@ namespace WEB_Utils {
             };
             FmMemory& v = Config.fm.vfo;
             const long f = mhzParam("fm.vfoMHz", v.rxHz);
-            if (f >= 134000000L && f <= 480000000L) v.rxHz = (int)f;
+            if (f >= 136000000L && f <= 480000000L) v.rxHz = (int)f;
             v.shift    = constrain(getParamIntSafe("fm.vfoShift", v.shift), -1, 1);
             v.offsetHz = (int)constrain(mhzParam("fm.vfoOffsetMHz", v.offsetHz), 0L, 99900000L);
             v.toneMode = constrain(getParamIntSafe("fm.vfoToneMode", v.toneMode), 0, 4);
@@ -400,7 +400,7 @@ namespace WEB_Utils {
                 if (!request->hasParam(key, true)) continue;                                   // fila ausente: se deja como esta
                 FmMemory& m = Config.fm.mem[i];
                 const long mf = mhzParam(key, 0);
-                if (mf < 134000000L || mf > 480000000L) { m.rxHz = 0; m.name = ""; continue; }  // vacia
+                if (mf < 136000000L || mf > 480000000L) { m.rxHz = 0; m.name = ""; continue; }  // vacia
                 m.rxHz = (int)mf;
                 snprintf(key, sizeof(key), "fm.m%d.n", i);
                 if (request->hasParam(key, true)) { String n = request->getParam(key, true)->value(); n.trim(); m.name = n.substring(0, 8); }

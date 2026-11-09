@@ -341,8 +341,8 @@ namespace {
     };
 #ifdef HAS_SA868
     const Field kSa868Fields[] = {                                                  // los valores que faltan parten de setSa868Defaults()
-        FC(Sa868Config, rxFreqHz,  FF_REQUIRED | FF_KEEP, 0, 134000000, 480000000),
-        FC(Sa868Config, txFreqHz,  FF_KEEP, 0, 134000000, 480000000),
+        FC(Sa868Config, rxFreqHz,  FF_REQUIRED | FF_KEEP, 0, 136000000, 480000000),
+        FC(Sa868Config, txFreqHz,  FF_KEEP, 0, 136000000, 480000000),
         FB(Sa868Config, highPower, FF_KEEP, 0),
         FB(Sa868Config, wide,      FF_KEEP, 0),
         FC(Sa868Config, volume,    FF_KEEP, 0, 1, 8),
