@@ -26,6 +26,7 @@
 #include "sat_tx.h"
 #include "baro_utils.h"
 #include "lora_utils.h"
+#include "bcast_radio.h"
 #ifdef HAS_SA868
     #include "sa868_radio.h"
     #include "fm_utils.h"
@@ -292,6 +293,7 @@ namespace {
             caps["m17"]   = false;
             caps["fm"]    = false;
         #endif
+        caps["bcast"] = BCAST::chipName();                       // radio comercial por I2C: "none", "RDA5807M", "Si4703", "Si4735"
         doc["mode"] = Config.operatingMode;
         JsonArray modes = doc["modes"].to<JsonArray>();
         ModeOption options[12];
@@ -981,6 +983,49 @@ namespace {
         reply(cmd, id);
     }
 
+    // ---------------------------------------------------------------- radio comercial (I2C)
+
+    void sendBcast() {
+        JsonDocument doc;
+        doc["e"]    = "bcast";
+        doc["chip"] = BCAST::chipName();
+        doc["on"]   = BCAST::isOn();
+        doc["band"] = BCAST::band();
+        doc["f"]    = BCAST::freqKHz();
+        doc["vol"]  = BCAST::volume();
+        doc["mute"] = BCAST::muted();
+        doc["mono"] = Config.bcast.mono;
+        doc["rssi"] = BCAST::rssi();
+        doc["snr"]  = BCAST::snr();
+        doc["st"]   = BCAST::stereo();
+        doc["seek"] = BCAST::seeking();
+        doc["ps"]   = BCAST::stationName();
+        char rt[70]; BCAST::radioText(rt, sizeof(rt));
+        doc["rt"]   = rt;
+        doc["pi"]   = BCAST::rdsPi();
+        int y, mo, d, h, mi, off;
+        if (BCAST::rdsClock(y, mo, d, h, mi, off)) { char ct[24]; snprintf(ct, sizeof(ct), "%04d-%02d-%02d %02d:%02d", y, mo, d, h, mi); doc["ct"] = ct; doc["ctOff"] = off; }
+        JsonArray bands = doc["bands"].to<JsonArray>();
+        for (uint8_t b = 0; b < BCAST::BAND_COUNT; b++) if (BCAST::bandAvailable(b)) bands.add(b);
+        JsonArray pr = doc["presets"].to<JsonArray>();
+        for (int i = 0; i < BcastConfig::PRESETS; i++) pr.add(Config.bcast.presets[i]);
+        sendDoc(doc);
+    }
+
+    // mientras la app lo pida (sub bcast) o cuando cambia la frecuencia / el RDS: como mucho cada 500 ms
+    static uint32_t bcastEveryMs = 0;
+    void checkBcast() {
+        if (!connected || !authed || BCAST::chip() == BCAST::CHIP_NONE) return;
+        static uint32_t lastMs = 0, lastF = 0;
+        static char lastPs[9] = "";
+        const uint32_t now = millis();
+        const bool changed = BCAST::freqKHz() != lastF || strcmp(lastPs, BCAST::stationName()) != 0;
+        if ((changed && now - lastMs >= 500) || (bcastEveryMs && now - lastMs >= bcastEveryMs)) {
+            lastMs = now; lastF = BCAST::freqKHz(); snprintf(lastPs, sizeof(lastPs), "%s", BCAST::stationName());
+            sendBcast();
+        }
+    }
+
     // ---------------------------------------------------------------- FM (T-TWR)
 
     #ifdef HAS_SA868
@@ -1462,6 +1507,30 @@ namespace {
                 reply(cmd, id, "not available");
             #endif
         }
+        else if (strcmp(cmd, "bcast") == 0) {                     // radio comercial: estado (evento "bcast"); sub = segundos entre eventos (0 = solo cambios)
+            if (BCAST::chip() == BCAST::CHIP_NONE) { reply(cmd, id, "no broadcast receiver"); return; }
+            if (!doc["sub"].isNull()) { const int s = doc["sub"] | 0; bcastEveryMs = s <= 0 ? 0 : (uint32_t)max(s, 1) * 1000UL; }
+            sendBcast();
+        }
+        else if (strcmp(cmd, "bcastset") == 0) {                  // f (kHz), band, vol, mute, mono, on, step (+-n), seek (+1 / -1), preset: {op store|recall|del, i}
+            if (BCAST::chip() == BCAST::CHIP_NONE) { reply(cmd, id, "no broadcast receiver"); return; }
+            if (!doc["on"].isNull()) BCAST::power(doc["on"] | true);
+            if (!doc["band"].isNull() && !BCAST::setBand((uint8_t)(doc["band"] | 0))) { reply(cmd, id, "band not available"); return; }
+            if (!doc["f"].isNull() && !BCAST::tune((uint32_t)(doc["f"] | 0))) { reply(cmd, id, "cannot tune"); return; }
+            if (!doc["step"].isNull()) BCAST::step(doc["step"] | 0);
+            if (!doc["seek"].isNull()) BCAST::seek(doc["seek"] | 1);
+            if (!doc["vol"].isNull()) BCAST::setVolume(doc["vol"] | 8);
+            if (!doc["mute"].isNull()) BCAST::setMute(doc["mute"] | false);
+            if (!doc["mono"].isNull()) BCAST::setMono(doc["mono"] | false);
+            if (!doc["op"].isNull()) {
+                const char* op = doc["op"] | "";
+                const int i = doc["i"] | -1;
+                const bool good = !strcmp(op, "store") ? BCAST::presetStore(i) : (!strcmp(op, "recall") ? BCAST::presetRecall(i) : (!strcmp(op, "del") ? BCAST::presetErase(i) : false));
+                if (!good) { reply(cmd, id, "bad preset"); return; }
+            }
+            reply(cmd, id);
+            sendBcast();
+        }
         else if (strcmp(cmd, "heard") == 0) sendHeard(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 6), 1, 12));
         else if (strcmp(cmd, "cfgget") == 0) sendCfg((uint32_t)max(0, (int)(doc["o"] | 0)), id);
         else if (strcmp(cmd, "cfgset") == 0) {                    // sustituye /tracker_conf.json entero: s = begin (n = bytes, reboot) | c (d = texto) | end | abort
@@ -1684,6 +1753,7 @@ namespace BLE_Control {
         checkSatRx();
         checkSat();
         checkMsgs();
+        checkBcast();
         #ifdef HAS_SA868
         checkFm();
         #endif

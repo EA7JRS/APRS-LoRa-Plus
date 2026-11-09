@@ -53,6 +53,18 @@ namespace FM_Utils {
         #endif
     }
 
+    void encoderBegin() {
+        static bool done = false;
+        if (done) return;
+        done = true;
+        #if defined(TTWR_ENCODER_A) && defined(TTWR_ENCODER_B)
+        pinMode(TTWR_ENCODER_A, INPUT_PULLUP);
+        pinMode(TTWR_ENCODER_B, INPUT_PULLUP);
+        attachInterrupt(digitalPinToInterrupt(TTWR_ENCODER_A), encIsr, CHANGE);
+        attachInterrupt(digitalPinToInterrupt(TTWR_ENCODER_B), encIsr, CHANGE);
+        #endif
+    }
+
     int takeEncoder() {
         noInterrupts();
         const int n = encCount;
@@ -412,12 +424,7 @@ namespace FM_Utils {
         #ifdef BUTTON2_PIN
         pinMode(BUTTON2_PIN, INPUT_PULLUP);                 // PTT lateral
         #endif
-        #if defined(TTWR_ENCODER_A) && defined(TTWR_ENCODER_B)
-        pinMode(TTWR_ENCODER_A, INPUT_PULLUP);
-        pinMode(TTWR_ENCODER_B, INPUT_PULLUP);
-        attachInterrupt(digitalPinToInterrupt(TTWR_ENCODER_A), encIsr, CHANGE);
-        attachInterrupt(digitalPinToInterrupt(TTWR_ENCODER_B), encIsr, CHANGE);
-        #endif
+        encoderBegin();
         manDown.configure(Config.fm.manDownMin);
         manDown.activity(millis());
         started = true;
@@ -485,8 +492,6 @@ namespace FM_Utils {
         if (!started) return;
         const uint32_t now = millis();
         SA868::fmPoll();
-        const int clicks = takeEncoder();
-        if (clicks) { if (PAGES_Utils::fmDialActive()) dial(clicks); else activity(); }
         #ifdef BUTTON_PIN
         if (digitalRead(BUTTON_PIN) == LOW) activity();     // cualquier pulsacion: no es un "hombre caido"
         #endif

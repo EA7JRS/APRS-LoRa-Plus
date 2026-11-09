@@ -286,6 +286,22 @@ public:
     int     cwToneHz;                           // tono del MCW (Hz)
 };
 
+// Radio comercial con un receptor I2C externo (RDA5807M, Si4703, Si4735): include/bcast_radio.h (Manuel - EA7JRS)
+class BcastConfig {
+public:
+    static const int PRESETS = 10;
+    bool    enabled;                            // buscar el receptor al arrancar
+    int     resetPin;                           // GPIO del RST del modulo (Si4703 y Si4735; -1 = sin conectar)
+    int     band;                               // 0 FM, 1 onda media, 2 onda corta, 3 onda larga (AM solo con el Si4735)
+    int     fmKHz, mwKHz, swKHz, lwKHz;         // ultima frecuencia de cada banda (kHz)
+    int     volume;                             // 0..15
+    bool    mono;
+    bool    deemph75;                           // desenfasis de 75 us (America); si no, 50 us (Europa)
+    bool    fmWide;                             // FM desde 76 MHz (Japon / Europa del Este); si no, 87,5..108
+    bool    mw10k;                              // onda media en pasos de 10 kHz (America); si no, 9 kHz
+    int     presets[PRESETS];                   // kHz; 0 = libre
+};
+
 // Modo FM (voz) de la T-TWR: canal del VFO, opciones y memorias (Manuel - EA7JRS)
 class FmMemory {
 public:
@@ -481,6 +497,7 @@ public:
     DAPNETConfig            dapnet;
     Sa868Config             sa868;
     FmConfig                fm;
+    BcastConfig             bcast;
     SatConfig               sat;
     RotorConfig             rotor;
     GPSConfig               gps;
@@ -510,6 +527,7 @@ public:
     void setDapnetDefaults();
     void setSa868Defaults();
     void setFmDefaults();
+    void setBcastDefaults();
     void enforceAisBeacon(Beacon& beacon);              // SSID, simbolo, SmartBeacon y datos AIS coherentes con el tipo de embarcacion
     bool ensureAisProfiles();                           // anade el perfil nautico y el perfil LoRa AIS si faltan (true si cambio algo)
     int  aisLoraIndex() const;                          // -1 si no hay perfil LoRa AIS

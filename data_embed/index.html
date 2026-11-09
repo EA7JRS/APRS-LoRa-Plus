@@ -1037,6 +1037,26 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div id="fm-mems"></div>
                             </div>
                         </div>
+                        <div class="row my-5 d-flex align-items-top" id="grp-bcast">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M3 4.5h10a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V6A1.5 1.5 0 0 1 3 4.5m0 1a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V6a.5.5 0 0 0-.5-.5zM10.5 7a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3M3.5 7h4v1h-4zm0 2h4v1h-4zM4 1l6 3.5H9L4 2z"/></svg> Broadcast radio (I2C)</h5>
+                                <small>FM broadcast receiver on the I2C bus of the display: RDA5807M (no reset pin), Si4703 (needs the reset pin) or Si4735 (reset pin; also MW / SW / LW). Detected at start-up; the audio comes out of the module's own jack, the tracker controls it. Page BCAST (long press: seek, volume, band, presets), app and BLE <code>bcast</code>. Presets: MHz for FM (101.5) or kHz for AM (999).</small>
+                                <div class="small text-muted mt-1" id="bcast-status"></div>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch"><input type="checkbox" name="bcast.enabled" id="bcast.enabled" class="form-check-input" /><label for="bcast.enabled" class="form-label">Look for the receiver at start-up</label></div>
+                                <div class="row g-0">
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="bcast.resetPin" id="bcast.resetPin" min="-1" max="48" value="-1" /><label for="bcast.resetPin">Reset GPIO (-1 none)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="bcast.band" id="bcast.band"><option value="0">FM</option><option value="1">MW</option><option value="2">SW</option><option value="3">LW</option></select><label for="bcast.band">Band</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="bcast.volume" id="bcast.volume" min="0" max="15" value="8" /><label for="bcast.volume">Volume (0-15)</label></div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2"><select class="form-select form-select-sm" name="bcast.deemph75" id="bcast.deemph75"><option value="0">50 us (Europe)</option><option value="1">75 us (Americas)</option></select><label for="bcast.deemph75">FM de-emphasis</label></div>
+                                </div>
+                                <div class="form-check form-switch"><input type="checkbox" name="bcast.fmWide" id="bcast.fmWide" class="form-check-input" /><label for="bcast.fmWide" class="form-label">FM from 76 MHz (Japan, Eastern Europe)</label></div>
+                                <div class="form-check form-switch"><input type="checkbox" name="bcast.mw10k" id="bcast.mw10k" class="form-check-input" /><label for="bcast.mw10k" class="form-label">MW in 10 kHz steps (Americas; otherwise 9 kHz)</label></div>
+                                <div class="form-check form-switch"><input type="checkbox" name="bcast.mono" id="bcast.mono" class="form-check-input" /><label for="bcast.mono" class="form-label">Mono</label></div>
+                                <div class="row g-1" id="bcast-presets"></div>
+                            </div>
+                        </div>
                         <div class="row my-5 d-flex align-items-top" id="grp-dapnet">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>

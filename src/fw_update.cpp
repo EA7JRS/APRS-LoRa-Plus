@@ -11,6 +11,7 @@
     #include "sa868_radio.h"
 #endif
 #include "fw_update.h"
+#include "bcast_radio.h"
 #include "cat_net.h"
 #include "configuration.h"
 #include "display.h"
@@ -267,6 +268,7 @@ namespace FW_Update {
         doc["flashSize"]       = (uint32_t)ESP.getFlashChipSize();
         doc["sketchSize"]      = (uint32_t)ESP.getSketchSize();
         doc["ota"]             = slotAvailable();
+        doc["bcast"]           = BCAST::chipName();
         #ifdef HAS_SA868                                    // LilyGO T-TWR: radio FM SA868 (la WebUI muestra su seccion y oculta la de los modos del SX126x)
             doc["radio"]       = "sa868";
             JsonObject sa      = doc["sa868"].to<JsonObject>();
@@ -276,6 +278,7 @@ namespace FW_Update {
             sa["fw"]           = SA868::firmwareName();
             sa["modem"]        = SA868::modemName();
             sa["rx"]           = SA868::rxFreqHz();
+            sa["dapnet"]       = SA868::dapnetFreqHz();
         #else
             doc["radio"]       = "lora";
         #endif

@@ -49,6 +49,7 @@
     #include "ble_control.h"
 #endif
 #include "cw_morse.h"
+#include "bcast_radio.h"
 #include "wspr.h"
 #include "ft_beacon.h"
 #include "fst4w.h"
@@ -113,7 +114,7 @@ using namespace PAGES_Core;
 
 namespace {
 
-    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_FM, PAGE_COUNT };
+    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_FM, PAGE_BCAST, PAGE_COUNT };
 
     // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
     bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
@@ -129,6 +130,7 @@ namespace {
 
     // El modo MORSE tiene una unica pagina (MORSE); los modos APRS tienen las demas y no la de MORSE
     bool pageVisible(uint8_t p) {
+        if (p == PAGE_BCAST) return BCAST::chip() != BCAST::CHIP_NONE;      // radio comercial por I2C: en cualquier modo
         if (Config.operatingMode == MODE_MORSE) return p == PAGE_CW || p == PAGE_CWB;       // manipulador/escucha y baliza CW
         if (Config.operatingMode == MODE_WSPR || ftMode()) return p == PAGE_WSPR;
         if (Config.operatingMode == MODE_LRFHSS) return p == PAGE_LRF;
@@ -143,7 +145,7 @@ namespace {
     int cwPin(int pin) { return (pin >= 0 && !POWER_Utils::pinReserved(pin)) ? pin : -1; }
 
     const char* const PAGE_TITLES[PAGE_COUNT] = {
-        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP", "FM"
+        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP", "FM", "BCAST"
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
@@ -161,7 +163,8 @@ namespace {
         X(SATRX_FINE_DN) X(SATRX_LORA) X(SATRX_CLEAR) X(SATTX_SEND) X(ROT_SOURCE) X(ROT_NEXT) X(ROT_PREV) X(ROT_PARK) X(MODE_CHANGE) X(TEAM_BROWSE) \
         X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
         X(SYS_IARU) X(FM_VM) X(FM_EDIT) X(FM_SHIFT) X(FM_TONEMODE) X(FM_STEP) X(FM_POWER) X(FM_WIDE) X(FM_SQLAUTO) X(FM_NR) \
-        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY)
+        X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) \
+        X(BC_SEEKUP) X(BC_SEEKDN) X(BC_VOLUP) X(BC_VOLDN) X(BC_MUTE) X(BC_BAND) X(BC_MONO) X(BC_STORE) X(BC_PRESET) X(BC_POWER)
     enum Command : uint8_t {
     #define X(n) C_##n,
         COMMAND_LIST(X)
@@ -323,6 +326,9 @@ namespace {
     uint32_t        cwBeaconNext = 0;
     char            cwLabels[CW_MESSAGE_COUNT][22];
 
+    Item            bcItems[11];
+    char            bcLabels[4][24];
+
     const Item* itemsFor(uint8_t pageIndex, uint8_t& count) {
         #define PAGES_ITEMS(array) count = sizeof(array) / sizeof(array[0]); return array
         if (submenuId == SM_QUICK) { PAGES_ITEMS(ITEMS_QUICK); }
@@ -468,6 +474,23 @@ namespace {
                 gpsItems[gpsItemCount++] = Item{"Back", C_BACK};
                 count = gpsItemCount;
                 return gpsItems;
+            case PAGE_BCAST: {
+                uint8_t n = 0;
+                bcItems[n++] = Item{"Seek up", C_BC_SEEKUP};
+                bcItems[n++] = Item{"Seek down", C_BC_SEEKDN};
+                bcItems[n++] = Item{"Volume +", C_BC_VOLUP};
+                bcItems[n++] = Item{"Volume -", C_BC_VOLDN};
+                bcItems[n++] = Item{BCAST::muted() ? "Unmute" : "Mute", C_BC_MUTE};
+                snprintf(bcLabels[0], sizeof(bcLabels[0]), "Band: %s", BCAST::bandName(BCAST::band()));
+                bcItems[n++] = Item{bcLabels[0], C_BC_BAND};
+                bcItems[n++] = Item{Config.bcast.mono ? "Stereo" : "Mono", C_BC_MONO};
+                bcItems[n++] = Item{"Store preset", C_BC_STORE};
+                bcItems[n++] = Item{"Next preset", C_BC_PRESET};
+                bcItems[n++] = Item{BCAST::isOn() ? "Radio off" : "Radio on", C_BC_POWER};
+                bcItems[n++] = Item{"Back", C_BACK};
+                count = n;
+                return bcItems;
+            }
             case PAGE_COMPASS:  PAGES_ITEMS(ITEMS_COMPASS);
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:    PAGES_ITEMS(ITEMS_CLOCK);
@@ -786,6 +809,9 @@ namespace {
             case PAGE_TEAM:     // dos personas
                 pagesDrawCircle(x + 2, y + 3, 2, on); pagesDrawCircle(x + 6, y + 3, 2, on);
                 pagesDrawLine(x, y + 7, x + 8, y + 7, on);
+                break;
+            case PAGE_BCAST:    // radio de sobremesa: caja y altavoz
+                pagesDrawRect(x, y + 2, 9, 6, on); pagesDrawCircle(x + 6, y + 5, 1, on); pagesDrawLine(x + 2, y, x + 6, y + 2, on);
                 break;
             case PAGE_FM:       // emisora de mano: cuerpo y antena
                 pagesDrawRect(x + 2, y + 3, 5, 5, on); pagesDrawLine(x + 3, y, x + 3, y + 2, on); pagesFillRect(x + 3, y + 4, 3, 1, on);
@@ -2015,17 +2041,23 @@ namespace {
         text(0, 56, line);
     }
 
-    bool cwButtonDown();                    // definida mas abajo (seccion CW)
+    bool tuneButtonDown() {
+        #ifdef BUTTON_PIN
+            return digitalRead(BUTTON_PIN) == LOW;
+        #else
+            return false;
+        #endif
+    }
 
     // Portadora sin modular de 30 s en la frecuencia de emision en uso, para medir el error con un SDR (Frequency calibration)
     void radioTuneCarrier() {
         if (!SA868::carrier(true)) { showToast("Radio busy"); return; }
-        bool armed = !cwButtonDown();
+        bool armed = !tuneButtonDown();
         const uint32_t startMs = millis();
         uint32_t lastDraw = 0;
         const long hz = SA868::txFreqHz();
         for (;;) {
-            const bool down = cwButtonDown();
+            const bool down = tuneButtonDown();
             if (!down) armed = true;
             else if (armed) break;
             const uint32_t elapsed = millis() - startMs;
@@ -2070,6 +2102,43 @@ namespace {
         ESP.restart();
     }
     #endif
+
+    // ---- Radio comercial (receptor I2C) -----------------------------------------------------------------------------
+    void drawBcastPage() {
+        header("BCAST", BCAST::bandName(BCAST::band()));
+        if (!BCAST::isOn()) { row(1, "%s: off", BCAST::chipName()); row(3, "Long press: Radio on"); return; }
+        char f[16];
+        const uint32_t k = BCAST::freqKHz();
+        if (BCAST::band() == BCAST::BAND_FM) snprintf(f, sizeof(f), "%3lu.%02lu", (unsigned long)(k / 1000), (unsigned long)((k % 1000) / 10));
+        else snprintf(f, sizeof(f), "%5lu", (unsigned long)k);
+        text(0, 12, f, 2);
+        text(76, 20, BCAST::band() == BCAST::BAND_FM ? "MHz" : "kHz");
+        const int pr = BCAST::presetIndexNow();
+        if (pr >= 0) { char p[6]; snprintf(p, sizeof(p), "P%d", pr + 1); text(104, 12, p); }
+        if (BCAST::stereo()) text(104, 20, "ST");
+        char line[28];
+        const char* ps = BCAST::stationName();
+        snprintf(line, sizeof(line), "%s", ps[0] ? ps : (BCAST::seeking() ? "Seeking..." : ""));
+        text(0, 29, line);
+        char rt[70];
+        BCAST::radioText(rt, sizeof(rt));
+        const size_t len = strlen(rt);
+        if (len > 21) {                                     // texto largo: se desplaza
+            const size_t off = (millis() / 400) % (len - 20);
+            snprintf(line, sizeof(line), "%.21s", rt + off);
+        } else snprintf(line, sizeof(line), "%s", rt);
+        text(0, 38, line);
+        snprintf(line, sizeof(line), "RSSI %d", BCAST::rssi());
+        if (BCAST::snr()) snprintf(line + strlen(line), sizeof(line) - strlen(line), " SNR %d", BCAST::snr());
+        text(0, 47, line);
+        char v[10];
+        if (BCAST::muted()) snprintf(v, sizeof(v), "MUTE"); else snprintf(v, sizeof(v), "Vol %d", BCAST::volume());
+        text(128 - 6 * (int)strlen(v), 47, v);
+        int y, mo, d, h, mi, off;
+        if (BCAST::rdsClock(y, mo, d, h, mi, off)) snprintf(line, sizeof(line), "RDS %02d:%02d UTC%+d", h, mi, off / 2);
+        else snprintf(line, sizeof(line), "%s", BCAST::chipName());
+        text(0, 56, line);
+    }
 
     void drawLink() {
         #ifdef HAS_SA868
@@ -2695,6 +2764,16 @@ namespace PAGES_Utils {
 
     void update() {
         uint32_t nowMs = millis();
+        #ifdef HAS_SA868
+        {   // encoder de la T-TWR: sintoniza en la pagina FM o en la radio comercial; en las demas cuenta como actividad (hombre caido)
+            const int clicks = FM_Utils::takeEncoder();
+            if (clicks) {
+                if (page == PAGE_FM && fmDialActive()) FM_Utils::dial(clicks);
+                else if (page == PAGE_BCAST && viewing() && !submenuOpen) BCAST::step(clicks);
+                else FM_Utils::activity();
+            }
+        }
+        #endif
         cwKeyPoll();
         cwKeypadPoll();
         teamPoll(nowMs);
@@ -4332,6 +4411,7 @@ namespace PAGES_Utils {
             #ifdef HAS_SA868
             case PAGE_FM:      drawFmPage();    break;
             #endif
+            case PAGE_BCAST:   drawBcastPage(); break;
             default: break;
         }
         if (submenuOpen && millis() - submenuMs > SUBMENU_TIMEOUT_MS) submenuOpen = false;
@@ -4908,6 +4988,28 @@ namespace PAGES_Utils {
                 else lastCall[0] = '\0';
                 break;
             }
+            case C_BC_SEEKUP:   BCAST::seek(1); break;
+            case C_BC_SEEKDN:   BCAST::seek(-1); break;
+            case C_BC_VOLUP:    BCAST::setVolume(BCAST::volume() + 1); break;
+            case C_BC_VOLDN:    BCAST::setVolume(BCAST::volume() - 1); break;
+            case C_BC_MUTE:     BCAST::setMute(!BCAST::muted()); break;
+            case C_BC_BAND: {
+                uint8_t b = BCAST::band();
+                for (int k = 1; k <= BCAST::BAND_COUNT; k++) { const uint8_t nb = (uint8_t)((b + k) % BCAST::BAND_COUNT); if (BCAST::bandAvailable(nb)) { b = nb; break; } }
+                if (b == BCAST::band()) showToast("FM only (Si4735: AM)"); else BCAST::setBand(b);
+                break;
+            }
+            case C_BC_MONO:     BCAST::setMono(!Config.bcast.mono); break;
+            case C_BC_STORE: {
+                int slot = BCAST::presetIndexNow();
+                for (int k = 0; slot < 0 && k < BcastConfig::PRESETS; k++) if (Config.bcast.presets[k] <= 0) slot = k;
+                if (slot < 0) { showToast("Presets full"); break; }
+                BCAST::presetStore(slot);
+                char t[20]; snprintf(t, sizeof(t), "Preset %d stored", slot + 1); showToast(t);
+                break;
+            }
+            case C_BC_PRESET:   if (BCAST::presetNext(1) < 0) showToast("No presets"); break;
+            case C_BC_POWER:    BCAST::power(!BCAST::isOn()); break;
             #ifdef HAS_SA868
             case C_FM_VM:       FM_Utils::toggleVfoMem(); break;
             case C_FM_EDIT: {

@@ -122,6 +122,7 @@ namespace LoRa_Utils {
             return;
         }
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SA868", "%s ready", SA868::modemName());
+        FM_Utils::encoderBegin();                           // encoder: pagina FM y radio comercial (BCAST)
         if (SA868::modeFm()) FM_Utils::begin();
     }
 

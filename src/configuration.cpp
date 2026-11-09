@@ -310,6 +310,20 @@ namespace {
         FB(DAPNETConfig, timeSync,      FF_KEEP, 0),
         FC(DAPNETConfig, charset,       FF_KEEP, 0, 0, 1),
     };
+    const Field kBcastFields[] = {                                                  // los valores que faltan parten de setBcastDefaults()
+        FB(BcastConfig, enabled,  FF_KEEP, 0),
+        FC(BcastConfig, resetPin, FF_KEEP, -1, -1, 48),
+        FC(BcastConfig, band,     FF_KEEP, 0, 0, 3),
+        FC(BcastConfig, fmKHz,    FF_KEEP, 98000, 64000, 108000),
+        FC(BcastConfig, mwKHz,    FF_KEEP, 999, 520, 1710),
+        FC(BcastConfig, swKHz,    FF_KEEP, 9500, 2300, 26100),
+        FC(BcastConfig, lwKHz,    FF_KEEP, 198, 153, 279),
+        FC(BcastConfig, volume,   FF_KEEP, 8, 0, 15),
+        FB(BcastConfig, mono,     FF_KEEP, 0),
+        FB(BcastConfig, deemph75, FF_KEEP, 0),
+        FB(BcastConfig, fmWide,   FF_KEEP, 0),
+        FB(BcastConfig, mw10k,    FF_KEEP, 0),
+    };
 #ifdef HAS_SA868
     const Field kSa868Fields[] = {                                                  // los valores que faltan parten de setSa868Defaults()
         FC(Sa868Config, rxFreqHz,  FF_REQUIRED | FF_KEEP, 0, 134000000, 480000000),
@@ -575,6 +589,8 @@ bool Configuration::writeFile() {
             writeFields(m, &fm.mem[i], kFmMemFields, NFIELDS(kFmMemFields));
         }
         #endif
+        writeFields(data["bcast"].to<JsonObject>(),        &bcast,        kBcastFields,        NFIELDS(kBcastFields));
+        for (int i = 0; i < BcastConfig::PRESETS; i++) data["bcast"]["presets"][i] = bcast.presets[i];
         writeFields(data["sat"].to<JsonObject>(),          &sat,          kSatFields,          NFIELDS(kSatFields));
         writeFields(data["rotor"].to<JsonObject>(),        &rotor,        kRotorFields,        NFIELDS(kRotorFields));
         for (int i = 0; i < RotorConfig::TARGETS; i++) {
@@ -730,6 +746,12 @@ bool Configuration::readFile() {
         if (fm.artsInterval != 15) fm.artsInterval = 25;
         #endif
 
+        setBcastDefaults();
+        READ("bcast", bcast, kBcastFields);
+        for (int i = 0; i < BcastConfig::PRESETS; i++) {
+            const int f = data["bcast"]["presets"][i] | 0;
+            bcast.presets[i] = (f >= 153 && f <= 108000) ? f : 0;
+        }
         READ("sat", sat, kSatFields);
         if (sat.txText.length() > 64) sat.txText = sat.txText.substring(0, 64);
 
@@ -949,6 +971,22 @@ void Configuration::setSa868Defaults() {
     sa868.dapnetHpfHz = 320;                    // 100 nF con 10 k / 10 k a la entrada del ADC
     sa868.cwMcw      = false;                   // A1A
     sa868.cwToneHz   = 800;
+}
+
+void Configuration::setBcastDefaults() {
+    bcast.enabled  = false;
+    bcast.resetPin = -1;
+    bcast.band     = 0;
+    bcast.fmKHz    = 98000;
+    bcast.mwKHz    = 999;
+    bcast.swKHz    = 9500;
+    bcast.lwKHz    = 198;
+    bcast.volume   = 8;
+    bcast.mono     = false;
+    bcast.deemph75 = false;
+    bcast.fmWide   = false;
+    bcast.mw10k    = false;
+    for (int i = 0; i < BcastConfig::PRESETS; i++) bcast.presets[i] = 0;
 }
 
 void Configuration::setFmDefaults() {
@@ -1205,6 +1243,8 @@ void Configuration::setDefaultValues() {
     setFtDefaults();
     setDapnetDefaults();
     setSa868Defaults();
+    setFmDefaults();
+    setBcastDefaults();
     setGpsDefaults();
     radioPpm1000                    = 0;
     operatingMode                   = MODE_APRS_LORA;

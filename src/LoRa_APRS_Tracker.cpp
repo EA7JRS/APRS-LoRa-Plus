@@ -78,6 +78,7 @@ ____________________________________________________________________*/
 #include "fw_update.h"
 #include "iaru_auto.h"
 #include "kiss_net.h"
+#include "bcast_radio.h"
 #ifdef HAS_SA868
     #include "fm_utils.h"
 #endif
@@ -186,6 +187,7 @@ void setup() {
     LoRa_Utils::syncAisProfile();
     Utils::i2cScannerForPeripherals();
     WX_Utils::setup();
+    BCAST::begin();                                                 // radio comercial por I2C (si esta activada en la WebUI)
     SENSORS_Utils::logBoardInventory();
     IMU_Utils::setup();
     MAG_Utils::setup();
@@ -278,8 +280,9 @@ void loop() {
 
     ReceivedLoRaPacket packet = LoRa_Utils::receivePacket();
     #ifdef HAS_SA868
-        if (Config.operatingMode == MODE_FM) FM_Utils::loop();     // T-TWR: PTT, encoder, escaneo, ARTS, EAI (EA7JRS)
+        if (Config.operatingMode == MODE_FM) FM_Utils::loop();     // T-TWR: PTT, escaneo, ARTS, EAI (EA7JRS)
     #endif
+    BCAST::loop();
 
     MSG_Utils::checkReceivedMessage(packet);
     MSG_Utils::processOutputBuffer();

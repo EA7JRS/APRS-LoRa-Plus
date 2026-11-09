@@ -679,6 +679,28 @@ function loadSettings(settings) {
             document.getElementById("sa868.cwToneHz").value = sa.cwToneHz ?? 800;
             if (sa.dapnetFreqHz) document.getElementById("sa868.dapnetMHz").value = (sa.dapnetFreqHz / 1e6).toFixed(4);
         }
+        {   // radio comercial por I2C
+            const bc = settings.bcast || {};
+            const g = id => document.getElementById(id);
+            g("bcast.enabled").checked = bc.enabled === true;
+            g("bcast.resetPin").value = bc.resetPin ?? -1;
+            g("bcast.band").value = String(bc.band ?? 0);
+            g("bcast.volume").value = bc.volume ?? 8;
+            g("bcast.deemph75").value = bc.deemph75 ? "1" : "0";
+            g("bcast.fmWide").checked = bc.fmWide === true;
+            g("bcast.mw10k").checked = bc.mw10k === true;
+            g("bcast.mono").checked = bc.mono === true;
+            const box = g("bcast-presets"), pr = bc.presets || [];
+            box.innerHTML = "";
+            for (let i = 0; i < 10; i++) {
+                const k = pr[i] || 0;
+                const d = document.createElement("div");
+                d.className = "form-floating col-6 col-md-2 px-1 mb-2";
+                d.innerHTML = '<input type="text" class="form-control form-control-sm" name="bcast.p' + i + '" id="bcast.p' + i + '" maxlength="8"><label for="bcast.p' + i + '">Preset ' + (i + 1) + '</label>';
+                box.appendChild(d);
+                g("bcast.p" + i).value = k <= 0 ? "" : (k >= 64000 ? (k / 1000).toFixed(2) : String(k));
+            }
+        }
         if (settings.fm) {                          // T-TWR: modo FM (voz)
             const fm = settings.fm, v = fm.vfo || {};
             const toneText = m => (m.tm === 3) ? String(m.d ?? 23).padStart(3, "0") + (m.inv ? "I" : "N") : ((m.t ?? 885) / 10).toFixed(1);
@@ -1713,6 +1735,7 @@ function boardPinInit() {
         .then(i => {
             const name = i.board || "";
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
+            if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
                 document.getElementById("grp-sa868").classList.remove("d-none");
                 ["grp-ft", "grp-lrfhss"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });

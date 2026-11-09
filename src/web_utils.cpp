@@ -310,6 +310,26 @@ namespace WEB_Utils {
             Config.sa868.cwMcw     = getParamIntSafe("sa868.cwMcw", Config.sa868.cwMcw ? 1 : 0) == 1;
             Config.sa868.cwToneHz  = constrain(getParamIntSafe("sa868.cwToneHz", Config.sa868.cwToneHz), 300, 1500);
         }
+        #endif
+        if (request->hasParam("bcast.resetPin", true)) {    // radio comercial por I2C (todas las placas)
+            Config.bcast.enabled  = request->hasParam("bcast.enabled", true);
+            Config.bcast.resetPin = constrain(getParamIntSafe("bcast.resetPin", Config.bcast.resetPin), -1, 48);
+            Config.bcast.band     = constrain(getParamIntSafe("bcast.band", Config.bcast.band), 0, 3);
+            Config.bcast.volume   = constrain(getParamIntSafe("bcast.volume", Config.bcast.volume), 0, 15);
+            Config.bcast.deemph75 = getParamIntSafe("bcast.deemph75", Config.bcast.deemph75 ? 1 : 0) == 1;
+            Config.bcast.fmWide   = request->hasParam("bcast.fmWide", true);
+            Config.bcast.mw10k    = request->hasParam("bcast.mw10k", true);
+            Config.bcast.mono     = request->hasParam("bcast.mono", true);
+            for (int i = 0; i < BcastConfig::PRESETS; i++) {
+                char key[16];
+                snprintf(key, sizeof(key), "bcast.p%d", i);
+                if (!request->hasParam(key, true)) continue;
+                const double v = request->getParam(key, true)->value().toDouble();
+                const long khz = v <= 0 ? 0 : (v < 200 ? lround(v * 1000.0) : lround(v));     // 101.5 = MHz (FM), 999 = kHz
+                Config.bcast.presets[i] = (khz >= 153 && khz <= 108000) ? (int)khz : 0;
+            }
+        }
+        #ifdef HAS_SA868
         if (request->hasParam("fm.vfoMHz", true)) {         // modo FM (voz) de la T-TWR
             // tono: "88.5" (CTCSS) o "023N" / "023I" (DCS)
             auto readTone = [&](const char* key, int mode, FmMemory& m) {

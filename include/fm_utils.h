@@ -23,6 +23,7 @@ namespace FM_Utils {
     void     begin();
     void     loop();                                    // desde el bucle principal en el modo FM
     void     dial(int clicks);                          // encoder en la pagina FM (lo que se este editando)
+    void     encoderBegin();                            // interrupciones del encoder (en todos los modos de la T-TWR)
     int      takeEncoder();                             // pulsos del encoder desde la ultima lectura
     void     activity();                                // boton / encoder / PTT: reinicia el "hombre caido"
 

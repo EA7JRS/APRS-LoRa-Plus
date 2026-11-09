@@ -63,3 +63,5 @@ jobs:
                   /tmp/test_fm_dsp
                   g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/afsk/test_pocsag_audio.cpp -o /tmp/test_pocsag_audio
                   /tmp/test_pocsag_audio
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/bcast/test_rds.cpp -o /tmp/test_rds
+                  /tmp/test_rds
