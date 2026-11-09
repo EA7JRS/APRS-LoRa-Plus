@@ -414,6 +414,13 @@ namespace POWER_Utils {
                 bool result = PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, I2C_SDA, I2C_SCL);
             #endif
             if (result) {
+                #ifdef LILYGO_T_TWR_PLUS
+                    // Como la libreria de LilyGO (TWRClass::beginPower): entrada USB hasta 2 A y corte de VBUS a 3,88 V, antes de
+                    // encender la radio. Con el limite de serie, solo con USB (sin bateria) la PMU se puede apagar al arrancar el
+                    // SA868, el WiFi y el Bluetooth a la vez.
+                    PMU.setVbusVoltageLimit(XPOWERS_AXP2101_VBUS_VOL_LIM_3V88);
+                    PMU.setVbusCurrentLimit(XPOWERS_AXP2101_VBUS_CUR_LIM_2000MA);
+                #endif
                 PMU.disableDC2();
                 PMU.disableDC3();
                 PMU.disableDC4();
@@ -516,7 +523,11 @@ namespace POWER_Utils {
             PMU.setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_25MA);
             PMU.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);
             PMU.setChargerConstantCurr(XPOWERS_AXP2101_CHG_CUR_500MA);
-            PMU.setSysPowerDownVoltage(2900);
+            #ifdef LILYGO_T_TWR_PLUS
+                PMU.setSysPowerDownVoltage(2600);   // LilyGO: el SA868 tira de la bateria al emitir y no debe cortar en cada pico
+            #else
+                PMU.setSysPowerDownVoltage(2900);
+            #endif
             handleChargingLed();
         #endif
 

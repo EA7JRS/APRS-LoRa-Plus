@@ -1,5 +1,8 @@
 # Changelog
 
+## Sin publicar
+- **T-TWR Plus: arranque de la PMU como el de LilyGO:** entrada USB hasta 2 A, corte de VBUS a 3,88 V y apagado por tensión baja a 2,6 V (antes, límite de serie y 2,9 V). Evita que se apague al arrancar radio, WiFi y Bluetooth solo con USB o en los picos de emisión.
+
 ## 5.4.0 — 2026-11-09
 - **Cielo GNSS para la app (todas las placas):** lector de GSV / GSA / GST (`gnss_sky`) y evento BLE `sky`: satélites con elevación, azimut, SNR y si se usan; PDOP / HDOP / VDOP y error estimado (pantalla DISP > GPS de la app).
 - **Tiempo de internet dentro del tracker (todas las placas):** la presión al nivel del mar que manda la app (`wxnet`, OpenWeatherMap / IQAir) es el **QNH del altímetro** cuando no hay QNH manual ni uno aprendido del GPS en los últimos 20 min (página ALTIMETER «QNH 1015N», menú «Net 1015.0», `sensors.qs` = `net`); nunca como presión de la estación (balizas). El evento `sensors` lleva el tiempo de internet en `net` para la pantalla APRS LoRa+ Display. Pruebas del barómetro en el PC (`tools/test_baro.cpp`).
