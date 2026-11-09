@@ -18,6 +18,7 @@
  */
 
 #include "pages_utils.h"
+#include "gnss_sky.h"
 #include "logo_splash.h"
 
 #ifdef HAS_APRS_PAGES
@@ -3756,7 +3757,7 @@ namespace PAGES_Utils {
         const uint32_t t0 = micros() + msToStart * 1000UL;
         bool armed = !cwButtonDown(), aborted = false, started = false;
         auto poll = [&]() {                                   // vacia la UART del GPS (no se desborda en 110 s) y lee el boton: debe verse suelto antes de que cuente como pulsacion
-            while (gpsSerial.available() > 0) gps.encode(gpsSerial.read());
+            while (gpsSerial.available() > 0) { const char c = gpsSerial.read(); gps.encode(c); GNSS_Sky::feed(c); }
             bool down = cwButtonDown();
             if (!down) armed = true;
             else if (armed) aborted = true;
@@ -3887,7 +3888,7 @@ namespace PAGES_Utils {
         const uint32_t t0 = micros() + msToStart * 1000UL;
         bool armed = !cwButtonDown(), aborted = false, started = false;
         auto poll = [&]() {                                   // vacia la UART del GPS y lee el boton (debe verse suelto antes de contar como pulsacion)
-            while (gpsSerial.available() > 0) gps.encode(gpsSerial.read());
+            while (gpsSerial.available() > 0) { const char c = gpsSerial.read(); gps.encode(c); GNSS_Sky::feed(c); }
             bool down = cwButtonDown();
             if (!down) armed = true;
             else if (armed) aborted = true;

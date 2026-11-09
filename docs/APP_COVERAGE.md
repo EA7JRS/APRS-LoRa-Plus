@@ -16,6 +16,7 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | Estado, modo, perfil de baliza, perfil LoRa, digi, baliza ahora, reinicio | `status`, `mode`, `profile`, `lora`, `digi`, `beacon`, `reboot` | sí | sí |
 | Sensores (batería, PMU, carga, T/HR/P, gas, IAQ, IMU, magnetómetro, QNH, altitud, placa) | `sensors`, `sub` | sí | sí |
 | GNSS | `gnss`, `sub` | sí | sí |
+| Cielo GNSS (satélites a la vista: elevación, azimut, SNR, usados; PDOP / HDOP / VDOP; error de GST) | `sky`, `sub` | sí | sí (DISP > GPS) |
 | A-GPS del receptor u-blox (hora y posición del móvil; Predictive Orbits con cuenta de u-blox) | `gpsaid` | sí | sí |
 | Salida NMEA / AIS | canal NMEA | sí | sí |
 | Mensajes APRS (ver, enviar, confirmación) | `msgs`, `msg`, evento `msg` | sí | sí |

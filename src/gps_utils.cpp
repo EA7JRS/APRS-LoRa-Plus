@@ -29,6 +29,7 @@
 #include "mag_utils.h"
 #include "imu_utils.h"
 #include "gps_utils.h"
+#include "gnss_sky.h"
 #include "casic_pcas.h"
 #include "display.h"
 #include "logger.h"
@@ -158,7 +159,7 @@ namespace GPS_Utils {
         uint32_t validSentences = gps.passedChecksum();
         uint32_t probeStart     = millis();
         while (millis() - probeStart < GPS_BAUD_PROBE_TIME_MS) {
-            while (gpsSerial.available() > 0) gps.encode(gpsSerial.read());
+            while (gpsSerial.available() > 0) { const char c = gpsSerial.read(); gps.encode(c); GNSS_Sky::feed(c); }   // GNSS_Sky: cielo para la app (EA7JRS)
             if (gps.passedChecksum() > validSentences) return true;   // NMEA with valid checksum
             delay(10);
         }
@@ -228,6 +229,7 @@ namespace GPS_Utils {
             while (gpsSerial.available() > 0) {
                 uint8_t b = gpsSerial.read();
                 gps.encode((char)b);
+                GNSS_Sky::feed((char)b);
                 for (uint8_t i = 0; i < 7; i++) window[i] = window[i + 1];
                 window[7] = b;
                 // B5 62 05 (01 ACK | 00 NAK) 02 00 <class> <id>
@@ -665,7 +667,7 @@ namespace GPS_Utils {
 
     void getData() {
         if (disableGPS) return;
-        while (gpsSerial.available() > 0) gps.encode(gpsSerial.read());
+        while (gpsSerial.available() > 0) { const char c = gpsSerial.read(); gps.encode(c); GNSS_Sky::feed(c); }   // GNSS_Sky: cielo para la app (EA7JRS)
         if (gps.speed.isUpdated()) updateSpeedFilter();
         #ifdef GPS_CONFIG_CONSTELLATIONS
             if (gpsModuleType == 2) updateAntennaStatus();
