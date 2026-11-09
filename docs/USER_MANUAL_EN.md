@@ -1,8 +1,8 @@
-# LoRa APRS Tracker V5.3.6 — User Manual
+# LoRa APRS Tracker V5.4.0 — User Manual
 
 **Reference board:** LilyGO T-Beam S3 Supreme (ESP32-S3, SX1262, u-blox M10 GPS, 128×64 OLED)
 **Base:** CA2RXU LoRa APRS Tracker V4.0.1, with the T-Beam S3 Supreme improvements and the APRS screen interface by EA7JRS.
-**New in 5.3.6:** section 36. **From 5.3.4 and 5.3.5:** sections 34 and 35. **New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
+**New in 5.4.0:** section 36. **From 5.3.4 and 5.3.5:** sections 34 and 35. **New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
 **Related documents:** `QUICK_GUIDE_EN.md` (two pages), `releases/RELEASE_5.1.0.md` (release notes), `APRS_PANTALLAS_TRACKER.md` (technical notes and test status, in Spanish).
 
 > The images in this manual are **simulated screenshots** (drawn by a 128×64 simulator running the same screen code); they are not photos of the real board.
@@ -719,7 +719,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **Web installer** with Tracker, Rotor and Gateway launchers (`#rotor`, `#gateway`), all with the same version.
 - Not tested on the board.
 
-## 36. T-TWR Plus, satellite groups, AIS and internet weather (5.3.6)
+## 36. T-TWR Plus, satellite groups, AIS and internet weather (5.4.0)
 
 - **LilyGO T-TWR Plus** (environment `lilygo_t_twr_plus`, Rev2.0 and Rev2.1): the radio is the **SA868** FM transceiver (1 W) and the ESP32-S3 does the modem. Modes: **APRS AFSK 1200** (mode 0), **M17** (mode 10: APRS in M17 packets and SMS), **FM voice** (mode 11: VFO on the encoder, 32 memories, CTCSS / DCS, scan, ARTS, EAI, APRS beacons and QSY), DAPNET (144.8625 MHz), CW A1A / MCW, calibration (*Tune carrier*) and the L76K GPS. Details in `T_TWR.md`.
 - **T-TWR transmit limits:** receive 136–174 / 400–480 MHz. Transmit only in the amateur bands of the IARU region given by the GPS: Europe (R1) 144–146 and 430–440 MHz, Americas (R2) 144–148 and 430–450 MHz, R3 144–148 and 430–440 MHz; without a position, 144–146 / 430–440 MHz. Fixed in the firmware, no WebUI setting; out of band the PTT shows "No TX: out of band". It can only be widened with an unlock code signed for that unit (MAC).

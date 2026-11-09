@@ -1,4 +1,4 @@
-# APRS LoRa+ 5.3.6
+# APRS LoRa+ 5.4.0
 
 - **Nueva placa: LilyGO T-TWR Plus** (Rev2.0 y Rev2.1, radio FM SA868 en VHF o UHF): APRS AFSK 1200, **M17** (paquetes APRS y SMS), **FM de voz** (VFO, 32 memorias, tonos, escaneo, ARTS, EAI), DAPNET, CW A1A / MCW, calibración y GPS L76K. Ver `docs/T_TWR.md`.
 - **Límites de emisión de la T-TWR**: recepción 136–174 / 400–480 MHz; emisión solo en las bandas de aficionado de la región IARU según el GPS (Europa 144–146 y 430–440 MHz, América 144–148 y 430–450 MHz), fijo en el firmware. Desbloqueo solo con un código firmado para cada equipo.

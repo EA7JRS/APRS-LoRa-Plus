@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.3.6 — 2026-11-09
+## 5.4.0 — 2026-11-09
 - **Cielo GNSS para la app (todas las placas):** lector de GSV / GSA / GST (`gnss_sky`) y evento BLE `sky`: satélites con elevación, azimut, SNR y si se usan; PDOP / HDOP / VDOP y error estimado (pantalla DISP > GPS de la app).
 - **Tiempo de internet dentro del tracker (todas las placas):** la presión al nivel del mar que manda la app (`wxnet`, OpenWeatherMap / IQAir) es el **QNH del altímetro** cuando no hay QNH manual ni uno aprendido del GPS en los últimos 20 min (página ALTIMETER «QNH 1015N», menú «Net 1015.0», `sensors.qs` = `net`); nunca como presión de la estación (balizas). El evento `sensors` lleva el tiempo de internet en `net` para la pantalla APRS LoRa+ Display. Pruebas del barómetro en el PC (`tools/test_baro.cpp`).
 - **WebUI e instalador web con el icono de la app Android** (antes, el logo SVG en el instalador y ninguno en la WebUI): `data_embed/favicon.png` (96 px, se sirve como `image/png`) en la barra roja de la WebUI y como favicon; incrustado en `web/index.html`.
