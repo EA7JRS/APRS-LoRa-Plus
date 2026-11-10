@@ -95,6 +95,35 @@ String      versionDate             = "2026-11-01";
 String      versionNumber           = "5.4.1";
 const char* lastResetReason         = "";       // motivo del ultimo reinicio si no fue normal (fallo, vigilante, tension baja): log, pantalla y evento info
 
+// Rastro del arranque anterior en memoria RTC (sobrevive a un reinicio por fallo, no a quitar la alimentacion): modo, segundos
+// en marcha y, si salta el vigilante de tareas, la tarea que ocupaba cada nucleo (la que no deja correr a la tarea IDLE)
+static constexpr uint32_t CRUMB_MAGIC = 0x43524D42;
+RTC_NOINIT_ATTR static uint32_t crumbMagic;
+RTC_NOINIT_ATTR static uint32_t crumbMode, crumbUpS;
+RTC_NOINIT_ATTR static uint32_t wdtMagic;
+RTC_NOINIT_ATTR static char     wdtTask[2][16];
+static char resetDetailBuf[48] = "";
+static char resetTasksBuf[40]  = "";
+const char* lastResetDetail = resetDetailBuf;      // "mode 11, 12 s" (evento info.rstAt)
+const char* lastResetTasks  = resetTasksBuf;       // "afskRx / loopTask" (vigilante de tareas, info.rstTask)
+
+// El vigilante de tareas de ESP-IDF llama a esta funcion (debil en IDF) desde su interrupcion antes del panic
+extern "C" void esp_task_wdt_isr_user_handler(void) {
+    for (int c = 0; c < 2; c++) {
+        TaskHandle_t t = nullptr;
+        #if portNUM_PROCESSORS > 1
+            t = xTaskGetCurrentTaskHandleForCore(c);
+        #else
+            if (c == 0) t = xTaskGetCurrentTaskHandle();
+        #endif
+        const char* n = t ? pcTaskGetName(t) : "";
+        size_t i = 0;
+        for (; n && n[i] && i < sizeof(wdtTask[c]) - 1; i++) wdtTask[c][i] = n[i];
+        wdtTask[c][i] = 0;
+    }
+    wdtMagic = CRUMB_MAGIC;
+}
+
 // Motivo del arranque: los reinicios por fallo (panic), vigilante o caida de tension se muestran al arrancar para poder
 // diagnosticar un bucle de reinicios sin el puerto serie (EA7JRS)
 static const char* abnormalResetReason() {
@@ -184,9 +213,19 @@ void setup() {
     displaySetup();
     lastResetReason = abnormalResetReason();
     if (lastResetReason[0]) {
-        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "Last reset: %s", lastResetReason);
-        displayShow("LAST RESET", "", lastResetReason, "", "Check power supply", "or send the USB log", 2500);
+        if (crumbMagic == CRUMB_MAGIC) {
+            if (crumbMode == 255) snprintf(resetDetailBuf, sizeof(resetDetailBuf), "during boot");
+            else if (crumbMode < 32) snprintf(resetDetailBuf, sizeof(resetDetailBuf), "mode %u, %u s", (unsigned)crumbMode, (unsigned)crumbUpS);
+        }
+        if (wdtMagic == CRUMB_MAGIC) {
+            wdtTask[0][15] = 0; wdtTask[1][15] = 0;
+            snprintf(resetTasksBuf, sizeof(resetTasksBuf), "%s / %s", wdtTask[0], wdtTask[1]);
+        }
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "Last reset: %s (%s) tasks core0/core1: %s", lastResetReason, lastResetDetail, lastResetTasks);
+        displayShow("LAST RESET", lastResetReason, lastResetDetail, lastResetTasks, "Check power supply", "or send the USB log", 4000);
     }
+    wdtMagic = 0;
+    crumbMagic = CRUMB_MAGIC; crumbMode = 255; crumbUpS = 0;   // 255 = durante el arranque (aun sin modo)
     if (POWER_Utils::pmuOffReason()[0]) {         // la PMU se apago sola (no fue la tecla ni el software)
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "PMU power off: %s", POWER_Utils::pmuOffReason());
         displayShow("PMU POWER OFF", "", POWER_Utils::pmuOffReason(), "", "Charge the battery", "or check the USB supply", 2500);
@@ -272,6 +311,7 @@ void setup() {
 }
 
 void loop() {
+    crumbMode = (uint32_t)Config.operatingMode; crumbUpS = millis() / 1000;   // rastro para «LAST RESET»
     FW_Update::serialPoll();                                       // "APRS-INFO?" por USB -> placa y version
     NOTIFICATION_Utils::update();                                  // campanas APRS del zumbador (sin bloqueos)
     currentBeacon = &Config.beacons[myBeaconsIndex];

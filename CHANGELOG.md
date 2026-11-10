@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **T-TWR Plus: reinicios por el vigilante de tareas (TASK WDT).** La tarea que recibe el audio del SA868 (prioridad 5, núcleo 0) no cedía nunca la CPU si el proceso no daba abasto o la lectura del ADC fallaba, y el vigilante reiniciaba el equipo. Ahora cede 1 tick cada 100 ms y espera tras un error. «LAST RESET» muestra además el modo y los segundos en marcha y, con el vigilante, la tarea que ocupaba cada núcleo (`info.rstAt`, `info.rstTask`).
 - **Carga y apagados de la PMU (AXP2101: T-TWR Plus, T-Beam Supreme...):** el cargador de la batería se enciende siempre al arrancar (la PMU guarda sus registros mientras tiene batería; si otro firmware lo dejó apagado, no volvía a cargar). Si la PMU se apagó sola (tensión del sistema baja, subtensión de un DC-DC, sobretemperatura...), sale 2,5 s «PMU POWER OFF» con el motivo al arrancar, va al registro y al evento `info` (`pmuOff`). El evento `sensors` lleva el estado del cargador (`chg`).
 - **Instalador web tras una release:** el despliegue a GitHub Pages pasa a `.github/workflows/pages.yml` y corre en main (el entorno `github-pages` no admite etiquetas: en 5.4.0 y 5.4.1 la release no llegaba al instalador). La release lo lanza con los artefactos de su ejecución; a mano, *Actions > Pages > Run workflow* con la etiqueta. Las páginas de `web/` (instalador, privacidad) salen siempre de main.
 

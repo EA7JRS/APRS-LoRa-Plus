@@ -77,6 +77,8 @@ extern logging::Logger  logger;
 extern TinyGPSPlus      gps;
 extern String           versionNumber;
 extern const char*      lastResetReason;
+extern const char*      lastResetDetail;
+extern const char*      lastResetTasks;
 extern uint8_t          myBeaconsIndex;
 extern int              myBeaconsSize;
 extern Beacon*          currentBeacon;
@@ -264,7 +266,11 @@ namespace {
         doc["v"]     = CONTROL_PROTOCOL;
         doc["fw"]    = versionNumber;
         doc["board"] = APRS_BOARD_ID;
-        if (lastResetReason[0]) doc["rst"] = lastResetReason;     // ultimo reinicio anormal (CRASH, WDT, LOW VOLTAGE...)
+        if (lastResetReason[0]) {                                   // ultimo reinicio anormal (CRASH, WDT, LOW VOLTAGE...)
+            doc["rst"] = lastResetReason;
+            if (lastResetDetail[0]) doc["rstAt"] = lastResetDetail;   // modo y segundos en marcha
+            if (lastResetTasks[0]) doc["rstTask"] = lastResetTasks;   // vigilante: tareas en el nucleo 0 / 1
+        }
         if (POWER_Utils::pmuOffReason()[0]) doc["pmuOff"] = POWER_Utils::pmuOffReason();    // la PMU se apago sola (VSYS LOW...)
         JsonObject caps = doc["caps"].to<JsonObject>();
         #ifdef NMEA_OUTPUT

@@ -547,9 +547,16 @@ namespace SA868 {
 
     static void rxTaskFn(void*) {
         static uint8_t buf[256 * SOC_ADC_DIGI_RESULT_BYTES];
+        TickType_t lastYield = xTaskGetTickCount();
         for (;;) {
+            // Prioridad 5 en el nucleo 0: si el proceso no da abasto, el ADC siempre tiene datos y la tarea no se bloquea nunca;
+            // la tarea IDLE0 no corre y el vigilante de tareas reinicia el equipo (TASK WDT). Se cede 1 tick cada 100 ms
+            // (se pierde algo de audio, no el equipo), y tras un error de lectura se espera en vez de girar en vacio.
+            if (xTaskGetTickCount() - lastYield >= pdMS_TO_TICKS(100)) { vTaskDelay(1); lastYield = xTaskGetTickCount(); }
             uint32_t got = 0;
-            if (adc_continuous_read(adc, buf, sizeof(buf), &got, 100) != ESP_OK) continue;
+            const esp_err_t rd = adc_continuous_read(adc, buf, sizeof(buf), &got, 100);
+            if (rd == ESP_ERR_TIMEOUT) { lastYield = xTaskGetTickCount(); continue; }   // ha esperado: ya cedio
+            if (rd != ESP_OK) { vTaskDelay(pdMS_TO_TICKS(10)); lastYield = xTaskGetTickCount(); continue; }
             if (resetDemod) { if (m17) m17rx.reset(); else if (dap) pocRx.reset(); else if (ais) aisRx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
             const uint32_t nSamples = got / SOC_ADC_DIGI_RESULT_BYTES;
             static float tonePh = 0;
