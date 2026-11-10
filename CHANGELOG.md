@@ -1,5 +1,8 @@
 # Changelog
 
+## Sin publicar
+- **Instalador web tras una release:** el despliegue a GitHub Pages pasa a `.github/workflows/pages.yml` y corre en main (el entorno `github-pages` no admite etiquetas: en 5.4.0 y 5.4.1 la release no llegaba al instalador). La release lo lanza con los artefactos de su ejecución; a mano, *Actions > Pages > Run workflow* con la etiqueta. Las páginas de `web/` (instalador, privacidad) salen siempre de main.
+
 ## 5.4.1 — 2026-11-10
 - **Luces y alertas de emergencia para la app (control BLE):** evento `rf` al empezar y terminar cada emisión y con cada trama recibida (luces TX / RX de la app); evento `led` con el LED de mensajes, la alarma de emergencia sonando (estación, detalle, tipo: emergencia, MOB, socorro o colisión AIS; si llegó en mensaje o baliza; número que cambia con cada alarma nueva) y el flash; evento `eai` con la baliza SOS propia, la EAI remota (quién y cuánto queda), el EAI de voz de la T-TWR y el aviso de hombre caído. Órdenes `alarm` (callar la alarma) y `eai` (`stop`, `ok` = estoy bien, `start`).
 - **Nombres:** el Bluetooth y el punto de acceso WiFi de configuración del tracker se llaman **APRSLoRa+tracker** (antes LoRaTracker y LoRaTracker-AP; un nombre Bluetooth guardado como «LoRaTracker» pasa solo al nuevo). El punto de acceso de la salida NMEA, **APRSLoRa+tracker-NMEA**.
