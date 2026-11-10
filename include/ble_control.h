@@ -43,6 +43,7 @@ namespace BLE_Control {
     // app la para con "cwrx" s=stop, que se mira al llegar (la cola de ordenes no se procesa mientras dura) (EA7JRS)
     bool     cwRxStopRequested();
     void     cwRxEvent(bool on, char c, float dbm, float snr, int wpm);
+    void     rfEvent(char state, int rssi = 0, float snr = 0);   // luces de la app: 't' empieza a emitir, 'i' termina, 'r' trama recibida
 
 }
 

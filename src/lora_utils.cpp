@@ -24,6 +24,7 @@
 #include <SPI.h>
 #include <SPIFFS.h>
 #include "notification_utils.h"
+#include "ble_control.h"
 #include "configuration.h"
 #include "dapnet_utils.h"
 #include "thermal_utils.h"
@@ -724,6 +725,7 @@ namespace LoRa_Utils {
         #ifdef FAN_CTRL_PIN
             THERMAL_Utils::onTxStart();
         #endif
+        BLE_Control::rfEvent('t');                  // luz TX de la app (EA7JRS)
         int state;
         size_t fskBytes = 0;
         if (fskMode) {
@@ -754,6 +756,7 @@ namespace LoRa_Utils {
         #ifdef FAN_CTRL_PIN
             THERMAL_Utils::onTxEnd();
         #endif
+        BLE_Control::rfEvent('i');
         transmitFlag = true;
         if (state == RADIOLIB_ERR_NONE) {
             //Serial.println(F("success!"));
@@ -1150,8 +1153,10 @@ namespace LoRa_Utils {
             if (n == 0) return -1;
             radio.fixedPacketLengthMode((uint8_t)n);
             NOTIFICATION_Utils::lightTx(true);
+            BLE_Control::rfEvent('t');
             const int state = radio.transmit(air, n);
             NOTIFICATION_Utils::lightTx(false);
+            BLE_Control::rfEvent('i');
             return state == RADIOLIB_ERR_NONE ? (int)n : -1;
         #else
             (void)tnc2;
@@ -1174,8 +1179,10 @@ namespace LoRa_Utils {
             if (!satTxOn || satKind != 2) return -1;
             airMs = satTxLoraAirMs(len);
             NOTIFICATION_Utils::lightTx(true);
+            BLE_Control::rfEvent('t');
             const int state = radio.transmit(data, len);
             NOTIFICATION_Utils::lightTx(false);
+            BLE_Control::rfEvent('i');
             return state;
         #else
             (void)data; (void)len;
@@ -1293,7 +1300,9 @@ namespace LoRa_Utils {
                 #if defined(TTGO_T_BEAM_1W)
                     digitalWrite(RADIO_RXEN, LOW);
                 #endif
+                BLE_Control::rfEvent('t');
                 state = radio.transmit(data, len);
+                BLE_Control::rfEvent('i');
             } else {
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "LR-FHSS", "LR-FHSS start failed! State: %d", state);
             }

@@ -33,6 +33,8 @@
 #include "baro_utils.h"
 #include "lora_utils.h"
 #include "bcast_radio.h"
+#include "notification_utils.h"
+#include "msg_utils.h"
 #ifdef HAS_SA868
     #include "sa868_radio.h"
     #include "fm_utils.h"
@@ -1947,6 +1949,9 @@ namespace {
 
 }
 
+extern bool messageLed;     // msg_utils.cpp: mensajes sin leer (LED de aviso)
+extern bool flashlight;     // linterna manual
+
 namespace BLE_Control {
 
     void setup(NimBLEServer* server) {
@@ -1975,6 +1980,7 @@ namespace BLE_Control {
 
     void onSecurity(bool authenticated) {
         authed = authenticated;
+        ledSent = 0xFF;                                                 // las luces se mandan en la proxima vuelta
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE Ctrl", "Pairing %s", authenticated ? "OK" : "not authenticated");
     }
 
@@ -2003,6 +2009,7 @@ namespace BLE_Control {
         Line line;
         while (xQueueReceive(queue, &line, 0) == pdTRUE) handle(line.text);
         GPS_Utils::aidPump();
+        if (connected && authed) sendLeds(ledSent == 0xFF);
         if (keyEventWaiting()) {
             #ifdef HAS_APRS_PAGES
                 if (Config.operatingMode == MODE_MORSE && LoRa_Utils::cwAvailable()) {
@@ -2092,6 +2099,41 @@ namespace BLE_Control {
         j.flt("snr", snr, 0);
         j.num("wpm", wpm);
         if (on && !c) j.num("f", LoRa_Utils::liveFreqHz());          // frecuencia de escucha (Hz): la app la usa en los spots CW
+        j.send(sendLine);
+    }
+
+    // Luces de la app (banda A): TX / RX al momento; MSG (mensajes sin leer), EMG (alarma de emergencia) y FL (flash blanco) cuando cambian
+    void rfEvent(char state, int rssi, float snr) {
+        if (!connected || !authed) return;
+        JW j("rf");
+        j.text("s", state == 't' ? "tx" : state == 'r' ? "rx" : "idle");
+        if (state == 'r') { j.num("rssi", rssi); j.flt("snr", snr, 1); }
+        j.send(sendLine);
+    }
+
+    static uint8_t  ledSent   = 0xFF;          // ultimo estado enviado (0xFF = enviar al emparejar)
+    static uint32_t ledPollMs = 0;
+
+    void sendLeds(bool force) {
+        const uint32_t now = millis();
+        if (!force && now - ledPollMs < 100) return;
+        ledPollMs = now;
+        bool emg = false;
+        const char* call = "";
+        const char* text = "";
+        #ifdef HAS_APRS_PAGES
+            emg = PAGES_Utils::alarmInfo(call, text);
+        #endif
+        const bool fl = NOTIFICATION_Utils::lampBusy() || flashlight;
+        const uint8_t st = (messageLed ? 1 : 0) | (emg ? 2 : 0) | (fl ? 4 : 0);
+        if (!force && st == ledSent) return;
+        ledSent = st;
+        JW j("led");
+        j.flag("msg", messageLed);
+        j.num("unread", MSG_Utils::getNumAPRSMessages());
+        j.flag("emg", emg);
+        if (emg) { j.text("ec", call); j.text("et", text); }
+        j.flag("fl", fl);
         j.send(sendLine);
     }
 

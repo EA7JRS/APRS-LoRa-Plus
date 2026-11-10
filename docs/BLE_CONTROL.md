@@ -139,6 +139,10 @@ Solo en modo SAT, con *Send the rot event* activo (WebUI), cada vez que cambia e
 
 Evento `cwrx` (escucha CW): `{"e":"cwrx","on":true,"t":"E","dbm":-104,"snr":15,"wpm":18}`: `on` = sesión en curso (false al terminar), `t` = letra decodificada (falta si solo es el nivel, una vez por segundo), `dbm` = nivel (RSSI), `snr` = dB sobre el ruido, `wpm` = velocidad estimada, `f` = frecuencia de escucha en Hz (solo en los eventos sin letra; la app la usa en los spots CW para PSK Reporter y RBN).
 
+Evento `rf` (luces TX / RX de la app, al momento): `{"e":"rf","s":"tx"}` al empezar a emitir una trama (LoRa, FSK, AFSK, LR-FHSS), `{"e":"rf","s":"idle"}` al terminar y `{"e":"rf","s":"rx","rssi":-97,"snr":7.5}` con cada trama recibida. En el modo FM de la T-TWR la app usa además `ptt` / `busy` del evento `fm`.
+
+Evento `led` (luces MSG / EMG de la app, solo cuando algo cambia y al emparejar): `{"e":"led","msg":true,"unread":2,"emg":true,"ec":"EA7ZZZ-9","et":"SOS 9.6 km 140","fl":true}`: `msg` = LED de mensajes sin leer del tracker, `unread` = mensajes APRS guardados, `emg` = alarma de emergencia sonando (SOS / EAI de otra estación; `ec` estación y `et` detalle, como en la pantalla del tracker), `fl` = flash blanco encendido (avisos, lámpara Morse o linterna).
+
 Mientras se escucha un satélite (modo SAT), cada línea recibida (texto CW, trama AX.25 en TNC2, paquete LoRa) y cada 5 s:
 ```json
 {"e":"satrx","on":true,"k":"FSK","f":437425310,"dop":-3120,"fine":0,"rssi":-104,"n":7,"tx":2,"txt":"EA4XYZ-1>APRS:>telemetry ok"}

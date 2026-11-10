@@ -15,6 +15,7 @@
 #include <SPI.h>          // RadioLib se sigue compilando (otras partes lo incluyen) y necesita SPI en el buscador de librerias
 #include <logger.h>
 #include "notification_utils.h"
+#include "ble_control.h"
 #include "configuration.h"
 #include "board_pinout.h"
 #include "pages_utils.h"
@@ -172,7 +173,9 @@ namespace LoRa_Utils {
         if (Config.notification.ledTx) digitalWrite(Config.notification.ledTxPin, HIGH);
         if (Config.notification.buzzerActive && Config.notification.txBeep) NOTIFICATION_Utils::beaconTxBeep();
 
+        BLE_Control::rfEvent('t');                  // luz TX de la app (EA7JRS)
         const bool sent = SA868::modeFm() ? FM_Utils::aprsTransmit(newPacket.c_str()) : SA868::transmit(newPacket.c_str());
+        BLE_Control::rfEvent('i');
         transmitFlag = true;
         if (sent) {
             #ifdef HAS_APRS_PAGES

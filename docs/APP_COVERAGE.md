@@ -44,6 +44,7 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | Espejo de pantalla de cualquier página | `screen` | sí | sí |
 | **Toda la configuración** (WebUI) | `cfgget`, `cfgset` | sí | sí |
 | Escucha CW por RF (texto, nivel, SNR, velocidad, frecuencia) | `cwrx`, evento `cwrx` (`f`) | sí | sí |
+| Luces de la banda A en la app: TX / RX de la radio, LED de mensajes, alarma de emergencia y flash | eventos `rf`, `led` | sí | sí |
 | T-TWR (radio FM SA868): revisión, firmware, banda, módem y frecuencias en uso; modo M17 y SMS a otras radios M17 | `info.sa868`, `mode` 10, `m17sms` | sí | sí |
 | T-TWR modo FM de voz: canal, sintonía, tonos, potencia, silenciador (manual / automático), reducción de ruido, memorias, escaneo, ARTS, EAI, balizas APRS durante la voz; QSY desde estaciones oídas | `mode` 11, `fm`, `fmset`, `fmdial`, `fmmem`, `fmscan`, `fmarts`, `fmeai`, `qsy`, eventos `fm` / `fmmems` | sí | sí |
 | T-TWR: portadora de calibración de frecuencia | `carrier` | sí | sí |

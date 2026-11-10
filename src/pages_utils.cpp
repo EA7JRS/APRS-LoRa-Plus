@@ -2875,6 +2875,12 @@ namespace PAGES_Utils {
         sosStart();
     }
 
+    bool alarmInfo(const char*& call, const char*& text) {
+        call = alarmCall;
+        text = alarmText;
+        return alarmSounding;
+    }
+
     bool alarmLed(bool& on) {
         if (!alarmSounding || !Config.notification.ledMessage) return false;
         on = ((millis() / 250) & 1) != 0;

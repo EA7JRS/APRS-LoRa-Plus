@@ -78,6 +78,7 @@ namespace PAGES_Utils {
     bool    emergencyFlash();           // alarma de emergencia sonando o SOS propio: estroboscopio del flash blanco
     bool    emergencyActive();          // emergencia en curso: no se duerme el GPS
     bool    alarmLed(bool& on);         // true: una alarma de emergencia controla el LED (on = fase del parpadeo)
+    bool    alarmInfo(const char*& call, const char*& text);   // alarma de emergencia sonando: estacion y detalle (para la app, EA7JRS)
     void    aisTarget(const char* id, bool hasPos, double lat, double lon, float speedKmh, float course, const char* comment, bool open);   // barco AIS como estacion (brujula, rotor)
     void    aisAlarm(const char* id, const char* detail, bool distress, bool hasPos, double lat, double lon);       // riesgo de colision o socorro AIS
     void    onDigipeat();               // paquete repetido por el digipeater
