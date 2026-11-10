@@ -118,6 +118,7 @@ namespace {
     volatile bool           keyRejected     = false;           // llegaron eventos de manipulador fuera del modo MORSE
     volatile bool           connected       = false;
     volatile bool           authed          = false;           // enlace cifrado y emparejado con PIN
+    uint8_t                 ledSent         = 0xFF;            // luces de la app: ultimo estado enviado (0xFF = enviar en la proxima vuelta)
     volatile bool           cwRxStop        = false;           // la app pide terminar la escucha CW
     volatile bool           nmeaWanted      = false;
     volatile uint16_t       mtu             = 23;
@@ -1954,6 +1955,8 @@ extern bool flashlight;     // linterna manual
 
 namespace BLE_Control {
 
+    void sendLeds(bool force);
+
     void setup(NimBLEServer* server) {
         if (server == nullptr) return;
         queue    = xQueueCreate(CONTROL_QUEUE_LEN, sizeof(Line));
@@ -2111,7 +2114,6 @@ namespace BLE_Control {
         j.send(sendLine);
     }
 
-    static uint8_t  ledSent   = 0xFF;          // ultimo estado enviado (0xFF = enviar al emparejar)
     static uint32_t ledPollMs = 0;
 
     void sendLeds(bool force) {
