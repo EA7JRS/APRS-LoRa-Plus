@@ -92,6 +92,9 @@ namespace WEB_Utils {
         json += String((int)module);                                  // 0 sin respuesta o sin configurar, 1 u-blox (UBX), 2 NMEA sin UBX (CASIC: L76K u otro)
         json += ",\"antenna\":";
         json += String((int)GPS_Utils::antennaStatus());              // L76K: 0 desconocido, 1 OK, 2 abierta, 3 cortocircuito
+        if (GPS_Utils::hasLastPosition()) {                           // tema automatico de la WebUI (salida y puesta del sol): 2 decimales bastan
+            json += ",\"lat\":" + String(GPS_Utils::getLastLat(), 2) + ",\"lon\":" + String(GPS_Utils::getLastLng(), 2);
+        }
         json += "}";
         request->send(200, "application/json", json);
     }

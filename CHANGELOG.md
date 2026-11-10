@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Tema de la WebUI a elegir:** menú junto a Save con *System* (el del dispositivo, de serie, cambia solo), *Automatic* (claro de día y oscuro de noche por la salida y la puesta del sol en la posición del tracker; sin posición, de 8 a 20 h), *Light*, *Dark* y *Night* (rojo). `/gpsinfo` lleva la última posición con 2 decimales para el modo automático.
 - **WebUI de la T-TWR sin lo de LoRa y con los planes de su banda:** ocultos los perfiles LoRa, WSPR, FT8 / FT4 / FST4W y LR-FHSS (y APRS FSK en el módulo VHF); CW con el plan de 2 m en VHF; listas, rangos de emisión (los del firmware) y límites de los campos del módulo VHF o UHF. Receptor AIS solo en la T-TWR VHF y radio comercial solo en la T-TWR (ocultos en las demás placas).
 - **Cabecera de la WebUI con los colores del logo** (fondo #131A22, línea verde-cian, Save en verde); el modo noche sigue en rojo.
 - **T-TWR Plus: arranque de la PMU como el de LilyGO:** entrada USB hasta 2 A, corte de VBUS a 3,88 V y apagado por tensión baja a 2,6 V (antes, límite de serie y 2,9 V). Evita que se apague al arrancar radio, WiFi y Bluetooth solo con USB o en los picos de emisión.

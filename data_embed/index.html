@@ -8,7 +8,40 @@
         <link rel="stylesheet" href="/bootstrap.css" />
         <link rel="stylesheet" href="/style.css?v=%BUILD_ID%" />
         <link rel="icon" href="/favicon.png" type="image/png">
-    <script>(function(){try{var t=localStorage.getItem("trackerTheme");if(!t)t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";var r=document.documentElement;if(t==="night"){r.setAttribute("data-bs-theme","dark");r.setAttribute("data-variant","night");}else{r.setAttribute("data-bs-theme",t);}}catch(e){}})();</script>
+    <script>
+    // Tema de la WebUI: "system" (el del sistema, de serie), "light", "dark", "night" (rojo, vision nocturna) o "auto" (claro de dia y
+    // oscuro de noche por la salida y la puesta del sol en la posicion del tracker; sin posicion, de 8 a 20 h). Se guarda en el navegador.
+    window.TRACKER_THEME = (function () {
+        var MODES = ["system", "light", "dark", "night", "auto"];
+        function mode() { var m = null; try { m = localStorage.getItem("trackerTheme"); } catch (e) {} return MODES.indexOf(m) >= 0 ? m : "system"; }
+        function sunUp(lat, lon, d) {                       // elevacion del sol (NOAA simplificado) por encima de -0,833 grados
+            var rad = Math.PI / 180, jd = d.getTime() / 86400000 + 2440587.5, n = jd - 2451545.0;
+            var L = (280.46 + 0.9856474 * n) % 360, g = ((357.528 + 0.9856003 * n) % 360) * rad;
+            var lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * rad, eps = (23.439 - 0.0000004 * n) * rad;
+            var dec = Math.asin(Math.sin(eps) * Math.sin(lam)), ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam));
+            var gmst = (18.697374558 + 24.06570982441908 * n) % 24, ha = ((gmst * 15 + lon) * rad - ra);
+            var el = Math.asin(Math.sin(lat * rad) * Math.sin(dec) + Math.cos(lat * rad) * Math.cos(dec) * Math.cos(ha)) / rad;
+            return el > -0.833;
+        }
+        function pos() { try { var p = JSON.parse(localStorage.getItem("trackerSunPos") || "null"); if (p && isFinite(p.lat) && isFinite(p.lon)) return p; } catch (e) {} return null; }
+        function effective(m) {
+            m = m || mode();
+            if (m === "system") return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+            if (m === "auto") { var p = pos(), d = new Date(); var up = p ? sunUp(p.lat, p.lon, d) : (d.getHours() >= 8 && d.getHours() < 20); return up ? "light" : "dark"; }
+            return m;
+        }
+        function apply() {
+            var t = effective(), r = document.documentElement;
+            if (t === "night") { r.setAttribute("data-bs-theme", "dark"); r.setAttribute("data-variant", "night"); }
+            else { r.setAttribute("data-bs-theme", t); r.removeAttribute("data-variant"); }
+            return t;
+        }
+        function set(m) { try { localStorage.setItem("trackerTheme", m); } catch (e) {} return apply(); }
+        function setPos(lat, lon) { try { localStorage.setItem("trackerSunPos", JSON.stringify({ lat: Math.round(lat * 100) / 100, lon: Math.round(lon * 100) / 100 })); } catch (e) {} }
+        try { apply(); } catch (e) {}
+        return { MODES: MODES, mode: mode, effective: effective, apply: apply, set: set, setPos: setPos, pos: pos };
+    })();
+    </script>
 <style>
 :root,[data-bs-theme="dark"]{--msh-bg:#121417;--msh-panel:#1c2025;--msh-panel-2:#22272e;--msh-border:#2c333b;--msh-accent:#e23b3b;--msh-accent-soft:rgba(226,59,59,.14);--msh-text-dim:#8b949e;--msh-text:#e6edf3;}
 [data-bs-theme="light"]{--msh-bg:#fbfcfd;--msh-panel:#fff;--msh-panel-2:#eef1f4;--msh-border:#dde3e9;--msh-accent:#cc2b2b;--msh-accent-soft:rgba(204,43,43,.10);--msh-text-dim:#5b6671;--msh-text:#1c2127;}
@@ -29,6 +62,15 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
 [data-variant="night"] .app-topbar .brand .brand-sub{color:inherit;}
 .btn-icon{background:transparent;border:1px solid rgba(40,181,225,.6);color:#e6edf3;display:inline-flex;align-items:center;}
 .btn-icon:hover{background:rgba(40,181,225,.15);color:#fff;}
+.theme-pick{position:relative;}
+.theme-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:15rem;background:var(--msh-panel);border:1px solid var(--msh-border);border-radius:10px;padding:.35rem;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:1040;}
+.theme-menu.open{display:block;}
+.theme-menu button{display:flex;align-items:center;flex-wrap:wrap;gap:.55rem;width:100%;background:transparent;border:0;border-radius:7px;color:var(--msh-text);text-align:left;padding:.45rem .6rem;font-size:.9rem;}
+.theme-menu button small{flex-basis:100%;margin-left:1.6rem;margin-top:-.2rem;color:var(--msh-text-dim);font-size:.72rem;}
+.theme-menu button:hover{background:var(--msh-panel-2);}
+.theme-menu button.on{background:rgba(60,230,138,.14);color:var(--msh-text);box-shadow:inset 3px 0 0 #3ce68a;}
+[data-variant="night"] .theme-menu button.on{background:var(--msh-accent-soft);box-shadow:inset 3px 0 0 var(--msh-accent);}
+.theme-menu .ti{display:inline-flex;width:1.05rem;}
 .btn-save{background:#3ce68a;border:1px solid #3ce68a;color:#131a22;font-weight:600;}
 .btn-save:hover{background:#5df0a0;border-color:#5df0a0;color:#131a22;}
 .app-shell{display:flex;min-height:calc(100vh - 56px);}
@@ -70,7 +112,16 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
   <img class="logo" src="/favicon.png" alt="" width="40" height="40">
   <span class="brand"><span class="brand-name">APRS LoRa+</span><small class="brand-sub" id="brandSub">Tracker <span class="ver">5.4.0</span></small></span>
   <div class="ms-auto d-flex align-items-center gap-2">
-    <button class="btn btn-sm btn-icon" type="button" id="themeToggle" title="Toggle light/dark"></button>
+    <div class="theme-pick">
+      <button class="btn btn-sm btn-icon" type="button" id="themeToggle" title="Theme" aria-haspopup="true" aria-expanded="false"></button>
+      <div class="theme-menu" id="themeMenu" role="menu">
+        <button type="button" role="menuitemradio" data-mode="system"><span class="ti"></span>System<small>follows the device</small></button>
+        <button type="button" role="menuitemradio" data-mode="auto"><span class="ti"></span>Automatic<small id="themeAutoNote">sunrise / sunset</small></button>
+        <button type="button" role="menuitemradio" data-mode="light"><span class="ti"></span>Light</button>
+        <button type="button" role="menuitemradio" data-mode="dark"><span class="ti"></span>Dark</button>
+        <button type="button" role="menuitemradio" data-mode="night"><span class="ti"></span>Night<small>red, keeps night vision</small></button>
+      </div>
+    </div>
     <button class="btn btn-sm btn-save" type="submit">Save</button>
   </div>
 </div>
@@ -2488,12 +2539,27 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
   var SUN='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>';
   var MOON='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/></svg>';
   var NIGHT='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/><path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/></svg>';
-  var btn=document.getElementById("themeToggle");
-  var ORDER=["light","dark","night"], ICONS={light:SUN,dark:MOON,night:NIGHT};
-  function logical(){var s=localStorage.getItem("trackerTheme");if(s)return s;return (window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark";}
-  function paint(name){var r=document.documentElement;if(name==="night"){r.setAttribute("data-bs-theme","dark");r.setAttribute("data-variant","night");}else{r.setAttribute("data-bs-theme",name);r.removeAttribute("data-variant");}if(btn)btn.innerHTML=ICONS[name]||MOON;}
-  paint(logical());
-  if(btn)btn.addEventListener("click",function(){var c=logical();var n=ORDER[(ORDER.indexOf(c)+1)%ORDER.length];try{localStorage.setItem("trackerTheme",n);}catch(e){}paint(n);});
+  var SYS='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M0 4s0-2 2-2h12s2 0 2 2v6s0 2-2 2h-4q0 1 .25 1.5H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h.75Q6 13 6 12H2s-2 0-2-2zm1.398-.855a.76.76 0 0 0-.254.302A1.5 1.5 0 0 0 1 4.01V10c0 .325.078.502.145.602q.105.156.302.254a1.5 1.5 0 0 0 .538.143L2.01 11H14c.325 0 .502-.078.602-.145a.76.76 0 0 0 .254-.302 1.5 1.5 0 0 0 .143-.538L15 9.99V4c0-.325-.078-.502-.145-.602a.76.76 0 0 0-.302-.254A1.5 1.5 0 0 0 13.99 3H2c-.325 0-.502.078-.602.145"/></svg>';
+  var AUTO='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 0 8 1zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16"/></svg>';
+  var T=window.TRACKER_THEME, btn=document.getElementById("themeToggle"), menu=document.getElementById("themeMenu");
+  var ICONS={system:SYS,auto:AUTO,light:SUN,dark:MOON,night:NIGHT}, NAMES={system:"System",auto:"Automatic",light:"Light",dark:"Dark",night:"Night"};
+  function paint(){
+    var m=T.mode(), t=T.apply();
+    if(btn){btn.innerHTML=ICONS[m];btn.title="Theme: "+NAMES[m]+(m==="system"||m==="auto"?" (now "+NAMES[t].toLowerCase()+")":"");}
+    if(menu)menu.querySelectorAll("button[data-mode]").forEach(function(b){var on=b.dataset.mode===m;b.classList.toggle("on",on);b.setAttribute("aria-checked",on?"true":"false");b.querySelector(".ti").innerHTML=ICONS[b.dataset.mode];});
+    var an=document.getElementById("themeAutoNote");
+    if(an)an.textContent=T.pos()?"light by day, dark at night (sun at the tracker)":"light 8-20 h, dark otherwise (no GPS position yet)";
+  }
+  paint();
+  if(btn&&menu){
+    btn.addEventListener("click",function(e){e.stopPropagation();var o=menu.classList.toggle("open");btn.setAttribute("aria-expanded",o?"true":"false");});
+    menu.addEventListener("click",function(e){var b=e.target.closest("button[data-mode]");if(!b)return;T.set(b.dataset.mode);paint();menu.classList.remove("open");btn.setAttribute("aria-expanded","false");});
+    document.addEventListener("click",function(e){if(!menu.contains(e.target)){menu.classList.remove("open");btn.setAttribute("aria-expanded","false");}});
+    document.addEventListener("keydown",function(e){if(e.key==="Escape")menu.classList.remove("open");});
+  }
+  if(window.matchMedia){var mq=window.matchMedia("(prefers-color-scheme: light)");var f=function(){if(T.mode()==="system")paint();};if(mq.addEventListener)mq.addEventListener("change",f);else if(mq.addListener)mq.addListener(f);}
+  setInterval(function(){if(T.mode()==="auto")paint();},60000);
+  fetch("/gpsinfo").then(function(r){return r.json();}).then(function(g){if(g&&isFinite(g.lat)&&isFinite(g.lon)&&(g.lat||g.lon)){T.setPos(g.lat,g.lon);paint();}}).catch(function(){});
   document.querySelectorAll(".side-link[data-target]").forEach(function(b){
     b.addEventListener("click",function(){
       document.querySelectorAll(".side-link").forEach(function(x){x.classList.remove("active");});
