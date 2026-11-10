@@ -187,6 +187,10 @@ void setup() {
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "Last reset: %s", lastResetReason);
         displayShow("LAST RESET", "", lastResetReason, "", "Check power supply", "or send the USB log", 2500);
     }
+    if (POWER_Utils::pmuOffReason()[0]) {         // la PMU se apago sola (no fue la tecla ni el software)
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "PMU power off: %s", POWER_Utils::pmuOffReason());
+        displayShow("PMU POWER OFF", "", POWER_Utils::pmuOffReason(), "", "Charge the battery", "or check the USB supply", 2500);
+    }
     POWER_Utils::externalPinSetup();
     #ifdef FAN_CTRL_PIN
         THERMAL_Utils::setup();

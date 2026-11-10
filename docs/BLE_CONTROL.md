@@ -97,7 +97,7 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
  "cwMsgs":["CQ CQ DE {CALL}","..."]}
 ```
 
-`rst` (solo si el último reinicio no fue normal): `CRASH`, `INT WDT`, `TASK WDT`, `WDT` o `LOW VOLTAGE` (caída de tensión).
+`rst` (solo si el último reinicio no fue normal): `CRASH`, `INT WDT`, `TASK WDT`, `WDT` o `LOW VOLTAGE` (caída de tensión). `pmuOff` (placas con AXP2101, solo si la PMU se apagó sola la última vez): `VSYS LOW`, `DC UNDER VOLTAGE`, `DC OVER VOLTAGE`, `VBUS OVER VOLTAGE` o `PMU OVER TEMP`.
 
 `caps.radio` dice qué radio lleva la placa: `"lora"` (SX12xx / LLCC68) o `"sa868"` (LilyGO T-TWR Plus, radio FM con APRS AFSK 1200). Con `"sa868"` el evento añade `"sa868":{"rev":21,"fw":"NiceRF","band":"VHF","ok":true,"modem":"AFSK 1200","rx":144800000,"tx":144800000,"m17":144875000}` (revisión de la placa, firmware del módulo: `NiceRF` u `OpenRTX`, banda, si el módulo contesta, módem en uso: `AFSK 1200`, `G3RUH 9600` o `M17`, frecuencias en uso y la de M17), el modo 0 se llama `APRS AFSK 1200` y los otros modos de radio son 1 (APRS FSK 9600) y 10 (M17). `caps.m17` = la placa tiene M17 (orden `m17sms`); `caps.fm` = modo FM de voz (órdenes `fm*`, `qsy`, `carrier`). `caps.bcast` = receptor de radio comercial por I2C (`none`, `RDA5807M`, `Si4703`, `Si4735`; en todas las placas). `sa868` lleva además `dapnet` (frecuencia DAPNET en Hz) y `spkEsp` (el ESP32 alimenta el altavoz: Rev2.1 con silenciador automático o reducción de ruido). En la T-TWR también hay modo MORSE (A1A / MCW) y DAPNET. Sus ajustes (frecuencias, potencia, volumen, silenciador, nivel de emisión, TXDELAY...) están en el grupo `sa868` de la configuración (`cfgget` / `cfgset`); ver `docs/T_TWR.md`.
 
@@ -184,7 +184,7 @@ Regla del proyecto: **todas las funciones del tracker se controlan desde la app 
 | `cfgget` | `o` = desplazamiento en bytes (0) | `{"e":"cfg","o","n":tamaño total,"b":bytes de este trozo,"d":texto}`: un trozo (hasta 320 bytes, sin cortar caracteres UTF-8) del fichero `/tracker_conf.json`, el mismo que edita la WebUI. La app lo pide con `o` creciente (`o += b`) hasta `o >= n`, lo junta y lo interpreta ella (el tracker no analiza el JSON aquí) |
 | `cfgset` | `s`:`begin` (`n` = bytes totales, `reboot` true) → `s`:`c` (`d` = texto, ≤ 180 caracteres por orden) → `s`:`end` (o `abort`) | **Sustituye el fichero entero**: la app lee la configuración con `cfgget`, cambia lo que toque y la sube completa. Un trozo por orden y espera de `ok`. Al `end` el tracker comprueba el tamaño y que llaves y corchetes cuadren, guarda y reinicia (salvo `reboot:false`); al arrancar, `Configuration::readFile()` pone el valor por defecto a lo que falte o esté fuera de rango. Las claves (WiFi, PIN...) viajan tal cual: el enlace va cifrado y emparejado con PIN |
 
-`sensors` incluye ahora todos los sensores: además de los anteriores, `wxSensor`, `gas` (kΩ), `iaq`/`iaqLabel`, `accel` y `gyro` ([x,y,z]), `flat`, `magCal`/`magAlign`/`magOff`, `charging`, `vbus`, `pmuTemp`, `battMa`, `battPct` y `heap`.
+`sensors` incluye ahora todos los sensores: además de los anteriores, `wxSensor`, `gas` (kΩ), `iaq`/`iaqLabel`, `accel` y `gyro` ([x,y,z]), `flat`, `magCal`/`magAlign`/`magOff`, `charging`, `chg` (estado del cargador de la AXP2101: `trickle`, `pre`, `cc`, `cv`, `done`, `stop`), `vbus`, `pmuTemp`, `battMa`, `battPct` y `heap`.
 
 ## Modos
 

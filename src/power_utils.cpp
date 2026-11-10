@@ -214,6 +214,40 @@ namespace POWER_Utils {
         #endif
     }
 
+    #ifdef HAS_AXP2101
+        static int pmuOffSource = -1;           // registro 0x21 de la AXP2101 (motivo del ultimo apagado), leido al arrancar
+    #endif
+
+    const char* pmuOffReason() {
+        #ifdef HAS_AXP2101
+            if (pmuOffSource <= 0) return "";
+            const int v = pmuOffSource;
+            if (v & 0x80) return "PMU OVER TEMP";
+            if (v & 0x40) return "DC OVER VOLTAGE";
+            if (v & 0x20) return "DC UNDER VOLTAGE";
+            if (v & 0x10) return "VBUS OVER VOLTAGE";
+            if (v & 0x08) return "VSYS LOW";       // tension del sistema bajo 2,6 / 2,9 V: bateria agotada o pico de consumo
+            return "";                              // tecla, software o EN: apagado normal
+        #else
+            return "";
+        #endif
+    }
+
+    const char* chargerState() {
+        #ifdef HAS_AXP2101
+            switch (PMU.getChargerStatus()) {
+                case XPOWERS_AXP2101_CHG_TRI_STATE:  return "trickle";
+                case XPOWERS_AXP2101_CHG_PRE_STATE:  return "pre";
+                case XPOWERS_AXP2101_CHG_CC_STATE:   return "cc";
+                case XPOWERS_AXP2101_CHG_CV_STATE:   return "cv";
+                case XPOWERS_AXP2101_CHG_DONE_STATE: return "done";
+                default:                             return "stop";
+            }
+        #else
+            return "";
+        #endif
+    }
+
     bool isCharging() {
         #if defined(HAS_AXP192) || defined(HAS_AXP2101)
             return PMU.isCharging();
@@ -414,6 +448,9 @@ namespace POWER_Utils {
                 bool result = PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, I2C_SDA, I2C_SCL);
             #endif
             if (result) {
+                pmuOffSource = (PMU.isOverTemperatureOffSource() ? 0x80 : 0) | (PMU.isDcOverVoltageOffSource() ? 0x40 : 0)
+                             | (PMU.isDcUnderVoltageOffSource() ? 0x20 : 0) | (PMU.isVbusOverVoltageOffSource() ? 0x10 : 0)
+                             | (PMU.isVsysUnderVoltageOffSource() ? 0x08 : 0);
                 #ifdef LILYGO_T_TWR_PLUS
                     // Como la libreria de LilyGO (TWRClass::beginPower): entrada USB hasta 2 A y corte de VBUS a 3,88 V, antes de
                     // encender la radio. Con el limite de serie, solo con USB (sin bateria) la PMU se puede apagar al arrancar el
@@ -523,6 +560,8 @@ namespace POWER_Utils {
             PMU.setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_25MA);
             PMU.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);
             PMU.setChargerConstantCurr(XPOWERS_AXP2101_CHG_CUR_500MA);
+            // La PMU guarda sus registros mientras tiene bateria: si otro firmware dejo el cargador apagado, no volveria a cargar
+            PMU.enableCellbatteryCharge();
             #ifdef LILYGO_T_TWR_PLUS
                 PMU.setSysPowerDownVoltage(2600);   // LilyGO: el SA868 tira de la bateria al emitir y no debe cortar en cada pico
             #else

@@ -44,6 +44,8 @@ namespace POWER_Utils {
     bool isCharging();
     float getVbusVoltage();         // V (0 si no hay alimentacion externa o no hay PMU)
     float getPmuTemperature();      // grados C del PMU (NAN si no esta disponible)
+    const char* pmuOffReason();     // AXP2101: motivo del ultimo apagado de la PMU si no fue normal ("VSYS LOW", "DC UNDER V"...); "" = normal o sin PMU
+    const char* chargerState();     // AXP2101: "trickle", "pre", "cc", "cv", "done", "stop"; "" sin PMU AXP2101
 
     void activateGPS();
     void deactivateGPS();

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Carga y apagados de la PMU (AXP2101: T-TWR Plus, T-Beam Supreme...):** el cargador de la batería se enciende siempre al arrancar (la PMU guarda sus registros mientras tiene batería; si otro firmware lo dejó apagado, no volvía a cargar). Si la PMU se apagó sola (tensión del sistema baja, subtensión de un DC-DC, sobretemperatura...), sale 2,5 s «PMU POWER OFF» con el motivo al arrancar, va al registro y al evento `info` (`pmuOff`). El evento `sensors` lleva el estado del cargador (`chg`).
 - **Instalador web tras una release:** el despliegue a GitHub Pages pasa a `.github/workflows/pages.yml` y corre en main (el entorno `github-pages` no admite etiquetas: en 5.4.0 y 5.4.1 la release no llegaba al instalador). La release lo lanza con los artefactos de su ejecución; a mano, *Actions > Pages > Run workflow* con la etiqueta. Las páginas de `web/` (instalador, privacidad) salen siempre de main.
 
 ## 5.4.1 — 2026-11-10

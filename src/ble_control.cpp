@@ -265,6 +265,7 @@ namespace {
         doc["fw"]    = versionNumber;
         doc["board"] = APRS_BOARD_ID;
         if (lastResetReason[0]) doc["rst"] = lastResetReason;     // ultimo reinicio anormal (CRASH, WDT, LOW VOLTAGE...)
+        if (POWER_Utils::pmuOffReason()[0]) doc["pmuOff"] = POWER_Utils::pmuOffReason();    // la PMU se apago sola (VSYS LOW...)
         JsonObject caps = doc["caps"].to<JsonObject>();
         #ifdef NMEA_OUTPUT
             caps["nmea"] = true;
@@ -476,6 +477,7 @@ namespace {
             if (MAG_Utils::isAligned()) j.flt("magOff", MAG_Utils::alignmentOffset(), 1);
         }
         j.flag("charging", POWER_Utils::isCharging());
+        if (POWER_Utils::chargerState()[0]) j.text("chg", POWER_Utils::chargerState());   // estado del cargador (AXP2101)
         const float vbus = POWER_Utils::getVbusVoltage();
         if (vbus > 0.0f) j.flt("vbus", vbus);
         j.flt("pmuTemp", POWER_Utils::getPmuTemperature(), 1);
