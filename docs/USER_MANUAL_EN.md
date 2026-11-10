@@ -1,8 +1,8 @@
-# LoRa APRS Tracker V5.4.0 — User Manual
+# LoRa APRS Tracker V5.4.1 — User Manual
 
 **Reference board:** LilyGO T-Beam S3 Supreme (ESP32-S3, SX1262, u-blox M10 GPS, 128×64 OLED)
 **Base:** CA2RXU LoRa APRS Tracker V4.0.1, with the T-Beam S3 Supreme improvements and the APRS screen interface by EA7JRS.
-**New in 5.4.0:** section 36. **From 5.3.4 and 5.3.5:** sections 34 and 35. **New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
+**New in 5.4.1:** section 37. **From 5.4.0:** section 36. **From 5.3.4 and 5.3.5:** sections 34 and 35. **New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
 **Related documents:** `QUICK_GUIDE_EN.md` (two pages), `releases/RELEASE_5.1.0.md` (release notes), `APRS_PANTALLAS_TRACKER.md` (technical notes and test status, in Spanish).
 
 > The images in this manual are **simulated screenshots** (drawn by a 128×64 simulator running the same screen code); they are not photos of the real board.
@@ -731,6 +731,16 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **GNSS sky** for the app (satellites, elevation, azimuth, SNR, DOP and error: BLE event `sky`).
 - **WebUI and web installer** with the Android app icon in the header.
 - Not tested on the board.
+
+## 37. Names, WebUI and alerts for the app (5.4.1)
+
+- **New names:** the configuration Bluetooth and WiFi access point are now **APRSLoRa+tracker** (formerly LoRaTracker and LoRaTracker-AP); the NMEA output one, **APRSLoRa+tracker-NMEA**. A Bluetooth name saved as "LoRaTracker" changes to the new one by itself.
+- **WebUI:** internet weather in *Telemetry > Internet weather* (OpenWeatherMap and IQAir keys; the browser downloads it at the tracker's position); *System* / *Automatic* (by the sun) / *Light* / *Dark* / *Night* theme; header in the logo colours; on the T-TWR only the blocks of its radio and the plans of its band.
+- **Forecast with the internet weather:** without a barometer or a hygrometer, TELEMETRY forecasts with the internet pressure, its 3 h trend, temperature and humidity.
+- **T-TWR Plus:** PMU start-up as LilyGO's (USB up to 2 A, VBUS limit 3.88 V, power-off at 2.6 V); the mode chosen at start-up stays on its page; *FM voice* is the default mode.
+- **Reason of the last restart:** after a crash (CRASH), the watchdog (WDT) or low voltage (LOW VOLTAGE) it is shown for 2.5 s at start-up and reaches the app.
+- **Android app:** the band A dial shows the frequency and modulation of the mode in use; TX / RX / MSG / EMG lights; emergency windows (APRS beacon or message, AIS distress and collision, own EAI and man down) with *SILENCE ALARM* (also silences the tracker), *STOP EAI* and *I'M OK*. Protocol in `BLE_CONTROL.md` (events `status` `f`/`mod`, `rf`, `led`, `eai`; commands `alarm`, `eai`).
+- Not tested on a board.
 
 ## Appendix A — Button map per page
 

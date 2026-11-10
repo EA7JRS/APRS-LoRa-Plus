@@ -1,6 +1,7 @@
 # Changelog
 
-## Sin publicar
+## 5.4.1 — 2026-11-10
+- **Luces y alertas de emergencia para la app (control BLE):** evento `rf` al empezar y terminar cada emisión y con cada trama recibida (luces TX / RX de la app); evento `led` con el LED de mensajes, la alarma de emergencia sonando (estación, detalle, tipo: emergencia, MOB, socorro o colisión AIS; si llegó en mensaje o baliza; número que cambia con cada alarma nueva) y el flash; evento `eai` con la baliza SOS propia, la EAI remota (quién y cuánto queda), el EAI de voz de la T-TWR y el aviso de hombre caído. Órdenes `alarm` (callar la alarma) y `eai` (`stop`, `ok` = estoy bien, `start`).
 - **Nombres:** el Bluetooth y el punto de acceso WiFi de configuración del tracker se llaman **APRSLoRa+tracker** (antes LoRaTracker y LoRaTracker-AP; un nombre Bluetooth guardado como «LoRaTracker» pasa solo al nuevo). El punto de acceso de la salida NMEA, **APRSLoRa+tracker-NMEA**.
 - **Tiempo de internet en la WebUI:** Telemetry > *Internet weather* con las claves de OpenWeatherMap e IQAir, el intervalo y *Update now*. El navegador lo descarga en la posición del tracker y lo manda a `POST /api/wxnet` (los mismos campos que la orden BLE `wxnet`); `GET /api/wxnet` devuelve lo que tiene el tracker con su pronóstico. Claves en `netWx` de la configuración.
 - **Pronóstico con el tiempo de internet:** la presión de internet guarda su tendencia de 3 h con la hora de cada observación (`include/press_trend.h`, `tools/test_press_trend.cpp`). Sin barómetro, TELEMETRY pronostica con la presión y la tendencia de internet; sin higrómetro, con su temperatura y humedad («Fc+N:»). La página NET muestra el pronóstico («Fc …» con ^ / = / v), y el evento `sensors.net` lleva `fc` y `d3`.

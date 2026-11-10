@@ -92,7 +92,7 @@ ____________________________________________________________________*/
 
 
 String      versionDate             = "2026-11-01";
-String      versionNumber           = "5.4.0";
+String      versionNumber           = "5.4.1";
 const char* lastResetReason         = "";       // motivo del ultimo reinicio si no fue normal (fallo, vigilante, tension baja): log, pantalla y evento info
 
 // Motivo del arranque: los reinicios por fallo (panic), vigilante o caida de tension se muestran al arrancar para poder
@@ -166,7 +166,7 @@ extern bool gpsIsActive;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n=== LoRa APRS Tracker 5.4.0 | build: t-twr-plus (2026-11-09) ===");   // si no ves esta linea, no se ha grabado este firmware
+    Serial.println("\n=== LoRa APRS Tracker 5.4.1 | build: main (2026-11-10) ===");   // si no ves esta linea, no se ha grabado este firmware
     FW_Update::printBanner();                                      // placa + version para el instalador web USB
     Config.init();                                                 // antes estaba en el constructor global (provocaba el bucle de arranque)
     myBeaconsSize     = Config.beacons.size();
