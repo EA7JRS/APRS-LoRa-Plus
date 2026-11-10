@@ -42,6 +42,7 @@ ____________________________________________________________________*/
 #include <APRSPacketLib.h>
 #include <TinyGPS++.h>
 #include <Arduino.h>
+#include <esp_idf_version.h>
 #include <logger.h>
 #include <WiFi.h>
 #include "smartbeacon_utils.h"
@@ -111,8 +112,10 @@ const char* lastResetTasks  = resetTasksBuf;       // "afskRx / loopTask" (vigil
 extern "C" void esp_task_wdt_isr_user_handler(void) {
     for (int c = 0; c < 2; c++) {
         TaskHandle_t t = nullptr;
-        #if portNUM_PROCESSORS > 1
+        #if portNUM_PROCESSORS > 1 && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
             t = xTaskGetCurrentTaskHandleForCore(c);
+        #elif portNUM_PROCESSORS > 1
+            t = xTaskGetCurrentTaskHandleForCPU(c);         // ESP-IDF 4.x (T-Deck): el mismo con el nombre antiguo
         #else
             if (c == 0) t = xTaskGetCurrentTaskHandle();
         #endif
