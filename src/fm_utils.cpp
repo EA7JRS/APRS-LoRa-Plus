@@ -163,6 +163,14 @@ namespace FM_Utils {
     uint8_t  artsState()      { return arts.state; }
     bool     eaiOn()          { return eai.running(); }
     uint32_t eaiRemainingS()  { return eai.remainingS(millis()); }
+    static const char* eaiSrc = "menu";
+    const char* eaiSource()   { return eaiSrc; }
+    bool manDownWarning(uint32_t& leftS, uint32_t& limitMin) {
+        limitMin = manDown.limitMinutes();
+        leftS = (manDown.leftMs(millis()) + 999) / 1000;
+        return manDown.enabled() && manDown.warning();
+    }
+    void manDownOk() { manDown.activity(millis()); }
 
     void activity() { manDown.activity(millis()); }
 
@@ -386,8 +394,15 @@ namespace FM_Utils {
         note("ARTS on");
     }
 
+    void eaiStartFrom(const char* source) {
+        if (eai.running()) return;
+        eaiStart();
+        eaiSrc = source;
+    }
+
     void eaiStart() {
         if (eai.running()) return;
+        eaiSrc = "menu";
         scanStop();
         eai.start(millis(), (uint8_t)Config.fm.eaiMode, Config.fm.eaiMinutes);
         note("EAI ACTIVE");
@@ -747,7 +762,7 @@ namespace FM_Utils {
         if (manDown.enabled()) {
             const uint8_t m = manDown.tick(now);
             if (m == 1) { note("MAN DOWN in 30 s"); displayToggle(true); displayPopup("MAN DOWN", "EAI in 30 s", "Press any key", -1, 1500); }
-            if (m == 2) eaiStart();
+            if (m == 2) eaiStartFrom("mandown");
         }
         if (pendingAprs.length() && !SA868::fmTransmitting() && !pttDown && !eai.running() && !isBusy) {
             const String p = pendingAprs;

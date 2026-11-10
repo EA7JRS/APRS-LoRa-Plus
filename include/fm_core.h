@@ -157,6 +157,9 @@ namespace FmCore {
         // 0 nada, 1 aviso (30 s antes), 2 disparo
         uint8_t  tick(uint32_t now);
         bool     enabled() const { return limitMs > 0; }
+        bool     warning() const { return warned && !fired; }          // aviso de 30 s en curso (app, EA7JRS)
+        uint32_t leftMs(uint32_t now) const { const uint32_t idle = now - lastAct; return (limitMs == 0 || fired || idle >= limitMs) ? 0 : limitMs - idle; }
+        uint32_t limitMinutes() const { return limitMs / 60000UL; }
         static constexpr uint32_t WARN_MS = 30000;
     private:
         uint32_t limitMs = 0, lastAct = 0;

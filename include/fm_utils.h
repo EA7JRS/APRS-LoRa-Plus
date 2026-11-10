@@ -76,6 +76,10 @@ namespace FM_Utils {
     void     eaiStop();
     bool     eaiOn();
     uint32_t eaiRemainingS();
+    const char* eaiSource();            // quien arranco el EAI de voz: "menu", "app" o "mandown" (para la app, EA7JRS)
+    void     eaiStartFrom(const char* source);
+    bool     manDownWarning(uint32_t& leftS, uint32_t& limitMin);   // aviso de hombre caido en curso (30 s antes del EAI)
+    void     manDownOk();               // "estoy bien": reinicia el temporizador de hombre caido
     void     toggleAprsBeacon();
 
     bool     aprsTransmit(const char* tnc2);           // baliza / mensaje APRS en la frecuencia APRS (espera si se esta hablando); con un satelite APRS a la vista, por el satelite

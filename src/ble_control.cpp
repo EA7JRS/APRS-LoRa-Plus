@@ -118,7 +118,9 @@ namespace {
     volatile bool           keyRejected     = false;           // llegaron eventos de manipulador fuera del modo MORSE
     volatile bool           connected       = false;
     volatile bool           authed          = false;           // enlace cifrado y emparejado con PIN
-    uint8_t                 ledSent         = 0xFF;            // luces de la app: ultimo estado enviado (0xFF = enviar en la proxima vuelta)
+    uint32_t                ledSent         = 0xFFFFFFFF;      // luces de la app: ultimo estado enviado (todo a 1 = enviar en la proxima vuelta)
+    uint32_t                eaiSent         = 0xFFFFFFFF;      // estado de SOS / EAI / hombre caido enviado a la app
+    uint32_t                eaiSentMs       = 0;
     volatile bool           cwRxStop        = false;           // la app pide terminar la escucha CW
     volatile bool           nmeaWanted      = false;
     volatile uint16_t       mtu             = 23;
@@ -1345,6 +1347,42 @@ namespace {
             if (g >= 0) gnssEveryMs    = g == 0 ? 0 : (uint32_t)max(g, 1) * 1000UL;
             reply(cmd, id);
         }
+        else if (strcmp(cmd, "alarm") == 0) {                     // s = off: calla la alarma de emergencia recibida (la pantalla sigue)
+            #ifdef HAS_APRS_PAGES
+                PAGES_Utils::alarmSilence();
+                ledSent = 0xFFFFFFFF;
+                reply(cmd, id);
+            #else
+                reply(cmd, id, "no alarm on this board");
+            #endif
+        }
+        else if (strcmp(cmd, "eai") == 0) {                       // s = stop (SOS / EAI), ok (hombre caido: estoy bien), start (EAI de voz o SOS)
+            const char* st = doc["s"] | "";
+            if (strcmp(st, "stop") == 0) {
+                #ifdef HAS_APRS_PAGES
+                    PAGES_Utils::sosStop();
+                #endif
+                #ifdef HAS_SA868
+                    FM_Utils::eaiStop();
+                #endif
+            } else if (strcmp(st, "ok") == 0) {
+                #ifdef HAS_SA868
+                    FM_Utils::manDownOk();
+                #endif
+            } else if (strcmp(st, "start") == 0) {
+                #ifdef HAS_SA868
+                    if (SA868::modeFm()) FM_Utils::eaiStartFrom("app");
+                    else
+                #endif
+                #ifdef HAS_APRS_PAGES
+                    if (!PAGES_Utils::emergencyActive()) PAGES_Utils::onEmergencyGesture();
+                #else
+                    { reply(cmd, id, "no emergency on this board"); return; }
+                #endif
+            } else { reply(cmd, id, "bad step"); return; }
+            eaiSent = 0xFFFFFFFF;
+            reply(cmd, id);
+        }
         else if (strcmp(cmd, "cwrx") == 0) {                      // escucha CW por RF: s = start | stop; texto en el evento "cwrx"
             #ifdef HAS_APRS_PAGES
                 const char* st = doc["s"] | "";
@@ -1983,7 +2021,8 @@ namespace BLE_Control {
 
     void onSecurity(bool authenticated) {
         authed = authenticated;
-        ledSent = 0xFF;                                                 // las luces se mandan en la proxima vuelta
+        ledSent = 0xFFFFFFFF;                                           // las luces y el EAI se mandan en la proxima vuelta
+        eaiSent = 0xFFFFFFFF;
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE Ctrl", "Pairing %s", authenticated ? "OK" : "not authenticated");
     }
 
@@ -2012,7 +2051,7 @@ namespace BLE_Control {
         Line line;
         while (xQueueReceive(queue, &line, 0) == pdTRUE) handle(line.text);
         GPS_Utils::aidPump();
-        if (connected && authed) sendLeds(ledSent == 0xFF);
+        if (connected && authed) sendLeds(ledSent == 0xFFFFFFFF);
         if (keyEventWaiting()) {
             #ifdef HAS_APRS_PAGES
                 if (Config.operatingMode == MODE_MORSE && LoRa_Utils::cwAvailable()) {
@@ -2116,25 +2155,70 @@ namespace BLE_Control {
 
     static uint32_t ledPollMs = 0;
 
+    static const char* alarmKindName(uint8_t k) {
+        switch (k) { case 1: return "emergency"; case 2: return "mob"; case 3: return "ais_cpa"; case 4: return "ais_sos"; default: return ""; }
+    }
+
+    // Baliza SOS propia, EAI remota, EAI de voz de la T-TWR y aviso de hombre caido: al cambiar y cada 5 s mientras dura
+    static void sendEai(bool force, uint32_t now) {
+        uint32_t left = 0;
+        uint16_t sent = 0;
+        const char* by = "";
+        uint8_t sos = 0;
+        #ifdef HAS_APRS_PAGES
+            sos = PAGES_Utils::sosInfo(left, sent, by);
+        #endif
+        bool fm = false, md = false;
+        uint32_t fmLeft = 0, mdLeft = 0, mdMin = 0;
+        const char* fmBy = "";
+        #ifdef HAS_SA868
+            fm = FM_Utils::eaiOn();
+            if (fm) { fmLeft = FM_Utils::eaiRemainingS(); fmBy = FM_Utils::eaiSource(); }
+            md = FM_Utils::manDownWarning(mdLeft, mdMin);
+        #endif
+        const uint32_t key = (uint32_t)sos | (fm ? 4 : 0) | (md ? 8 : 0) | ((uint32_t)sent << 8) | ((uint32_t)(by[0] != 0) << 4);
+        const bool active = sos || fm || md;
+        if (!force && key == eaiSent && !(active && now - eaiSentMs >= 5000)) return;
+        eaiSent = key;
+        eaiSentMs = now;
+        JW j("eai");
+        j.num("sos", sos);
+        if (sos) { j.num("sent", sent); if (left) j.num("left", left); if (by[0]) j.text("by", by); }
+        j.flag("fm", fm);
+        if (fm) { j.num("fmLeft", fmLeft); j.text("fmBy", fmBy); }
+        #ifdef HAS_SA868
+            j.num("fmMode", Config.fm.eaiMode);
+        #endif
+        j.flag("md", md);
+        if (md) { j.num("mdLeft", mdLeft); j.num("mdMin", mdMin); }
+        j.send(sendLine);
+    }
+
     void sendLeds(bool force) {
         const uint32_t now = millis();
         if (!force && now - ledPollMs < 100) return;
         ledPollMs = now;
-        bool emg = false;
+        sendEai(force, now);
+        bool shown = false, sounding = false, fromMsg = false;
+        uint8_t kind = 0;
+        uint16_t seq = 0;
         const char* call = "";
         const char* text = "";
         #ifdef HAS_APRS_PAGES
-            emg = PAGES_Utils::alarmInfo(call, text);
+            shown = PAGES_Utils::alarmInfo(call, text, kind, fromMsg, seq, sounding);
         #endif
         const bool fl = NOTIFICATION_Utils::lampBusy() || flashlight;
-        const uint8_t st = (messageLed ? 1 : 0) | (emg ? 2 : 0) | (fl ? 4 : 0);
+        const uint32_t st = (messageLed ? 1 : 0) | (sounding ? 2 : 0) | (fl ? 4 : 0) | (shown ? 8 : 0) | ((uint32_t)seq << 16);
         if (!force && st == ledSent) return;
         ledSent = st;
         JW j("led");
         j.flag("msg", messageLed);
         j.num("unread", MSG_Utils::getNumAPRSMessages());
-        j.flag("emg", emg);
-        if (emg) { j.text("ec", call); j.text("et", text); }
+        j.flag("emg", sounding);
+        if (shown || sounding) {
+            j.text("ec", call); j.text("et", text); j.text("ek", alarmKindName(kind));
+            j.flag("em", fromMsg); j.num("eq", seq); j.flag("eo", shown);
+        }
         j.flag("fl", fl);
         j.send(sendLine);
     }

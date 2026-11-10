@@ -272,6 +272,7 @@ namespace {
     uint16_t        sosSent             = 0;
     uint32_t        sosEndMs            = 0;            // emergencia remota (EAI): instante en que termina
     bool            sosTimed            = false;
+    char            sosBy[11]           = "";           // EAI remota: quien la inicio (para la app)
     Item            mainItems[10];
     uint8_t         mainItemCount       = 0;
 
@@ -702,6 +703,8 @@ namespace {
     uint8_t         alarmKind           = ALARM_NONE;
     char            alarmCall[11]       = "";
     char            alarmText[22]       = "";
+    bool            alarmFromMsg        = false;        // la alarma llego en un mensaje APRS (para la app)
+    uint16_t        alarmSeq            = 0;            // cambia con cada alarma nueva (para la app)
     uint32_t        alarmMs             = 0;            // ultimo paquete de alarma recibido
     uint32_t        alarmStartMs        = 0;
     uint32_t        alarmBeepMs         = 0;
@@ -1467,6 +1470,7 @@ namespace {
         bool was = sosState != SOS_IDLE;
         sosState = SOS_IDLE;
         sosTimed = false;
+        sosBy[0] = '\0';
         if (was) showToast("SOS cancelled");
     }
 
@@ -2463,14 +2467,16 @@ namespace PAGES_Utils {
         touchLog();
     }
 
-    static void triggerAlarm(const char* call, AlarmKind kind, const char* detail, uint32_t nowMs) {
+    static void triggerAlarm(const char* call, AlarmKind kind, const char* detail, uint32_t nowMs, bool fromMsg = false) {
         bool same = alarmCall[0] && strcmp(alarmCall, call) == 0;
         bool known = same && (uint32_t)(nowMs - alarmMs) < ALARM_REPEAT_MS;
         snprintf(alarmCall, sizeof(alarmCall), "%s", call);
         snprintf(alarmText, sizeof(alarmText), "%s", detail);
         alarmKind = kind;
         alarmMs = nowMs;
+        alarmFromMsg = fromMsg;
         if (known) return;                          // ya avisada: solo se actualizan los datos
+        alarmSeq++;
         alarmSounding = true;
         alarmShown = true;
         alarmStartMs = nowMs;
@@ -2522,7 +2528,7 @@ namespace PAGES_Utils {
             AlarmKind kind = alarmFromText(body);
             const char* detail = body;
             if (kind == ALARM_NONE && packet.type == 4 && packet.miceType == "000") { kind = ALARM_EMERGENCY; detail = "Mic-E: Emergency!"; }
-            if (kind != ALARM_NONE) triggerAlarm(packet.sender.c_str(), kind, detail, nowMs);
+            if (kind != ALARM_NONE) triggerAlarm(packet.sender.c_str(), kind, detail, nowMs, packet.type == 1);
         }
         snprintf(lastRxCall, sizeof(lastRxCall), "%s", packet.sender.c_str());
         lastRxCall[sizeof(lastRxCall) - 1] = '\0';
@@ -2734,6 +2740,7 @@ namespace PAGES_Utils {
         }
         sosTimed = true;
         sosEndMs = now + (uint32_t)minutes * 60000UL;
+        snprintf(sosBy, sizeof(sosBy), "%s", packet.sender.c_str());
         char message[28];
         snprintf(message, sizeof(message), "EAI by %.9s", packet.sender.c_str());
         showToast(message);
@@ -2875,11 +2882,27 @@ namespace PAGES_Utils {
         sosStart();
     }
 
-    bool alarmInfo(const char*& call, const char*& text) {
+    bool alarmInfo(const char*& call, const char*& text, uint8_t& kind, bool& msg, uint16_t& seq, bool& sounding) {
         call = alarmCall;
         text = alarmText;
-        return alarmSounding;
+        kind = alarmKind;
+        msg = alarmFromMsg;
+        seq = alarmSeq;
+        sounding = alarmSounding;
+        return alarmShown;
     }
+
+    void alarmSilence() { alarmSounding = false; }
+
+    uint8_t sosInfo(uint32_t& leftS, uint16_t& sent, const char*& by) {
+        const uint32_t now = millis();
+        leftS = (sosState == SOS_ACTIVE && sosTimed && (int32_t)(sosEndMs - now) > 0) ? (sosEndMs - now + 999) / 1000 : 0;
+        sent = sosSent;
+        by = sosBy;
+        return sosState == SOS_ACTIVE ? 2 : sosState == SOS_COUNTDOWN ? 1 : 0;
+    }
+
+    void sosStop() { if (sosState != SOS_IDLE) sosCancel(); }
 
     bool alarmLed(bool& on) {
         if (!alarmSounding || !Config.notification.ledMessage) return false;
