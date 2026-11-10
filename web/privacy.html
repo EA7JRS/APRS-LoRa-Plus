@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- APRS LoRa+ - Copyright (C) 2026 Manuel - EA7JRS - GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS LoRa+ · Privacy policy</title>
+<style>
+    :root { --bg:#f6f7f9; --fg:#1b1f24; --muted:#5b6670; --card:#ffffff; --line:#d8dde3; --accent:#0b6bcb; }
+    @media (prefers-color-scheme: dark) {
+        :root { --bg:#12161b; --fg:#e6e9ed; --muted:#9aa5b1; --card:#1b2128; --line:#2f3842; --accent:#58a6ff; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    h2 { font-size: 1.15rem; margin: 28px 0 8px; }
+    .sub { color: var(--muted); margin-bottom: 20px; }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px 18px 14px; margin-top: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-top: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    .wrap { overflow-x: auto; }
+    a { color: var(--accent); }
+    nav a { margin-right: 14px; }
+</style>
+</head>
+<body>
+<main>
+<h1>APRS LoRa+ · Privacy policy</h1>
+<div class="sub">Android app «APRS LoRa+» (es.ea7jrs.aprslorap) · © 2026 Manuel - EA7JRS · Last updated: 10 November 2026</div>
+<nav><a href="#en">English</a><a href="#es">Español</a></nav>
+
+<section id="en">
+<h2>Summary</h2>
+<p>APRS LoRa+ is a companion app for amateur radio operators who use the APRS LoRa+ tracker and related equipment. The developer runs no server
+for the app and receives no data from it. There is no advertising, no analytics and no tracking. What the app stores stays on your phone. Data leaves
+the phone only to the equipment you link (by Bluetooth, USB or your local network) and to the services listed below, and most of these only when you turn
+them on or enter your own account or key.</p>
+
+<h2>Amateur radio is public</h2>
+<p>Anything transmitted by radio through your tracker (APRS position beacons, messages, telemetry, CW, digital modes) is public by its nature and by the
+amateur radio rules, and can be received and published by anyone, for example on APRS-IS and aprs.fi. Your callsign identifies you on the air.</p>
+
+<h2>Data on your phone</h2>
+<p>Settings, callsign, your own keys and passwords for the services below, messages, heard stations, the logbook and recordings are kept in the app's
+private storage on your phone. Uninstalling the app or clearing its data deletes them. The app does not make backups to any server of the developer.</p>
+
+<h2>Permissions</h2>
+<ul>
+<li><b>Bluetooth and nearby devices</b>: to link the tracker, the rotor box, displays and Morse keys.</li>
+<li><b>Location</b>: your position is used on the phone (map, distance and bearing, satellite passes, weather, locator for spots) and, when you ask for it,
+sent to your tracker by Bluetooth. It is sent to a service only as described below.</li>
+<li><b>Microphone</b>: to decode radio audio (CW, RTTY, PSK, FT8, WSPR…) on the phone while you use that function. Audio is not sent anywhere and is only
+saved when you record it.</li>
+<li><b>Notifications and full-screen alerts</b>: messages, DAPNET pages and emergency alerts.</li>
+<li><b>Camera (torch only)</b>: the flashlight can flash during an emergency alert if you enable it. No picture is taken.</li>
+<li><b>USB</b>: RTL-SDR receivers, serial Morse key adapters, MIDI keys.</li>
+<li><b>Mock location</b>: only if you choose to give other apps the tracker's GNSS position.</li>
+</ul>
+
+<h2>Services the app contacts</h2>
+<div class="wrap"><table>
+<tr><th>Service</th><th>When</th><th>What is sent</th></tr>
+<tr><td>RadioID.net</td><td>To validate your callsign (every 90 days)</td><td>Your callsign</td></tr>
+<tr><td>APRS-IS</td><td>If you enable the mobile iGate</td><td>Your callsign and passcode, packets heard by your tracker</td></tr>
+<tr><td>DAPNET (hampager.de)</td><td>When you send a page</td><td>Your DAPNET login, the text and the recipients</td></tr>
+<tr><td>OpenWeatherMap, IQAir</td><td>If you enter your key for internet weather</td><td>Your key and your position (latitude / longitude)</td></tr>
+<tr><td>Map tile servers (OpenStreetMap, IGN, OpenSeaMap, Esri with your key)</td><td>While the map is shown</td><td>The map area requested, as any map does</td></tr>
+<tr><td>RainViewer, AEMET OpenData (your key)</td><td>If you turn on the weather radar</td><td>The map area requested; your AEMET key</td></tr>
+<tr><td>QRZ.com, ARRL LoTW, eQSL</td><td>When you upload or download QSLs</td><td>Your account data or key and the contacts of your logbook (LoTW signed with your own certificate)</td></tr>
+<tr><td>PSK Reporter, WSPRnet, WSJT-X / DX cluster nodes</td><td>If you turn on spotting or open the DX cluster</td><td>Your callsign, locator and the stations you decoded</td></tr>
+<tr><td>RepeaterBook</td><td>If you enter your token and search</td><td>Your token and the search</td></tr>
+<tr><td>u-blox Thingstream</td><td>If you enter your A-GPS address</td><td>Your token (it downloads satellite orbit data)</td></tr>
+<tr><td>GitHub (project pages), CelesTrak data, cty.dat (country-files.com), Artemis signal database</td><td>When you download firmware, satellite or reference data</td><td>A normal download request</td></tr>
+</table></div>
+<p>Each service has its own privacy policy. Every connection uses your phone's internet access and reveals your IP address to that service, as any app does.</p>
+
+<h2>Children</h2>
+<p>The app is meant for licensed amateur radio operators and is not directed at children.</p>
+
+<h2>Changes and contact</h2>
+<p>This policy is published at <a href="https://ea7jrs.github.io/APRS-LoRa-Plus/privacy.html">ea7jrs.github.io/APRS-LoRa-Plus/privacy.html</a> and changes are dated
+here. Contact: Manuel, EA7JRS — [CONTACT EMAIL].</p>
+</section>
+
+<section id="es">
+<h2>Resumen</h2>
+<p>APRS LoRa+ es una app para radioaficionados que usan el tracker APRS LoRa+ y equipos relacionados. El desarrollador no tiene ningún servidor para la app
+y no recibe datos de ella. No hay publicidad, ni analítica, ni seguimiento. Lo que la app guarda se queda en tu móvil. Los datos solo salen del móvil hacia
+los equipos que enlazas (por Bluetooth, USB o tu red local) y hacia los servicios de la lista de arriba, la mayoría solo cuando los activas o pones tu
+propia cuenta o clave.</p>
+<h2>La radioafición es pública</h2>
+<p>Lo que se emite por radio a través del tracker (balizas de posición APRS, mensajes, telemetría, CW, modos digitales) es público por naturaleza y por la
+normativa de radioaficionados, y cualquiera puede recibirlo y publicarlo, por ejemplo en APRS-IS y aprs.fi. Tu indicativo te identifica en el aire.</p>
+<h2>Datos en tu móvil</h2>
+<p>Los ajustes, el indicativo, tus claves y contraseñas de los servicios, los mensajes, las estaciones oídas, el libro de guardia y las grabaciones se
+guardan en el almacenamiento privado de la app. Al desinstalarla o borrar sus datos, desaparecen. La app no hace copias en ningún servidor del desarrollador.</p>
+<h2>Permisos</h2>
+<p>Bluetooth y dispositivos cercanos (tracker, caja del rotor, pantallas, manipuladores); ubicación (mapa, distancia y rumbo, satélites, tiempo, locator; al
+tracker por Bluetooth cuando lo pides; a un servicio solo como dice la tabla); micrófono (decodificar audio de radio en el móvil; no se envía y solo se
+guarda si grabas); notificaciones y alertas a pantalla completa; cámara solo para la linterna en las alertas, si la activas; USB (RTL-SDR, adaptadores de
+manipulador, MIDI); ubicación simulada solo si eliges dar la posición del tracker a otras apps.</p>
+<h2>Servicios</h2>
+<p>Los de la tabla de la versión inglesa, en las mismas condiciones. Cada servicio tiene su propia política de privacidad y ve tu dirección IP, como con
+cualquier app.</p>
+<h2>Menores</h2>
+<p>La app está pensada para radioaficionados con licencia y no se dirige a menores.</p>
+<h2>Cambios y contacto</h2>
+<p>Esta política se publica en <a href="https://ea7jrs.github.io/APRS-LoRa-Plus/privacy.html">ea7jrs.github.io/APRS-LoRa-Plus/privacy.html</a> y los cambios se
+fechan aquí. Contacto: Manuel, EA7JRS — [CONTACT EMAIL].</p>
+</section>
+</main>
+</body>
+</html>

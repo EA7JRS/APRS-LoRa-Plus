@@ -126,6 +126,12 @@ def cmd_site(a):
     with open(os.path.join(a.root, "latest.json"), "w") as f:
         json.dump(latest, f, indent=2)
     shutil.copyfile(a.page, os.path.join(a.root, "index.html"))
+    # other pages next to the installer page (privacy policy of the Android app...)
+    page_dir = os.path.dirname(os.path.abspath(a.page))
+    for name in sorted(os.listdir(page_dir)):
+        src = os.path.join(page_dir, name)
+        if name != os.path.basename(a.page) and name.endswith(".html") and os.path.isfile(src):
+            shutil.copyfile(src, os.path.join(a.root, name))
     open(os.path.join(a.root, ".nojekyll"), "w").close()
     print("site: version %s, %d boards" % (latest["version"], len(boards)))
 
