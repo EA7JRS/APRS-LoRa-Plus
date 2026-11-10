@@ -307,74 +307,32 @@ jobs:
                   done
                   echo "::warning::$ASSET could not be attached to release $RELEASE_TAG (available as a workflow artifact)"
 
-    # Web installer + update information (GitHub Pages). Only for a published (non pre-release) release:
-    # the trackers that have automatic update enabled read this site, so a test build must never reach it.
-    pages:
-        if: (github.event_name == 'release' && !github.event.release.prerelease) || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    # Web installer + update information (GitHub Pages): .github/workflows/pages.yml. Only for a published (non pre-release) release:
+    # the trackers that read this site must never get a test build. The github-pages environment only accepts main, so a release
+    # (whose ref is the tag) asks pages.yml to run on main with this run's web-* artifacts; a manual run on main calls it directly.
+    pages-dispatch:
+        if: github.event_name == 'release' && !github.event.release.prerelease
         needs: build
         runs-on: ubuntu-latest
         permissions:
+            actions: write
+        steps:
+            - name: Desplegar el instalador desde main
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAG: ${{ github.event.release.tag_name }}
+              run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main -f tag="$TAG" -f run_id="${{ github.run_id }}"
+
+    pages:
+        if: github.event_name == 'workflow_dispatch' && inputs.tag != ''
+        needs: build
+        permissions:
             contents: read
+            actions: read
             pages: write
             id-token: write
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
-        concurrency:
-            group: pages
-            cancel-in-progress: false
-        steps:
-            - uses: actions/checkout@v7
-              with:
-                  ref: ${{ inputs.tag }}
-
-            # La pagina del instalador y su script no dependen de la version del firmware: se toman siempre de main, para que
-            # una etiqueta antigua que se vuelve a desplegar no publique una pagina sin los dispositivos nuevos.
-            - name: Pagina del instalador desde main
-              run: |
-                  git fetch --depth=1 origin main
-                  git checkout FETCH_HEAD -- web/index.html tools/make_web_assets.py
-
-            - uses: actions/download-artifact@v8
-              with:
-                  pattern: web-*
-                  merge-multiple: true
-                  path: site
-
-            # Rotor, Gateway y Display en el mismo instalador (lanzadores rotor/, gateway/ y display/): su release con la MISMA version adjunta
-            # web-site-<dispositivo>.zip. Son repositorios privados: hace falta el secreto FLASHER_TOKEN (token de acceso de grano
-            # fino con permiso de lectura de "Contents" en esos tres repositorios). Sin el secreto o sin esa release, el instalador
-            # muestra "aun no hay version publicada" en ese dispositivo y el del tracker se publica igual.
-            - name: Rotor, Gateway y Display (misma version)
-              env:
-                  GH_TOKEN: ${{ secrets.FLASHER_TOKEN }}
-                  TAG: ${{ github.event.release.tag_name || inputs.tag }}
-              run: |
-                  for dev in rotor gateway display; do
-                      case "$dev" in
-                          rotor) repo=EA7JRS/APRS-LoRa-Plus-Rotor ;;
-                          gateway) repo=EA7JRS/APRS-LoRa-Plus-I-Gateway ;;
-                          display) repo=EA7JRS/APRS-LoRa-Plus-Display ;;
-                      esac
-                      if [ -z "$GH_TOKEN" ]; then echo "::warning::Sin el secreto FLASHER_TOKEN: el instalador no incluye $dev"; continue; fi
-                      rm -rf "/tmp/$dev"
-                      if gh release download "$TAG" --repo "$repo" --pattern "web-site-$dev.zip" --dir "/tmp/$dev"; then
-                          mkdir -p "site/$dev" && unzip -q -o "/tmp/$dev/web-site-$dev.zip" -d "site/$dev"
-                          echo "$dev: $(python3 -c "import json;print(json.load(open('site/$dev/latest.json'))['version'])")"
-                      else
-                          echo "::warning::$repo no tiene la release $TAG con web-site-$dev.zip"
-                      fi
-                  done
-
-            - name: Build site
-              run: python3 tools/make_web_assets.py site --root site --page web/index.html
-
-            - uses: actions/configure-pages@v6
-
-            - uses: actions/upload-pages-artifact@v5
-              with:
-                  path: site
-
-            - name: Deploy
-              id: deployment
-              uses: actions/deploy-pages@v5
+        uses: ./.github/workflows/pages.yml
+        with:
+            tag: ${{ inputs.tag }}
+            run_id: ${{ github.run_id }}
+        secrets: inherit

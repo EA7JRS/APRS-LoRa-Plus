@@ -1,0 +1,118 @@
+# Copyright (C) 2026 Manuel - EA7JRS
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Instalador web + informacion de actualizacion (GitHub Pages). El entorno github-pages solo admite main, asi que este flujo
+# corre siempre en main: lo lanza la release (build.yml, job pages-dispatch) o una ejecucion manual de build.yml con etiqueta,
+# y toma los artefactos web-* de esa ejecucion de build.yml (run_id). A mano: Actions > Pages > Run workflow con la etiqueta y,
+# si se deja vacio run_id, la ultima ejecucion correcta de "Build Release" de esa etiqueta.
+name: Pages
+
+on:
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Etiqueta publicada (p. ej. v5.4.1)"
+                required: true
+            run_id:
+                description: "Ejecucion de Build Release con los artefactos web-* (vacio = la ultima de esa etiqueta)"
+                required: false
+                default: ""
+    workflow_call:
+        inputs:
+            tag:
+                type: string
+                required: true
+            run_id:
+                type: string
+                required: false
+                default: ""
+
+permissions:
+    contents: read
+
+jobs:
+    pages:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            actions: read
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        concurrency:
+            group: pages
+            cancel-in-progress: false
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ inputs.tag }}
+
+            # Las paginas del instalador (web/: index, privacidad...) y su script no dependen de la version del firmware: se toman siempre de main, para que
+            # una etiqueta antigua que se vuelve a desplegar no publique una pagina sin los dispositivos nuevos.
+            - name: Pagina del instalador desde main
+              run: |
+                  git fetch --depth=1 origin main
+                  git checkout FETCH_HEAD -- web tools/make_web_assets.py
+
+            - name: Ejecucion con los artefactos
+              id: run
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAG: ${{ inputs.tag }}
+                  RUN_ID: ${{ inputs.run_id }}
+              run: |
+                  if [ -z "$RUN_ID" ]; then
+                      RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/runs?per_page=50" \
+                          --jq "[.workflow_runs[] | select(.conclusion == \"success\" or .conclusion == \"failure\") | select(.head_branch == \"$TAG\" or (.display_title | contains(\"$TAG\")))][0].id")
+                  fi
+                  [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] || { echo "::error::No hay ejecucion de Build Release para $TAG"; exit 1; }
+                  echo "Artefactos de la ejecucion $RUN_ID"
+                  echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/download-artifact@v8
+              with:
+                  pattern: web-*
+                  merge-multiple: true
+                  path: site
+                  run-id: ${{ steps.run.outputs.id }}
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+
+            # Rotor, Gateway y Display en el mismo instalador (lanzadores rotor/, gateway/ y display/): su release con la MISMA version adjunta
+            # web-site-<dispositivo>.zip. Son repositorios privados: hace falta el secreto FLASHER_TOKEN (token de acceso de grano
+            # fino con permiso de lectura de "Contents" en esos tres repositorios). Sin el secreto o sin esa release, el instalador
+            # muestra "aun no hay version publicada" en ese dispositivo y el del tracker se publica igual.
+            - name: Rotor, Gateway y Display (misma version)
+              env:
+                  GH_TOKEN: ${{ secrets.FLASHER_TOKEN }}
+                  TAG: ${{ inputs.tag }}
+              run: |
+                  for dev in rotor gateway display; do
+                      case "$dev" in
+                          rotor) repo=EA7JRS/APRS-LoRa-Plus-Rotor ;;
+                          gateway) repo=EA7JRS/APRS-LoRa-Plus-I-Gateway ;;
+                          display) repo=EA7JRS/APRS-LoRa-Plus-Display ;;
+                      esac
+                      if [ -z "$GH_TOKEN" ]; then echo "::warning::Sin el secreto FLASHER_TOKEN: el instalador no incluye $dev"; continue; fi
+                      rm -rf "/tmp/$dev"
+                      if gh release download "$TAG" --repo "$repo" --pattern "web-site-$dev.zip" --dir "/tmp/$dev"; then
+                          mkdir -p "site/$dev" && unzip -q -o "/tmp/$dev/web-site-$dev.zip" -d "site/$dev"
+                          echo "$dev: $(python3 -c "import json;print(json.load(open('site/$dev/latest.json'))['version'])")"
+                      else
+                          echo "::warning::$repo no tiene la release $TAG con web-site-$dev.zip"
+                      fi
+                  done
+
+            - name: Build site
+              run: python3 tools/make_web_assets.py site --root site --page web/index.html
+
+            - uses: actions/configure-pages@v6
+
+            - uses: actions/upload-pages-artifact@v5
+              with:
+                  path: site
+
+            - name: Deploy
+              id: deployment
+              uses: actions/deploy-pages@v5
