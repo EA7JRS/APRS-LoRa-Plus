@@ -15,6 +15,8 @@ Tracker, app Android, rotor, Display y pasarela NMEA 2000 con el mismo número d
 - **Banda A:** modo, modulación y frecuencia reales (CW, DAPNET, WSPR...); FM / NFM de la T-TWR; S-meter de la escucha CW; icono correcto de la última estación oída.
 - **Tema** oscuro / claro / del sistema / automático (por el sol) y mejor contraste en las pantallas de herramientas.
 - **GPS del móvil** sin cierres; diagnóstico del USB para el RTL-SDR; pronóstico del tiempo de internet; motivo del último reinicio del tracker.
+- **Android Auto:** cada alerta de emergencia también como conversación que el coche lee en voz alta (responder por APRS; marcar como leído calla la alarma y, en el hombre caído, equivale a «estoy bien»); el remitente lleva su símbolo APRS y las páginas DAPNET la marca de DAPNET.
+- **Radar meteorológico en el mapa:** capa de RainViewer (últimas 2 h cada 10 min, con animación) y radar nacional de AEMET como imagen (clave gratuita de AEMET OpenData).
 
 **Rotor**
 - Paleta de la app de serie en la pantalla (la roja con `lcd.theme` 1), S-meter igual que el de la app y cabecera de la WebUI con los colores del logo.

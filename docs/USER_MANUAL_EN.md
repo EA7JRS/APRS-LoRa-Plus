@@ -739,7 +739,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **Forecast with the internet weather:** without a barometer or a hygrometer, TELEMETRY forecasts with the internet pressure, its 3 h trend, temperature and humidity.
 - **T-TWR Plus:** PMU start-up as LilyGO's (USB up to 2 A, VBUS limit 3.88 V, power-off at 2.6 V); the mode chosen at start-up stays on its page; *FM voice* is the default mode.
 - **Reason of the last restart:** after a crash (CRASH), the watchdog (WDT) or low voltage (LOW VOLTAGE) it is shown for 2.5 s at start-up and reaches the app.
-- **Android app:** the band A dial shows the frequency and modulation of the mode in use; TX / RX / MSG / EMG lights; emergency windows (APRS beacon or message, AIS distress and collision, own EAI and man down) with *SILENCE ALARM* (also silences the tracker), *STOP EAI* and *I'M OK*. Protocol in `BLE_CONTROL.md` (events `status` `f`/`mod`, `rf`, `led`, `eai`; commands `alarm`, `eai`).
+- **Android app:** the band A dial shows the frequency and modulation of the mode in use; TX / RX / MSG / EMG lights; emergency windows (APRS beacon or message, AIS distress and collision, own EAI and man down) with *SILENCE ALARM* (also silences the tracker), *STOP EAI* and *I'M OK*. In Android Auto the alerts are read aloud and senders carry their APRS symbol. Map with weather radar (RainViewer and AEMET). Protocol in `BLE_CONTROL.md` (events `status` `f`/`mod`, `rf`, `led`, `eai`; commands `alarm`, `eai`).
 - Not tested on a board.
 
 ## Appendix A — Button map per page
