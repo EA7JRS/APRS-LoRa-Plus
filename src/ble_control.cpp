@@ -76,6 +76,7 @@ extern Configuration    Config;
 extern logging::Logger  logger;
 extern TinyGPSPlus      gps;
 extern String           versionNumber;
+extern const char*      lastResetReason;
 extern uint8_t          myBeaconsIndex;
 extern int              myBeaconsSize;
 extern Beacon*          currentBeacon;
@@ -263,6 +264,7 @@ namespace {
         doc["v"]     = CONTROL_PROTOCOL;
         doc["fw"]    = versionNumber;
         doc["board"] = APRS_BOARD_ID;
+        if (lastResetReason[0]) doc["rst"] = lastResetReason;     // ultimo reinicio anormal (CRASH, WDT, LOW VOLTAGE...)
         JsonObject caps = doc["caps"].to<JsonObject>();
         #ifdef NMEA_OUTPUT
             caps["nmea"] = true;

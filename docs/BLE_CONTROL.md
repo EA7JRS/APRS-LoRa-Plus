@@ -97,6 +97,8 @@ Respuesta: `{"e":"ok","c":"...","id":n}` o `{"e":"err","c":"...","id":n,"msg":".
  "cwMsgs":["CQ CQ DE {CALL}","..."]}
 ```
 
+`rst` (solo si el último reinicio no fue normal): `CRASH`, `INT WDT`, `TASK WDT`, `WDT` o `LOW VOLTAGE` (caída de tensión).
+
 `caps.radio` dice qué radio lleva la placa: `"lora"` (SX12xx / LLCC68) o `"sa868"` (LilyGO T-TWR Plus, radio FM con APRS AFSK 1200). Con `"sa868"` el evento añade `"sa868":{"rev":21,"fw":"NiceRF","band":"VHF","ok":true,"modem":"AFSK 1200","rx":144800000,"tx":144800000,"m17":144875000}` (revisión de la placa, firmware del módulo: `NiceRF` u `OpenRTX`, banda, si el módulo contesta, módem en uso: `AFSK 1200`, `G3RUH 9600` o `M17`, frecuencias en uso y la de M17), el modo 0 se llama `APRS AFSK 1200` y los otros modos de radio son 1 (APRS FSK 9600) y 10 (M17). `caps.m17` = la placa tiene M17 (orden `m17sms`); `caps.fm` = modo FM de voz (órdenes `fm*`, `qsy`, `carrier`). `caps.bcast` = receptor de radio comercial por I2C (`none`, `RDA5807M`, `Si4703`, `Si4735`; en todas las placas). `sa868` lleva además `dapnet` (frecuencia DAPNET en Hz) y `spkEsp` (el ESP32 alimenta el altavoz: Rev2.1 con silenciador automático o reducción de ruido). En la T-TWR también hay modo MORSE (A1A / MCW) y DAPNET. Sus ajustes (frecuencias, potencia, volumen, silenciador, nivel de emisión, TXDELAY...) están en el grupo `sa868` de la configuración (`cfgget` / `cfgset`); ver `docs/T_TWR.md`.
 
 `status`:

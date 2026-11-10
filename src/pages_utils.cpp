@@ -144,6 +144,18 @@ namespace {
         if (p == PAGE_FM) return Config.operatingMode == MODE_FM;           // T-TWR: emisora de voz, junto a las paginas APRS
         return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && (p != PAGE_ROT || rotorPageOn()) && (p != PAGE_TEAM || Config.team.watchActive);
     }
+    // Pagina de entrada de cada modo (al arrancar y si la actual deja de verse)
+    uint8_t modeHomePage() {
+        switch (Config.operatingMode) {
+            case MODE_MORSE:  return PAGE_CW;
+            case MODE_LRFHSS: return PAGE_LRF;
+            case MODE_DAPNET: return PAGE_DAP;
+            case MODE_SAT:    return PAGE_SAT;
+            case MODE_AIS:    return PAGE_AIS;
+            case MODE_FM:     return PAGE_FM;
+            default:          return (Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : PAGE_MAIN;
+        }
+    }
     bool aprsMode() { return Config.operatingMode != MODE_AIS && Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && !ftMode(); }
 
     // Pin del manipulador / teclado FH-2: -1 (sin usar) si es negativo o si lo ocupa la propia placa (Supreme: radio, GPS, IMU, PMU...)
@@ -2417,7 +2429,8 @@ namespace PAGES_Utils {
         haveTx = false;
         lastRxCall[0] = '\0';
         lastRxMs = 0;
-        page = PAGE_MAIN;
+        page = modeHomePage();                  // el modo elegido al arrancar se queda en su pagina (FM voice: la emisora, no MAIN)
+        if (!pageVisible(page)) page = PAGE_MAIN;
         submenuOpen = false;
         msgMode = MM_LIST;
         msgCursor = 0;
@@ -4619,7 +4632,7 @@ namespace PAGES_Utils {
     }
 
     void show() {
-        if (!pageVisible(page)) { page = (Config.operatingMode == MODE_MORSE) ? PAGE_CW : ((Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : (Config.operatingMode == MODE_LRFHSS ? PAGE_LRF : (Config.operatingMode == MODE_DAPNET ? PAGE_DAP : (Config.operatingMode == MODE_SAT ? PAGE_SAT : (Config.operatingMode == MODE_AIS ? PAGE_AIS : PAGE_MAIN))))); changedPage(); }
+        if (!pageVisible(page)) { page = modeHomePage(); if (!pageVisible(page)) page = PAGE_MAIN; changedPage(); }
         pagesBegin();
         memset(mirrorRows, 0, sizeof(mirrorRows));
         mirrorTitle[0] = '\0';

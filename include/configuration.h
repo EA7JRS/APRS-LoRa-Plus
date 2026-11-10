@@ -199,6 +199,11 @@ public:
     #define APRS_MAIN_MODE_NAME "APRS LoRa"
 #endif
 enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11, MODE_AIS = 12 };
+#ifdef HAS_SA868
+    #define DEFAULT_MODE MODE_FM                // T-TWR: emisora de voz de serie (Manuel, 2026-11-10)
+#else
+    #define DEFAULT_MODE MODE_APRS_LORA
+#endif
 
 // Modos que emiten APRS (balizas, mensajes, KISS...): LoRa (AFSK 1200 en la T-TWR), FSK 9600, M17 (T-TWR) y FM (T-TWR: voz;
 // el APRS sale por la frecuencia APRS y vuelve al canal de voz, sin digipeater)

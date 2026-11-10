@@ -9,6 +9,10 @@
 - **Cabecera de la WebUI con los colores del logo** (fondo #131A22, línea verde-cian, Save en verde); el modo noche sigue en rojo.
 - **T-TWR Plus: arranque de la PMU como el de LilyGO:** entrada USB hasta 2 A, corte de VBUS a 3,88 V y apagado por tensión baja a 2,6 V (antes, límite de serie y 2,9 V). Evita que se apague al arrancar radio, WiFi y Bluetooth solo con USB o en los picos de emisión.
 
+- **T-TWR Plus: el modo elegido al arrancar se queda en su página.** Con *FM voice* el equipo volvía a la página MAIN de APRS al acabar el arranque (la página del modo se perdía); ahora cada modo empieza en la suya (FM, CW, WSPR, DAPNET, SAT, AIS...).
+- **T-TWR Plus: FM voice es el modo de serie** (configuraciones nuevas y, una sola vez, las guardadas con APRS AFSK 1200; `fmDefault` en la configuración). Las demás placas siguen con APRS LoRa.
+- **Motivo del último reinicio:** si el anterior fue por fallo (CRASH), vigilante (WDT) o tensión baja (LOW VOLTAGE), se muestra 2,5 s al arrancar, va al registro y al evento BLE `info` (`rst`). Sirve para ver un bucle de reinicios sin el puerto serie.
+
 ## 5.4.0 — 2026-11-09
 - **Cielo GNSS para la app (todas las placas):** lector de GSV / GSA / GST (`gnss_sky`) y evento BLE `sky`: satélites con elevación, azimut, SNR y si se usan; PDOP / HDOP / VDOP y error estimado (pantalla DISP > GPS de la app).
 - **Tiempo de internet dentro del tracker (todas las placas):** la presión al nivel del mar que manda la app (`wxnet`, OpenWeatherMap / IQAir) es el **QNH del altímetro** cuando no hay QNH manual ni uno aprendido del GPS en los últimos 20 min (página ALTIMETER «QNH 1015N», menú «Net 1015.0», `sensors.qs` = `net`); nunca como presión de la estación (balizas). El evento `sensors` lleva el tiempo de internet en `net` para la pantalla APRS LoRa+ Display. Pruebas del barómetro en el PC (`tools/test_baro.cpp`).

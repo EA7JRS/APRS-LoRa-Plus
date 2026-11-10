@@ -93,6 +93,20 @@ ____________________________________________________________________*/
 
 String      versionDate             = "2026-11-01";
 String      versionNumber           = "5.4.0";
+const char* lastResetReason         = "";       // motivo del ultimo reinicio si no fue normal (fallo, vigilante, tension baja): log, pantalla y evento info
+
+// Motivo del arranque: los reinicios por fallo (panic), vigilante o caida de tension se muestran al arrancar para poder
+// diagnosticar un bucle de reinicios sin el puerto serie (EA7JRS)
+static const char* abnormalResetReason() {
+    switch (esp_reset_reason()) {
+        case ESP_RST_PANIC:    return "CRASH";
+        case ESP_RST_INT_WDT:  return "INT WDT";
+        case ESP_RST_TASK_WDT: return "TASK WDT";
+        case ESP_RST_WDT:      return "WDT";
+        case ESP_RST_BROWNOUT: return "LOW VOLTAGE";
+        default:               return "";
+    }
+}
 Configuration                       Config;
 HardwareSerial                      gpsSerial(1);
 TinyGPSPlus                         gps;
@@ -168,6 +182,11 @@ void setup() {
 
     POWER_Utils::setup();
     displaySetup();
+    lastResetReason = abnormalResetReason();
+    if (lastResetReason[0]) {
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "Last reset: %s", lastResetReason);
+        displayShow("LAST RESET", "", lastResetReason, "", "Check power supply", "or send the USB log", 2500);
+    }
     POWER_Utils::externalPinSetup();
     #ifdef FAN_CTRL_PIN
         THERMAL_Utils::setup();

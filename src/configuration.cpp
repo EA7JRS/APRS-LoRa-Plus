@@ -593,6 +593,9 @@ bool Configuration::writeFile() {
         #endif
 
         data["operatingMode"]                       = savedMode;
+        #ifdef HAS_SA868
+            data["fmDefault"]                       = true;     // ya se aplico el FM voice de serie de la T-TWR (ver readFile)
+        #endif
         data["radioPpm1000"]                        = radioPpm1000;
         writeFields(data["cw"].to<JsonObject>(),           &cw,           kCwFields,           NFIELDS(kCwFields));
         for (int i = 0; i < CW_MESSAGE_COUNT; i++) data["cw"]["keypadMv"][i] = cw.keypadMv[i];
@@ -719,8 +722,15 @@ bool Configuration::readFile() {
         if (data["radioPpm1000"].isNull()) needsRewrite = true;
         if (!data["radioPpm1000"].isNull()) radioPpm1000 = constrain((int)(data["radioPpm1000"] | 0), -50000, 50000);
         else                                radioPpm1000 = constrain((int)(data["radioPpm100"] | 0) * 10, -50000, 50000);          // configuraciones de 5.2.11 (centesimas de ppm)
-        savedMode = (int)(data["operatingMode"] | (int)MODE_APRS_LORA);
-        if (!isAprsMode(savedMode)) savedMode = MODE_APRS_LORA;                                       // MORSE nunca arranca solo; M17 solo en la T-TWR
+        savedMode = (int)(data["operatingMode"] | (int)DEFAULT_MODE);
+        #ifdef HAS_SA868
+            // T-TWR: el modo de serie es FM voice (Manuel, 2026-11-10). Una sola vez, en configuraciones guardadas antes con APRS
+            if (data["fmDefault"].isNull()) {
+                if (savedMode == MODE_APRS_LORA) savedMode = MODE_FM;
+                needsRewrite = true;
+            }
+        #endif
+        if (!isAprsMode(savedMode)) savedMode = DEFAULT_MODE;                                       // MORSE nunca arranca solo; M17 solo en la T-TWR
         #ifndef HAS_SA868
         if (savedMode == MODE_M17) savedMode = MODE_APRS_LORA;
         #endif
@@ -1316,8 +1326,8 @@ void Configuration::setDefaultValues() {
     setAisDefaults();
     setGpsDefaults();
     radioPpm1000                    = 0;
-    operatingMode                   = MODE_APRS_LORA;
-    savedMode                       = MODE_APRS_LORA;
+    operatingMode                   = DEFAULT_MODE;
+    savedMode                       = DEFAULT_MODE;
     bluetooth.active                = false;
     bluetooth.deviceName            = "APRSLoRa+tracker";
     #ifdef HAS_BT_CLASSIC
