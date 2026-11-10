@@ -20,14 +20,17 @@
 [data-variant="night"] .btn-save{background:#000;border-color:#000;color:#ff6b6b;}
 [data-variant="night"] .btn-save:hover{background:#1a0000;color:#ff8a8a;}
 body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
-.app-topbar{background:#b21d1d;border-bottom:1px solid rgba(0,0,0,.25);height:56px;z-index:1030;}
+.app-topbar{background:#131a22;border-bottom:2px solid transparent;border-image:linear-gradient(90deg,#3ce68a,#28b5e1) 1;height:56px;z-index:1030;}
+[data-variant="night"] .app-topbar{border-image:none;border-bottom-color:rgba(0,0,0,.25);}
+body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;}
 .app-topbar .logo{height:40px;width:40px;margin-right:.6rem;flex-shrink:0;border-radius:8px;}
 .app-topbar .brand{font-weight:600;color:#fff;font-size:1.1rem;display:flex;flex-direction:column;line-height:1.1;padding:.25rem 0;}
-.app-topbar .brand .brand-sub{font-weight:400;font-size:.68rem;opacity:.85;letter-spacing:.02em;}
-.btn-icon{background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;display:inline-flex;align-items:center;}
-.btn-icon:hover{background:rgba(255,255,255,.15);color:#fff;}
-.btn-save{background:#fff;border:1px solid #fff;color:#b21d1d;font-weight:600;}
-.btn-save:hover{background:#f0eaea;color:#b21d1d;}
+.app-topbar .brand .brand-sub{font-weight:400;font-size:.68rem;opacity:.95;letter-spacing:.02em;color:#28b5e1;}
+[data-variant="night"] .app-topbar .brand .brand-sub{color:inherit;}
+.btn-icon{background:transparent;border:1px solid rgba(40,181,225,.6);color:#e6edf3;display:inline-flex;align-items:center;}
+.btn-icon:hover{background:rgba(40,181,225,.15);color:#fff;}
+.btn-save{background:#3ce68a;border:1px solid #3ce68a;color:#131a22;font-weight:600;}
+.btn-save:hover{background:#5df0a0;border-color:#5df0a0;color:#131a22;}
 .app-shell{display:flex;min-height:calc(100vh - 56px);}
 .app-sidebar{width:250px;background:var(--msh-panel);border-right:1px solid var(--msh-border);padding:16px 12px;flex-shrink:0;}
 .app-main{flex:1;padding:20px 26px;width:100%;}
@@ -104,7 +107,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                     </svg>
                                     Beacon User Profile
                                 </h5>
-                                <small>Profile per callsign: SSID, symbol, comment, SmartBeacon and LoRa profile.</small>
+                                <small>Profile per callsign: SSID, symbol, comment, SmartBeacon<span class="lora-only"> and LoRa profile</span>.</small>
                             </div>
                             <div 
                                 id="beacon-settings" 
@@ -598,7 +601,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
-                        <div class="row my-5 d-flex align-items-top">
+                        <div class="row my-5 d-flex align-items-top" id="grp-lora">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-broadcast" viewBox="0 0 16 16" > <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707m2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708m5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708m2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0" /> </svg>
@@ -635,7 +638,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
-                        <div class="row my-5 d-flex align-items-top">
+                        <div class="row my-5 d-flex align-items-top" id="grp-fsk">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-broadcast" viewBox="0 0 16 16" > <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707m2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708m5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708m2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0" /> </svg>
@@ -648,13 +651,13 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
-                        <div class="row my-5 d-flex align-items-top">
+                        <div class="row my-5 d-flex align-items-top" id="grp-cw">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-broadcast" viewBox="0 0 16 16" > <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707m2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708m5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708m2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0" /> </svg>
                                     CW Beacon
                                 </h5>
-                                <small>Keyed carrier (A1A), SX1262/SX1268 only. Two radio profiles: CW Beacon and Telegraphy (key, messages, trainer). {CALL} = your callsign without SSID; max 60 characters. SELECT MODE &rarr; MORSE.</small>
+                                <small id="cw-intro">Keyed carrier (A1A), SX1262/SX1268 only. Two radio profiles: CW Beacon and Telegraphy (key, messages, trainer). {CALL} = your callsign without SSID; max 60 characters. SELECT MODE &rarr; MORSE.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
 
@@ -974,8 +977,8 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
 
                         <div class="row my-5 d-flex align-items-top d-none" id="grp-sa868">
                             <div class="col-lg-3 col-sm-12">
-                                <h5>VHF radio (SA868)</h5>
-                                <small>LilyGO T-TWR Plus: analogue APRS, AFSK 1200 baud. The channel list follows the IARU region (and the automatic IARU region, when on). Rev2.1 cannot change the power. Set the TX level on a receiver for about 2.5 kHz deviation (Narrow) or 3 kHz (Wide). SELECT MODE &rarr; APRS FSK 9600 uses G3RUH 9600 baud: the module's voice filters are bypassed and the channel is 25 kHz (needs a 9600-capable station at the other end; best with the OpenRTX module firmware). In 9600 a UHF module uses the FSK frequency and protocol of the active LoRa profile, like the other boards. Reception always takes AX.25, FX.25 and IL2P. SELECT MODE &rarr; M17: digital M17 (4FSK, 25 kHz, flat audio) on the M17 frequency; APRS goes out as M17 APRS packets (other T-TWRs in M17 mode read them), and the tracker hears M17 SMS and the callsigns and GNSS positions of M17 voice calls (shown as stations; never sent to APRS-IS). Default M17 frequency: 144.875 / 433.475 MHz (IARU Region 1 suggestion).</small>
+                                <h5 id="sa868-title">VHF radio (SA868)</h5>
+                                <small>LilyGO T-TWR Plus: analogue APRS, AFSK 1200 baud<span id="sa868-band-note"></span>. The channel list follows the IARU region (and the automatic IARU region, when on). Rev2.1 cannot change the power. Set the TX level on a receiver for about 2.5 kHz deviation (Narrow) or 3 kHz (Wide). SELECT MODE &rarr; APRS FSK 9600 uses G3RUH 9600 baud: the module's voice filters are bypassed and the channel is 25 kHz (needs a 9600-capable station at the other end; best with the OpenRTX module firmware). <span id="sa868-9600-note">In 9600 a UHF module uses the FSK frequency and protocol of the active profile (APRS FSK block below); a VHF module uses the channel above.</span> Reception always takes AX.25, FX.25 and IL2P. SELECT MODE &rarr; M17: digital M17 (4FSK, 25 kHz, flat audio) on the M17 frequency; APRS goes out as M17 APRS packets (other T-TWRs in M17 mode read them), and the tracker hears M17 SMS and the callsigns and GNSS positions of M17 voice calls (shown as stations; never sent to APRS-IS). Default M17 frequency: <span id="sa868-m17-def">144.875 / 433.475</span> MHz (IARU Region 1 suggestion).</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="row">
@@ -1003,7 +1006,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div class="row g-0 mb-1">
                                     <div class="form-floating col-6 col-md-4 px-1 mb-2"><select class="form-select form-select-sm" name="sa868.cwMcw" id="sa868.cwMcw"><option value="0">A1A (carrier on / off)</option><option value="1">MCW (tone, PTT held)</option></select><label for="sa868.cwMcw">CW emission</label></div>
                                     <div class="form-floating col-6 col-md-3 px-1 mb-2"><input type="number" class="form-control form-control-sm" name="sa868.cwToneHz" id="sa868.cwToneHz" min="300" max="1500" value="800" /><label for="sa868.cwToneHz">MCW tone (Hz)</label></div>
-                                    <div class="col-12 px-1 mb-1"><small class="text-muted">Frequencies and power: CW section (outside the band of the module: 144.050 / 432.050 MHz). A1A keys the module (NiceRF: PTT, up to ~15-18 wpm; OpenRTX: one register write per edge, up to ~12 wpm). Reception detects the carrier by the quieting of the FM noise; on Rev2.1 the speaker gives a 700 Hz tone.</small></div>
+                                    <div class="col-12 px-1 mb-1"><small class="text-muted">Frequencies and power: CW section (outside the band of the module: <span id="sa868-cw-def">144.050 / 432.050</span> MHz). A1A keys the module (NiceRF: PTT, up to ~15-18 wpm; OpenRTX: one register write per edge, up to ~12 wpm). Reception detects the carrier by the quieting of the FM noise; on Rev2.1 the speaker gives a 700 Hz tone.</small></div>
                                 </div>
                                 <div class="small fw-semibold mt-1 mb-1 px-1">M17 mode</div>
                                 <div class="row g-0 mb-1">
@@ -1014,7 +1017,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div class="form-check form-switch"><input type="checkbox" name="sa868.filters" id="sa868.filters" class="form-check-input" /><label for="sa868.filters" class="form-label">Voice filters and pre/de-emphasis of the module</label></div>
                                 <div class="form-check form-switch"><input type="checkbox" name="sa868.speaker" id="sa868.speaker" class="form-check-input" /><label for="sa868.speaker" class="form-label">Hear the channel on the speaker</label></div>
                                 <div class="small text-muted mb-2" id="sa868-status"></div>
-                                <div class="small mb-2">Transmits only in the amateur bands of the IARU region where it is, by the GPS position: Europe (R1) 144&ndash;146 and 430&ndash;440 MHz, Americas (R2) 144&ndash;148 and 430&ndash;450 MHz, R3 144&ndash;148 and 430&ndash;440 MHz; without a position, 144&ndash;146 and 430&ndash;440 MHz. Receives 136&ndash;174 / 400&ndash;480 MHz. These limits are fixed in the firmware.</div>
+                                <div class="small mb-2">Transmits only in the amateur bands of the IARU region where it is, by the GPS position: Europe (R1) 144&ndash;146 and 430&ndash;440 MHz, Americas (R2) 144&ndash;148 and 430&ndash;450 MHz, R3 144&ndash;148 and 430&ndash;440 MHz; without a position, 144&ndash;146 and 430&ndash;440 MHz. Receives <span id="sa868-rx-range">136&ndash;174 / 400&ndash;480 MHz</span>. These limits are fixed in the firmware.</div>
                                 <div class="d-flex flex-wrap gap-2 align-items-center mb-3" id="txul-box">
                                     <span class="small" id="txul-state"></span>
                                     <input type="text" class="form-control form-control-sm" style="max-width:40em" id="txul-code" maxlength="200" placeholder="Unlock code for this device (128 hexadecimal digits)" autocomplete="off" />
@@ -1064,7 +1067,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                 <div id="fm-mems"></div>
                             </div>
                         </div>
-                        <div class="row my-5 d-flex align-items-top" id="grp-ais">
+                        <div class="row my-5 d-flex align-items-top d-none" id="grp-ais">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>AIS receiver (marine VHF)</h5>
                                 <small>Vessels on 161.975 / 162.025 MHz. <strong>T-TWR (VHF module)</strong>: SELECT MODE &rarr; <em>AIS receiver</em> (receive only, flat audio). <strong>Any board</strong>: an external AIS module with NMEA output (dAISy, Quark-elec...) on UART 2 (shared with the NMEA output if that is on). The Android app can also feed it from its RTL-SDR. Page AIS (list, details, GO TO), collision alarm (CPA / TCPA, guard zone), AIS-SART / MOB / EPIRB alarm, and the <code>!AIVDM</code> sentences to the NMEA output and the app.</small>
@@ -1090,7 +1093,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
-                        <div class="row my-5 d-flex align-items-top" id="grp-bcast">
+                        <div class="row my-5 d-flex align-items-top d-none" id="grp-bcast">
                             <div class="col-lg-3 col-sm-12">
                                 <h5><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M3 4.5h10a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V6A1.5 1.5 0 0 1 3 4.5m0 1a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V6a.5.5 0 0 0-.5-.5zM10.5 7a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3M3.5 7h4v1h-4zm0 2h4v1h-4zM4 1l6 3.5H9L4 2z"/></svg> Broadcast radio (I2C)</h5>
                                 <small>FM broadcast receiver on the I2C bus of the display: RDA5807M (no reset pin), Si4703 (needs the reset pin) or Si4735 (reset pin; also MW / SW / LW). Detected at start-up; the audio comes out of the module's own jack, the tracker controls it. Page BCAST (long press: seek, volume, band, presets), app and BLE <code>bcast</code>. Presets: MHz for FM (101.5) or kHz for AM (999).</small>
@@ -1161,7 +1164,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                             </div>
                         </div>
 
-                        <div class="row my-5 d-flex align-items-top">
+                        <div class="row my-5 d-flex align-items-top" id="grp-wspr">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-broadcast" viewBox="0 0 16 16" > <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707m2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708m5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708m2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0" /> </svg>
@@ -1507,7 +1510,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                         <div class="row my-5 d-flex align-items-top" id="grp-kissnet">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>KISS over WiFi</h5>
-                                <small>KISS TNC over WiFi for APRSDroid, Xastir, YAAC&hellip; (APRS LoRa / FSK; ESP32-S3 / C3).</small>
+                                <small>KISS TNC over WiFi for APRSDroid, Xastir, YAAC&hellip; (<span id="kiss-modes">APRS LoRa / FSK</span>; ESP32-S3 / C3).</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
                                 <div class="form-check form-switch mb-2">
@@ -2282,7 +2285,7 @@ body{background:var(--msh-bg);color:var(--msh-text);font-family:"Inter",system-u
                                             <label
                                                 for="telemetry.sendTelemetry"
                                                 class="form-label"
-                                                >Send Telemetry via LoRa APRS
+                                                >Send Telemetry via <span class="radio-word">LoRa</span> APRS
                                             </label>
                                         </div>
                                     </div>

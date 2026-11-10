@@ -73,6 +73,25 @@ const IARU_CHANNELS_UHF = {
     2: [],
     3: [["439.100  APRS (Australia)", 439.1], ["431.040  APRS 1200 baud (Japan)", 431.04]]
 };
+// T-TWR (SA868): band of the module and the transmit ranges fixed in the firmware (FmCore::txAllowed, region from the GPS)
+const TTWR_TX = { VHF: { 1: [[144.0, 146.0]], 2: [[144.0, 148.0]], 3: [[144.0, 148.0]] },
+                  UHF: { 1: [[430.0, 440.0]], 2: [[430.0, 450.0]], 3: [[430.0, 440.0]] } };
+const TTWR_RX = { VHF: [136, 174], UHF: [400, 480] };
+// CW on 2 m (T-TWR VHF): IARU R1 VHF plan (144.000-144.110 telegraphy, centre 144.050; beacons 144.400-144.490 exclusive),
+// R2 (ARRL plan: 144.000-144.050 EME CW, 144.050-144.100 general CW; beacons 144.275-144.300), R3 (144.050 CW).
+const IARU_CHANNELS_CW_VHF = {
+    1: [["144.025  CW (weak-signal / EME)", 144.025], ["144.050  Telegraphy centre of activity (IARU R1)", 144.05], ["144.075  CW / telegraphy", 144.075]],
+    2: [["144.025  CW (EME, IARU R2)", 144.025], ["144.060  CW general (IARU R2 144.05-144.10)", 144.06], ["144.075  CW general (IARU R2)", 144.075]],
+    3: [["144.050  CW (IARU R3)", 144.05]]
+};
+const IARU_CHANNELS_CWB_VHF = {
+    1: [["144.410  Beacon segment (IARU R1, exclusive)", 144.41], ["144.430  Beacon segment (IARU R1, exclusive)", 144.43],
+        ["144.450  Beacon segment (IARU R1, exclusive)", 144.45], ["144.470  Beacon segment (IARU R1, exclusive)", 144.47]].concat(IARU_CHANNELS_CW_VHF[1]),
+    2: [["144.280  Beacon segment (IARU R2 144.275-144.300)", 144.28], ["144.290  Beacon segment (IARU R2 144.275-144.300)", 144.29]].concat(IARU_CHANNELS_CW_VHF[2]),
+    3: IARU_CHANNELS_CW_VHF[3]
+};
+let RADIO_BAND = "";                                        // "" LoRa boards; "VHF" / "UHF" on the T-TWR (SA868), from /api/info
+const IARU_WIRES = [];                                      // refill of every IARU profile card when the band becomes known
 let SA868_BAND = "";                                        // "VHF" / "UHF" from /api/info; until then, from the frequency
 let sa868Refill = null;
 function sa868IaruWire() {
@@ -83,10 +102,10 @@ function sa868IaruWire() {
     const table = () => uhf() ? IARU_CHANNELS_UHF : IARU_CHANNELS_VHF;
     const refresh = () => {
         const r = parseInt(reg.value, 10), f = parseFloat(rx.value);
-        const bands = uhf() ? IARU_REGIONS[r].bands.filter(b => b[1] < 500) : [IARU_VHF_BANDS[r]];
+        const bands = TTWR_TX[uhf() ? "UHF" : "VHF"][r];
         const ok = bands.some(b => f >= b[0] && f <= b[1]);
         info.className = ok ? "text-muted" : "text-danger fw-semibold";
-        info.textContent = (uhf() ? "70 cm" : "2 m") + " amateur allocation, " + IARU_REGIONS[r].name + ": " + bands.map(b => b[0] + "\u2013" + b[1]).join(" / ") + " MHz"
+        info.textContent = (uhf() ? "70 cm" : "2 m") + " transmit range, " + IARU_REGIONS[r].name + ": " + bands.map(b => b[0] + "\u2013" + b[1]).join(" / ") + " MHz"
             + (ok ? "" : " \u2014 the frequency is OUTSIDE it") + ". National rules prevail."
             + (table()[r].length ? "" : " No common APRS channel in this region: enter the local one.");
     };
@@ -108,17 +127,24 @@ function sa868IaruWire() {
     fill(); refresh();
 }
 function iaruList(o, region) {
-    const t = o && o.kind === "cwb" ? IARU_CHANNELS_CWB : o && o.kind === "cw" ? IARU_CHANNELS_CW : (o && o.kind === "fsk" ? IARU_CHANNELS_FSK : IARU_CHANNELS);
-    return t[region] || [];
+    const vhf = RADIO_BAND === "VHF";
+    const t = o && o.kind === "cwb" ? (vhf ? IARU_CHANNELS_CWB_VHF : IARU_CHANNELS_CWB) : o && o.kind === "cw" ? (vhf ? IARU_CHANNELS_CW_VHF : IARU_CHANNELS_CW)
+            : (o && o.kind === "fsk" ? IARU_CHANNELS_FSK : IARU_CHANNELS);
+    const list = t[region] || [];
+    if (!RADIO_BAND) return list;
+    const rx = TTWR_RX[RADIO_BAND];                         // T-TWR: only what the module can tune (no 33 cm, no 70 cm on the VHF module)
+    return list.filter(c => c[1] >= rx[0] && c[1] <= rx[1]);
+}
+function iaruBands(region) {
+    if (RADIO_BAND) return TTWR_TX[RADIO_BAND][region] || TTWR_TX[RADIO_BAND][1];
+    return (IARU_REGIONS[region] || IARU_REGIONS[1]).bands;
 }
 function iaruCheckFrequency(region, hz) {
     const mhz = hz / 1e6;
-    const r = IARU_REGIONS[region] || IARU_REGIONS[1];
-    return r.bands.some(b => mhz >= b[0] && mhz <= b[1]);
+    return iaruBands(region).some(b => mhz >= b[0] && mhz <= b[1]);
 }
 function iaruBandText(region) {
-    const r = IARU_REGIONS[region] || IARU_REGIONS[1];
-    return r.bands.map(b => b[0] + "–" + b[1] + " MHz").join(" / ");
+    return iaruBands(region).map(b => b[0] + "–" + b[1] + " MHz").join(" / ");
 }
 // Reusable "IARU region + band plan channel + frequency + power" group (FSK profiles and the two CW profiles).
 // o: { regionName, freqName, powerName, region, freq, power }  (ids = names)
@@ -151,7 +177,7 @@ function iaruProfileWire(root, o) {
         const region = parseInt(regSel.value, 10);
         const ok = iaruCheckFrequency(region, parseFloat(freq.value));
         info.className = ok ? "text-muted" : "text-danger fw-semibold";
-        info.textContent = "Amateur allocation, " + IARU_REGIONS[region].name + ": " + iaruBandText(region)
+        info.textContent = (RADIO_BAND ? (RADIO_BAND === "UHF" ? "70 cm" : "2 m") + " transmit range of the T-TWR, " : "Amateur allocation, ") + IARU_REGIONS[region].name + ": " + iaruBandText(region)
             + (ok ? "" : " \u2014 the frequency is OUTSIDE this region's amateur allocation") + ". National rules prevail.";
     };
     const fillPresets = () => {
@@ -162,6 +188,17 @@ function iaruProfileWire(root, o) {
     };
     preset.addEventListener("change", () => { if (preset.value) freq.value = preset.value; refresh(); });
     regSel.addEventListener("change", () => { fillPresets(); refresh(); });
+    const onBand = () => {                                  // band known (T-TWR): limits of the field, channel list and text
+        if (RADIO_BAND && !(o.kind === "fsk" && RADIO_BAND === "VHF")) {   // the FSK card is hidden on the VHF module: left as it is
+            const lo = TTWR_RX[RADIO_BAND][0] * 1e6, hi = TTWR_RX[RADIO_BAND][1] * 1e6, f = parseFloat(freq.value);
+            // outside the module the firmware uses 144.050 / 432.050 MHz (SA868::cwFreqHz): show that instead of blocking Save
+            if (!(f >= lo && f <= hi)) freq.value = o.kind === "fsk" ? 432500000 : (RADIO_BAND === "UHF" ? 432050000 : 144050000);
+            freq.min = lo; freq.max = hi;
+        }
+        fillPresets(); refresh();
+    };
+    IARU_WIRES.push(onBand);
+    if (RADIO_BAND) onBand();
     freq.addEventListener("input", () => {
         const cur = String(Math.round(parseFloat(freq.value)));
         preset.value = [...preset.options].some(x => x.value === cur) ? cur : "";
@@ -248,7 +285,7 @@ function aisVesselInfoText(vesselId) {
     const v = AIS_VESSELS.find(x => x.id == vesselId) || AIS_VESSELS[0];
     const clsText = v.cls === "A" ? "Class A" : (v.cls === "B-SO" ? 'Class B "SO"' : 'Class B "CS"');
     const symbolText = v.overlay === "/" ? "/" + v.symbol : (v.overlay === "\\" ? "\\" + v.symbol : "\\" + v.symbol + " (overlay " + v.overlay + ")");
-    return `AIS ${clsText} &middot; SSID -${v.ssid} &middot; APRS symbol ${symbolText} &middot; SmartBeacon AIS ${clsText} &middot; LoRa profile: AIS (SF9, CR 4/5)`;
+    return `AIS ${clsText} &middot; SSID -${v.ssid} &middot; APRS symbol ${symbolText} &middot; SmartBeacon AIS ${clsText}<span class="lora-only"> &middot; LoRa profile: AIS (SF9, CR 4/5)</span>`;
 }
 
 function aisVesselChanged(index) {
@@ -287,7 +324,7 @@ function renderAisBeacon(beacons, index) {
             <div class="col">
                 <div class="row g-2 mb-2">
                     <div class="col-12"><span class="badge text-bg-primary">AIS nautical profile</span>
-                        <small class="text-muted ms-1">Callsign, SSID, symbol, SmartBeacon and LoRa profile follow the vessel type.</small></div>
+                        <small class="text-muted ms-1">Callsign, SSID, symbol, SmartBeacon<span class="lora-only"> and LoRa profile</span> follow the vessel type.</small></div>
                 </div>
                 <div class="row g-2 mb-2">
                     <div class="col-12 col-md-6">
@@ -1749,6 +1786,44 @@ function boardPinSuggest(pins, lo, hi, skip) {
     return sug;
 }
 
+// T-TWR (SA868 FM radio, no LoRa): hide what only the LoRa chip does and fit frequencies and band plans to the module (VHF or UHF).
+// The AIS receiver (161.975 / 162.025 MHz) only on the VHF module; the broadcast radio only here (the T-TWR has a speaker).
+function applyRadioSa868(band) {
+    const uhf = band ? band === "UHF" : parseFloat(document.getElementById("sa868.rxMHz").value) >= 300;
+    RADIO_BAND = uhf ? "UHF" : "VHF";
+    document.body.classList.add("radio-sa868");
+    const hide = (id, on) => { const e = document.getElementById(id); if (e) e.classList.toggle("d-none", on); };
+    ["grp-lora", "grp-wspr", "grp-ft", "grp-lrfhss"].forEach(id => hide(id, true));
+    hide("grp-fsk", !uhf);                                  // 9600 on VHF goes on the SA868 channel; on UHF it uses the FSK profile frequency
+    hide("grp-ais", uhf);
+    hide("grp-bcast", false);
+    const rx = TTWR_RX[RADIO_BAND];
+    document.getElementById("sa868-title").textContent = (uhf ? "UHF" : "VHF") + " radio (SA868)";
+    document.getElementById("sa868-band-note").textContent = uhf ? " on 70 cm" : " on 2 m";
+    document.getElementById("sa868-m17-def").textContent = uhf ? "433.475" : "144.875";
+    document.getElementById("sa868-cw-def").textContent = uhf ? "432.050" : "144.050";
+    document.getElementById("sa868-rx-range").innerHTML = rx[0] + "&ndash;" + rx[1] + " MHz (this " + (uhf ? "UHF" : "VHF") + " module)";
+    document.getElementById("sa868-9600-note").textContent = uhf ? "In 9600 the module uses the frequency and protocol of the active APRS FSK profile (block below)."
+        : "In 9600 the module uses the channel above (25 kHz).";
+    document.getElementById("cw-intro").innerHTML = "SA868: A1A (keyed carrier) or MCW (tone in FM), chosen in the radio block. A frequency outside the module ("
+        + rx[0] + "&ndash;" + rx[1] + " MHz) falls back to " + (uhf ? "432.050" : "144.050") + " MHz.";
+    // limits of the module; a value outside them (a default of the other band) takes the usual channel of this band
+    const def = uhf ? { "sa868.rxMHz": 432.5, "sa868.txMHz": 432.5, "sa868.m17MHz": 433.475, "sa868.dapnetMHz": 439.9875, "fm.vfoMHz": 433.5 }
+                    : { "sa868.rxMHz": 144.8, "sa868.txMHz": 144.8, "sa868.m17MHz": 144.875, "sa868.dapnetMHz": 144.8625, "fm.vfoMHz": 145.5 };
+    Object.keys(def).concat(["freqcal.freqMHz"]).forEach(id => {
+        const e = document.getElementById(id); if (!e) return;
+        e.min = rx[0]; e.max = rx[1];
+        const v = parseFloat(e.value);
+        if (def[id] && e.value !== "" && !(v >= rx[0] && v <= rx[1])) e.value = def[id].toFixed(4);
+    });
+    ["fm.scanLoMHz", "fm.scanHiMHz"].forEach(id => { const e = document.getElementById(id); if (e) e.max = rx[1]; });
+    const fc = document.getElementById("freqcal.freqMHz");
+    if (fc && (parseFloat(fc.value) < rx[0] || parseFloat(fc.value) > rx[1])) fc.value = document.getElementById("sa868.rxMHz").value;
+    const kiss = document.getElementById("kiss-modes");
+    if (kiss) kiss.textContent = "APRS AFSK 1200 / FSK 9600 / M17";
+    IARU_WIRES.forEach(f => f());
+}
+
 function boardPinInit() {
     fetch("/api/info?_t=" + Date.now())
         .then(r => r.json())
@@ -1757,6 +1832,7 @@ function boardPinInit() {
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
+                applyRadioSa868((i.sa868 && i.sa868.band) || "");
                 document.getElementById("grp-sa868").classList.remove("d-none");
                 ["grp-ft", "grp-lrfhss"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });
                 document.getElementById("grp-fm").classList.remove("d-none");
