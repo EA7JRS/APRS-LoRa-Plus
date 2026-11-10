@@ -3,15 +3,18 @@
  * This file is part of APRS LoRa+ (LoRa APRS Tracker fork).
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Tiempo y calidad del aire de internet para la pagina TELEMETRY: la app Android los descarga con el internet del movil
- * (OpenWeatherMap, IQAir AirVisual) en la posicion del tracker y los manda con la orden BLE "wxnet". Se muestran como datos de
- * internet ("NET" y la fuente), nunca como un sensor del tracker, y no van en las balizas APRS de meteorologia. Caducan a las 2 h.
+ * Tiempo y calidad del aire de internet para la pagina TELEMETRY: la app Android (orden BLE "wxnet") o el navegador de la WebUI
+ * (POST /api/wxnet, claves en Telemetry > Internet weather) los descargan de OpenWeatherMap / IQAir AirVisual en la posicion del
+ * tracker. Se muestran como datos de internet ("NET" y la fuente), nunca como un sensor del tracker, y no van en las balizas APRS de
+ * meteorologia. Caducan a las 2 h. La presion es ademas el QNH del altimetro sin GPS y, con su tendencia de 3 h (observaciones con
+ * hora), entra en el pronostico de TELEMETRY cuando el tracker no tiene barometro (y la humedad, cuando no tiene higrometro).
  */
 
 #ifndef NET_WX_H_
 #define NET_WX_H_
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
 namespace NET_WX {
 
@@ -31,6 +34,11 @@ namespace NET_WX {
     };
 
     void        set(const Data& d);
+    bool        fromJson(JsonVariantConst doc, Data& d);    // campos de la orden "wxnet" (src, pl, ds, mp, t, h, p, ws, wg, wd, r, cl, aq, aqus, pm25, pm10, age)
+    void        apply(const Data& d);                       // set() + QNH del altimetro
+    bool        delta3h(float& hpa);                        // tendencia de la presion de internet (observaciones de 1 h a 3,5 h)
+    // Pronostico con lo de internet (presion, tendencia, temperatura y humedad), el mismo de TELEMETRY; false sin presion
+    bool        forecast(char* out, size_t n, float* delta3hOut = nullptr);
     bool        get(Data& out);         // false si no hay datos o tienen mas de 2 h
     uint32_t    ageS();                 // antiguedad de la observacion ahora
     const char* owmAqiName(int a);      // 1 Good .. 5 Very poor

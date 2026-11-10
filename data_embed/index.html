@@ -1496,8 +1496,8 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                             id="bluetooth.deviceName"
                                             required
                                             class="form-control"
-                                            placeholder="LoRaTracker"
-                                            value="LoRaTracker"
+                                            placeholder="APRSLoRa+tracker"
+                                            value="APRSLoRa+tracker"
                                         />
                                     </div>
                                 </div>
@@ -2361,6 +2361,42 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                         </div>
                                     </div>                                    
                                 </div>
+                            </div>
+                        </div>
+                        <div class="row my-5 d-flex align-items-top" id="grp-netwx">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>Internet weather</h5>
+                                <small>Weather and air quality from <a href="https://openweathermap.org/api" target="_blank" rel="noopener">OpenWeatherMap</a> and / or <a href="https://www.iqair.com/air-pollution-data-api" target="_blank" rel="noopener">IQAir AirVisual</a> (free keys) at the tracker position. This browser downloads it (it needs internet: the tracker joined to your WiFi) and sends it to the tracker; the Android app does the same with its own keys. TELEMETRY page (marked NET), forecast without a barometer or hygrometer, altimeter QNH without GPS. Never in APRS weather beacons; it expires after 2 h.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="netWx.on" id="netWx.on" class="form-check-input" />
+                                    <label for="netWx.on" class="form-label">Update while this page is open</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-12 col-md-5 px-1 mb-2">
+                                        <input type="password" class="form-control form-control-sm" name="netWx.owmKey" id="netWx.owmKey" maxlength="64" autocomplete="off" spellcheck="false" />
+                                        <label for="netWx.owmKey">OpenWeatherMap API key</label>
+                                    </div>
+                                    <div class="form-floating col-12 col-md-5 px-1 mb-2">
+                                        <input type="password" class="form-control form-control-sm" name="netWx.iqairKey" id="netWx.iqairKey" maxlength="64" autocomplete="off" spellcheck="false" />
+                                        <label for="netWx.iqairKey">IQAir API key</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-2 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="netWx.minutes" id="netWx.minutes" min="10" max="120" value="15" required />
+                                        <label for="netWx.minutes">Every (min)</label>
+                                    </div>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input" id="netWx.show" />
+                                    <label for="netWx.show" class="form-check-label small">Show the keys</label>
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="netWx.update">Update now</button>
+                                    <span class="small" id="netWx.status"></span>
+                                </div>
+                                <div class="small" id="netWx.data"></div>
+                                <small class="text-muted d-block mt-2">Free plans: OpenWeatherMap 1000 calls a day, IQAir Community 10 000 a month; every 15 min uses 96 (x2 with air quality) and about 2900 a month. Save to keep the keys on the tracker.</small>
                             </div>
                         </div>
 </section>

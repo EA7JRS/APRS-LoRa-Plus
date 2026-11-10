@@ -34,7 +34,7 @@ namespace WIFI_Utils {
     void startAutoAP() {
         WiFi.mode(WIFI_MODE_NULL);
         WiFi.mode(WIFI_AP);
-        WiFi.softAP("LoRaTracker-AP", Config.wifiAP.password);
+        WiFi.softAP("APRSLoRa+tracker", Config.wifiAP.password);
         #ifdef RPC_MicroTracker
             digitalWrite(15, LOW);    // Led WiFI
         #endif
@@ -43,9 +43,9 @@ namespace WIFI_Utils {
     void checkIfWiFiAP() {
         if (Config.wifiAP.active || Config.beacons[0].callsign == "NOCALL-7"){
             #ifdef HAS_APRS_PAGES
-                PAGES_Utils::showWifiAp("LoRaTracker-AP", Config.wifiAP.password.c_str(), "192.168.4.1", 0, 120);
+                PAGES_Utils::showWifiAp("APRSLoRa+tracker", Config.wifiAP.password.c_str(), "192.168.4.1", 0, 120);
             #else
-                displayShow(" LoRa APRS", "    ** WEB-CONF **","", "WiFiAP:LoRaTracker-AP", "IP    :   192.168.4.1","");
+                displayShow(" LoRa APRS", "    ** WEB-CONF **","", "WiFiAP:APRSLoRa+tracker", "IP    :   192.168.4.1","");
             #endif
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration Started!");
             startAutoAP();
@@ -57,7 +57,7 @@ namespace WIFI_Utils {
                         lastDraw = millis();
                         const int cli = WiFi.softAPgetStationNum();
                         const int left = (noClientsTime == 0) ? 120 : (int)(120 - (millis() - noClientsTime) / 1000);
-                        PAGES_Utils::showWifiAp("LoRaTracker-AP", Config.wifiAP.password.c_str(), WiFi.softAPIP().toString().c_str(), cli, left < 0 ? 0 : left);
+                        PAGES_Utils::showWifiAp("APRSLoRa+tracker", Config.wifiAP.password.c_str(), WiFi.softAPIP().toString().c_str(), cli, left < 0 ? 0 : left);
                     }
                 #endif
                 if (WiFi.softAPgetStationNum() > 0) {

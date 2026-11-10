@@ -71,6 +71,11 @@ jobs:
                   g++ -std=c++17 -O2 -Iinclude tools/test_sat_core.cpp src/sat_core.cpp src/sgp4/SGP4.cpp -o /tmp/test_sat_core
                   /tmp/test_sat_core
 
+            - name: Tendencia de la presion de internet
+              run: |
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/test_press_trend.cpp -o /tmp/test_press_trend
+                  /tmp/test_press_trend
+
             - name: Barometro (QNH del GPS, manual y de internet)
               run: |
                   g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/test_baro.cpp src/baro_utils.cpp -o /tmp/test_baro

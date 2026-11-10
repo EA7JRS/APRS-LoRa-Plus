@@ -242,7 +242,7 @@ namespace {
     #endif
     const Field kBluetoothFields[] = {
         FB(BLUETOOTH, active,     FF_REQUIRED, false),
-        FS(BLUETOOTH, deviceName, FF_REQUIRED, "LoRaTracker"),
+        FS(BLUETOOTH, deviceName, FF_REQUIRED, "APRSLoRa+tracker"),
         FB(BLUETOOTH, useBLE,     FF_REQUIRED, false),                              // sin Bluetooth clasico queda fijo en BLE
         FB(BLUETOOTH, useKISS,    FF_REQUIRED, BT_USE_KISS_DEFAULT),
         FC(BLUETOOTH, controlPin, 0,           123456, 0, 999999),
@@ -309,6 +309,12 @@ namespace {
         FB(DAPNETConfig, monitorAll,    FF_KEEP, 0),
         FB(DAPNETConfig, timeSync,      FF_KEEP, 0),
         FC(DAPNETConfig, charset,       FF_KEEP, 0, 0, 1),
+    };
+    const Field kNetWxFields[] = {                                                  // los valores que faltan parten de setNetWxDefaults()
+        FB(NetWxConfig, on,       FF_KEEP, 0),
+        FS(NetWxConfig, owmKey,   FF_KEEP, ""),
+        FS(NetWxConfig, iqairKey, FF_KEEP, ""),
+        FC(NetWxConfig, minutes,  FF_KEEP, 15, 10, 120),
     };
     const Field kBcastFields[] = {                                                  // los valores que faltan parten de setBcastDefaults()
         FB(BcastConfig, enabled,  FF_KEEP, 0),
@@ -610,6 +616,7 @@ bool Configuration::writeFile() {
         }
         #endif
         writeFields(data["bcast"].to<JsonObject>(),        &bcast,        kBcastFields,        NFIELDS(kBcastFields));
+        writeFields(data["netWx"].to<JsonObject>(),        &netWx,        kNetWxFields,        NFIELDS(kNetWxFields));
         writeFields(data["ais"].to<JsonObject>(),          &ais,          kAisFields,          NFIELDS(kAisFields));
         for (int i = 0; i < BcastConfig::PRESETS; i++) data["bcast"]["presets"][i] = bcast.presets[i];
         writeFields(data["sat"].to<JsonObject>(),          &sat,          kSatFields,          NFIELDS(kSatFields));
@@ -767,6 +774,8 @@ bool Configuration::readFile() {
         if (fm.artsInterval != 15) fm.artsInterval = 25;
         #endif
 
+        setNetWxDefaults();
+        READ("netWx", netWx, kNetWxFields);
         setBcastDefaults();
         READ("bcast", bcast, kBcastFields);
         for (int i = 0; i < BcastConfig::PRESETS; i++) {
@@ -881,6 +890,11 @@ bool Configuration::readFile() {
         cadWaitSec                      = constrain((int)(data["other"]["cadWaitSec"] | 10), 1, 60);
         cadFskRssi                      = constrain((int)(data["other"]["cadFskRssi"] | -95), -120, -60);
         email                           = data["other"]["email"] | "";
+
+        if (bluetooth.deviceName == "LoRaTracker") {                // nombre de serie anterior (5.4.0 y antes): pasa al nuevo
+            bluetooth.deviceName = "APRSLoRa+tracker";
+            needsRewrite = true;
+        }
 
         configFile.close();
 
@@ -1012,6 +1026,13 @@ void Configuration::setAisDefaults() {
     ais.maxAgeMin     = 10;
     ais.forwardNmea   = true;
     ais.hpfHz         = 320;
+}
+
+void Configuration::setNetWxDefaults() {
+    netWx.on       = false;
+    netWx.owmKey   = "";
+    netWx.iqairKey = "";
+    netWx.minutes  = 15;
 }
 
 void Configuration::setBcastDefaults() {
@@ -1291,13 +1312,14 @@ void Configuration::setDefaultValues() {
     setSa868Defaults();
     setFmDefaults();
     setBcastDefaults();
+    setNetWxDefaults();
     setAisDefaults();
     setGpsDefaults();
     radioPpm1000                    = 0;
     operatingMode                   = MODE_APRS_LORA;
     savedMode                       = MODE_APRS_LORA;
     bluetooth.active                = false;
-    bluetooth.deviceName            = "LoRaTracker";
+    bluetooth.deviceName            = "APRSLoRa+tracker";
     #ifdef HAS_BT_CLASSIC
         bluetooth.useBLE            = false;
         bluetooth.useKISS           = false;

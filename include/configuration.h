@@ -304,6 +304,16 @@ public:
     int     hpfHz;                              // T-TWR: acoplo de alterna de la entrada de audio a compensar (320 Hz)
 };
 
+// Tiempo de internet (OpenWeatherMap / IQAir) que baja el navegador de la WebUI y manda al tracker (/api/wxnet); la app usa sus claves
+// o, si las suyas estan vacias, estas (Manuel - EA7JRS)
+class NetWxConfig {
+public:
+    bool    on;                                 // la WebUI lo descarga mientras esta abierta
+    String  owmKey;                             // OpenWeatherMap (plan gratuito)
+    String  iqairKey;                           // IQAir AirVisual (Community)
+    int     minutes;                            // cada cuanto (10..120)
+};
+
 // Radio comercial con un receptor I2C externo (RDA5807M, Si4703, Si4735): include/bcast_radio.h (Manuel - EA7JRS)
 class BcastConfig {
 public:
@@ -521,6 +531,7 @@ public:
     Sa868Config             sa868;
     FmConfig                fm;
     BcastConfig             bcast;
+    NetWxConfig             netWx;
     AisConfig               ais;
     SatConfig               sat;
     RotorConfig             rotor;
@@ -552,6 +563,7 @@ public:
     void setSa868Defaults();
     void setFmDefaults();
     void setBcastDefaults();
+    void setNetWxDefaults();
     void setAisDefaults();
     void enforceAisBeacon(Beacon& beacon);              // SSID, simbolo, SmartBeacon y datos AIS coherentes con el tipo de embarcacion
     bool ensureAisProfiles();                           // anade el perfil nautico y el perfil LoRa AIS si faltan (true si cambio algo)

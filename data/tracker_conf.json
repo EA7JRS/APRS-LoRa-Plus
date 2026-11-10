@@ -171,7 +171,7 @@
 	],
 	"bluetooth": {
 		"active": false,
-		"deviceName": "LoRaTracker",
+		"deviceName": "APRSLoRa+tracker",
 		"useBLE": false,
 		"useKISS": false
 	},

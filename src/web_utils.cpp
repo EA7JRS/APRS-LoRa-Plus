@@ -35,6 +35,7 @@
 #include "iaru_auto.h"
 #include "keypad_fh2.h"
 #include "fm_core.h"
+#include "net_wx.h"
 
 extern Configuration               Config;
 extern String                      versionNumber;
@@ -333,6 +334,14 @@ namespace WEB_Utils {
             Config.ais.distressAlarm = request->hasParam("ais.distressAlarm", true);
             Config.ais.forwardNmea   = request->hasParam("ais.forwardNmea", true);
             Config.ais.hpfHz         = constrain(getParamIntSafe("ais.hpfHz", Config.ais.hpfHz), 0, 2000);
+        }
+        if (request->hasParam("netWx.minutes", true)) {     // tiempo de internet: claves que usa el navegador de la WebUI (y la app)
+            Config.netWx.on       = request->hasParam("netWx.on", true);
+            Config.netWx.owmKey   = getParamStringSafe("netWx.owmKey", Config.netWx.owmKey);
+            Config.netWx.iqairKey = getParamStringSafe("netWx.iqairKey", Config.netWx.iqairKey);
+            Config.netWx.owmKey.trim();
+            Config.netWx.iqairKey.trim();
+            Config.netWx.minutes  = constrain(getParamIntSafe("netWx.minutes", Config.netWx.minutes), 10, 120);
         }
         if (request->hasParam("bcast.resetPin", true)) {    // radio comercial por I2C (todas las placas)
             Config.bcast.enabled  = request->hasParam("bcast.enabled", true);
@@ -859,6 +868,44 @@ namespace WEB_Utils {
             request->send(r);
         });
         #endif
+        // Tiempo de internet: lo baja el navegador de la WebUI (OpenWeatherMap / IQAir) y lo manda aqui (d = JSON de la orden "wxnet")
+        server.on("/api/wxnet", HTTP_GET, [](AsyncWebServerRequest *request) {
+            JsonDocument doc;
+            NET_WX::Data d;
+            if (NET_WX::get(d)) {
+                doc["src"] = d.src; doc["pl"] = d.place; doc["ds"] = d.desc;
+                if (d.hasT) doc["t"] = d.tempC;
+                if (d.hasH) doc["h"] = d.humidity;
+                if (d.hasP) doc["p"] = d.pressureHpa;
+                if (d.hasWind) doc["ws"] = d.windMs;
+                if (d.hasGust) doc["wg"] = d.gustMs;
+                if (d.windDeg >= 0) doc["wd"] = d.windDeg;
+                if (d.hasRain) doc["r"] = d.rainMmH;
+                if (d.hasClouds) doc["cl"] = d.clouds;
+                if (d.aqiOwm > 0) doc["aq"] = d.aqiOwm;
+                if (d.aqiUs >= 0) doc["aqus"] = d.aqiUs;
+                if (d.pollutant[0]) doc["mp"] = d.pollutant;
+                if (d.hasPm25) doc["pm25"] = d.pm25;
+                if (d.hasPm10) doc["pm10"] = d.pm10;
+                doc["age"] = NET_WX::ageS();
+                char fc[20]; float d3 = NAN;
+                if (NET_WX::forecast(fc, sizeof(fc), &d3)) { doc["fc"] = fc; if (d3 == d3) doc["d3"] = roundf(d3 * 10.0f) / 10.0f; }
+            }
+            if (GPS_Utils::hasLastPosition()) { doc["lat"] = roundf(GPS_Utils::getLastLat() * 100.0f) / 100.0f; doc["lon"] = roundf(GPS_Utils::getLastLng() * 100.0f) / 100.0f; }
+            String out; serializeJson(doc, out);
+            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", out);
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
+        server.on("/api/wxnet", HTTP_POST, [](AsyncWebServerRequest *request) {
+            JsonDocument doc;
+            NET_WX::Data d;
+            const bool ok = request->hasParam("d", true) && !deserializeJson(doc, request->getParam("d", true)->value()) && NET_WX::fromJson(doc, d);
+            if (ok) NET_WX::apply(d);
+            AsyncWebServerResponse *r = request->beginResponse(ok ? 200 : 400, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
         server.on("/api/satdata", HTTP_GET, [](AsyncWebServerRequest *request) {
             AsyncWebServerResponse *r = request->beginResponse(200, "application/json", SAT_Utils::statusJson());
             r->addHeader("Cache-Control", "no-store");

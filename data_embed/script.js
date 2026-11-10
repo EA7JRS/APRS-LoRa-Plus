@@ -1078,6 +1078,14 @@ function loadSettings(settings) {
     BatteryMonitorSleepVoltage.disabled     = !BatteryMonitorVoltageCheckbox.checked;
 
     // TELEMETRY (WX Sensor)
+    {   // tiempo de internet (claves que usa este navegador)
+        const nw = settings.netWx || {};
+        document.getElementById("netWx.on").checked = !!nw.on;
+        document.getElementById("netWx.owmKey").value = nw.owmKey || "";
+        document.getElementById("netWx.iqairKey").value = nw.iqairKey || "";
+        document.getElementById("netWx.minutes").value = nw.minutes || 15;
+        netWxSchedule();
+    }
     document.getElementById("telemetry.active").checked                  = settings.telemetry.active;
     document.getElementById("telemetry.sendTelemetry").checked           = settings.telemetry.sendTelemetry;
     document.getElementById("telemetry.temperatureCorrection").value     = settings.telemetry.temperatureCorrection.toFixed(1);
@@ -2017,4 +2025,109 @@ document.addEventListener("DOMContentLoaded", () => {
     }).catch(e => { document.getElementById("txul-state").textContent = "Error: " + e; });
     go.addEventListener("click", () => { const fd = new URLSearchParams(); fd.append("code", document.getElementById("txul-code").value.trim()); send(fd); });
     document.getElementById("txul-lock").addEventListener("click", () => { const fd = new URLSearchParams(); fd.append("lock", "1"); send(fd); });
+});
+
+// ---- Internet weather: this browser downloads OpenWeatherMap / IQAir at the tracker position and sends it to /api/wxnet ----
+// Same fields as the "wxnet" command of the Android app (core/NetWeather.kt).
+let netWxTimer = null;
+function netWxNum(v) { return typeof v === "number" && isFinite(v) ? v : null; }
+function netWxR1(v) { return v === null ? null : Math.round(v * 10) / 10; }
+async function netWxGetJson(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    let j = null;
+    try { j = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error((j && (j.message || (j.data && j.data.message) || j.data)) || ("HTTP " + r.status));
+    return j;
+}
+async function netWxFetch(lat, lon, owmKey, iqKey) {
+    const c = v => v.toFixed(4), out = {}, errs = [];
+    let obs = 0;
+    if (owmKey) {
+        try {
+            const w = await netWxGetJson("https://api.openweathermap.org/data/2.5/weather?lat=" + c(lat) + "&lon=" + c(lon) + "&units=metric&appid=" + encodeURIComponent(owmKey));
+            const m = w.main || {}, wi = w.wind || {};
+            out.src = "OWM"; out.pl = (w.name || "").slice(0, 20);
+            out.t = netWxR1(netWxNum(m.temp)); out.h = netWxNum(m.humidity); out.p = netWxR1(netWxNum(m.sea_level) ?? netWxNum(m.pressure));
+            out.ws = netWxR1(netWxNum(wi.speed)); out.wd = netWxNum(wi.deg); out.wg = netWxR1(netWxNum(wi.gust));
+            out.cl = w.clouds ? netWxNum(w.clouds.all) : null;
+            out.r = netWxR1((w.rain && netWxNum(w.rain["1h"])) ?? (w.snow && netWxNum(w.snow["1h"])) ?? null);
+            out.ds = ((w.weather && w.weather[0] && w.weather[0].description) || "").slice(0, 20);
+            obs = netWxNum(w.dt) || 0;
+            try {
+                const a = await netWxGetJson("https://api.openweathermap.org/data/2.5/air_pollution?lat=" + c(lat) + "&lon=" + c(lon) + "&appid=" + encodeURIComponent(owmKey));
+                const l0 = (a.list || [])[0];
+                if (l0) { out.aq = l0.main ? netWxNum(l0.main.aqi) : null; const cp = l0.components || {}; out.pm25 = netWxR1(netWxNum(cp.pm2_5)); out.pm10 = netWxR1(netWxNum(cp.pm10)); }
+            } catch (e) { errs.push("OWM air: " + e.message); }
+        } catch (e) { errs.push("OpenWeatherMap: " + e.message); }
+    }
+    if (iqKey) {
+        try {
+            const j = await netWxGetJson("https://api.airvisual.com/v2/nearest_city?lat=" + c(lat) + "&lon=" + c(lon) + "&key=" + encodeURIComponent(iqKey));
+            if (j.status !== "success") throw new Error(j.data && j.data.message ? j.data.message : "error");
+            const cur = (j.data || {}).current || {}, p = cur.pollution || {}, w = cur.weather || {};
+            const pol = { p2: "PM2.5", p1: "PM10", o3: "O3", n2: "NO2", s2: "SO2", co: "CO" }[p.mainus] || (p.mainus || "");
+            if (out.src) { out.src = "OWM+IQAir"; }
+            else {
+                out.src = "IQAir"; out.pl = (j.data.city || "").slice(0, 20);
+                out.t = netWxNum(w.tp); out.h = netWxNum(w.hu); out.p = netWxNum(w.pr); out.ws = netWxR1(netWxNum(w.ws)); out.wd = netWxNum(w.wd);
+                const ts = Date.parse(w.ts || p.ts || ""); if (isFinite(ts)) obs = Math.floor(ts / 1000);
+            }
+            out.aqus = netWxNum(p.aqius); if (pol) out.mp = pol.slice(0, 6);
+        } catch (e) { errs.push("IQAir: " + e.message); }
+    }
+    if (!out.src) throw new Error(errs.join(" · ") || "no data");
+    if (obs > 0) out.age = Math.max(0, Math.floor(Date.now() / 1000) - obs);
+    Object.keys(out).forEach(k => { if (out[k] === null || out[k] === "") delete out[k]; });
+    return { data: out, errs };
+}
+function netWxShow(d) {
+    const el = document.getElementById("netWx.data");
+    if (!el) return;
+    if (!d || !d.src) { el.textContent = "The tracker has no internet weather now."; return; }
+    const parts = [];
+    if (d.t !== undefined) parts.push(d.t.toFixed(1) + " \u00b0C");
+    if (d.h !== undefined) parts.push(Math.round(d.h) + " %");
+    if (d.p !== undefined) parts.push(d.p.toFixed(1) + " hPa" + (d.d3 !== undefined ? " (" + (d.d3 > 0 ? "+" : "") + d.d3.toFixed(1) + " in 3 h)" : ""));
+    if (d.ws !== undefined) parts.push("wind " + Math.round(d.ws * 3.6) + " km/h" + (d.wd !== undefined ? " from " + d.wd + "\u00b0" : "") + (d.wg !== undefined ? ", gusts " + Math.round(d.wg * 3.6) : ""));
+    if (d.cl !== undefined) parts.push("clouds " + d.cl + " %");
+    if (d.r !== undefined) parts.push(d.r + " mm/h");
+    if (d.aqus !== undefined) parts.push("US AQI " + d.aqus + (d.mp ? " " + d.mp : ""));
+    else if (d.aq !== undefined) parts.push("AQI " + d.aq + "/5");
+    if (d.pm25 !== undefined) parts.push("PM2.5 " + Math.round(d.pm25));
+    el.innerHTML = "<strong>" + fwEsc(d.src) + (d.pl ? " &middot; " + fwEsc(d.pl) : "") + "</strong>"
+        + (d.age !== undefined ? " <span class='text-muted'>(" + Math.round(d.age / 60) + " min old)</span>" : "") + "<br>" + fwEsc(parts.join(" \u00b7 "))
+        + (d.fc ? "<br>Forecast on the tracker: <strong>" + fwEsc(d.fc) + "</strong>" : "");
+}
+async function netWxRefreshView() {
+    try { const d = await (await fetch("/api/wxnet?_t=" + Date.now())).json(); netWxShow(d); return d; } catch (e) { return null; }
+}
+async function netWxUpdate(manual) {
+    const st = document.getElementById("netWx.status");
+    const owm = document.getElementById("netWx.owmKey").value.trim(), iq = document.getElementById("netWx.iqairKey").value.trim();
+    if (!owm && !iq) { if (manual) st.textContent = "Enter an OpenWeatherMap and / or IQAir key."; return; }
+    const cur = await netWxRefreshView();
+    if (!cur || !isFinite(cur.lat) || !isFinite(cur.lon)) { st.textContent = "The tracker has no position yet (GPS)."; return; }
+    st.textContent = "Downloading\u2026";
+    try {
+        const r = await netWxFetch(cur.lat, cur.lon, owm, iq);
+        const body = new URLSearchParams(); body.set("d", JSON.stringify(r.data));
+        const s = await fetch("/api/wxnet", { method: "POST", body });
+        st.textContent = s.ok ? "Sent to the tracker " + new Date().toLocaleTimeString() + (r.errs.length ? " (" + r.errs.join(" \u00b7 ") + ")" : "") : "The tracker did not take it";
+        await netWxRefreshView();
+    } catch (e) {
+        st.textContent = (e instanceof TypeError ? "No internet from this browser (or blocked by it): " : "") + e.message;
+    }
+}
+function netWxSchedule() {
+    if (netWxTimer) { clearInterval(netWxTimer); netWxTimer = null; }
+    netWxRefreshView();
+    if (!document.getElementById("netWx.on").checked) return;
+    const min = Math.max(10, parseInt(document.getElementById("netWx.minutes").value, 10) || 15);
+    netWxUpdate(false);
+    netWxTimer = setInterval(() => netWxUpdate(false), min * 60000);
+}
+document.getElementById("netWx.update").addEventListener("click", () => netWxUpdate(true));
+document.getElementById("netWx.on").addEventListener("change", netWxSchedule);
+document.getElementById("netWx.show").addEventListener("change", e => {
+    ["netWx.owmKey", "netWx.iqairKey"].forEach(id => document.getElementById(id).type = e.target.checked ? "text" : "password");
 });

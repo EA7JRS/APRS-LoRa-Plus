@@ -137,7 +137,7 @@ namespace {
                 WiFi.begin(NMEA_WIFI_SSID, NMEA_WIFI_PASSWORD);
             } else {
                 WiFi.mode(WIFI_AP);
-                WiFi.softAP("LoRaTracker-NMEA", Config.wifiAP.password);
+                WiFi.softAP("APRSLoRa+tracker-NMEA", Config.wifiAP.password);
             }
             if (server == nullptr) server = new WiFiServer(NMEA_TCP_PORT);
             server->begin();

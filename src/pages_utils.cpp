@@ -1821,15 +1821,22 @@ namespace {
             if (d.windDeg >= 0) row(2, "Wind %.0fkm/h %s%s", d.windMs * 3.6f, cardinal16(d.windDeg), g);
             else                row(2, "Wind %.0fkm/h%s", d.windMs * 3.6f, g);
         }
+        char fc[20]; float d3 = NAN;
+        const bool haveFc = NET_WX::forecast(fc, sizeof(fc), &d3);   // pronostico con la presion de internet y su tendencia de 3 h
+        char sky[24] = "";
         if (d.hasClouds || d.hasRain) {
             char c[12] = "", r[12] = "";
             if (d.hasClouds) snprintf(c, sizeof(c), "Cloud %d%%", d.clouds);
             if (d.hasRain) snprintf(r, sizeof(r), " %.1fmm/h", d.rainMmH);
-            row(3, "%s%s", c, r);
-        } else if (d.desc[0]) row(3, "%.20s", d.desc);
+            snprintf(sky, sizeof(sky), "%s%s", c, r);
+        } else if (d.desc[0]) snprintf(sky, sizeof(sky), "%.20s", d.desc);
+        if (haveFc) row(3, "Fc %.16s%s", fc, d3 == d3 ? (d3 < -0.5f ? " v" : d3 > 0.5f ? " ^" : " =") : "");
+        else if (sky[0]) row(3, "%s", sky);
         if (d.aqiUs >= 0)      row(4, "AQI %d %s%s%s", d.aqiUs, NET_WX::usAqiName(d.aqiUs), d.pollutant[0] ? " " : "", d.pollutant);
         else if (d.aqiOwm > 0) row(4, "AQI %d/5 %s", d.aqiOwm, NET_WX::owmAqiName(d.aqiOwm));
+        else if (haveFc && sky[0]) row(4, "%s", sky);
         if (d.hasPm25)         row(5, "PM2.5 %.0f%s %s ago", d.pm25, d.hasPm10 ? (String(" PM10 ") + String(d.pm10, 0)).c_str() : "", age);
+        else if (haveFc && sky[0] && (d.aqiUs >= 0 || d.aqiOwm > 0)) row(5, "%.12s %s ago", sky, age);
         else                   row(5, "%s ago (internet)", age);
     }
 
@@ -1862,6 +1869,10 @@ namespace {
         int y = 20;
         if (r.hasPressure) {
             snprintf(line, sizeof(line), "%.1fhPa %s", r.pressureHpa, PressureTrend::trendShort(pressureTrend.trend()));
+        } else if (haveNet && nd.hasP) {                        // sin barometro: la presion de internet (marcada "N")
+            float nd3 = 0;
+            const bool t3 = NET_WX::delta3h(nd3);
+            snprintf(line, sizeof(line), "N %.1fhPa %s", nd.pressureHpa, PressureTrend::trendShort(t3 ? PressureTrend::classifyDelta(nd3) : TREND_UNKNOWN));
         } else {
             snprintf(line, sizeof(line), "--- (no barometer)");
         }
@@ -1877,23 +1888,31 @@ namespace {
             y += 9;
         }
 
-        // pronostico local: presion (a nivel del mar si se conoce), tendencia de 3 h, humedad y punto de rocio
-        if (!r.hasPressure) {
+        // pronostico local: presion (a nivel del mar si se conoce), tendencia de 3 h, humedad y punto de rocio. Lo que el tracker no
+        // mide lo pone el tiempo de internet: sin barometro, su presion y su tendencia (observaciones con hora); sin higrometro, su
+        // temperatura y su humedad (T y Td del mismo sitio, para que T-Td tenga sentido)
+        const bool netP = !r.hasPressure && haveNet && nd.hasP;
+        const bool netH = !r.hasHumidity && haveNet && nd.hasH && nd.hasT;
+        if (!r.hasPressure && !netP) {
             text(0, y, "Fcst: needs barometer");
             return;
         }
-        float pressure = r.pressureHpa;
+        float pressure = netP ? nd.pressureHpa : r.pressureHpa;
         #ifdef GPS_BARO_ALTITUDE
-            float reduced = BARO_Utils::reducedPressure(r.pressureHpa, r.tempC);
-            if (reduced > 800.0f && reduced < 1100.0f) pressure = reduced;
+            if (!netP) {
+                float reduced = BARO_Utils::reducedPressure(r.pressureHpa, r.tempC);
+                if (reduced > 800.0f && reduced < 1100.0f) pressure = reduced;
+            }
         #endif
         float delta = 0;
-        bool hasDelta = pressureTrend.delta3h(delta);
-        float dew = r.hasHumidity ? dewPointC(r.tempC, r.humidity) : 0.0f;
+        bool hasDelta = netP ? NET_WX::delta3h(delta) : pressureTrend.delta3h(delta);
+        const Trend tr = netP ? (hasDelta ? PressureTrend::classifyDelta(delta) : TREND_UNKNOWN) : pressureTrend.trend();
+        const float fT = netH ? nd.tempC : r.tempC;
+        const float fH = netH ? nd.humidity : (r.hasHumidity ? r.humidity : -1.0f);
+        float dew = fH >= 0 ? dewPointC(fT, fH) : 0.0f;
         char forecast[20];
-        forecastText(pressure, hasDelta, pressureTrend.trend(), r.tempC, r.hasHumidity ? r.humidity : -1.0f, dew, forecast, sizeof(forecast),
-                     hasDelta ? delta : NAN);
-        snprintf(line, sizeof(line), "Fcst: %s", forecast);
+        forecastText(pressure, hasDelta, tr, fT, fH, dew, forecast, sizeof(forecast), hasDelta ? delta : NAN);
+        snprintf(line, sizeof(line), (netP || netH) ? "Fc+N: %s" : "Fcst: %s", forecast);
         line[21] = '\0';
         text(0, y, line);
         y += 9;

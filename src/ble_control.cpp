@@ -430,6 +430,8 @@ namespace {
                 if (nd.aqiUs >= 0) j.num("aqus", nd.aqiUs);
                 if (nd.pollutant[0]) j.text("mp", nd.pollutant);
                 j.unum("age", NET_WX::ageS());
+                char fc[20]; float d3 = NAN;
+                if (NET_WX::forecast(fc, sizeof(fc), &d3)) { j.text("fc", fc); if (d3 == d3) j.flt("d3", d3, 1); }   // pronostico y tendencia 3 h
                 j.endObj();
             }
         }
@@ -1451,27 +1453,8 @@ namespace {
         }
         else if (strcmp(cmd, "wxnet") == 0) {                     // tiempo de internet (la app: OpenWeatherMap / IQAir) para la pagina TELEMETRY
             NET_WX::Data d;
-            memset(&d, 0, sizeof(d));
-            snprintf(d.src, sizeof(d.src), "%s", (const char*)(doc["src"] | "NET"));
-            snprintf(d.place, sizeof(d.place), "%s", (const char*)(doc["pl"] | ""));
-            snprintf(d.desc, sizeof(d.desc), "%s", (const char*)(doc["ds"] | ""));
-            snprintf(d.pollutant, sizeof(d.pollutant), "%s", (const char*)(doc["mp"] | ""));
-            if ((d.hasT = !doc["t"].isNull()))       d.tempC = doc["t"] | 0.0f;
-            if ((d.hasH = !doc["h"].isNull()))       d.humidity = doc["h"] | 0.0f;
-            if ((d.hasP = !doc["p"].isNull()))       d.pressureHpa = doc["p"] | 0.0f;
-            if ((d.hasWind = !doc["ws"].isNull()))   d.windMs = doc["ws"] | 0.0f;
-            if ((d.hasGust = !doc["wg"].isNull()))   d.gustMs = doc["wg"] | 0.0f;
-            if ((d.hasRain = !doc["r"].isNull()))    d.rainMmH = doc["r"] | 0.0f;
-            if ((d.hasPm25 = !doc["pm25"].isNull())) d.pm25 = doc["pm25"] | 0.0f;
-            if ((d.hasPm10 = !doc["pm10"].isNull())) d.pm10 = doc["pm10"] | 0.0f;
-            d.windDeg = doc["wd"].isNull() ? -1 : (int16_t)constrain((int)(doc["wd"] | 0), 0, 360);
-            d.hasClouds = !doc["cl"].isNull();
-            d.clouds = (int8_t)constrain((int)(doc["cl"] | 0), 0, 100);
-            d.aqiOwm = (int8_t)constrain((int)(doc["aq"] | 0), 0, 5);
-            d.aqiUs = doc["aqus"].isNull() ? -1 : (int16_t)constrain((int)(doc["aqus"] | 0), 0, 999);
-            d.ageAtRxS = (uint32_t)constrain((long)(doc["age"] | 0L), 0L, 86400L);
-            NET_WX::set(d);
-            if (d.hasP && d.ageAtRxS < 7200) BARO_Utils::setNetQnh(d.pressureHpa, millis() - d.ageAtRxS * 1000UL);   // QNH del altimetro sin GPS
+            if (!NET_WX::fromJson(doc, d)) { reply(cmd, id, "no data"); return; }
+            NET_WX::apply(d);
             reply(cmd, id);
         }
         else if (strcmp(cmd, "satfav") == 0) {                    // favorito: id = NORAD (si falta, el elegido), on = true / false
