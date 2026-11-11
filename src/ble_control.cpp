@@ -10,6 +10,11 @@
 #include <ArduinoJson.h>
 #include <TinyGPS++.h>
 #include <esp_attr.h>
+#include <esp_idf_version.h>
+#include <esp_ota_ops.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    #include <esp_app_desc.h>
+#endif
 #include <logger.h>
 #include "ble_control.h"
 #include "gnss_sky.h"
@@ -266,6 +271,16 @@ namespace {
         doc["v"]     = CONTROL_PROTOCOL;
         doc["fw"]    = versionNumber;
         doc["board"] = APRS_BOARD_ID;
+        {                                                           // huella del firmware (app_elf_sha256): la app la compara con la publicada
+            #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+                const esp_app_desc_t* d = esp_app_get_description();
+            #else
+                const esp_app_desc_t* d = esp_ota_get_app_description();
+            #endif
+            char hex[65];
+            for (int k = 0; k < 32; k++) snprintf(hex + 2 * k, 3, "%02x", d->app_elf_sha256[k]);
+            doc["elf"] = hex;
+        }
         if (lastResetReason[0]) {                                   // ultimo reinicio anormal (CRASH, WDT, LOW VOLTAGE...)
             doc["rst"] = lastResetReason;
             if (lastResetDetail[0]) doc["rstAt"] = lastResetDetail;   // modo y segundos en marcha

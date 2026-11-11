@@ -11,7 +11,7 @@
 #   index.html, latest.json
 #   firmware/<board>/{bootloader,partitions,boot_app0,firmware}.bin
 #   manifests/<board>.json      for <esp-web-install-button>
-#   ota/<board>.json            {"version","size","sha256","url","ota"}
+#   ota/<board>.json            {"version","size","sha256","elfSha","url","ota"}
 import argparse
 import hashlib
 import json
@@ -54,6 +54,17 @@ def sha256(path):
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def elf_sha256(path):
+    # app_elf_sha256 of esp_app_desc_t: the app description is the start of the first segment (image header 24 bytes + segment
+    # header 8 bytes = 0x20) and the ELF hash is at 0x90 inside it. The tracker reports the same 32 bytes (event info "elf"), so
+    # the app can tell an official build of this release from a custom one.
+    with open(path, "rb") as f:
+        head = f.read(0x20 + 0x90 + 32)
+    if len(head) < 0x20 + 0x90 + 32 or head[0] != 0xE9 or int.from_bytes(head[0x20:0x24], "little") != 0xABCD5432:
+        return None
+    return head[0x20 + 0x90:0x20 + 0x90 + 32].hex()
 
 
 def cmd_board(a):
@@ -100,6 +111,7 @@ def cmd_board(a):
         "version": version,
         "size": size,
         "sha256": sha256(fw),
+        "elfSha": elf_sha256(fw),
         "url": "firmware/%s/firmware.bin" % a.board,
         "ota": ota,
     }
