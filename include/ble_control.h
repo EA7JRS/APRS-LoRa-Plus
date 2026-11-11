@@ -15,10 +15,11 @@ class NimBLEServer;
 namespace BLE_Control {
 
     void setup(NimBLEServer* server);                   // crea el servicio (llamar desde BLE_Utils::setup, antes de anunciar)
-    void onConnect();
-    void onMtu(uint16_t mtu);                           // MTU negociado: tamano de los trozos de las notificaciones
-    void onDisconnect();
-    void onSecurity(bool authenticated);                // emparejamiento con PIN completado (cifrado + MITM); sin el no se emite nada al movil
+    // Varios equipos a la vez (EA7JRS): cada enlace lleva su identificador de conexion (movil con la app + plotter, p. ej.)
+    void onConnect(uint16_t connHandle);
+    void onMtu(uint16_t connHandle, uint16_t mtu);                           // MTU negociado: tamano de los trozos de las notificaciones
+    void onDisconnect(uint16_t connHandle);
+    void onSecurity(uint16_t connHandle, bool authenticated);                // emparejamiento con PIN completado (cifrado + MITM); sin el no se emite nada al movil
     bool authenticated();
     void loop();                                        // al final de cada vuelta del bucle principal: ordenes, envios periodicos, DAPNET
     void nmea(const char* text, size_t length);         // frase NMEA para el movil (solo si esta suscrito)

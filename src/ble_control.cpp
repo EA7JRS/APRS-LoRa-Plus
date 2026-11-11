@@ -130,8 +130,39 @@ namespace {
     uint32_t                eaiSent         = 0xFFFFFFFF;      // estado de SOS / EAI / hombre caido enviado a la app
     uint32_t                eaiSentMs       = 0;
     volatile bool           cwRxStop        = false;           // la app pide terminar la escucha CW
-    volatile bool           nmeaWanted      = false;
-    volatile uint16_t       mtu             = 23;
+    volatile bool           nmeaWanted      = false;           // algun enlace emparejado esta suscrito al NMEA
+    volatile uint16_t       mtu             = 23;              // el menor MTU de los enlaces emparejados (trozos de las notificaciones)
+
+    // Enlaces BLE simultaneos (EA7JRS): el movil con la app y, a la vez, otro equipo que solo escucha (el plotter).
+    // "connected" / "authed" / "nmeaWanted" / "mtu" de arriba resumen la tabla: asi el resto del fichero no cambia.
+    // Las notificaciones van enlace a enlace, solo a los emparejados con el PIN.
+    constexpr uint8_t       MAX_LINKS       = 2;
+    constexpr uint16_t      NO_LINK         = 0xFFFF;
+    struct Link { volatile uint16_t handle; volatile bool authed; volatile bool nmea; volatile uint16_t mtu; };
+    Link                    links[MAX_LINKS] = {{NO_LINK, false, false, 23}, {NO_LINK, false, false, 23}};
+    volatile uint16_t       ctrlHandle      = NO_LINK;         // el enlace que mando la ultima orden (la app): al irse el, se limpia lo suyo
+
+    Link* findLink(uint16_t handle) {
+        for (Link& l : links) if (l.handle == handle) return &l;
+        return nullptr;
+    }
+
+    void refreshLinks() {
+        bool any = false, anyAuthed = false, anyNmea = false;
+        uint16_t minMtu = 0;
+        for (Link& l : links) {
+            if (l.handle == NO_LINK) continue;
+            any = true;
+            if (!l.authed) continue;
+            anyAuthed = true;
+            if (l.nmea) anyNmea = true;
+            if (minMtu == 0 || l.mtu < minMtu) minMtu = l.mtu;
+        }
+        mtu        = minMtu ? minMtu : 23;
+        nmeaWanted = anyNmea;
+        authed     = anyAuthed;
+        connected  = any;
+    }
 
     // Montaje de lineas (solo en la tarea de NimBLE)
     char                    rxBuf[CONTROL_LINE_MAX];
@@ -163,8 +194,8 @@ namespace {
         const size_t chunk  = chunkSize();
         for (size_t i = 0; i < length; i += chunk) {
             const size_t n = (length - i < chunk) ? (length - i) : chunk;
-            evtChar->setValue(data + i, n);
-            evtChar->notify();
+            for (Link& l : links)                               // solo a los enlaces emparejados
+                if (l.handle != NO_LINK && l.authed) evtChar->notify(data + i, n, l.handle);
             if (i + chunk < length) delay(20);
         }
     }
@@ -1969,6 +2000,7 @@ namespace {
 
     class CommandCallbacks : public NimBLECharacteristicCallbacks {
         void onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) override {
+            ctrlHandle = connInfo.getConnHandle();              // quien manda ordenes es el que controla (la app)
             NimBLEAttValue value = characteristic->getValue();
             const uint8_t* data   = value.data();
             const size_t   length = value.length();                     // uint16_t: se copia a size_t (-Wsign-compare)
@@ -2007,7 +2039,9 @@ namespace {
 
     class NmeaCallbacks : public NimBLECharacteristicCallbacks {
         void onSubscribe(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo, uint16_t subValue) override {
-            nmeaWanted = subValue != 0;
+            Link* l = findLink(connInfo.getConnHandle());
+            if (l) l->nmea = subValue != 0;
+            refreshLinks();
         }
     };
 
@@ -2038,14 +2072,17 @@ namespace BLE_Control {
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE Ctrl", "Control service ready (protocol %d)", CONTROL_PROTOCOL);
     }
 
-    void onConnect() {
-        connected = true;
-        authed    = false;
-        mtu       = 23;
+    void onConnect(uint16_t connHandle) {
+        Link* l = findLink(connHandle);
+        if (!l) l = findLink(NO_LINK);                                  // hueco libre
+        if (l) { l->authed = false; l->nmea = false; l->mtu = 23; l->handle = connHandle; }
+        refreshLinks();
     }
 
-    void onSecurity(bool authenticated) {
-        authed = authenticated;
+    void onSecurity(uint16_t connHandle, bool authenticated) {
+        Link* l = findLink(connHandle);
+        if (l) l->authed = authenticated;
+        refreshLinks();
         ledSent = 0xFFFFFFFF;                                           // las luces y el EAI se mandan en la proxima vuelta
         eaiSent = 0xFFFFFFFF;
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE Ctrl", "Pairing %s", authenticated ? "OK" : "not authenticated");
@@ -2053,16 +2090,22 @@ namespace BLE_Control {
 
     bool authenticated() { return authed; }
 
-    void onMtu(uint16_t newMtu) {
-        mtu = newMtu;
+    void onMtu(uint16_t connHandle, uint16_t newMtu) {
+        Link* l = findLink(connHandle);
+        if (l) l->mtu = newMtu;
+        refreshLinks();
     }
 
-    void onDisconnect() {
-        connected      = false;
-        authed         = false;
+    void onDisconnect(uint16_t connHandle) {
+        Link* l = findLink(connHandle);
+        if (l) { l->handle = NO_LINK; l->authed = false; l->nmea = false; l->mtu = 23; }
+        refreshLinks();
+        // Lo que sigue es del enlace que mandaba (suscripciones, OTA, configuracion a medias): se limpia al irse ese
+        // o al quedarse sin nadie; si se va el que solo escuchaba, la app sigue como estaba
+        if (connected && connHandle != ctrlHandle) return;
+        ctrlHandle     = NO_LINK;
         if (otaActive) { FW_Update::bleAbort(); otaStop(); displayPopup("Firmware update", "Cancelled", "Link lost", -1, 1500); }
         keyDelay       = KEY_DELAY_DEFAULT_MS;
-        nmeaWanted     = false;
         sensorsEveryMs = 0;
         gnssEveryMs    = 0;
         skyEveryMs     = 0;
@@ -2122,8 +2165,8 @@ namespace BLE_Control {
         const size_t chunk = chunkSize();
         for (size_t i = 0; i < length; i += chunk) {
             const size_t n = (length - i < chunk) ? (length - i) : chunk;
-            nmeaChar->setValue((const uint8_t*)text + i, n);
-            nmeaChar->notify();
+            for (Link& l : links)                               // a cada enlace emparejado y suscrito al NMEA
+                if (l.handle != NO_LINK && l.authed && l.nmea) nmeaChar->notify((const uint8_t*)text + i, n, l.handle);
         }
     }
 

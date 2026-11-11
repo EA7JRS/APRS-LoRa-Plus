@@ -17,6 +17,20 @@ El servicio de control **exige un enlace cifrado y autenticado**: sin emparejar,
 - El servicio KISS no se toca: aprs.fi, APRSdroid y demás siguen sin PIN.
 - Es una clave fija de 6 cifras: protege de curiosos y de órdenes accidentales, no de un atacante que pueda escuchar el emparejamiento.
 
+## Dos equipos a la vez
+
+El tracker admite **dos conexiones BLE simultáneas**: el móvil con la app y, a la vez, otro equipo que solo escucha (por
+ejemplo el plotter APRS LoRa+, que se suscribe al NMEA). Con un equipo conectado el tracker sigue anunciándose hasta que
+entra el segundo.
+
+- Cada enlace se empareja por separado con el mismo PIN; los eventos y el NMEA se notifican solo a los enlaces emparejados
+  (y el NMEA, solo a los suscritos a su característica).
+- Las órdenes las puede mandar cualquiera de los dos, pero el montaje de líneas es único: **solo uno debe mandar órdenes**
+  (la app). Las suscripciones (`sub`), la actualización de firmware y la subida de configuración pertenecen al enlace que
+  mandó la última orden: se cancelan cuando ese enlace se va, no cuando se va el que solo escuchaba.
+- Los eventos llegan a los dos enlaces emparejados. Los trozos se cortan con el menor MTU de los dos.
+- El servicio KISS no cambia: sus tramas se notifican a quien esté suscrito a su característica.
+
 ## UUID
 
 | | UUID | Propiedades | Sentido |

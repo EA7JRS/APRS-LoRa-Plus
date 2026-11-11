@@ -67,16 +67,18 @@ static void queueForLoRa(const String& packet) {
 class MyServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {      // NimBLE-Arduino 2.x signature
         bluetoothConnected = true;
-        BLE_Control::onConnect();
+        BLE_Control::onConnect(connInfo.getConnHandle());
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE", "%s", "BLE Client Connected");
+        // Dos equipos a la vez (EA7JRS): con uno conectado se sigue anunciando para que entre el segundo (movil + plotter)
+        if (pServer->getConnectedCount() < 2 && !pServer->getAdvertising()->isAdvertising()) pServer->startAdvertising();
         #ifdef RPC_MicroTracker
             digitalWrite(13, LOW);    // Led BT/BLE
         #endif
     }
 
     void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
-        bluetoothConnected = false;
-        BLE_Control::onDisconnect();
+        bluetoothConnected = pServer->getConnectedCount() > 0;      // puede quedar el otro equipo
+        BLE_Control::onDisconnect(connInfo.getConnHandle());
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE", "%s", "BLE client Disconnected, Started Advertising");
         #ifdef RPC_MicroTracker
             digitalWrite(13, HIGH);    // Led BT/BLE
@@ -85,12 +87,12 @@ class MyServerCallbacks : public NimBLEServerCallbacks {
     }
 
     void onMTUChange(uint16_t MTU, NimBLEConnInfo& connInfo) override {
-        BLE_Control::onMtu(MTU);
+        BLE_Control::onMtu(connInfo.getConnHandle(), MTU);
     }
 
     // Emparejamiento con PIN (EA7JRS): solo el servicio de control lo exige; el KISS sigue abierto como siempre
     void onAuthenticationComplete(NimBLEConnInfo& connInfo) override {
-        BLE_Control::onSecurity(connInfo.isEncrypted() && connInfo.isAuthenticated());
+        BLE_Control::onSecurity(connInfo.getConnHandle(), connInfo.isEncrypted() && connInfo.isAuthenticated());
     }
 };
 
