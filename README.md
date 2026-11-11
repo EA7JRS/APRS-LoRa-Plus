@@ -1,6 +1,6 @@
 # APRS LoRa+
 
-[![release](https://img.shields.io/github/v/release/EA7JRS/APRS-LoRa-Plus?include_prereleases&color=red)](https://github.com/EA7JRS/APRS-LoRa-Plus/releases) [![build](https://github.com/EA7JRS/APRS-LoRa-Plus/actions/workflows/commit.yml/badge.svg)](https://github.com/EA7JRS/APRS-LoRa-Plus/actions/workflows/commit.yml) ![license](https://img.shields.io/badge/license-GPL--3.0-blue) ![platform](https://img.shields.io/badge/platform-ESP32%20%7C%20ESP32--S3%20%7C%20ESP32--C3-lightgrey)
+[![release](https://img.shields.io/github/v/release/EA7JRS/APRS-LoRa-Plus?include_prereleases&color=red)](https://github.com/EA7JRS/APRS-LoRa-Plus/releases) [![build](https://github.com/EA7JRS/APRS-LoRa-Plus/actions/workflows/commit.yml/badge.svg)](https://github.com/EA7JRS/APRS-LoRa-Plus/actions/workflows/commit.yml) ![license](https://img.shields.io/badge/license-GPL--3.0-blue) ![platform](https://img.shields.io/badge/platform-ESP32%20%7C%20ESP32--S3%20%7C%20ESP32--C3-lightgrey) [![Donate · PayPal.me](https://img.shields.io/badge/Donate-PayPal.me%2FEA7JRS-0070E0?logo=paypal&logoColor=white)](https://paypal.me/EA7JRS)
 
 **APRS LoRa+** es una ampliación del firmware [CA2RXU LoRa APRS Tracker/Station](https://github.com/richonguzman/LoRa_APRS_Tracker) de Ricardo Guzman (CA2RXU) para placas ESP32 con módulo LoRa y GPS. Desarrollado por **Manuel EA7JRS** ([@EA7JRS](https://github.com/EA7JRS)).
 

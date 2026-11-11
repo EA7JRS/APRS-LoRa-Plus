@@ -1,5 +1,8 @@
 # Changelog
 
+## Sin publicar
+- **Donativos:** botón *Donate · PayPal.me* (paypal.me/EA7JRS, logo de Simple Icons, CC0) en *About / Info* de la WebUI y en el instalador web; insignia en el README y botón *Sponsor* de GitHub (`.github/FUNDING.yml`).
+
 ## 5.4.1 — 2026-11-10
 - **Luces y alertas de emergencia para la app (control BLE):** evento `rf` al empezar y terminar cada emisión y con cada trama recibida (luces TX / RX de la app); evento `led` con el LED de mensajes, la alarma de emergencia sonando (estación, detalle, tipo: emergencia, MOB, socorro o colisión AIS; si llegó en mensaje o baliza; número que cambia con cada alarma nueva) y el flash; evento `eai` con la baliza SOS propia, la EAI remota (quién y cuánto queda), el EAI de voz de la T-TWR y el aviso de hombre caído. Órdenes `alarm` (callar la alarma) y `eai` (`stop`, `ok` = estoy bien, `start`).
 - **Nombres:** el Bluetooth y el punto de acceso WiFi de configuración del tracker se llaman **APRSLoRa+tracker** (antes LoRaTracker y LoRaTracker-AP; un nombre Bluetooth guardado como «LoRaTracker» pasa solo al nuevo). El punto de acceso de la salida NMEA, **APRSLoRa+tracker-NMEA**.
