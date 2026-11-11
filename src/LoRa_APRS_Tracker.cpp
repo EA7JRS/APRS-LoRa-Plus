@@ -35,7 +35,6 @@
                        Ricardo Guzman - CA2RXU
                         Manuel Canca - EA7JRS
           https://github.com/richonguzman/LoRa_APRS_Tracker
-             (donations : http://paypal.me/richonguzman)
 ____________________________________________________________________*/
 
 #include <BluetoothSerial.h>

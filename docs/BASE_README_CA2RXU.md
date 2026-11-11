@@ -13,12 +13,6 @@ __(NOTE: To use Tx/Rx capabilities of this tracker you should have also an Tx/Rx
 
 ____________________________________________________
 
-## You can support this project to continue to grow:
-
-[<img src="https://github.com/richonguzman/LoRa_APRS_Tracker/blob/main/images/github-sponsors.png">](https://github.com/sponsors/richonguzman)     [<img src="https://github.com/richonguzman/LoRa_APRS_Tracker/blob/main/images/paypalme.png">](http://paypal.me/richonguzman)
-
-<br />
-
 # WEB FLASHER/INSTALLER is <a href="https://richonguzman.github.io/lora-tracker-web-flasher/installer.html" target="_blank">here</a>
 
 ____________________________________________________
