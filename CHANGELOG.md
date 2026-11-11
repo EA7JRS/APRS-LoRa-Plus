@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **BLE con dos equipos a la vez:** el tracker admite dos conexiones BLE simultáneas (el móvil con la app y otro equipo que solo escucha el NMEA, como el plotter APRS LoRa+). Sigue anunciándose con un equipo conectado; el emparejamiento con PIN, el MTU y la suscripción al NMEA van por conexión, y los eventos y el NMEA solo se notifican a los enlaces emparejados (`docs/BLE_CONTROL.md`, «Dos equipos a la vez»). Solo uno debe mandar órdenes.
 - **Firmware oficial o modificado:** el evento `info` lleva la huella del firmware (`elf`, `app_elf_sha256`) y `ota/<placa>.json` la del publicado (`elfSha`, `tools/make_web_assets.py`); la app muestra **OFFICIAL** o **CUSTOM FIRMWARE** (solo informativo: solo se puede comprobar la versión publicada).
 - **Donativos:** botón *Donate · PayPal.me* (paypal.me/ea7jrs, logo de Simple Icons, CC0) en *About / Info* de la WebUI y en el instalador web; insignia en el README y botón *Sponsor* de GitHub (`.github/FUNDING.yml`).
 
