@@ -247,11 +247,11 @@ void SameDecoder::sample(float x) {
     phase_ += step_;
     if (phase_ >= 1.0f) {
         phase_ -= 1.0f;
-        bit(d > 0 ? 1 : 0);
+        onBit(d > 0 ? 1 : 0);
     }
 }
 
-void SameDecoder::bit(int b) {
+void SameDecoder::onBit(int b) {
     shift_ = (uint8_t)((shift_ >> 1) | (b ? 0x80 : 0));
     if (!synced_) {
         if (shift_ == 0xAB) {

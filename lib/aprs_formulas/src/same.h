@@ -53,7 +53,7 @@ public:
     uint32_t bursts() const { return burstCount_; }            // rafagas leidas (para el estado)
 private:
     void sample(float x);
-    void bit(int b);
+    void onBit(int b);
     void endBurst();
     void addBurst(const std::string& s);
     void emit(const std::string& s);
