@@ -108,7 +108,7 @@ public:
     int     timeout;
     bool    turn180;
     uint8_t theme       = 0;    // pantallas a color: 0 oscuro, 1 claro, 2 automatico (claro de dia, oscuro de noche; sol en la posicion del GPS)
-    uint8_t splash      = 1;    // bienvenida en la Heltec Wireless Tracker: 1 logo de la app a todo color (de serie), 0 logo de las OLED en color
+    uint8_t splash      = 1;    // bienvenida en las pantallas a color (Heltec Wireless Tracker, T-Deck): 1 logo de la app a todo color (de serie), 0 logo de las OLED en color
 };
 
 class Battery {

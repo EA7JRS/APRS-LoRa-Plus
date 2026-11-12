@@ -20,10 +20,8 @@
 #include "pages_utils.h"
 #include "gnss_sky.h"
 #include "logo_splash.h"
-#ifdef HELTEC_WIRELESS_TRACKER
-    #include "logo_splash_color.h"      // bienvenida a color de la Heltec Wireless Tracker
-#endif
 #ifdef HAS_TFT
+    #include "logo_splash_color.h"      // bienvenida a color (Heltec Wireless Tracker, T-Deck)
     #include "aprs_icons_color.h"       // iconos APRS a color (Heltec Wireless Tracker, T-Deck)
 #endif
 
@@ -5155,7 +5153,7 @@ namespace PAGES_Utils {
         int dash = bare.indexOf('-');
         if (dash > 0) bare = bare.substring(0, dash);
         if (pagesHasColor()) pagesSetLight(false);     // la bienvenida siempre sobre el fondo oscuro del logo (como la de la app)
-        #ifdef HELTEC_WIRELESS_TRACKER
+        #ifdef HAS_TFT
         if (Config.display.splash == 1) {               // logo de la app a todo color: pin a la izquierda, nombre a la derecha (Manuel - EA7JRS)
             pagesBegin();
             pagesZone(PZ_TOP);

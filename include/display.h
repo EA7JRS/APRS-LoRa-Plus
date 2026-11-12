@@ -40,8 +40,9 @@ void displayPopup(const String& title, const String& line1, const String& line2,
 
 #ifdef HAS_APRS_PAGES
     // Lienzo logico de las pantallas APRS, PAGES_W x PAGES_H. Cada placa lo lleva a su pantalla:
-    // OLED 128x64 tal cual; Heltec Wireless Tracker 160x80 entero (26 columnas); T-Deck (320x240) 128x64 ampliado x2.
-    #if defined(HELTEC_WIRELESS_TRACKER)
+    // OLED 128x64 tal cual; pantallas a color (HAS_TFT) 160x80 (26 columnas): la Heltec Wireless Tracker entera y la
+    // T-Deck (320x240) ampliado x2 y centrado en vertical.
+    #if defined(HAS_TFT)
         #define PAGES_W     160
         #define PAGES_H     80
     #else

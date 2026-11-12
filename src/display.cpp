@@ -645,11 +645,11 @@ void displayShow(const String& header, const String& line1, const String& line2,
 #ifdef HAS_APRS_PAGES
 // ---------- Lienzo de las pantallas APRS ----------
 #ifdef HAS_TFT
-    #if defined(TTGO_T_DECK_GPS) || defined(TTGO_T_DECK_PLUS)
+    #if defined(TTGO_T_DECK_GPS) || defined(TTGO_T_DECK_PLUS)    // 160x80 x2 = 320x160, centrado en los 240 px de alto (EA7JRS)
         #define PAGES_SCALE     2
-        #define PAGES_OFFSET_X  32
-        #define PAGES_OFFSET_Y  56
-        #define PAGES_BODY_DY   0
+        #define PAGES_OFFSET_X  0
+        #define PAGES_OFFSET_Y  ((240 - PAGES_H * 2) / 2)
+        #define PAGES_BODY_DY   ((PAGES_H - 64) / 2)
     #else   // Heltec Wireless Tracker: lienzo de 160x80 entero; el cuerpo de 64 filas, 8 px mas abajo (Manuel - EA7JRS)
         #define PAGES_SCALE     1
         #define PAGES_OFFSET_X  0
