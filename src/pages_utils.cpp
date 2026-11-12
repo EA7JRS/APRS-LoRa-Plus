@@ -1642,7 +1642,7 @@ namespace {
         for (uint8_t i = 0; i < n; i++) {
             const GNSS_Sky::Sat* p = GNSS_Sky::sat(i);
             if (!p) continue;
-            const char* k = strchr(SYS, p->sys);
+            const char* k = p->sys ? strchr(SYS, p->sys) : nullptr;
             const uint8_t idx = k ? (uint8_t)(k - SYS) : 6;
             seen[idx]++;
             total++;
@@ -2650,8 +2650,8 @@ namespace {
         }
         const float pct = BATTERY_Utils::percent();
         const float volts = BATTERY_Utils::cellVoltage() * BATTERY_CELLS;
-        #if defined(HAS_AXP192) || defined(HAS_AXP2101)
-            String pmuPct = POWER_Utils::getBatteryInfoCurrent();     // la PMU da su propio porcentaje
+        #ifdef HAS_AXP2101
+            String pmuPct = POWER_Utils::getBatteryInfoCurrent();     // la AXP2101 da su propio porcentaje (por ese nombre)
             pmuPct.trim();
             row(0, "%s%%  %.2f V", pmuPct.c_str(), volts);
         #else
@@ -2677,9 +2677,10 @@ namespace {
         else if (h >= 0 && st == BatteryModel::ST_CHARGING) row(4, "Full in ~%s", left);
         else if (have) row(4, "Trend %+.2f V/h", vph);
         else row(4, "Trend: measuring...");
-        #if defined(HAS_AXP192) || defined(HAS_AXP2101)
-            const char* chg = POWER_Utils::chargerState();
-            row(5, "I %.0fmA %s", POWER_Utils::getBatteryChargeDischargeCurrent(), chg[0] ? chg : "");
+        #if defined(HAS_AXP2101)
+            row(5, "Charger: %s", POWER_Utils::chargerState());       // la AXP2101 no mide la corriente de la bateria
+        #elif defined(HAS_AXP192)
+            row(5, "I %.0f mA", POWER_Utils::getBatteryChargeDischargeCurrent());
         #else
             if (Config.battery.saveBelow == 0) row(5, "Saving: off");
             else row(5, "Saving <%u%%: %s", (unsigned)Config.battery.saveBelow, BATTERY_Utils::saving() ? "ON" : "ready");

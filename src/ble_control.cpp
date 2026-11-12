@@ -509,8 +509,8 @@ namespace {
         const float vbus = POWER_Utils::getVbusVoltage();
         if (vbus > 0.0f) j.flt("vbus", vbus);
         j.flt("pmuTemp", POWER_Utils::getPmuTemperature(), 1);
-        #if defined(HAS_AXP192) || defined(HAS_AXP2101)
-            j.flt("battMa", POWER_Utils::getBatteryChargeDischargeCurrent(), 0);
+        #if defined(HAS_AXP192)
+            j.flt("battMa", POWER_Utils::getBatteryChargeDischargeCurrent(), 0);     // la AXP2101 no mide la corriente (esa funcion le da el %)
         #endif
         if (batteryConnected) {
             #ifdef HAS_AXP2101
