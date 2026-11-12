@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## 5.4.2 — 2026-11-12
 - **Instalador web, grupo Náutica:** lanzador nuevo *Náutica* con el **APRS LoRa+ Plotter** (plotter náutico para la Waveshare ESP32-S3-Touch-LCD-7B), junto a Tracker, Rotor, Gateway y Display; enlace directo `#nautica`. Las Pages recogen `web-site-plotter.zip` de la release con la misma etiqueta de `EA7JRS/APRS-LoRa-Plus-Plotter` (el secreto `FLASHER_TOKEN` debe poder leer ese repositorio). El grupo trae también el **instrumento de viento APRS LoRa+ Wind** (placa `waveshare_lcd4_wind`, Waveshare ESP32-S3-Touch-LCD-4): al detectarlo (`device=wind`) el instalador pasa al grupo Náutica.
 - **Firmware oficial o modificado:** el evento `info` lleva la huella del firmware (`elf`, `app_elf_sha256`) y `ota/<placa>.json` la del publicado (`elfSha`, `tools/make_web_assets.py`); la app muestra **OFFICIAL** o **CUSTOM FIRMWARE** (solo informativo: solo se puede comprobar la versión publicada).
 - **Donativos:** botón *Donate · PayPal.me* (paypal.me/ea7jrs, logo de Simple Icons, CC0) en *About / Info* de la WebUI y en el instalador web; insignia en el README y botón *Sponsor* de GitHub (`.github/FUNDING.yml`).
