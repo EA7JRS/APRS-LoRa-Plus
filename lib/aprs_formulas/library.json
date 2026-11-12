@@ -1,6 +1,6 @@
 {
     "name": "aprs_formulas",
-    "version": "5.4.2",
+    "version": "5.4.3",
     "description": "Formulas comunes de APRS LoRa+ (sol, luna, geodesia, viento, meteorologia): copia parcial de lib/plotter_core del plotter",
     "license": "GPL-3.0-or-later",
     "frameworks": "*",

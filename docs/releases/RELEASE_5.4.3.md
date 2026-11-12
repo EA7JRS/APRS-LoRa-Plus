@@ -1,7 +1,7 @@
-# APRS LoRa+ 5.4.2
+# APRS LoRa+ 5.4.3
 
 Tracker, app Android, rotor, Display, plotter náutico (con el instrumento de viento) y pasarela NMEA 2000 con el mismo
-número de versión. El gateway sigue en espera.
+número de versión. El gateway sigue en espera. La 5.4.2 no llegó a publicarse: todo lo preparado para ella va aquí.
 
 **Tracker**
 - **Hora:** manda el GPS; sin GPS, NTP con WiFi cliente (`ntp.roa.es`, hora oficial de España; de reserva `hora.roa.es`
@@ -15,7 +15,7 @@ número de versión. El gateway sigue en espera.
 - **Rotor con el sol y la luna** (fuentes 6 y 7: ruido solar, rebote lunar), **luna** en CLOCK (iluminada, salida y
   puesta) y fuerza **Beaufort** en TELEMETRY, con las fórmulas comunes del plotter (`lib/aprs_formulas`).
 
-**App Android** (versionCode 50402)
+**App Android** (versionCode 50403)
 - Meteorología APRS (posiciones con tiempo, informes sin posición), Mic-E con su estado, objetos e ítems, tramas de
   terceros; pantalla **WX** con las estaciones meteorológicas.
 - OFFICIAL / CUSTOM FIRMWARE en Firmware y Tracker.

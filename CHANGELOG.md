@@ -1,6 +1,8 @@
 # Changelog
 
-## 5.4.2 — 2026-11-12
+## 5.4.3 — 2026-11-12
+_La 5.4.2 no llegó a publicarse: todo lo preparado para ella sale en la 5.4.3._
+
 - **Rotor: el sol y la luna** como fuentes 6 y 7 (ruido solar, rebote lunar), también fuera del modo SAT: WebUI *Antenna rotor*, menú y orden BLE `tgt`. Sol y luna de Meeus (la luna topocéntrica, con el paralaje), refracción media; bajo el horizonte el rotor espera.
 - **CLOCK**: la línea del sol se alterna cada 4 s con la luna (iluminada, creciente o menguante, salida y puesta).
 - **TELEMETRY** (tiempo de internet): fuerza Beaufort junto al viento.
