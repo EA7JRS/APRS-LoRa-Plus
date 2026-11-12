@@ -1,6 +1,8 @@
 # Changelog
 
 ## Sin publicar
+- **Heltec Wireless Tracker:** configuración del GNSS UC6580 al encenderlo (todas las constelaciones y L1/L5, GSA y GSV para el cielo), reinicio por su pin de reset si deja de mandar datos 30 s, y en el apagado retiene `Vext`, el divisor de batería y la luz de la pantalla apagados.
+- **PPS (placas con `GPS_PPS`):** las ranuras de WSPR, FT8 y demás se alinean con el flanco del pulso por segundo (≈1 ms) en vez de con la llegada de la frase NMEA (`GPS_Utils::utcMsOfDay`).
 - **Heltec Wireless Tracker:** pines de aviso por defecto propios (los de otras placas eran la radio, el divisor de batería y el GNSS y quedaban sin asignar): LED de mensajes en el LED de la placa (GPIO 18), LED de emisión 17, linterna 16, zumbador 4 / 5; el GPIO 18 sale como «Board user LED» en la lista de pines. NavIC en el gráfico del cielo (UC6580). `docs/HELTEC_WIRELESS_TRACKER.md`.
 - **Identificador propio en APRS:** las tramas del tracker salen con destino `APZLRT` (rango experimental, `include/aprs_tocall.h`) en vez de `APLRT1`, el de CA2RXU, que hacía que aprs.fi lo mostrase como «Ricardo, CA2RXU · ESP32 LoRa Tracker». Se cambiará por el que asigne el registro de identificadores APRS (pedido `APLJR?`). La pantalla de estaciones oídas llama «APRS LoRa+» a `APZLR?` y `APLJR?`.
 

@@ -20,6 +20,14 @@ Placa `heltec_wireless_tracker` (instalador web y `heltec_wireless_tracker.zip` 
 
 **Banda:** la web de Heltec vende el modelo LF como «470–510 MHz», pero su hoja de datos (V1.1) lo da también para **EU433 (433,175–434,665 MHz)**, que es el de 70 cm y el que hay que usar en España (433,775 MHz). El perfil de 434,855 MHz queda un poco por encima de ese margen; el de 439,9125 MHz, bastante fuera (perderá potencia y sensibilidad). Potencia: 21 ± 1 dBm en todas las bandas.
 
+## Lo que hace el firmware con esta placa
+
+- **GNSS UC6580:** al encenderlo (al arrancar y al volver del modo eco) se configura sin bloquear el bucle: `$CFGSYS,h35155` (GPS L1+L5, BeiDou B1I+B2a, GLONASS, Galileo E1+E5a, SBAS y QZSS; reinicia el receptor), frases GSA y GSV activadas para el gráfico del cielo de la app y sin GLL ni los `$TXT` de avisos. No se guarda en el receptor: se repite cada vez que vuelve a tener alimentación. Las órdenes son las que usa Meshtastic para este módulo.
+- **Reset del GNSS (GPIO 35, activo a nivel bajo):** si el receptor encendido pasa 30 s sin mandar nada, se reinicia por su pin de reset (como mucho cada 2 min) y se vuelve a configurar. Con el GNSS apagado el pin queda en alta impedancia para no alimentarlo por ahí.
+- **PPS (GPIO 36):** el flanco del pulso por segundo marca el comienzo exacto del segundo UTC (≈1 ms) para las ranuras de WSPR, FT8 y demás. Solo se usa si llega a 1 Hz; sin fix (sin PPS) se usa, como antes, la hora de la frase NMEA y su antigüedad. Lo mismo vale para las demás placas con `GPS_PPS` (T-TWR Plus, T-Beam 1W).
+- **Potencia:** hasta 22 dBm (el máximo del SX1262), en el perfil LoRa de la WebUI.
+- **Apagado (reposo profundo):** se retienen `Vext` apagado (GNSS y pantalla), el divisor de batería desconectado y la luz de la pantalla apagada, para acercarse a los 15 µA de la hoja de datos; al arrancar se sueltan.
+
 No tiene PMU (AXP), así que no aparecen «PMU POWER OFF» ni el estado del cargador; la tensión de la batería se lee por el ADC.
 
 ## Versiones
@@ -33,4 +41,4 @@ De serie una resistencia lleva la señal a la antena de la placa. Para usar el c
 
 ## Sin probar
 
-Las pantallas TFT nuevas de APRS LoRa+ solo se comprobaron compilando; falta verlas en la placa.
+Todo lo anterior y las pantallas TFT nuevas de APRS LoRa+ solo se comprobaron compilando; falta verlo en la placa (sobre todo las órdenes del UC6580, el nivel del reset y el consumo en reposo).

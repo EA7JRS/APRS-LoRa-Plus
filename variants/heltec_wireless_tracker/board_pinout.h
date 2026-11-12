@@ -47,6 +47,8 @@
     #define GPS_PPS             36
     #define GPS_RESET           35
     #define GPS_BAUDRATE        115200
+    #define GNSS_UC6580             // Unicore UC6580: configuracion al encender (gps_utils.cpp) (EA7JRS)
+    #define GPS_RESET_ACTIVE    LOW // reset del GNSS activo a nivel bajo
 
     //  OTHER
     #define BUTTON_PIN          0

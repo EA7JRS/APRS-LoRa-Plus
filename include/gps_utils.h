@@ -55,6 +55,8 @@ namespace GPS_Utils {
 
     // Receptor GNSS: 0 sin respuesta o sin configurar, 1 u-blox (responde a UBX), 2 NMEA sin UBX (L76K u otro). Se fija al arrancar
     uint8_t gpsModule();
+    bool    utcMsOfDay(uint32_t& ms);           // milisegundos del dia UTC del GPS; con PPS a 1 Hz alineados con su flanco (~1 ms) (EA7JRS)
+    bool    ppsLocked();                        // llega el PPS del receptor a 1 Hz (placas con GPS_PPS)
     bool    gpsIsCasic();                       // true si el receptor es CASIC (Quectel L76K y compatibles, ordenes $PCAS)
     uint8_t antennaStatus();                    // L76K: 0 desconocido, 1 OK, 2 abierta (sin antena), 3 cortocircuito
     void    reapplyAfterWake();                 // L76K: reconfigura el receptor tras volver a alimentarlo (modo eco)

@@ -17,6 +17,8 @@
  */
 
 #include <SPI.h>
+#include <driver/gpio.h>
+#include <soc/soc_caps.h>
 #include "notification_utils.h"
 #include "configuration.h"
 #include "battery_utils.h"
@@ -274,6 +276,10 @@ namespace POWER_Utils {
         #ifdef HELTEC_WIRELESS_TRACKER
             vext_ctrl_ON();
         #endif
+        #ifdef GPS_RESET
+            pinMode(GPS_RESET, OUTPUT);                 // fuera de reset (en reposo se deja en alta impedancia)
+            digitalWrite(GPS_RESET, GPS_RESET_ACTIVE == LOW ? HIGH : LOW);
+        #endif
         gpsIsActive = true;
     }
 
@@ -291,6 +297,9 @@ namespace POWER_Utils {
         #endif
         #ifdef HELTEC_WIRELESS_TRACKER
             vext_ctrl_OFF();
+        #endif
+        #ifdef GPS_RESET
+            pinMode(GPS_RESET, INPUT);                  // sin Vext: no alimentar el receptor por su pin de reset
         #endif
         gpsIsActive = false;
     }
@@ -574,6 +583,20 @@ namespace POWER_Utils {
             pinMode(BATTERY_PIN, INPUT);
         #endif
 
+        // Al salir del reposo profundo los pines siguen retenidos (shutdown): se sueltan antes de usarlos (EA7JRS)
+        #ifdef BOARD_BL_PIN
+            gpio_hold_dis((gpio_num_t)BOARD_BL_PIN);
+        #endif
+        #ifdef VEXT_CTRL
+            gpio_hold_dis((gpio_num_t)VEXT_CTRL);
+        #endif
+        #ifdef ADC_CTRL
+            gpio_hold_dis((gpio_num_t)ADC_CTRL);
+        #endif
+        #if (defined(BOARD_BL_PIN) || defined(VEXT_CTRL) || defined(ADC_CTRL)) && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+            gpio_deep_sleep_hold_dis();
+        #endif
+
         #ifdef VEXT_CTRL
             pinMode(VEXT_CTRL, OUTPUT);
             vext_ctrl_ON();
@@ -645,6 +668,25 @@ namespace POWER_Utils {
             #endif
 
             LoRa_Utils::sleepRadio();
+
+            // En reposo profundo los pines quedan sueltos: se fijan Vext, el divisor de bateria y la luz de la pantalla apagados
+            // para no gastar en el GNSS, la pantalla ni el divisor (Heltec Wireless Tracker: 15 uA con bateria) (EA7JRS)
+            #ifdef BOARD_BL_PIN
+                digitalWrite(BOARD_BL_PIN, LOW);
+                gpio_hold_en((gpio_num_t)BOARD_BL_PIN);
+            #endif
+            #ifdef VEXT_CTRL
+                gpio_hold_en((gpio_num_t)VEXT_CTRL);
+            #endif
+            #ifdef ADC_CTRL
+                gpio_hold_en((gpio_num_t)ADC_CTRL);
+            #endif
+            #ifdef GPS_RESET
+                pinMode(GPS_RESET, INPUT);
+            #endif
+            #if (defined(BOARD_BL_PIN) || defined(VEXT_CTRL) || defined(ADC_CTRL)) && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+                gpio_deep_sleep_hold_en();
+            #endif
 
             long DEEP_SLEEP_TIME_SEC = 1296000; // 15 days
             esp_sleep_enable_timer_wakeup(1000000ULL * DEEP_SLEEP_TIME_SEC);

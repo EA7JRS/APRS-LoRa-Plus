@@ -195,6 +195,100 @@ namespace GPS_Utils {
         return 0;
     }
 
+    // ---- PPS, Unicore UC6580 y reset del receptor (Heltec Wireless Tracker y placas con GPS_PPS / GPS_RESET) (EA7JRS) ----------------
+    #ifdef GPS_PPS
+        // Flanco de subida del PPS = comienzo exacto del segundo UTC. Solo se usa si llega a 1 Hz (intervalo de 950 a 1050 ms)
+        static volatile uint32_t ppsMs = 0, ppsPeriodMs = 0;
+        static void IRAM_ATTR onPps() {
+            const uint32_t t = millis();
+            ppsPeriodMs = t - ppsMs;
+            ppsMs = t;
+        }
+    #endif
+
+    bool ppsLocked() {
+        #ifdef GPS_PPS
+            const uint32_t p = ppsMs, per = ppsPeriodMs;
+            return p != 0 && millis() - p < 1100 && per >= 950 && per <= 1050;
+        #else
+            return false;
+        #endif
+    }
+
+    // Milisegundos del dia UTC. Con PPS el segundo empieza en su flanco (precision ~1 ms); sin el, la hora de la frase NMEA mas su
+    // antiguedad (llega decenas o cientos de ms tarde por la UART)
+    bool utcMsOfDay(uint32_t& ms) {
+        if (!gpsIsActive || !gps.time.isValid() || gps.time.age() > 10000) return false;
+        if (gps.date.isValid() && gps.date.year() < 2024) return false;          // fecha absurda (arranque en frio)
+        const uint32_t now = millis();
+        uint32_t sec = (uint32_t)gps.time.hour() * 3600UL + (uint32_t)gps.time.minute() * 60UL + gps.time.second();
+        #ifdef GPS_PPS
+            if (ppsLocked() && gps.time.age() < 1500 && gps.time.centisecond() == 0) {
+                const uint32_t p = ppsMs, rx = now - gps.time.age();
+                if ((int32_t)(p - rx) > 0) sec += 1;                                    // llego otro flanco despues de la frase: ya es el segundo siguiente
+                ms = (sec * 1000UL + (now - p)) % 86400000UL;
+                return true;
+            }
+        #endif
+        ms = (sec * 1000UL + gps.time.centisecond() * 10UL + gps.time.age()) % 86400000UL;
+        return true;
+    }
+
+    #ifdef GNSS_UC6580
+        // Unicore UC6580: GPS L1+L5, BeiDou B1I+B2a, GLONASS, Galileo E1+E5a, SBAS y QZSS ($CFGSYS,h35155, como Meshtastic; reinicia el
+        // receptor), frases GSA y GSV para el grafico del cielo, sin GLL ni los $TXT de avisos. No se guarda ($CFGSAVE): se repite al
+        // encender el receptor, sin bloquear el bucle
+        static uint8_t  ucStep = 0;
+        static uint32_t ucAt   = 0;
+        static void ucStart(uint32_t delayMs) { ucStep = 1; ucAt = millis() + delayMs; }
+        static void ucPump() {
+            static const char* const cmds[] = { "$CFGSYS,h35155", "$CFGMSG,0,1,0", "$CFGMSG,0,2,1", "$CFGMSG,0,3,1", "$CFGMSG,6,0,0", "$CFGMSG,6,1,0" };
+            if (ucStep == 0 || (int32_t)(millis() - ucAt) < 0) return;
+            const uint8_t i = ucStep - 1;
+            if (i >= sizeof(cmds) / sizeof(cmds[0])) {
+                ucStep = 0;
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "GPS", "UC6580: GPS+BDS+GLO+GAL+SBAS+QZSS (L1/L5), GSA y GSV");
+                return;
+            }
+            gpsSerial.print(cmds[i]);
+            gpsSerial.print("\r\n");
+            ucStep++;
+            ucAt = millis() + (i == 0 ? 800 : 150);                 // CFGSYS reinicia el receptor
+        }
+    #endif
+
+    #ifdef GPS_RESET
+        #ifndef GPS_RESET_ACTIVE
+            #define GPS_RESET_ACTIVE LOW
+        #endif
+        // Si el receptor encendido deja de mandar datos 30 s, se reinicia por su pin de reset (como mucho cada 2 min)
+        static uint32_t lastGpsByteMs = 0, lastGpsResetMs = 0;
+        static void gnssWatchdog(bool gotBytes) {
+            const uint32_t now = millis();
+            if (gotBytes || !gpsIsActive || lastGpsByteMs == 0) { lastGpsByteMs = now; return; }
+            if (now - lastGpsByteMs < 30000 || (lastGpsResetMs != 0 && now - lastGpsResetMs < 120000)) return;
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "GPS", "Sin datos del GNSS en 30 s: reinicio por el pin %d", GPS_RESET);
+            pinMode(GPS_RESET, OUTPUT);
+            digitalWrite(GPS_RESET, GPS_RESET_ACTIVE);
+            delay(20);
+            digitalWrite(GPS_RESET, !GPS_RESET_ACTIVE);
+            lastGpsResetMs = lastGpsByteMs = now;
+            #ifdef GNSS_UC6580
+                ucStart(1500);
+            #endif
+        }
+    #endif
+
+    // El receptor acaba de volver a tener alimentacion (modo eco): el UC6580 vuelve a sus valores y no hay que reiniciarlo mientras arranca
+    static void receiverPoweredOn() {
+        #ifdef GNSS_UC6580
+            ucStart(1000);
+        #endif
+        #ifdef GPS_RESET
+            lastGpsByteMs = millis();
+        #endif
+    }
+
     #ifdef GPS_CONFIG_CONSTELLATIONS
     struct UbxKeyValue {
         uint32_t    key;
@@ -488,6 +582,7 @@ namespace GPS_Utils {
 
     // Tras reactivar la alimentacion del receptor (modo eco) el L76K arranca con sus valores de fabrica: se vuelve a configurar
     void reapplyAfterWake() {
+        receiverPoweredOn();
         if (gpsModuleType != 2) return;
         const uint32_t baud = detectBaudRate();
         if (baud != 0) configureL76K(baud);
@@ -596,7 +691,7 @@ namespace GPS_Utils {
 
     #ifndef GPS_CONFIG_CONSTELLATIONS
     uint8_t antennaStatus() { return 0; }
-    void    reapplyAfterWake() {}
+    void    reapplyAfterWake() { receiverPoweredOn(); }
     #endif
 
     bool gpsConfigurable() {
@@ -648,6 +743,17 @@ namespace GPS_Utils {
             gpsSerial.setRxBufferSize(GPS_RX_BUFFER);
             gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_TX, GPS_RX);
         }
+        #ifdef GPS_RESET
+            pinMode(GPS_RESET, OUTPUT);
+            digitalWrite(GPS_RESET, !GPS_RESET_ACTIVE);             // fuera de reset
+        #endif
+        #ifdef GPS_PPS
+            pinMode(GPS_PPS, INPUT);
+            attachInterrupt(digitalPinToInterrupt(GPS_PPS), onPps, RISING);
+        #endif
+        #ifdef GNSS_UC6580
+            if (detectedBaud != 0) ucStart(200);
+        #endif
         #ifdef GPS_CONFIG_CONSTELLATIONS
             gpsSatsInView.begin(gps, "GPGSV", 3);
             galileoSatsInView.begin(gps, "GAGSV", 3);
@@ -668,7 +774,16 @@ namespace GPS_Utils {
 
     void getData() {
         if (disableGPS) return;
-        while (gpsSerial.available() > 0) { const char c = gpsSerial.read(); gps.encode(c); GNSS_Sky::feed(c); }   // GNSS_Sky: cielo para la app (EA7JRS)
+        bool gotBytes = false;
+        while (gpsSerial.available() > 0) { const char c = gpsSerial.read(); gps.encode(c); GNSS_Sky::feed(c); gotBytes = true; }   // GNSS_Sky: cielo para la app (EA7JRS)
+        #ifdef GPS_RESET
+            gnssWatchdog(gotBytes);
+        #else
+            (void)gotBytes;
+        #endif
+        #ifdef GNSS_UC6580
+            ucPump();
+        #endif
         if (gps.speed.isUpdated()) updateSpeedFilter();
         #ifdef GPS_CONFIG_CONSTELLATIONS
             if (gpsModuleType == 2) updateAntennaStatus();

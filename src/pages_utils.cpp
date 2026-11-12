@@ -3726,13 +3726,7 @@ namespace PAGES_Utils {
 
     // Milisegundos del dia UTC segun el GPS (hora de la ultima sentencia mas su antiguedad). Sin hora GPS valida no se emite:
     // el reloj del sistema solo tiene resolucion de 1 s y puede derivar.
-    bool wsprMsOfDay(uint32_t& ms) {
-        if (!gpsIsActive || !gps.time.isValid() || gps.time.age() > 10000) return false;
-        if (gps.date.isValid() && gps.date.year() < 2024) return false;      // fecha absurda (arranque en frio)
-        ms = ((uint32_t)gps.time.hour() * 3600UL + (uint32_t)gps.time.minute() * 60UL + gps.time.second()) * 1000UL + gps.time.centisecond() * 10UL + gps.time.age();
-        ms %= 86400000UL;
-        return true;
-    }
+    bool wsprMsOfDay(uint32_t& ms) { return GPS_Utils::utcMsOfDay(ms); }   // con PPS, alineado con su flanco
 
     uint16_t wsprInterval() {                       // intervalos que dividen el dia en ciclos exactos (720 ranuras de 2 min)
         static const uint16_t allowed[] = { 2, 4, 6, 8, 10, 12, 20, 30, 60 };
