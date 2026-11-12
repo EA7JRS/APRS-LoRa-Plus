@@ -2,7 +2,7 @@
 
 **Placa de referencia:** LilyGO T-Beam S3 Supreme (ESP32-S3, SX1262, GPS u-blox M10, pantalla OLED 128×64)
 **Base:** LoRa APRS Tracker V4.0.1 de CA2RXU, con las mejoras para T-Beam S3 Supreme y la interfaz de pantallas APRS de EA7JRS.
-**Novedades de la 5.4.2:** la app distingue el firmware oficial de uno modificado (huella `elf` en el evento `info`), botón de donativo en *About* de la WebUI y grupo **Náutica** del instalador web (plotter e instrumento de viento). **De la 5.4.1:** apartado 37. **De la 5.4.0:** apartado 36. **De la 5.3.4 y la 5.3.5:** apartados 34 y 35. **Novedades de la 5.2.1:** LAST APRS muestra el icono del símbolo APRS de la estación; ALTIMETER marca velocidad vertical 0 con el tracker parado. **De la 5.2.0:** modo **WSPR beacon** (capítulo 22). **De la 5.1.0:** selector de modo al arrancar (APRS LoRa / APRS FSK 9600 / MORSE), FSK 9600 AX.25 G3RUH, plan de bandas IARU en la WebUI y modo MORSE con macros, manipulador, escucha CW y trainer (capítulos 19 a 21).
+**Novedades de la 5.4.2:** hora por NTP (`ntp.roa.es`) cuando no hay GPS (apartado 12), la app distingue el firmware oficial de uno modificado (huella `elf` en el evento `info`), botón de donativo en *About* de la WebUI y grupo **Náutica** del instalador web (plotter e instrumento de viento). **De la 5.4.1:** apartado 37. **De la 5.4.0:** apartado 36. **De la 5.3.4 y la 5.3.5:** apartados 34 y 35. **Novedades de la 5.2.1:** LAST APRS muestra el icono del símbolo APRS de la estación; ALTIMETER marca velocidad vertical 0 con el tracker parado. **De la 5.2.0:** modo **WSPR beacon** (capítulo 22). **De la 5.1.0:** selector de modo al arrancar (APRS LoRa / APRS FSK 9600 / MORSE), FSK 9600 AX.25 G3RUH, plan de bandas IARU en la WebUI y modo MORSE con macros, manipulador, escucha CW y trainer (capítulos 19 a 21).
 **Documentos relacionados:** `GUIA_RAPIDA.md` (una página), `releases/RELEASE_5.1.0.md` (novedades y cambios), `APRS_PANTALLAS_TRACKER.md` (notas técnicas y estado de pruebas).
 
 > Las imágenes de este manual son **capturas simuladas** (se dibujan en un simulador de 128×64 con el mismo código de las pantallas, no son fotos de la placa real).
@@ -231,7 +231,9 @@ Página de sensores (necesita **Telemetry** activada en la web de configuración
 
 Hora local grande, segundos, fecha con día de la semana, línea de **UTC y zona** (`UTC 00:30  CEST +2`) y **orto y ocaso** con la duración del día (`Sun 08:37-19:39 11h02`, calculado con el método NOAA a partir de tu posición).
 
-La cabecera indica la fuente de hora: `GPS`, `RTC` (con la antigüedad de la última sincronización) o `SYS`. Sin hora válida aparece `NO TIME`.
+La cabecera indica la fuente de hora: `GPS`, `NTP`, `DAPNET`, `RTC` (con la antigüedad de la última sincronización) o `SYS`. Sin hora válida aparece `NO TIME`.
+
+**De dónde sale la hora (5.4.2)**, con las mismas reglas que el resto de equipos APRS LoRa+: manda el **GPS**; sin GPS, **NTP** en cuanto el tracker tiene WiFi como cliente (KISS por TCP, salida NMEA por TCP, rotor por la red): `ntp.roa.es`, la hora oficial de España (Real Instituto y Observatorio de la Armada), con `hora.roa.es` y `pool.ntp.org` de reserva; después el **RTC** (T-Beam Supreme, que se pone al día con el GPS y con NTP) y la hora de **DAPNET**. El evento BLE `info` lo dice en `clk` (`src`, `age`, `ntp`).
 
 **Submenú:**
 - **Zone** — segundo nivel: *auto EU* (CET/CEST con cambio horario europeo automático), *UTC* o manual (±0,5 h).
