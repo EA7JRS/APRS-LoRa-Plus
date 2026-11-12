@@ -755,6 +755,21 @@ void displayShow(const String& header, const String& line1, const String& line2,
         }
     }
 
+    void pagesIcon4(int x, int y, int size, const uint16_t* colors, const uint8_t* alphas, const uint8_t* pixels, bool onInk) {
+        const uint16_t under = onInk ? pagesInkColor : pagesPal->bg;
+        for (int j = 0; j < size; j++) {
+            for (int i = 0; i < size; i++) {
+                const int k = j * size + i;
+                const uint8_t b = pixels[k >> 1];
+                const uint8_t v = (k & 1) ? (b & 0x0F) : (b >> 4);
+                if (!v) continue;
+                const uint8_t a = alphas[v - 1];
+                const uint16_t c = a >= 250 ? colors[v - 1] : sprite.alphaBlend(a, colors[v - 1], under);
+                sprite.fillRect(PAGES_X(x + i), PAGES_Y(y + j), PAGES_SCALE, PAGES_SCALE, c);
+            }
+        }
+    }
+
     void pagesText(int x, int y, const char* text, uint8_t size, bool inverted) {
         sprite.setTextFont(0);
         sprite.setTextSize(size * PAGES_SCALE);
@@ -768,6 +783,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
     void pagesInk(uint8_t) {}
     void pagesZone(uint8_t) {}
     void pagesImage565(int, int, int, int, const uint16_t*) {}
+    void pagesIcon4(int, int, int, const uint16_t*, const uint8_t*, const uint8_t*, bool) {}
 
     void pagesBegin() {
         display.clearDisplay();

@@ -23,6 +23,9 @@
 #ifdef HELTEC_WIRELESS_TRACKER
     #include "logo_splash_color.h"      // bienvenida a color de la Heltec Wireless Tracker
 #endif
+#ifdef HAS_TFT
+    #include "aprs_icons_color.h"       // iconos APRS a color (Heltec Wireless Tracker, T-Deck)
+#endif
 
 #ifdef HAS_APRS_PAGES
 
@@ -1188,6 +1191,23 @@ namespace {
     // Icono APRS de 24x24 (tabla primaria o secundaria); con superposicion, la letra o el digito va en el centro
     bool drawAprsIcon(int x, int y, char symbol, char table) {
         if (symbol < APRS_ICON_FIRST || symbol >= APRS_ICON_FIRST + APRS_ICON_COUNT) return false;
+        #ifdef HAS_TFT
+            {   // a color, como en la app y en aprs.fi; superposicion (letra o digito) con su propio dibujo (Manuel - EA7JRS)
+                const AprsIconColor24& ic = (table == '/' ? APRS_COLOR24_PRIMARY : APRS_COLOR24_SECONDARY)[symbol - APRS_ICON_FIRST];
+                pagesIcon4(x, y, 24, ic.c, ic.a, ic.px, false);
+                if (table != '/' && table != '\\') {
+                    const char* o = strchr(APRS_COLOR_OVERLAYS, table);
+                    if (o && table) {
+                        const AprsIconColor24& ov = APRS_COLOR24_OVERLAY[o - APRS_COLOR_OVERLAYS];
+                        pagesIcon4(x, y, 24, ov.c, ov.a, ov.px, false);
+                    } else {
+                        char t[2] = { table, '\0' };
+                        pagesText(x + 9, y + 8, t, 1, false);
+                    }
+                }
+                return true;
+            }
+        #endif
         const uint8_t* bits = (table == '/' ? APRS_ICONS_PRIMARY : APRS_ICONS_SECONDARY)[symbol - APRS_ICON_FIRST];
         for (int row = 0; row < APRS_ICON_SIZE; row++) {
             uint32_t v = ((uint32_t)bits[row * 3] << 16) | ((uint32_t)bits[row * 3 + 1] << 8) | bits[row * 3 + 2];
@@ -1346,11 +1366,24 @@ namespace {
             char distance[10] = "---", age[8], line[28];
             if (s->hasPosition && haveMe) fmtDist(distanceKm(myLat, myLon, s->lat, s->lon), distance, sizeof(distance));
             formatAge(millis() - s->lastMs, age, sizeof(age));
-            snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, age);
             int y = ROW_Y0 + i * ROW_PITCH;
             bool selected = listBrowse && top + i == listCursor;
             if (selected) { pagesInk(INK_SEL); pagesFillRect(0, y - 1, PW, 9, true); }
-            pagesText(0, y, line, 1, selected);
+            bool iconDrawn = false;
+            #ifdef HAS_TFT
+                // pantalla a color y ancha (Heltec): el icono APRS pequeno en lugar de la letra del tipo (EA7JRS)
+                if (XR >= 16 && s->symbol >= APRS_ICON_FIRST && s->symbol < APRS_ICON_FIRST + APRS_ICON_COUNT) {
+                    const AprsIconColor8& ic = (s->table == '/' ? APRS_COLOR8_PRIMARY : APRS_COLOR8_SECONDARY)[s->symbol - APRS_ICON_FIRST];
+                    pagesIcon4(0, y - 1, 8, ic.c, ic.a, ic.px, selected);
+                    snprintf(line, sizeof(line), "%-9.9s%7s%5s", s->call, distance, age);
+                    pagesText(11, y, line, 1, selected);
+                    iconDrawn = true;
+                }
+            #endif
+            if (!iconDrawn) {
+                snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, age);
+                pagesText(0, y, line, 1, selected);
+            }
             pagesInk(INK_TEXT);
         }
         char line[28];

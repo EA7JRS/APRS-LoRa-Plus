@@ -29,6 +29,7 @@ Placa `heltec_wireless_tracker` (instalador web y `heltec_wireless_tracker.zip` 
 - **Apagado (reposo profundo):** se retienen `Vext` apagado (GNSS y pantalla), el divisor de batería desconectado y la luz de la pantalla apagada, para acercarse a los 15 µA de la hoja de datos; al arrancar se sueltan.
 
 - **Pantalla a color:** las páginas ocupan los 160 × 80 píxeles (26 columnas) con los colores de la app; tema oscuro, claro o automático (por el sol en la posición del GPS) en la WebUI (*Display > Colour theme*) o en SYSTEM > *Theme*. La bienvenida lleva el logo de la app a todo color (o el pequeño de las OLED, *Welcome screen*).
+- **Iconos APRS a color:** en LAST el de la estación (24 px) y en STATIONS uno pequeño delante de cada indicativo.
 - **GPS > GNSS:** satélites por constelación y por banda (L1 / L5: el UC6580 manda el identificador de señal de NMEA 4.10+), PPS, PDOP, error y el cielo.
 
 No tiene PMU (AXP), así que no aparecen «PMU POWER OFF» ni el estado del cargador; la tensión de la batería se lee por el ADC. SYSTEM > BATTERY deduce si carga (sube), está llena o en USB (arriba y quieta) o se descarga (baja) por la tendencia de la última media hora, y estima el tiempo que queda; con poca batería (*Automatic power saving below*, 15 %) la pantalla se apaga sola.

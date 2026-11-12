@@ -68,6 +68,9 @@ void displayPopup(const String& title, const String& line1, const String& line2,
     void    pagesBitmap2(int x, int y, int w, int h, const uint8_t* data);        // 2 bits por pixel (0 fondo, 1..3 capas); en color cada capa con su color
     void    pagesText(int x, int y, const char* text, uint8_t size, bool inverted);   // fuente 6x8 por tamano; inverted = fondo sobre la tinta
     void    pagesImage565(int x, int y, int w, int h, const uint16_t* data);     // imagen RGB565 (solo pantallas a color)
+    // Icono de paleta (hasta 15 colores RGB565 con opacidad; pixel 0 = transparente; 4 bits por pixel, el izquierdo en los bits
+    // altos), fundido con el fondo o, con onInk, con el color de la tinta en uso (filas seleccionadas). Solo pantallas a color.
+    void    pagesIcon4(int x, int y, int size, const uint16_t* colors, const uint8_t* alphas, const uint8_t* pixels, bool onInk);
 #endif
 
 void startupScreen(uint8_t index, const String& version, const String& callsign = "");
