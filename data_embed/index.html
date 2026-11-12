@@ -1785,6 +1785,18 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                         </div>
                                     </div>
                                 </div>
+                                <div class="row mt-1">
+                                    <div class="col-6">
+                                        <label for="display.theme" class="form-label">Colour theme</label>
+                                        <select class="form-select form-select-sm" name="display.theme" id="display.theme"><option value="0">Dark</option><option value="1">Light</option><option value="2">Automatic (light by day, dark at night)</option></select>
+                                        <small class="text-muted">Colour screens (Heltec Wireless Tracker, T-Deck). Automatic uses the sun at the GPS position.</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="display.splash" class="form-label">Welcome screen</label>
+                                        <select class="form-select form-select-sm" name="display.splash" id="display.splash"><option value="1">Full-colour app logo</option><option value="0">Small logo in colour</option></select>
+                                        <small class="text-muted">Heltec Wireless Tracker.</small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1905,6 +1917,16 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                                 >Volts</span
                                             >
                                         </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-1">
+                                    <div class="col-6">
+                                        <label for="battery.saveBelow" class="form-label">Automatic power saving below</label>
+                                        <div class="input-group">
+                                            <input type="number" name="battery.saveBelow" id="battery.saveBelow" class="form-control" value="15" step="1" min="0" max="50" />
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        <small class="text-muted">On battery and discharging, the screen turns off by itself after the display timeout. 0 = off.</small>
                                     </div>
                                 </div>
                             </div>

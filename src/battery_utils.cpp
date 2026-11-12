@@ -22,6 +22,7 @@
 #include "board_pinout.h"
 #include "power_utils.h"
 #include "display.h"
+#include "battery_model.h"      // curva Li-ion y tendencia (Manuel - EA7JRS)
 
 
 #ifdef ADC_CTRL
@@ -47,11 +48,15 @@ extern      String                  batteryChargeDischargeCurrent;
 
 float       lora32BatReadingCorr    = 6.5; // % of correction to higher value to reflect the real battery voltage (adjust this to your needs)
 
+// Tendencia de la bateria (Manuel - EA7JRS): una muestra por minuto para el estado sin PMU, el tiempo que queda y el ahorro
+static BatteryModel::Trend  batteryTrend;
+static uint32_t             batteryTrendMs  = 0;
+
 
 namespace BATTERY_Utils {
 
     String getPercentVoltageBattery(float voltage) {
-        int percent = (((voltage / BATTERY_CELLS) - 3.0) / (4.2 - 3.0)) * 100;
+        int percent = (int)lroundf(BatteryModel::liionPercent(voltage / BATTERY_CELLS));     // curva Li-ion (antes lineal 3,0-4,2 V) (EA7JRS)
         if (percent < 0) percent = 0;
         return (percent < 100) ? (((percent < 10) ? "  ": " ") + String(percent)) : "100";
     }
@@ -120,8 +125,52 @@ namespace BATTERY_Utils {
             }
         #else
             batteryVoltage = String(readBatteryVoltage(), 2);
-            if (batteryVoltage.toFloat() > 1.5) batteryConnected = true;
+            batteryConnected = batteryVoltage.toFloat() > 1.5;
         #endif
+        // una muestra por minuto para la tendencia (EA7JRS)
+        if (batteryConnected && (batteryTrendMs == 0 || millis() - batteryTrendMs >= 60000UL)) {
+            batteryTrendMs = millis();
+            batteryTrend.add(millis() / 1000UL, batteryVoltage.toFloat() / BATTERY_CELLS);
+        }
+    }
+
+    // ---------- Estado, tiempo que queda y ahorro automatico (Manuel - EA7JRS) ----------
+    float cellVoltage() {
+        return batteryConnected ? batteryVoltage.toFloat() / BATTERY_CELLS : 0.0f;
+    }
+
+    float percent() {
+        return batteryConnected ? BatteryModel::liionPercent(cellVoltage()) : -1.0f;
+    }
+
+    bool trend(float& voltsPerHour, float& percentPerHour) {
+        return batteryTrend.slope(millis() / 1000UL, 30UL * 60UL, 10UL * 60UL, voltsPerHour, percentPerHour);    // ultima media hora, al menos 10 min
+    }
+
+    uint8_t state() {
+        if (!batteryConnected) return BatteryModel::ST_NONE;
+        #if defined(HAS_AXP192) || defined(HAS_AXP2101)
+            if (PMU.isCharging()) return BatteryModel::ST_CHARGING;
+            if (PMU.isVbusIn()) return BatteryModel::ST_FULL;
+            return BatteryModel::ST_DISCHARGING;
+        #else
+            float vph = 0, pph = 0;
+            const bool have = trend(vph, pph);
+            return BatteryModel::classify(true, cellVoltage(), have, vph);
+        #endif
+    }
+
+    float hoursLeft() {
+        float vph = 0, pph = 0;
+        if (!trend(vph, pph)) return -1.0f;
+        return BatteryModel::hoursLeft((BatteryModel::State)state(), percent(), pph);
+    }
+
+    // Ahorro: descargando y por debajo de Config.battery.saveBelow (%): la pantalla se apaga sola (como el modo eco)
+    bool saving() {
+        if (Config.battery.saveBelow == 0 || !batteryConnected) return false;
+        if (state() != BatteryModel::ST_DISCHARGING) return false;
+        return percent() < Config.battery.saveBelow;
     }
 
     void monitor() {

@@ -855,6 +855,8 @@ function loadSettings(settings) {
     document.getElementById("display.turn180").checked                  = settings.display.turn180;
     document.getElementById("display.timeout").value                    = settings.display.timeout;
     document.getElementById("display.showSymbol").checked               = settings.display.showSymbol;
+    document.getElementById("display.theme").value                      = settings.display.theme ?? 0;
+    document.getElementById("display.splash").value                     = settings.display.splash ?? 1;
     DisplayEcoModeCheckbox.checked  = settings.display.ecoMode;
     DisplayTimeout.disabled         = !DisplayEcoModeCheckbox.checked;
 
@@ -1074,6 +1076,7 @@ function loadSettings(settings) {
 
     document.getElementById("battery.monitorVoltage").checked           = settings.battery.monitorVoltage;
     document.getElementById("battery.sleepVoltage").value               = settings.battery.sleepVoltage.toFixed(1);
+    document.getElementById("battery.saveBelow").value                  = settings.battery.saveBelow ?? 15;
     BatteryMonitorVoltageCheckbox.checked   = settings.battery.monitorVoltage;
     BatteryMonitorSleepVoltage.disabled     = !BatteryMonitorVoltageCheckbox.checked;
 

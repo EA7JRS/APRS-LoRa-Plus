@@ -242,6 +242,8 @@ namespace {
         FB(Display, timeout,    FF_REQUIRED, 4),
         FB(Display, turn180,    FF_REQUIRED, false),
         FB(Display, showSymbol, FF_REQUIRED, true),
+        FC(Display, theme,      0, 0, 0, 2),
+        FC(Display, splash,     0, 1, 0, 1),
     };
     #ifdef HAS_BT_CLASSIC
         #define BT_USE_KISS_DEFAULT false
@@ -523,6 +525,7 @@ namespace {
         FB(Battery, sendVoltageAlways,  FF_REQUIRED, false),
         FB(Battery, monitorVoltage,     FF_REQUIRED, false),
         FB(Battery, sleepVoltage,       FF_REQUIRED, 2900),
+        FC(Battery, saveBelow,          0, 15, 0, 50),
     };
     const Field kTelemetryFields[] = {
         FB(Telemetry, active,                FF_REQUIRED, false),
@@ -1321,6 +1324,8 @@ void Configuration::setDefaultValues() {
     display.timeout                 = 4;
     display.turn180                 = false;
     display.showSymbol              = true;
+    display.theme                   = 0;
+    display.splash                  = 1;
 
     setCwDefaults();
     setWsprDefaults();
@@ -1382,6 +1387,7 @@ void Configuration::setDefaultValues() {
     battery.sendVoltageAlways       = false;
     battery.monitorVoltage          = false;
     battery.sleepVoltage            = 2.9;
+    battery.saveBelow               = 15;
 
     telemetry.active                 = false;
     telemetry.sendTelemetry          = false;

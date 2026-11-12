@@ -521,6 +521,17 @@ namespace {
             pct.trim();
             j.num("battPct", pct.toInt());
         }
+        // estado de la bateria (tambien sin PMU, por la tendencia), horas que quedan y ahorro automatico (EA7JRS)
+        {
+            static const char* const BST[] = { "none", "unknown", "discharging", "charging", "full" };
+            const uint8_t st = BATTERY_Utils::state();
+            j.text("bst", BST[st < 5 ? st : 1]);
+            const float h = BATTERY_Utils::hoursLeft();
+            if (h >= 0) j.flt("bLeftH", h, 1);
+            float vph = 0, pph = 0;
+            if (BATTERY_Utils::trend(vph, pph)) j.flt("bPctH", pph, 1);
+            j.flag("bSave", BATTERY_Utils::saving());
+        }
         j.unum("heap", ESP.getFreeHeap());
         j.send(sendLine);
     }
@@ -563,8 +574,10 @@ namespace {
         for (uint8_t i = 0; i < n; i++) {
             const GNSS_Sky::Sat* p = GNSS_Sky::sat(i);
             if (!p) break;
-            char b[40];
-            snprintf(b, sizeof(b), "[\"%c\",%u,%d,%d,%d,%d]", p->sys, (unsigned)p->svid, (int)p->elev, (int)p->azim, (int)p->snr, p->used ? 1 : 0);
+            char b[48];
+            uint8_t bands = 0;                                  // 1 = L1, 2 = L5, 4 = L2 / otras (EA7JRS)
+            for (uint8_t k = 0; k < GNSS_Sky::BAND_COUNT; k++) if (GNSS_Sky::hasBand(*p, k)) bands |= (uint8_t)(1 << k);
+            snprintf(b, sizeof(b), "[\"%c\",%u,%d,%d,%d,%d,%u]", p->sys, (unsigned)p->svid, (int)p->elev, (int)p->azim, (int)p->snr, p->used ? 1 : 0, (unsigned)bands);
             j.sep();
             j.s += b;
         }

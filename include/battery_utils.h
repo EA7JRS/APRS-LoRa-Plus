@@ -33,6 +33,13 @@ namespace BATTERY_Utils {
     String  getBatteryInfoVoltage();
     float   readBatteryVoltage();
     void    monitor();
+    // Estado y ahorro (Manuel - EA7JRS)
+    float   cellVoltage();                                  // tension por celda; 0 sin bateria
+    float   percent();                                      // curva Li-ion; -1 sin bateria
+    bool    trend(float& voltsPerHour, float& percentPerHour);  // ultima media hora (falso si aun no hay datos)
+    uint8_t state();                                        // BatteryModel::State
+    float   hoursLeft();                                    // hasta vaciarse o llenarse; < 0 si no se sabe
+    bool    saving();                                       // ahorro automatico activo
 
 }
 

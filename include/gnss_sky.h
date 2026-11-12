@@ -19,10 +19,17 @@ namespace GNSS_Sky {
         uint16_t svid;
         int8_t   elev;       // grados, -1 desconocida
         int16_t  azim;       // grados, -1 desconocido
-        int8_t   snr;        // dB-Hz, -1 sin senal
+        int8_t   snr;        // dB-Hz, -1 sin senal (la mejor de sus bandas)
         bool     used;
         uint32_t seenMs;
+        int8_t   bandSnr[3]; // por banda (BAND_L1, BAND_L5, BAND_L2): SNR de la ultima frase GSV de esa senal (NMEA 4.10+)
+        uint32_t bandMs[3];
     };
+
+    // Bandas por el identificador de senal de GSV (NMEA 4.10/4.11): L1 = L1 / E1 / B1 / G1; L5 = L5 / E5a / B2a / NavIC L5;
+    // L2 = el resto (L2, G2, E5b, E6, B2I, B3...). Frases sin identificador de senal: L1.
+    enum Band : uint8_t { BAND_L1, BAND_L5, BAND_L2, BAND_COUNT };
+    bool        hasBand(const Sat& s, uint8_t band);     // senal en esa banda (SNR > 0) en los ultimos 12 s
 
     void        feed(char c);
     uint8_t     count();                    // satelites recientes (vistos en los ultimos 12 s)

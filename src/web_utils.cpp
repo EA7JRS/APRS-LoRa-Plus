@@ -226,6 +226,8 @@ namespace WEB_Utils {
         }
         Config.display.turn180                  = request->hasParam("display.turn180", true);
         Config.display.showSymbol               = request->hasParam("display.showSymbol", true);
+        Config.display.theme                    = (uint8_t)constrain(getParamIntSafe("display.theme", Config.display.theme), 0, 2);
+        Config.display.splash                   = (uint8_t)constrain(getParamIntSafe("display.splash", Config.display.splash), 0, 1);
 
         //  Bluetooth
         Config.bluetooth.active                 = request->hasParam("bluetooth.active", true);
@@ -678,6 +680,7 @@ namespace WEB_Utils {
         }
         Config.battery.monitorVoltage           = request->hasParam("battery.monitorVoltage", true);
         if (Config.battery.monitorVoltage) Config.battery.sleepVoltage = getParamFloatSafe("battery.sleepVoltage", Config.battery.sleepVoltage);
+        Config.battery.saveBelow                = (uint8_t)constrain(getParamIntSafe("battery.saveBelow", Config.battery.saveBelow), 0, 50);
 
         //  Telemetry
         Config.telemetry.active                 = request->hasParam("telemetry.active", true);

@@ -70,11 +70,26 @@ namespace GNSS_Sky {
         return nullptr;
     }
 
+    // Banda de una senal (sistema ya refinado, identificador de senal de NMEA 4.11 en hexadecimal; 0 = sin identificador)
+    uint8_t bandOf(char sys, int sig) {
+        if (sig <= 0) return BAND_L1;
+        switch (sys) {
+            case 'G': return sig == 1 ? BAND_L1 : ((sig == 7 || sig == 8) ? BAND_L5 : BAND_L2);
+            case 'R': return sig <= 2 ? BAND_L1 : BAND_L2;
+            case 'E': return (sig == 6 || sig == 7) ? BAND_L1 : ((sig == 1 || sig == 3) ? BAND_L5 : BAND_L2);
+            case 'C': return sig <= 4 ? BAND_L1 : ((sig == 5 || sig == 7) ? BAND_L5 : BAND_L2);
+            case 'J': return sig <= 4 ? BAND_L1 : ((sig == 7 || sig == 8) ? BAND_L5 : BAND_L2);
+            case 'I': return BAND_L5;                      // NavIC: L5 (y S)
+            case 'S': return sig == 1 ? BAND_L1 : BAND_L5;
+            default:  return BAND_L1;
+        }
+    }
+
     // $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74 (en 4.10 un campo mas: senal)
     void onGsv(char sys, char** f, uint8_t n) {
         const uint32_t now = millis();
-        const bool firstMsg = toInt(f[2], 0) == 1;
         // grupos de 4 campos desde el 4.o; en NMEA 4.10 queda un campo de senal suelto al final
+        const int sig = ((n - 4) % 4 == 1) ? (int)strtol(f[n - 1], nullptr, 16) : 0;
         for (uint8_t i = 4; i + 3 < n; i += 4) {
             const int svid = toInt(f[i], -1);
             if (svid <= 0) continue;
@@ -82,14 +97,21 @@ namespace GNSS_Sky {
             Sat* p = find(s, (uint16_t)svid, true);
             if (!p) continue;
             const int snr = toInt(f[i + 3], -1);
-            const bool fresh = p->sys != s || p->svid != svid || now - p->seenMs > 3000 || firstMsg;
-            if (p->sys != s || p->svid != svid) p->used = false;
+            if (p->sys != s || p->svid != svid) {               // hueco nuevo o reutilizado
+                p->used = false;
+                for (uint8_t b = 0; b < BAND_COUNT; b++) { p->bandSnr[b] = -1; p->bandMs[b] = 0; }
+            }
             p->sys  = s;
             p->svid = (uint16_t)svid;
             p->elev = (int8_t)toInt(f[i + 1], -1);
             p->azim = (int16_t)toInt(f[i + 2], -1);
-            // con varias senales (L1 / L5) se queda la mejor de la misma tanda
-            p->snr  = fresh ? (int8_t)snr : (int8_t)max((int)p->snr, snr);
+            const uint8_t band = bandOf(s, sig);
+            p->bandSnr[band] = (int8_t)snr;
+            p->bandMs[band]  = now;
+            // SNR del satelite: la mejor de sus bandas recientes (L1 / L5 llegan en tandas GSV distintas)
+            int8_t best = -1;
+            for (uint8_t b = 0; b < BAND_COUNT; b++) if (p->bandMs[b] && now - p->bandMs[b] <= SAT_TTL && p->bandSnr[b] > best) best = p->bandSnr[b];
+            p->snr  = best;
             p->seenMs = now;
         }
     }
@@ -176,6 +198,10 @@ namespace GNSS_Sky {
             if (n++ == index) return &sats[i];
         }
         return nullptr;
+    }
+
+    bool hasBand(const Sat& s, uint8_t band) {
+        return band < BAND_COUNT && s.bandMs[band] && millis() - s.bandMs[band] <= SAT_TTL && s.bandSnr[band] > 0;
     }
 
     float pdop() { return millis() - dopMs <= DOP_TTL ? dopP : NAN; }

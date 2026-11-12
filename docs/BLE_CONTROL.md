@@ -123,11 +123,12 @@ WSPR / FT8 / FT4 / FST4W el dial de su perfil, en SAT la del receptor de satéli
 `pps` (solo en placas con PPS cableado: Heltec Wireless Tracker, T-TWR Plus, T-Beam 1W): `true` si llega a 1 Hz y la hora de las ranuras (WSPR, FT8...) va alineada con su flanco.
 
 `sky` (de las frases GSV / GSA / GST del receptor, `src/gnss_sky.cpp`): cada satélite visto en los últimos 12 s como
-`[sistema, número, elevación °, azimut °, SNR dB-Hz, usado]`; sistema `G` GPS, `R` GLONASS, `E` Galileo, `C` BeiDou, `J` QZSS,
-`S` SBAS, `N` otro; −1 = desconocido o sin señal. `pd` / `hd` / `vd` = PDOP / HDOP / VDOP de GSA, `err` = error horizontal en
+`[sistema, número, elevación °, azimut °, SNR dB-Hz, usado, bandas]`; sistema `G` GPS, `R` GLONASS, `E` Galileo, `C` BeiDou, `J` QZSS,
+`I` NavIC, `S` SBAS, `N` otro; bandas = máscara de las señales recibidas (1 = L1 / E1 / B1 / G1, 2 = L5 / E5a / B2a, 4 = las demás: L2, E5b, E6, B3...;
+solo receptores con NMEA 4.10+, como el UC6580; sin identificador de señal cuenta como L1); SNR = la mejor de sus bandas; −1 = desconocido o sin señal. `pd` / `hd` / `vd` = PDOP / HDOP / VDOP de GSA, `err` = error horizontal en
 metros de GST (solo si el receptor envía GST), `used` = satélites en el fix (GGA). Lo que no se sabe no aparece.
 ```json
-{"e":"sky","pd":2.0,"hd":1.0,"vd":1.6,"used":8,"s":[["G",5,45,310,38,1],["E",16,55,330,42,1],["C",13,25,230,28,0],["R",73,15,100,25,0]]}
+{"e":"sky","pd":2.0,"hd":1.0,"vd":1.6,"used":8,"s":[["G",5,45,310,38,1,3],["E",16,55,330,42,1,3],["C",13,25,230,28,0,1],["R",73,15,100,25,0,1]]}
 ```
 
 `dapnet` (más reciente primero) y `page` (uno nuevo, en el momento, solo en modo DAPNET):
@@ -185,7 +186,7 @@ Regla del proyecto: **todas las funciones del tracker se controlan desde la app 
 | `cfgget` | `o` = desplazamiento en bytes (0) | `{"e":"cfg","o","n":tamaño total,"b":bytes de este trozo,"d":texto}`: un trozo (hasta 320 bytes, sin cortar caracteres UTF-8) del fichero `/tracker_conf.json`, el mismo que edita la WebUI. La app lo pide con `o` creciente (`o += b`) hasta `o >= n`, lo junta y lo interpreta ella (el tracker no analiza el JSON aquí) |
 | `cfgset` | `s`:`begin` (`n` = bytes totales, `reboot` true) → `s`:`c` (`d` = texto, ≤ 180 caracteres por orden) → `s`:`end` (o `abort`) | **Sustituye el fichero entero**: la app lee la configuración con `cfgget`, cambia lo que toque y la sube completa. Un trozo por orden y espera de `ok`. Al `end` el tracker comprueba el tamaño y que llaves y corchetes cuadren, guarda y reinicia (salvo `reboot:false`); al arrancar, `Configuration::readFile()` pone el valor por defecto a lo que falte o esté fuera de rango. Las claves (WiFi, PIN...) viajan tal cual: el enlace va cifrado y emparejado con PIN |
 
-`sensors` incluye ahora todos los sensores: además de los anteriores, `wxSensor`, `gas` (kΩ), `iaq`/`iaqLabel`, `accel` y `gyro` ([x,y,z]), `flat`, `magCal`/`magAlign`/`magOff`, `charging`, `chg` (estado del cargador de la AXP2101: `trickle`, `pre`, `cc`, `cv`, `done`, `stop`), `vbus`, `pmuTemp`, `battMa`, `battPct` y `heap`.
+`sensors` incluye ahora todos los sensores: además de los anteriores, `wxSensor`, `gas` (kΩ), `iaq`/`iaqLabel`, `accel` y `gyro` ([x,y,z]), `flat`, `magCal`/`magAlign`/`magOff`, `charging`, `chg` (estado del cargador de la AXP2101: `trickle`, `pre`, `cc`, `cv`, `done`, `stop`), `vbus`, `pmuTemp`, `battMa`, `battPct` y `heap`. También `bst` (estado de la batería: `none`, `unknown`, `discharging`, `charging`, `full`; sin PMU se deduce de la tendencia de la tensión), `bLeftH` (horas hasta vaciarse o llenarse, si se puede estimar), `bPctH` (%/h de la última media hora) y `bSave` (ahorro automático activo: descargando y por debajo de `battery.saveBelow` %).
 
 ## Modos
 

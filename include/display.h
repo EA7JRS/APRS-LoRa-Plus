@@ -39,8 +39,24 @@ void displayShow(const String& header, const String& line1, const String& line2,
 void displayPopup(const String& title, const String& line1, const String& line2, int percent = -1, int wait = 0);
 
 #ifdef HAS_APRS_PAGES
-    // Lienzo logico monocromo de 128x64 para las pantallas APRS. Cada placa lo lleva a su pantalla:
-    // OLED 128x64 tal cual; Heltec Wireless Tracker (160x80) centrado; T-Deck (320x240) ampliado x2.
+    // Lienzo logico de las pantallas APRS, PAGES_W x PAGES_H. Cada placa lo lleva a su pantalla:
+    // OLED 128x64 tal cual; Heltec Wireless Tracker 160x80 entero (26 columnas); T-Deck (320x240) 128x64 ampliado x2.
+    #if defined(HELTEC_WIRELESS_TRACKER)
+        #define PAGES_W     160
+        #define PAGES_H     80
+    #else
+        #define PAGES_W     128
+        #define PAGES_H     64
+    #endif
+    // Franjas verticales (Manuel - EA7JRS): las paginas se dibujan en 64 filas logicas; si la pantalla es mas alta,
+    // la cabecera queda arriba, la barra de iconos abajo y el cuerpo centrado entre las dos.
+    enum PagesZone : uint8_t { PZ_TOP, PZ_BODY, PZ_BOTTOM };
+    void    pagesZone(uint8_t zone);                                        // vale hasta el siguiente pagesZone / pagesBegin (PZ_BODY)
+    // Tintas (pantallas a color): el "on" de los dibujos sale con el color de la tinta en uso. En monocromo no hacen nada.
+    enum PagesInk : uint8_t { INK_TEXT, INK_HEAD, INK_ACCENT, INK_SEL, INK_FRAME, INK_MUTED, INK_GOOD, INK_WARN, INK_BAD };
+    void    pagesInk(uint8_t ink);                                          // vale hasta el siguiente pagesInk / pagesBegin (INK_TEXT)
+    bool    pagesHasColor();
+    void    pagesSetLight(bool light);                                      // tema claro (true) u oscuro
     void    pagesBegin();                                                   // borra el lienzo
     void    pagesFlush();                                                   // lo envia a la pantalla
     void    pagesFillRect(int x, int y, int w, int h, bool on);
@@ -50,7 +66,8 @@ void displayPopup(const String& title, const String& line1, const String& line2,
     void    pagesFillCircle(int x, int y, int r, bool on);
     void    pagesFillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, bool on);
     void    pagesBitmap2(int x, int y, int w, int h, const uint8_t* data);        // 2 bits por pixel (0 fondo, 1..3 capas); en color cada capa con su color
-    void    pagesText(int x, int y, const char* text, uint8_t size, bool inverted);   // fuente 6x8 por tamano; inverted = negro sobre blanco
+    void    pagesText(int x, int y, const char* text, uint8_t size, bool inverted);   // fuente 6x8 por tamano; inverted = fondo sobre la tinta
+    void    pagesImage565(int x, int y, int w, int h, const uint16_t* data);     // imagen RGB565 (solo pantallas a color)
 #endif
 
 void startupScreen(uint8_t index, const String& version, const String& callsign = "");

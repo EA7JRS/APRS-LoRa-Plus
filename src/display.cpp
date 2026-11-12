@@ -649,17 +649,53 @@ void displayShow(const String& header, const String& line1, const String& line2,
         #define PAGES_SCALE     2
         #define PAGES_OFFSET_X  32
         #define PAGES_OFFSET_Y  56
-    #else   // Heltec Wireless Tracker 160x80
+        #define PAGES_BODY_DY   0
+    #else   // Heltec Wireless Tracker: lienzo de 160x80 entero; el cuerpo de 64 filas, 8 px mas abajo (Manuel - EA7JRS)
         #define PAGES_SCALE     1
-        #define PAGES_OFFSET_X  16
-        #define PAGES_OFFSET_Y  8
+        #define PAGES_OFFSET_X  0
+        #define PAGES_OFFSET_Y  0
+        #define PAGES_BODY_DY   ((PAGES_H - 64) / 2)
     #endif
+    // Paletas de la app Android (Theme.kt): oscura y clara. RGB565.
+    #define RGB565(c) ((uint16_t)((((c) >> 8) & 0xF800) | (((c) >> 5) & 0x07E0) | (((c) >> 3) & 0x001F)))
+    struct PagesPalette { uint16_t bg, onInk, ink[9], logo[3]; };
+    static const PagesPalette PAL_DARK = {
+        RGB565(0x131A22), RGB565(0x131A22),
+        { RGB565(0xE8EEF3), RGB565(0x28B5E1), RGB565(0xFFB347), RGB565(0x3CE68A), RGB565(0x28B5E1),
+          RGB565(0x9FB0BF), RGB565(0x3CE68A), RGB565(0xFFB347), RGB565(0xFF6B6B) },
+        { RGB565(0x3CE68A), RGB565(0x28B5E1), RGB565(0xE8EEF3) } };
+    static const PagesPalette PAL_LIGHT = {
+        RGB565(0xF4F7FA), RGB565(0xFFFFFF),
+        { RGB565(0x131A22), RGB565(0x1B8DB8), RGB565(0xB05E00), RGB565(0x1E9E5C), RGB565(0x1B8DB8),
+          RGB565(0x5C6B7A), RGB565(0x1E9E5C), RGB565(0xB05E00), RGB565(0xC83A3A) },
+        { RGB565(0x1E9E5C), RGB565(0x1B8DB8), RGB565(0x131A22) } };
+    static const PagesPalette* pagesPal = &PAL_DARK;
+    static uint16_t pagesInkColor = PAL_DARK.ink[INK_TEXT];
+    static int      pagesDy = PAGES_BODY_DY;
+
     #define PAGES_X(v)  (PAGES_OFFSET_X + (v) * PAGES_SCALE)
-    #define PAGES_Y(v)  (PAGES_OFFSET_Y + (v) * PAGES_SCALE)
-    #define PAGES_COLOR(on)  ((on) ? TFT_WHITE : TFT_BLACK)
+    #define PAGES_Y(v)  (PAGES_OFFSET_Y + ((v) + pagesDy) * PAGES_SCALE)
+    #define PAGES_COLOR(on)  ((on) ? pagesInkColor : pagesPal->bg)
+
+    bool pagesHasColor() { return true; }
+
+    void pagesSetLight(bool light) {
+        pagesPal = light ? &PAL_LIGHT : &PAL_DARK;
+        pagesInkColor = pagesPal->ink[INK_TEXT];
+    }
+
+    void pagesInk(uint8_t ink) {
+        pagesInkColor = pagesPal->ink[ink < 9 ? ink : INK_TEXT];
+    }
+
+    void pagesZone(uint8_t zone) {
+        pagesDy = zone == PZ_TOP ? 0 : (zone == PZ_BOTTOM ? 2 * PAGES_BODY_DY : PAGES_BODY_DY);
+    }
 
     void pagesBegin() {
-        sprite.fillSprite(TFT_BLACK);
+        pagesInk(INK_TEXT);
+        pagesZone(PZ_BODY);
+        sprite.fillSprite(pagesPal->bg);
     }
 
     void pagesFlush() {
@@ -699,14 +735,22 @@ void displayShow(const String& header, const String& line1, const String& line2,
         sprite.fillTriangle(PAGES_X(x0), PAGES_Y(y0), PAGES_X(x1), PAGES_Y(y1), PAGES_X(x2), PAGES_Y(y2), PAGES_COLOR(on));
     }
 
-    // Mapa de bits de 2 bits por pixel (0 fondo, 1..3 capas). En color: ondas, pin y L+ con su color (RGB565, provisional)
+    // Mapa de bits de 2 bits por pixel (0 fondo, 1..3 capas). En color: ondas, pin y L+ con los colores del logo
     void pagesBitmap2(int x, int y, int w, int h, const uint8_t* data) {
-        static const uint16_t layerColor[4] = {0x0000, 0x1D63, 0x1482, 0xFFFF};
         for (int j = 0; j < h; j++) {
             for (int i = 0; i < w; i++) {
                 uint16_t n = (uint16_t)(j * w + i);
                 uint8_t v = (pgm_read_byte(data + (n >> 2)) >> ((n & 3) * 2)) & 3;
-                if (v) sprite.fillRect(PAGES_X(x + i), PAGES_Y(y + j), PAGES_SCALE, PAGES_SCALE, layerColor[v]);
+                if (v) sprite.fillRect(PAGES_X(x + i), PAGES_Y(y + j), PAGES_SCALE, PAGES_SCALE, pagesPal->logo[v - 1]);
+            }
+        }
+    }
+
+    // Imagen RGB565 (un uint16_t por pixel, fila a fila) en coordenadas del lienzo
+    void pagesImage565(int x, int y, int w, int h, const uint16_t* data) {
+        for (int j = 0; j < h; j++) {
+            for (int i = 0; i < w; i++) {
+                sprite.fillRect(PAGES_X(x + i), PAGES_Y(y + j), PAGES_SCALE, PAGES_SCALE, pgm_read_word(data + j * w + i));
             }
         }
     }
@@ -714,11 +758,17 @@ void displayShow(const String& header, const String& line1, const String& line2,
     void pagesText(int x, int y, const char* text, uint8_t size, bool inverted) {
         sprite.setTextFont(0);
         sprite.setTextSize(size * PAGES_SCALE);
-        if (inverted) sprite.setTextColor(TFT_BLACK, TFT_WHITE);
-        else sprite.setTextColor(TFT_WHITE);      // sin fondo: no borra lo dibujado debajo
+        if (inverted) sprite.setTextColor(pagesPal->onInk, pagesInkColor);
+        else sprite.setTextColor(pagesInkColor);      // sin fondo: no borra lo dibujado debajo
         sprite.drawString(String(text), PAGES_X(x), PAGES_Y(y));
     }
 #else
+    bool pagesHasColor() { return false; }
+    void pagesSetLight(bool) {}
+    void pagesInk(uint8_t) {}
+    void pagesZone(uint8_t) {}
+    void pagesImage565(int, int, int, int, const uint16_t*) {}
+
     void pagesBegin() {
         display.clearDisplay();
     }

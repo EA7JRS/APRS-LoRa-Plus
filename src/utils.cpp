@@ -26,6 +26,7 @@
 #include "utils.h"
 #include "notification_utils.h"
 #include "aprs_tocall.h"
+#include "battery_utils.h"
 #ifdef HAS_APRS_PAGES
     #include "pages_utils.h"
 #endif
@@ -132,7 +133,7 @@ namespace Utils {
     }
 
     void checkDisplayEcoMode() {
-        if (displayState && displayEcoMode && menuDisplay == 0) {
+        if (displayState && (displayEcoMode || BATTERY_Utils::saving()) && menuDisplay == 0) {     // bateria baja: ahorro automatico (EA7JRS)
             uint32_t currentTime = millis();
             uint32_t lastDisplayTime = currentTime - displayTime;
             if (currentTime > 10 * 1000 && lastDisplayTime >= Config.display.timeout * 1000) {
