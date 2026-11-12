@@ -22,6 +22,12 @@
 #include <Arduino.h>
 
 
+#ifdef GPS_RESET
+    #ifndef GPS_RESET_ACTIVE
+        #define GPS_RESET_ACTIVE LOW        // nivel que mantiene el receptor en reset (board_pinout.h puede cambiarlo)
+    #endif
+#endif
+
 namespace GPS_Utils {
 
     void    setup();

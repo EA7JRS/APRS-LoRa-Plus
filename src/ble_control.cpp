@@ -538,6 +538,9 @@ namespace {
         j.flt("crs", GPS_Utils::getCourseDeg(), 1);
         if (gps.satellites.isValid()) j.num("sats", gps.satellites.value());
         if (gps.hdop.isValid()) j.flt("hdop", gps.hdop.hdop(), 1);
+        #ifdef GPS_PPS
+            j.flag("pps", GPS_Utils::ppsLocked());                 // PPS a 1 Hz: la hora de las ranuras va alineada con su flanco
+        #endif
         if (gps.date.isValid() && gps.time.isValid() && gps.date.year() >= 2024) {
             char utc[24];
             snprintf(utc, sizeof(utc), "%04u-%02u-%02uT%02u:%02u:%02uZ", (unsigned)gps.date.year(), (unsigned)gps.date.month(), (unsigned)gps.date.day(),

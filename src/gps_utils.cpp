@@ -44,7 +44,11 @@
 
 #define GPS_BAUD_FILE           "/gps_baud.dat"
 #define GPS_BAUD_PROBE_TIME_MS  1500
-#define GPS_RX_BUFFER           2048
+#ifdef GNSS_UC6580
+    #define GPS_RX_BUFFER       4096        // UC6580 con seis sistemas: GSV de todos cada segundo (~2 KB/s) (EA7JRS)
+#else
+    #define GPS_RX_BUFFER       2048
+#endif
 #define GPS_FAST_BAUD           115200  // u-blox M10: el puerto se sube de 9600 a 115200 (EA7JRS)
 const uint32_t gpsBaudRates[] = {9600, 115200, 38400, 4800, 57600};     // most common first
 
@@ -225,9 +229,15 @@ namespace GPS_Utils {
         #ifdef GPS_PPS
             if (ppsLocked() && gps.time.age() < 1500 && gps.time.centisecond() == 0) {
                 const uint32_t p = ppsMs, rx = now - gps.time.age();
-                if ((int32_t)(p - rx) > 0) sec += 1;                                    // llego otro flanco despues de la frase: ya es el segundo siguiente
-                ms = (sec * 1000UL + (now - p)) % 86400000UL;
-                return true;
+                uint32_t s2 = sec;
+                if ((int32_t)(p - rx) > 0) s2 += 1;                                     // llego otro flanco despues de la frase: ya es el segundo siguiente
+                const uint32_t ppsEst  = s2 * 1000UL + (now - p);
+                const uint32_t nmeaEst = sec * 1000UL + gps.time.age();                 // va por detras de la real lo que tarda la frase
+                const int32_t  d = (int32_t)(ppsEst - nmeaEst);
+                if (d >= -50 && d <= 1200) {                                            // si no cuadran (bucle parado, frase vieja), la NMEA
+                    ms = ppsEst % 86400000UL;
+                    return true;
+                }
             }
         #endif
         ms = (sec * 1000UL + gps.time.centisecond() * 10UL + gps.time.age()) % 86400000UL;
@@ -258,9 +268,6 @@ namespace GPS_Utils {
     #endif
 
     #ifdef GPS_RESET
-        #ifndef GPS_RESET_ACTIVE
-            #define GPS_RESET_ACTIVE LOW
-        #endif
         // Si el receptor encendido deja de mandar datos 30 s, se reinicia por su pin de reset (como mucho cada 2 min)
         static uint32_t lastGpsByteMs = 0, lastGpsResetMs = 0;
         static void gnssWatchdog(bool gotBytes) {
@@ -718,6 +725,10 @@ namespace GPS_Utils {
             delay(200);
         #endif
 
+        #ifdef GPS_RESET
+            pinMode(GPS_RESET, OUTPUT);
+            digitalWrite(GPS_RESET, !GPS_RESET_ACTIVE);             // fuera de reset antes de buscar sus frases (suelto podria retenerlo)
+        #endif
         uint32_t detectedBaud = detectBaudRate();
         if (detectedBaud != 0) {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "GPS", "Baud rate detected: %u", detectedBaud);
@@ -743,16 +754,12 @@ namespace GPS_Utils {
             gpsSerial.setRxBufferSize(GPS_RX_BUFFER);
             gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_TX, GPS_RX);
         }
-        #ifdef GPS_RESET
-            pinMode(GPS_RESET, OUTPUT);
-            digitalWrite(GPS_RESET, !GPS_RESET_ACTIVE);             // fuera de reset
-        #endif
         #ifdef GPS_PPS
             pinMode(GPS_PPS, INPUT);
             attachInterrupt(digitalPinToInterrupt(GPS_PPS), onPps, RISING);
         #endif
         #ifdef GNSS_UC6580
-            if (detectedBaud != 0) ucStart(200);
+            ucStart(detectedBaud != 0 ? 200 : 1500);               // aunque no se haya oido aun (arranque lento del receptor)
         #endif
         #ifdef GPS_CONFIG_CONSTELLATIONS
             gpsSatsInView.begin(gps, "GPGSV", 3);

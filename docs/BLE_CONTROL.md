@@ -120,6 +120,7 @@ WSPR / FT8 / FT4 / FST4W el dial de su perfil, en SAT la del receptor de satéli
 ```json
 {"e":"gnss","fix":true,"lat":37.191512,"lon":-3.936701,"alt":512.0,"spd":0.0,"crs":0.0,"sats":11,"hdop":0.8,"age":420,"utc":"2026-11-05T07:45:00Z"}
 ```
+`pps` (solo en placas con PPS cableado: Heltec Wireless Tracker, T-TWR Plus, T-Beam 1W): `true` si llega a 1 Hz y la hora de las ranuras (WSPR, FT8...) va alineada con su flanco.
 
 `sky` (de las frases GSV / GSA / GST del receptor, `src/gnss_sky.cpp`): cada satélite visto en los últimos 12 s como
 `[sistema, número, elevación °, azimut °, SNR dB-Hz, usado]`; sistema `G` GPS, `R` GLONASS, `E` Galileo, `C` BeiDou, `J` QZSS,
