@@ -578,6 +578,7 @@ public:
     int  aisLoraIndex() const;                          // -1 si no hay perfil LoRa AIS
     int  aisBeaconIndex() const;                        // -1 si no hay perfil nautico AIS
     bool writeFile();
+    bool saveConfigText(const String& text);       // guardado seguro (copia temporal comprobada, libera sitio, nunca deja sin configuracion)
     Configuration();
     void init();                // montar SPIFFS y leer/crear la configuracion; llamar desde setup()
 

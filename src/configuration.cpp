@@ -582,12 +582,6 @@ bool Configuration::writeFile() {
     JsonDocument data;
     // Se escribe en un fichero temporal y solo al terminar se sustituye el definitivo: un corte o fallo a mitad de guardado
     // ya no deja la configuracion vacia (causa de perder todos los perfiles).
-    File configFile = SPIFFS.open("/tracker_conf.tmp", "w");
-
-    if (!configFile) {
-        Serial.println("Error: Could not open config file for writing");
-        return false;
-    }
     try {
         writeFields(data["wifiAP"].to<JsonObject>(),       &wifiAP,       kWifiApFields,       NFIELDS(kWifiApFields));
         writeFields(data["fwUpdate"].to<JsonObject>(),     &fwUpdate,     kFwUpdateFields,     NFIELDS(kFwUpdateFields));
@@ -671,40 +665,81 @@ bool Configuration::writeFile() {
         data["other"]["cadFskRssi"]                 = cadFskRssi;
         data["other"]["email"]                      = email;
 
-        const size_t need = measureJson(data);
-        const size_t written = serializeJson(data, configFile);
-        configFile.close();
-        if (written != need) {
-            // Sin sitio para la copia temporal (SPIFFS de 192 KB casi lleno: datos de satelites, mensajes...): antes se daba por
-            // buena una copia a medias o no se guardaba nada. Ahora se escribe directamente sobre el fichero (EA7JRS).
-            SPIFFS.remove("/tracker_conf.tmp");
-            Serial.printf("Config: no room for the temporary copy (%u of %u bytes; SPIFFS %u / %u used), writing in place\n",
-                          (unsigned)written, (unsigned)need, (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
-            SPIFFS.remove("/tracker_conf.json");
-            File direct = SPIFFS.open("/tracker_conf.json", "w");
-            const size_t again = direct ? serializeJson(data, direct) : 0;
-            if (direct) direct.close();
-            if (again != need) {
-                Serial.printf("Error: config not saved (%u of %u bytes; SPIFFS %u / %u used)\n",
-                              (unsigned)again, (unsigned)need, (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
-                return false;
-            }
-            Serial.println("Config saved");
-            return true;
-        }
-        SPIFFS.remove("/tracker_conf.json");
-        if (!SPIFFS.rename("/tracker_conf.tmp", "/tracker_conf.json")) {
-            Serial.println("Error: could not replace the config file");
-            return false;
-        }
-        Serial.println("Config saved");
-        return true;
+        String text;
+        serializeJson(data, text);
+        data.clear();
+        return saveConfigText(text);
     } catch (...) {
         Serial.println("Error: Exception occurred while saving config");
-        configFile.close();
         SPIFFS.remove("/tracker_conf.tmp");
         return false;
     }
+}
+
+// Escribe un fichero y lo comprueba leyendolo (tamano y contenido) (EA7JRS)
+static bool writeChecked(const char* path, const String& text) {
+    File f = SPIFFS.open(path, "w");
+    if (!f) return false;
+    const size_t w = f.print(text);
+    f.close();
+    if (w != text.length()) return false;
+    File r = SPIFFS.open(path, "r");
+    if (!r) return false;
+    const bool ok = (size_t)r.size() == text.length() && r.readString() == text;
+    r.close();
+    return ok;
+}
+
+// Guardado seguro de la configuracion (Manuel - EA7JRS). Con el SPIFFS de 192 KB casi lleno (Heltec Wireless Tracker y placas de
+// 4 MB) se perdia todo: si no cabia la copia temporal se borraba la buena antes de escribir la nueva, y si tampoco cabia, quedaba
+// sin fichero y el siguiente arranque cargaba la de serie. Ahora: copia temporal comprobada; si no cabe, se libera sitio (copias
+// a medio subir, la de satelites, que la app vuelve a mandar) y se reintenta; solo al final se escribe encima, y si eso falla se
+// vuelve a poner la configuracion anterior (que se guarda en memoria antes de borrarla).
+bool Configuration::saveConfigText(const String& text) {
+    auto fsInfo = [&](const char* what) {
+        Serial.printf("Config: %s (%u bytes; SPIFFS %u / %u used)\n", what, (unsigned)text.length(), (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
+    };
+    auto replaceWithTmp = [&]() -> bool {
+        SPIFFS.remove("/tracker_conf.json");
+        if (SPIFFS.rename("/tracker_conf.tmp", "/tracker_conf.json")) {
+            File r = SPIFFS.open("/tracker_conf.json", "r");
+            const bool ok = r && (size_t)r.size() == text.length();
+            if (r) r.close();
+            if (ok) return true;
+        }
+        return writeChecked("/tracker_conf.json", text);      // el rename fallo: se escribe directamente (la temporal sigue ahi)
+    };
+    if (writeChecked("/tracker_conf.tmp", text)) {
+        const bool ok = replaceWithTmp();
+        SPIFFS.remove("/tracker_conf.tmp");
+        fsInfo(ok ? "saved" : "could not replace the file");
+        return ok;
+    }
+    SPIFFS.remove("/tracker_conf.tmp");
+    fsInfo("no room for the temporary copy, freeing space");
+    // sitio: restos de subidas a medias y, si hace falta, el archivo de satelites (la app lo vuelve a mandar)
+    SPIFFS.remove("/tracker_conf.up");
+    SPIFFS.remove("/sats.tmp");
+    if (!writeChecked("/tracker_conf.tmp", text)) {
+        SPIFFS.remove("/tracker_conf.tmp");
+        if (SPIFFS.exists("/sats.txt")) { SPIFFS.remove("/sats.txt"); Serial.println("Config: satellite data removed to make room (send it again from the app)"); }
+    }
+    if (SPIFFS.exists("/tracker_conf.tmp") || writeChecked("/tracker_conf.tmp", text)) {
+        const bool ok = replaceWithTmp();
+        SPIFFS.remove("/tracker_conf.tmp");
+        fsInfo(ok ? "saved" : "could not replace the file");
+        return ok;
+    }
+    SPIFFS.remove("/tracker_conf.tmp");
+    // ultimo recurso: encima, con la anterior en memoria para devolverla si no cabe
+    String old;
+    { File r = SPIFFS.open("/tracker_conf.json", "r"); if (r) { old = r.readString(); r.close(); } }
+    SPIFFS.remove("/tracker_conf.json");
+    if (writeChecked("/tracker_conf.json", text)) { fsInfo("saved in place"); return true; }
+    SPIFFS.remove("/tracker_conf.json");
+    if (old.length() && writeChecked("/tracker_conf.json", old)) fsInfo("Error: not saved, the previous configuration is kept");
+    else fsInfo("Error: not saved");
+    return false;
 }
 
 bool Configuration::readFile() {
@@ -712,6 +747,7 @@ bool Configuration::readFile() {
     File configFile = SPIFFS.open("/tracker_conf.json", "r");
 
     if (configFile) {
+        Serial.printf("Config file: %u bytes (SPIFFS %u / %u used)\n", (unsigned)configFile.size(), (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
         bool needsRewrite = false;
         JsonDocument data;
         DeserializationError error = deserializeJson(data, configFile);
