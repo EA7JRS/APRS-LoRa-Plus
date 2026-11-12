@@ -250,6 +250,7 @@ namespace {
     uint8_t         teamScale           = 0;        // 0 = automatica; 1.. = indice en TEAM_SCALES_KM
     uint8_t         boardView           = 0;        // SYSTEM: 0 = sistema, 1 = vista LINK (conexiones activas), 2 = BATTERY (no son paginas aparte)
     uint8_t         gpsView             = 0;        // GPS: 0 = posicion, 1 = GNSS (constelaciones, bandas, cielo) (EA7JRS)
+    uint8_t         clockView           = 0;        // CLOCK: 0 = reloj, 1 = SUN (orto y ocaso), 2 = MOON (fase) (EA7JRS)
     Item            sysItems[8];                    // submenu de SYSTEM
     char            sysBtLabel[24];
     char            sysProtoLabel[24];
@@ -2280,7 +2281,265 @@ namespace {
         pagesZone(PZ_BODY);
     }
 
+    // ---- Sol y luna (Manuel - EA7JRS): vistas CLOCK > SUN y CLOCK > MOON y los iconos pequenos del reloj ----
+    // Hora local "HH:MM" de un instante en minutos UTC del dia (pueden salir < 0 o > 1440)
+    static void fmtLocalMin(double utcMin, int offsetMin, char* out, size_t size) {
+        const int v = (((int)lround(utcMin) + offsetMin) % 1440 + 1440) % 1440;
+        snprintf(out, size, "%02d:%02d", v / 60, v % 60);
+    }
+
+    // Elongacion de la luna (grados, 0 nueva .. 180 llena) vista desde la posicion propia
+    static double moonElongation(long long unixS, double lat, double lon) {
+        int y, m, d;
+        double h, sAlt, sAz, mAlt, mAz, dist;
+        plotter::unixToUtc(unixS, y, m, d, h);
+        plotter::sunPosition(y, m, d, h, lat, lon, sAlt, sAz);
+        plotter::moonPosition(y, m, d, h, lat, lon, mAlt, mAz, dist);
+        const double a1 = sAlt * DEG_TO_RAD, a2 = mAlt * DEG_TO_RAD;
+        double c = sin(a1) * sin(a2) + cos(a1) * cos(a2) * cos((sAz - mAz) * DEG_TO_RAD);
+        if (c > 1) c = 1;
+        if (c < -1) c = -1;
+        return acos(c) * RAD_TO_DEG;
+    }
+
+    // Llena (maxima elongacion) o nueva (minima) cerca de "center": malla de 2 h en +-18 h y parabola en el mejor punto
+    static long long moonExtreme(long long center, double lat, double lon, bool full) {
+        const int N = 19;
+        double e[N];
+        int best = 0;
+        for (int i = 0; i < N; i++) {
+            e[i] = moonElongation(center + (long long)(i - N / 2) * 7200, lat, lon);
+            if (full ? e[i] > e[best] : e[i] < e[best]) best = i;
+        }
+        double shift = 0;
+        if (best > 0 && best < N - 1) {
+            const double den = e[best - 1] - 2 * e[best] + e[best + 1];
+            if (fabs(den) > 1e-9) shift = 0.5 * (e[best - 1] - e[best + 1]) / den;
+            if (shift > 1) shift = 1;
+            if (shift < -1) shift = -1;
+        }
+        return center + (long long)lround((best - N / 2 + shift) * 7200.0);
+    }
+
+    struct MoonInfo {
+        bool   ok = false;
+        double elong = 0, lit = 0, ageDays = 0;     // edad equivalente (dias desde la nueva) para la fase en 8 partes
+        bool   waxing = true;
+        double toFullH = 0, toNewH = 0;
+        double riseMin = 0, setMin = 0;             // minutos UTC del dia
+        bool   hasRise = false, hasSet = false;
+    };
+
+    // Datos de la luna, recalculados cada 5 minutos (la busqueda de llena y nueva cuesta unos 40 calculos de posicion)
+    static const MoonInfo& moonInfo(time_t t, double lat, double lon) {
+        static MoonInfo info;
+        static uint32_t calcMs = 0;
+        if (info.ok && millis() - calcMs < 300000UL) return info;
+        calcMs = millis();
+        const long long u = (long long)t;
+        info.elong = moonElongation(u, lat, lon);
+        info.waxing = moonElongation(u + 3 * 3600, lat, lon) > moonElongation(u - 3 * 3600, lat, lon);
+        info.lit = (1 - cos(info.elong * DEG_TO_RAD)) / 2;
+        const double syn = 29.530588853;
+        info.ageDays = (info.waxing ? info.elong : 360 - info.elong) / 360 * syn;
+        int y, m, d;
+        double h;
+        plotter::unixToUtc(u, y, m, d, h);
+        const double age = plotter::moonAgeDays(y, m, d, h);                      // edad media: solo para saber donde buscar
+        for (int k = 0; k < 2; k++) {
+            const bool full = k == 0;
+            double ahead = fmod((full ? syn / 2 : syn) - age + 2 * syn, syn);
+            long long when = moonExtreme(u + (long long)(ahead * 86400), lat, lon, full);
+            if (when <= u) when = moonExtreme(u + (long long)((ahead + syn) * 86400), lat, lon, full);
+            (full ? info.toFullH : info.toNewH) = (double)(when - u) / 3600.0;
+        }
+        plotter::moonTimes(y, m, d, lat, lon, info.riseMin, info.hasRise, info.setMin, info.hasSet);
+        info.ok = true;
+        return info;
+    }
+
+    // Disco de la luna con su fase; en el hemisferio sur, al reves (la parte iluminada a la izquierda al crecer)
+    static void drawMoonDisc(int cx, int cy, int r, const MoonInfo& mi, bool south) {
+        const double th = (mi.waxing ? mi.elong : 360 - mi.elong) * DEG_TO_RAD;
+        const double c = cos(th);
+        const bool color = pagesHasColor();
+        for (int dy = -r; dy <= r; dy++) {
+            const double w = sqrt((double)(r * r - dy * dy));
+            const int W = (int)floor(w);
+            int a, b;                                           // tramo iluminado de la fila, en dx
+            if (th <= PI) { a = (int)ceil(w * c); b = W; }
+            else          { a = -W; b = (int)floor(-w * c); }
+            if (a < -W) a = -W;
+            if (b > W) b = W;
+            if (south) { const int t2 = a; a = -b; b = -t2; }
+            if (color) {
+                pagesInk(INK_SHADE);
+                pagesFillRect(cx - W, cy + dy, 2 * W + 1, 1, true);
+                pagesInk(INK_MOON);
+            }
+            if (b >= a) pagesFillRect(cx + a, cy + dy, b - a + 1, 1, true);
+        }
+        pagesInk(INK_MUTED);
+        pagesDrawCircle(cx, cy, r, true);
+        pagesInk(INK_TEXT);
+    }
+
+    static void drawSunIcon(int cx, int cy, int r) {
+        pagesInk(INK_SUN);
+        pagesFillCircle(cx, cy, r, true);
+        for (int k = 0; k < 8; k++) {
+            const float a = k * (float)PI / 4;
+            pagesFillRect(cx + (int)lroundf((r + 2) * cosf(a)), cy + (int)lroundf((r + 2) * sinf(a)), 1, 1, true);
+        }
+        pagesInk(INK_TEXT);
+    }
+
+    // Hora, posicion y desfase de la zona para las vistas de sol y luna; false si falta la hora o la posicion
+    static bool skyNow(time_t& t, double& lat, double& lon, int& offsetMin) {
+        t = now();
+        if (year(t) < 2024 || !ownPosition(lat, lon)) return false;
+        bool dst = false;
+        offsetMin = zoneOffsetMinutes(zoneMode, zoneHalfHours, (int64_t)t, &dst);
+        return true;
+    }
+
+    // CLOCK > SUN: duracion del dia o la noche, orto y ocaso con su azimut, mediodia con la altura, crepusculo civil y el
+    // recorrido del sol sobre el horizonte (de dia el sol sobre su arco; de noche apagado bajo el horizonte)
+    void drawSun() {
+        time_t t;
+        double lat, lon;
+        int off;
+        if (!skyNow(t, lat, lon, off)) { header("SUN"); text(4, 24, "Needs time and GPS"); return; }
+        int y, m, d;
+        double h, alt, az;
+        plotter::unixToUtc((long long)t, y, m, d, h);
+        plotter::sunPosition(y, m, d, h, lat, lon, alt, az);
+        char right[10];
+        snprintf(right, sizeof(right), "El %d", (int)lround(alt + plotter::refractionDeg(alt)));
+        header("SUN", right);
+
+        double rise, set, dawn, dusk;
+        const bool hasRise = plotter::sunTimes(y, m, d, lat, lon, -0.833, rise, set);
+        const bool hasDawn = plotter::sunTimes(y, m, d, lat, lon, -6.0, dawn, dusk);
+        const double noon = plotter::solarNoonUtcMin(y, m, d, lon);
+        double nAlt, nAz;
+        plotter::sunPosition(y, m, d, noon / 60.0, lat, lon, nAlt, nAz);
+        const bool up = alt > -0.833;
+        const double nowMin = h * 60.0;
+        char a[6], b[6];
+
+        const bool big = XR >= 16;                                   // 160 px: arco mayor
+        const int R = big ? 21 : 15;
+        const int cx = PW - (big ? 8 : 2) - R, hy = 46;
+        rowLimit = min(COLS, (cx - R - 2) / 6);
+        int dayLen = 0;
+        if (hasRise) {
+            dayLen = (int)lround(set - rise);
+            if (dayLen < 0) dayLen += 1440;
+            if (up) row(0, "Day %dh%02dm", dayLen / 60, dayLen % 60);
+            else    row(0, "Night %dh%02dm", (1440 - dayLen) / 60, (1440 - dayLen) % 60);
+            double ra, rz;
+            fmtLocalMin(rise, off, a, sizeof(a));
+            plotter::sunPosition(y, m, d, rise / 60.0, lat, lon, ra, rz);
+            row(1, "Rise %s %3d", a, ((int)lround(rz) + 360) % 360);
+            fmtLocalMin(set, off, b, sizeof(b));
+            plotter::sunPosition(y, m, d, set / 60.0, lat, lon, ra, rz);
+            row(2, "Set  %s %3d", b, ((int)lround(rz) + 360) % 360);
+        } else {
+            row(0, nAlt > 0 ? "Polar day" : "Polar night");
+            row(1, "Rise --:--");
+            row(2, "Set  --:--");
+        }
+        fmtLocalMin(noon, off, a, sizeof(a));
+        row(3, "Noon %s El%d", a, (int)lround(nAlt + plotter::refractionDeg(nAlt)));
+        if (hasDawn) {
+            fmtLocalMin(dawn, off, a, sizeof(a));
+            fmtLocalMin(dusk, off, b, sizeof(b));
+            row(4, "Dawn %s", a);
+            row(5, "Dusk %s", b);
+        } else {
+            row(4, "Dawn --:--");
+            row(5, "Dusk --:--");
+        }
+        rowLimit = COLS;
+
+        // recorrido: horizonte, arco del dia punteado (en el color del cielo) y arco de la noche bajo el horizonte
+        pagesInk(INK_MUTED);
+        pagesDrawLine(cx - R - 2, hy, cx + R + 2, hy, true);
+        text(cx - R - 2, hy + 3, "E");
+        text(min(cx + R - 3, PW - 6), hy + 3, "W");
+        pagesInk(INK_HEAD);
+        for (int deg = 0; deg <= 180; deg += 6) {
+            const float r = deg * DEG_TO_RAD;
+            pagesFillRect(cx - (int)lroundf(R * cosf(r)), hy - (int)lroundf(R * 0.8f * sinf(r)), 1, 1, true);
+        }
+        pagesInk(INK_NIGHT);
+        for (int deg = 0; deg <= 180; deg += 12) {
+            const float r = deg * DEG_TO_RAD;
+            pagesFillRect(cx + (int)lroundf(R * cosf(r)), hy + (int)lroundf(R * 0.25f * sinf(r)), 1, 1, true);
+        }
+        float frac = 0.5f;
+        if (hasRise && dayLen > 0 && dayLen < 1440) {
+            if (up) frac = (float)((fmod(nowMin - rise + 2880, 1440)) / dayLen);
+            else    frac = (float)((fmod(nowMin - set + 2880, 1440)) / (1440 - dayLen));
+        }
+        frac = constrain(frac, 0.0f, 1.0f);
+        const float ang = frac * (float)PI;
+        if (up) {
+            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), 4);
+        } else {
+            pagesInk(INK_NIGHT);
+            pagesDrawCircle(cx + (int)lroundf(R * cosf(ang)), hy + (int)lroundf(R * 0.25f * sinf(ang)), 3, true);
+            pagesInk(INK_TEXT);
+        }
+    }
+
+    // CLOCK > MOON: fase, parte iluminada, edad, salida y puesta, y cuanto falta para la llena y la nueva
+    void drawMoon() {
+        time_t t;
+        double lat, lon;
+        int off;
+        if (!skyNow(t, lat, lon, off)) { header("MOON"); text(4, 24, "Needs time and GPS"); return; }
+        const MoonInfo& mi = moonInfo(t, lat, lon);
+        char right[8];
+        snprintf(right, sizeof(right), "%d%%", (int)lround(mi.lit * 100));
+        header("MOON", right);
+        const bool big = XR >= 16;
+        const int r = big ? 24 : 17;
+        const int cx = PW - 2 - r, cy = 37;
+        rowLimit = min(COLS, (cx - r - 2) / 6);
+        row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
+        if (big) row(1, "Lit %d%% Age %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
+        else     row(1, "Lit %d%% %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
+        char a[6] = "--:--";
+        if (mi.hasRise) fmtLocalMin(mi.riseMin, off, a, sizeof(a));
+        row(2, "Rise %s", a);
+        snprintf(a, sizeof(a), "--:--");
+        if (mi.hasSet) fmtLocalMin(mi.setMin, off, a, sizeof(a));
+        row(3, "Set  %s", a);
+        const int fh = (int)lround(mi.toFullH), nh = (int)lround(mi.toNewH);
+        row(4, "Full %dd%02dh", fh / 24, fh % 24);
+        row(5, "New  %dd%02dh", nh / 24, nh % 24);
+        rowLimit = COLS;
+        drawMoonDisc(cx, cy, r, mi, lat < 0);
+    }
+
+    // CLOCK: 1P pasa a SUN y a MOON (con hora y posicion) y de ahi a la pagina siguiente; 2P vuelve
+    static bool moveClockView(int direction) {
+        if (page != PAGE_CLOCK) return false;
+        time_t t;
+        double lat, lon;
+        int off;
+        if (!skyNow(t, lat, lon, off)) { clockView = 0; return false; }
+        const int to = clockView + direction;
+        if (to < 0 || to > 2) return false;
+        clockView = (uint8_t)to;
+        return true;
+    }
+
     void drawClock() {
+        if (clockView == 1) { drawSun(); return; }
+        if (clockView == 2) { drawMoon(); return; }
         time_t t = now();
         bool haveTime = year(t) >= 2024;
         uint32_t nowMs = millis();
@@ -2335,22 +2594,17 @@ namespace {
         else snprintf(buffer, sizeof(buffer), "UTC %02d:%02d", hour(t), minute(t));
         text(4, 48, buffer);
 
-        // orto y ocaso con la posicion propia; cada 4 s se alterna con la luna (fase, iluminada, salida y puesta)
+        // orto y ocaso con la posicion propia; cada 4 s se alterna con la luna (fase, iluminada, salida y puesta); en
+        // pantallas de 160 px, el sol o la luna pequenos a la derecha
         double lat, lon;
         if (ownPosition(lat, lon) && (millis() / 4000) % 2 == 1) {
-            int y, m, d;
-            civilFromEpoch((int64_t)t, y, m, d);
-            const double hours = hour(t) + minute(t) / 60.0 + second(t) / 3600.0;
-            const double age = plotter::moonAgeDays(y, m, d, hours);
-            double mr, ms;
-            bool hr, hs;
-            plotter::moonTimes(y, m, d, lat, lon, mr, hr, ms, hs);
+            const MoonInfo& mi = moonInfo(t, lat, lon);
             char a[6] = "--:--", b[6] = "--:--";
-            if (hr) { int v = ((int)lround(mr) + offsetMin + 2880) % 1440; snprintf(a, sizeof(a), "%02d:%02d", v / 60, v % 60); }
-            if (hs) { int v = ((int)lround(ms) + offsetMin + 2880) % 1440; snprintf(b, sizeof(b), "%02d:%02d", v / 60, v % 60); }
-            snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(plotter::moonIllumination(age) * 100),
-                     age < 14.765 ? '+' : '-', a, b);                         // + creciente, - menguante
+            if (mi.hasRise) fmtLocalMin(mi.riseMin, offsetMin, a, sizeof(a));
+            if (mi.hasSet) fmtLocalMin(mi.setMin, offsetMin, b, sizeof(b));
+            snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(mi.lit * 100), mi.waxing ? '+' : '-', a, b);   // + creciente, - menguante
             text(4, 56, buffer);
+            if (XR >= 16) drawMoonDisc(PW - 10, 47, 6, mi, lat < 0);
         } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
@@ -2366,6 +2620,7 @@ namespace {
                 snprintf(buffer, sizeof(buffer), sun > 0 ? "Sun: polar day" : "Sun: polar night");
             }
             text(4, 56, buffer);
+            if (XR >= 16) drawSunIcon(PW - 10, 47, 4);
         }
     }
 
@@ -5211,6 +5466,7 @@ namespace PAGES_Utils {
         teamMode = TMODE_LIST;
         boardView = 0;
         gpsView = 0;
+        clockView = 0;
         msgMode = MM_LIST;
         msgCursor = 0;
         barUntil = millis() + BAR_VISIBLE_MS;
@@ -5284,7 +5540,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(+1) || moveListCursor(+1) || moveTeamCursor(+1) || moveBoardView(+1) || moveGpsView(+1)) return;
+        if (moveMessageCursor(+1) || moveListCursor(+1) || moveTeamCursor(+1) || moveBoardView(+1) || moveGpsView(+1) || moveClockView(+1)) return;
         do { page = (page + 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
@@ -5299,7 +5555,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(-1) || moveListCursor(-1) || moveTeamCursor(-1) || moveBoardView(-1) || moveGpsView(-1)) return;
+        if (moveMessageCursor(-1) || moveListCursor(-1) || moveTeamCursor(-1) || moveBoardView(-1) || moveGpsView(-1) || moveClockView(-1)) return;
         do { page = (page + PAGE_COUNT - 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
@@ -5330,6 +5586,10 @@ namespace PAGES_Utils {
         }
         if (page == PAGE_GPS && gpsView != 0) {                // vista GNSS -> GPS
             gpsView = 0;
+            return true;
+        }
+        if (page == PAGE_CLOCK && clockView != 0) {            // vista SUN o MOON -> CLOCK
+            clockView = 0;
             return true;
         }
         if (page == PAGE_MSG && msgMode != MM_LIST) {          // detalle -> explorar -> lista

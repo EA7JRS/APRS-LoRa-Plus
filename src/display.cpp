@@ -658,16 +658,18 @@ void displayShow(const String& header, const String& line1, const String& line2,
     #endif
     // Paletas de la app Android (Theme.kt): oscura y clara. RGB565.
     #define RGB565(c) ((uint16_t)((((c) >> 8) & 0xF800) | (((c) >> 5) & 0x07E0) | (((c) >> 3) & 0x001F)))
-    struct PagesPalette { uint16_t bg, onInk, ink[9], logo[3]; };
+    struct PagesPalette { uint16_t bg, onInk, ink[INK_COUNT], logo[3]; };
     static const PagesPalette PAL_DARK = {
         RGB565(0x131A22), RGB565(0x131A22),
         { RGB565(0xE8EEF3), RGB565(0x28B5E1), RGB565(0xFFB347), RGB565(0x3CE68A), RGB565(0x28B5E1),
-          RGB565(0x9FB0BF), RGB565(0x3CE68A), RGB565(0xFFB347), RGB565(0xFF6B6B) },
+          RGB565(0x9FB0BF), RGB565(0x3CE68A), RGB565(0xFFB347), RGB565(0xFF6B6B),
+          RGB565(0xFFB347), RGB565(0xF2EBD0), RGB565(0x2B3A4A), RGB565(0x3A4A5C) },
         { RGB565(0x3CE68A), RGB565(0x28B5E1), RGB565(0xE8EEF3) } };
     static const PagesPalette PAL_LIGHT = {
         RGB565(0xF4F7FA), RGB565(0xFFFFFF),
         { RGB565(0x131A22), RGB565(0x1B8DB8), RGB565(0xB05E00), RGB565(0x1E9E5C), RGB565(0x1B8DB8),
-          RGB565(0x5C6B7A), RGB565(0x1E9E5C), RGB565(0xB05E00), RGB565(0xC83A3A) },
+          RGB565(0x5C6B7A), RGB565(0x1E9E5C), RGB565(0xB05E00), RGB565(0xC83A3A),
+          RGB565(0xE08A00), RGB565(0xE8C45A), RGB565(0x3A4654), RGB565(0x9AA8B6) },
         { RGB565(0x1E9E5C), RGB565(0x1B8DB8), RGB565(0x131A22) } };
     static const PagesPalette* pagesPal = &PAL_DARK;
     static uint16_t pagesInkColor = PAL_DARK.ink[INK_TEXT];
@@ -685,7 +687,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
     }
 
     void pagesInk(uint8_t ink) {
-        pagesInkColor = pagesPal->ink[ink < 9 ? ink : INK_TEXT];
+        pagesInkColor = pagesPal->ink[ink < INK_COUNT ? ink : INK_TEXT];
     }
 
     void pagesZone(uint8_t zone) {

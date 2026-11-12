@@ -54,7 +54,8 @@ void displayPopup(const String& title, const String& line1, const String& line2,
     enum PagesZone : uint8_t { PZ_TOP, PZ_BODY, PZ_BOTTOM };
     void    pagesZone(uint8_t zone);                                        // vale hasta el siguiente pagesZone / pagesBegin (PZ_BODY)
     // Tintas (pantallas a color): el "on" de los dibujos sale con el color de la tinta en uso. En monocromo no hacen nada.
-    enum PagesInk : uint8_t { INK_TEXT, INK_HEAD, INK_ACCENT, INK_SEL, INK_FRAME, INK_MUTED, INK_GOOD, INK_WARN, INK_BAD };
+    enum PagesInk : uint8_t { INK_TEXT, INK_HEAD, INK_ACCENT, INK_SEL, INK_FRAME, INK_MUTED, INK_GOOD, INK_WARN, INK_BAD,
+                             INK_SUN, INK_MOON, INK_SHADE, INK_NIGHT, INK_COUNT };   // sol, luna iluminada, cara oscura, arco de la noche
     void    pagesInk(uint8_t ink);                                          // vale hasta el siguiente pagesInk / pagesBegin (INK_TEXT)
     bool    pagesHasColor();
     void    pagesSetLight(bool light);                                      // tema claro (true) u oscuro
