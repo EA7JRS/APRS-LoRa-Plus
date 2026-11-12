@@ -37,6 +37,7 @@
 #include "tx_unlock.h"
 #include <TinyGPS++.h>
 #include "sa868_radio.h"
+#include "same.h"                  // NOAA Weather Radio (SAME), del nucleo del plotter (lib/aprs_formulas)
 #include "logger.h"
 #include "esp_heap_caps.h"
 
@@ -95,6 +96,10 @@ namespace SA868 {
     static AisCore::Demod       aisRx;
     struct AisItem { uint8_t n; char ch; uint8_t d[AisCore::MAX_MSG_BYTES]; };
     static QueueHandle_t        aisQueue    = nullptr;
+    // NOAA Weather Radio: cabeceras SAME en FM cuando la radio esta en un canal WX1..WX7 (EA7JRS)
+    static plotter::SameDecoder sameDec;
+    static char                 sameBuf[300];
+    static volatile bool        sameReady   = false;
     static volatile char        aisCh       = 'A';
     // FM (voz)
     static bool                 fmMode      = false;
@@ -600,6 +605,7 @@ namespace SA868 {
             }
             const bool gate = fmOpen;
             const float gain = espAudio ? (float)constrain(Config.sa868.volume, 1, 8) / 4.0f : 0.0f;
+            const bool sameOn = fmMode && plotter::nwrChannel(curRx / 1e6) != 0;
             for (uint32_t i = 0; i + SOC_ADC_DIGI_RESULT_BYTES <= got; i += SOC_ADC_DIGI_RESULT_BYTES) {
                 const adc_digi_output_data_t* p = (const adc_digi_output_data_t*)&buf[i];
                 const int v = (int)p->type2.data;
@@ -611,12 +617,20 @@ namespace SA868 {
                 demod.feed(x, onFrame, nullptr);            // AFSK: tambien en FM (APRS en el canal de voz)
                 if (!fmMode) continue;
                 if (fmNoise.feed(x)) fmSoftOpen = fmAuto.softUpdate(fmNoise, fmRssiDbm, fw == Firmware::OPENRTX);
+                if (sameOn) sameDec.push(x);
                 if (espAudio) {
                     // banda de voz (300-3000 Hz: fuera continua, zumbido, CTCSS y el soplido de arriba) y limitador suave en vez del
                     // recorte duro de antes (distorsionaba con volumen alto) (EA7JRS)
                     float y = spkVoice.process(fmNr ? fmNr->process(x) : x);
                     y = gate ? FmDsp::VoiceFilter::limit(y * gain) : 0.0f;
                     spkPush((int8_t)lroundf(y * 127.0f));
+                }
+            }
+            if (sameOn && !sameReady) {
+                std::string h;
+                if (sameDec.poll(h)) {
+                    snprintf(sameBuf, sizeof(sameBuf), "%s", h.c_str());
+                    sameReady = true;
                 }
             }
         }
@@ -654,6 +668,7 @@ namespace SA868 {
         if (fmMode) {
             fmNoise.begin((float)RX_FS);
             spkVoice.begin((float)RX_FS);
+            sameDec.begin((float)RX_FS);
             if (espAudio && Config.fm.nrLevel > 0) {
                 fmNr = new FmDsp::NoiseReducer();
                 if (fmNr) { fmNr->begin(); fmNr->setStrength(Config.fm.nrLevel / 3.0f); }
@@ -756,6 +771,15 @@ namespace SA868 {
     bool modeFm()             { return fmMode; }
     bool modeDapnet()         { return dap; }
     long rxFreqHz()           { return curRx ? curRx : Config.sa868.rxFreqHz; }
+
+    // Cabecera SAME (o "NNNN") decodificada en la tarea de recepcion; la recoge el bucle principal (ALERTS::loop)
+    bool sameTake(char* out, size_t size) {
+        if (!sameReady) return false;
+        snprintf(out, size, "%s", sameBuf);
+        sameReady = false;
+        return true;
+    }
+    uint32_t sameBursts() { return sameDec.bursts(); }
     long txFreqHz()           { return curTx ? curTx : Config.sa868.txFreqHz; }
     uint32_t m17Lsfs()        { return m17rx.lsfs; }
     uint32_t m17CrcErrors()   { return m17rx.crcErrors; }

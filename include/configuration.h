@@ -109,6 +109,8 @@ public:
     bool    turn180;
     uint8_t theme       = 0;    // pantallas a color: 0 oscuro, 1 claro, 2 automatico (claro de dia, oscuro de noche; sol en la posicion del GPS)
     uint8_t splash      = 1;    // bienvenida en las pantallas a color (Heltec Wireless Tracker, T-Deck): 1 logo de la app a todo color (de serie), 0 logo de las OLED en color
+    uint8_t alertPopup  = 1;    // avisos oficiales (meteorologia, tsunamis, terremotos, tiempo espacial, SAME): ventana desde este nivel (1 amarillo, 2 naranja, 3 rojo, 4 nunca) (EA7JRS)
+    uint8_t alertBuzz   = 3;    // y zumbador desde este nivel (4 = nunca)
 };
 
 class Battery {

@@ -28,6 +28,7 @@
 #include "sat_config.h"
 #include "sat_utils.h"
 #include "net_wx.h"
+#include "alerts_utils.h"
 #include "ais_utils.h"
 #ifdef HAS_SA868
 #include "tx_unlock.h"
@@ -350,6 +351,12 @@ namespace {
         caps["ais"] = true;                                      // receptor AIS: eventos "ais", ordenes "aislist", "aisin", "aisset" (modo 12 en la T-TWR, modulo por UART)
         caps["netreq"] = true;                                   // el tracker puede pedir a la app que baje el tiempo o los satelites (evento "netreq")
         caps["wxnet"] = true;                                    // tiempo de internet de la app para TELEMETRY (orden "wxnet")
+        caps["alerts"] = true;                                   // avisos oficiales de la app ("alert", "alertdel", "alertclr", "spacewx"; eventos "alertsv", "alerts", "alert", "spacewx")
+        #ifdef HAS_SA868
+            caps["same"] = !SA868::uhf();                // NOAA Weather Radio (SAME) en FM, canales WX1..WX7 (modulo de VHF)
+        #else
+            caps["same"] = false;
+        #endif
         caps["bcast"] = BCAST::chipName();                       // radio comercial por I2C: "none", "RDA5807M", "Si4703", "Si4735"
         doc["mode"] = Config.operatingMode;
         JsonArray modes = doc["modes"].to<JsonArray>();
@@ -889,6 +896,76 @@ namespace {
         if (v.lastText[0]) j.text("txt", v.lastText);
         if (v.channel) { const char ch[2] = { v.channel, 0 }; j.text("ch", ch); }
         j.num("msgs", v.msgs);
+    }
+
+    static void alertJson(JW& j, const plotter::Alert& a) {
+        j.text("id", a.id.c_str());
+        j.text("s", plotter::alertSrcCode(a.src));
+        j.num("lv", a.level);
+        j.text("ev", a.event.c_str());
+        j.text("ar", a.area.c_str());
+        j.text("tx", a.text.c_str());
+        j.num("on", (long long)a.onset);
+        j.num("ex", (long long)a.expires);
+        if (a.hasPos()) { j.flt("la", a.lat, 4); j.flt("lo", a.lon, 4); }
+    }
+
+    // Avisos oficiales (para APRS LoRa+ Display y la app): por paginas
+    static void sendAlerts(int from, int cnt) {
+        const plotter::AlertList& L = ALERTS::list();
+        JW j("alerts");
+        j.num("tot", (long long)L.size());
+        j.num("from", from);
+        j.unum("v", ALERTS::version());
+        j.arr("items");
+        for (int k = from; k < (int)L.size() && k < from + cnt; k++) { j.obj(); alertJson(j, L[(size_t)k]); j.endObj(); }
+        j.endArr();
+        j.send(sendLine);
+    }
+
+    static void sendSpaceWx() {
+        const plotter::SpaceWx& w = ALERTS::space();
+        JW j("spacewx");
+        j.flag("ok", ALERTS::hasSpace());
+        j.num("g", w.g); j.num("r", w.r); j.num("s", w.s); j.num("gm", w.gMax);
+        j.arr("kp");
+        for (int i = 0; i < w.kpCount; i++) j.item(w.kp[i], 2);
+        j.endArr();
+        j.num("kt", (long long)w.kpTime);
+        if (w.sfi > 0) j.flt("sfi", w.sfi, 0);
+        if (w.bz < 999) j.flt("bz", w.bz, 1);
+        if (w.bt >= 0) j.flt("bt", w.bt, 1);
+        if (w.windKms > 0) j.flt("ws", w.windKms, 0);
+        if (!w.xray.empty()) j.text("xr", w.xray.c_str());
+        j.unum("age", ALERTS::spaceAgeS());
+        j.send(sendLine);
+    }
+
+    // Cambio en la lista: version, cuantos y el nivel mayor (los clientes piden "alerts" si les interesa)
+    static void checkAlerts() {
+        static uint16_t sentVer = 0;
+        static uint32_t lastMs = 0;
+        if (!connected || !authed) return;
+        const uint16_t v = ALERTS::version();
+        if (v == sentVer || millis() - lastMs < 1000) return;
+        sentVer = v;
+        lastMs = millis();
+        JW j("alertsv");
+        j.unum("v", v);
+        j.num("n", (long long)ALERTS::list().size());
+        j.num("max", ALERTS::list().maxLevel());
+        j.send(sendLine);
+        // un aviso de SAME lo saca el tracker: tambien a la app, entero
+        const plotter::AlertList& L = ALERTS::list();
+        for (size_t i = 0; i < L.size(); i++) {
+            static std::string sentSame;
+            if (L[i].src != plotter::AlertSrc::Same || L[i].id == sentSame) continue;
+            sentSame = L[i].id;
+            JW a("alert");
+            alertJson(a, L[i]);
+            a.send(sendLine);
+            break;
+        }
     }
 
     static void sendAisList(int from, int cnt) {
@@ -1540,6 +1617,19 @@ namespace {
             if (!doc["ch"].isNull() || !doc["cpa"].isNull() || !doc["tcpa"].isNull() || !doc["guard"].isNull() || !doc["alarm"].isNull() || !doc["sart"].isNull()) Config.writeFile();
             reply(cmd, id);
         }
+        else if (strcmp(cmd, "alert") == 0) {                     // aviso oficial de la app (no emite: sin indicativo validado)
+            String error;
+            if (!ALERTS::fromJson(doc, error)) { reply(cmd, id, error.c_str()); return; }
+            reply(cmd, id);
+        }
+        else if (strcmp(cmd, "alertdel") == 0) { ALERTS::remove(doc["id"] | ""); reply(cmd, id); }
+        else if (strcmp(cmd, "alertclr") == 0) { ALERTS::clear(doc["s"] | ""); reply(cmd, id); }
+        else if (strcmp(cmd, "alerts") == 0) { sendAlerts(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 6), 1, 12)); }
+        else if (strcmp(cmd, "spacewx") == 0) {                   // tiempo espacial del SWPC; sin datos = pedirlo
+            if (doc["g"].isNull() && doc["kp"].isNull() && doc["sfi"].isNull()) { sendSpaceWx(); return; }
+            if (!ALERTS::spaceFromJson(doc)) { reply(cmd, id, "no data"); return; }
+            reply(cmd, id);
+        }
         else if (strcmp(cmd, "wxnet") == 0) {                     // tiempo de internet (la app: OpenWeatherMap / IQAir) para la pagina TELEMETRY
             NET_WX::Data d;
             if (!NET_WX::fromJson(doc, d)) { reply(cmd, id, "no data"); return; }
@@ -2132,6 +2222,7 @@ namespace BLE_Control {
         #ifdef HAS_SA868
         checkFm();
         #endif
+        checkAlerts();
         if (!connected) return;
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }

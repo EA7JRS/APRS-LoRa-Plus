@@ -250,6 +250,8 @@ namespace {
         FB(Display, showSymbol, FF_REQUIRED, true),
         FC(Display, theme,      0, 0, 0, 2),
         FC(Display, splash,     0, 1, 0, 1),
+        FC(Display, alertPopup, 0, 1, 1, 4),
+        FC(Display, alertBuzz,  0, 3, 1, 4),
     };
     #ifdef HAS_BT_CLASSIC
         #define BT_USE_KISS_DEFAULT false
@@ -1398,6 +1400,8 @@ void Configuration::setDefaultValues() {
     display.showSymbol              = true;
     display.theme                   = 0;
     display.splash                  = 1;
+    display.alertPopup              = 1;
+    display.alertBuzz               = 3;
 
     setCwDefaults();
     setWsprDefaults();

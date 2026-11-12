@@ -72,6 +72,7 @@ ____________________________________________________________________*/
 #include "web_utils.h"
 #include "ble_utils.h"
 #include "ble_control.h"
+#include "alerts_utils.h"
 #include "wx_utils.h"
 #include "display.h"
 #include "utils.h"
@@ -463,4 +464,5 @@ void loop() {
     }
 
     if (bluetoothActive && Config.bluetooth.useBLE) BLE_Control::loop();     // app APRS LoRa+: ordenes y eventos de control (EA7JRS)
+    ALERTS::loop();                                                          // avisos oficiales: caducidad, SAME de la T-TWR (EA7JRS)
 }

@@ -85,6 +85,7 @@
 #include "ble_control.h"
 #include "astro.h"            // lib/aprs_formulas (formulas del plotter): luna
 #include "wind.h"             // Beaufort
+#include "alerts_utils.h"     // avisos oficiales (EA7JRS)
 
 #ifndef PAGES_GYRO_SIGN
     #define PAGES_GYRO_SIGN     -1      // sentido inicial del giroscopio (se corrige solo al girar con la brujula valida)
@@ -251,6 +252,11 @@ namespace {
     uint8_t         boardView           = 0;        // SYSTEM: 0 = sistema, 1 = vista LINK (conexiones activas), 2 = BATTERY (no son paginas aparte)
     uint8_t         gpsView             = 0;        // GPS: 0 = posicion, 1 = GNSS (constelaciones, bandas, cielo) (EA7JRS)
     uint8_t         clockView           = 0;        // CLOCK: 0 = reloj, 1 = SUN (orto y ocaso), 2 = MOON (fase) (EA7JRS)
+    uint8_t         wxView              = 0;        // TELEMETRY: 0 = sensores, 1 = ALERTS (avisos oficiales), 2 = SPACE WX (EA7JRS)
+    uint8_t         alertTop            = 0;        // ALERTS: primera fila
+    uint32_t        msgWinUntil         = 0;        // ventana del mensaje recibido visible hasta este instante
+    uint32_t        alertWinWakeMs      = 0;
+    std::string     alertWinId;                     // aviso de la ventana que se ve
     Item            sysItems[8];                    // submenu de SYSTEM
     char            sysBtLabel[24];
     char            sysProtoLabel[24];
@@ -2096,7 +2102,16 @@ namespace {
         else                   row(5, "%s ago (internet)", age);
     }
 
+    void drawWxSensors();
+    void drawAlertsView();
+    void drawSpaceView();
     void drawWx() {
+        if (wxView == 1) { drawAlertsView(); return; }
+        if (wxView == 2) { if (ALERTS::hasSpace()) { drawSpaceView(); return; } wxView = 0; }
+        drawWxSensors();
+    }
+
+    void drawWxSensors() {
         WX_Utils::refreshForScreen();
         WX_Utils::Reading r;
         NET_WX::Data nd;
@@ -2224,61 +2239,367 @@ namespace {
         pagesZone(PZ_BODY);
     }
 
+    // ---- Ventanas emergentes (Manuel - EA7JRS): mensaje, alarma, avisos oficiales. Sobre la pagina, con marco doble,
+    // cabecera del color del tipo, contenido y una barra de botones abajo. En monocromo, igual sin colores.
+    const int WIN_X = 4, WIN_Y = 2, WIN_W = PAGES_W - 8, WIN_H = 62;
+    const int WIN_COLS = (PAGES_W - 8 - 10) / 6;            // 23 columnas en 160 px, 18 en 128
+
+    enum WinIcon : uint8_t { WI_NONE, WI_MAIL, WI_WARN, WI_SHIP, WI_PERSON, WI_WAVE, WI_QUAKE, WI_SUN, WI_RADIO, WI_WIND };
+
+    static void winIcon(int x, int y, uint8_t icon, bool on) {
+        switch (icon) {
+            case WI_MAIL:
+                pagesDrawRect(x, y, 10, 7, on);
+                pagesDrawLine(x, y, x + 4, y + 3, on);
+                pagesDrawLine(x + 9, y, x + 5, y + 3, on);
+                break;
+            case WI_WARN:
+                pagesFillTriangle(x + 5, y, x, y + 7, x + 10, y + 7, on);
+                pagesFillRect(x + 5, y + 2, 1, 3, !on);
+                pagesFillRect(x + 5, y + 6, 1, 1, !on);
+                break;
+            case WI_SHIP:
+                pagesDrawLine(x, y + 5, x + 10, y + 5, on);
+                pagesDrawLine(x + 1, y + 6, x + 9, y + 6, on);
+                pagesDrawLine(x + 2, y + 7, x + 8, y + 7, on);
+                pagesFillRect(x + 4, y + 2, 3, 3, on);
+                break;
+            case WI_PERSON:
+                pagesFillRect(x + 4, y, 2, 2, on);
+                pagesDrawLine(x + 5, y + 2, x + 5, y + 5, on);
+                pagesDrawLine(x + 2, y + 3, x + 8, y + 3, on);
+                pagesDrawLine(x + 5, y + 5, x + 2, y + 8, on);
+                pagesDrawLine(x + 5, y + 5, x + 8, y + 8, on);
+                break;
+            case WI_WAVE:
+                for (int dx = 0; dx < 11; dx++) {
+                    const int top = y + 3 + (int)lroundf(2.5f * sinf(dx / 11.0f * 5.0f + 1.2f));
+                    pagesFillRect(x + dx, top, 1, y + 8 - top, on);
+                }
+                break;
+            case WI_QUAKE: {
+                static const int8_t P[] = {0, 0, 0, -1, 2, -4, 4, -2, 3, 1, -3, 2, 0, 0};
+                for (int i = 0; i < 13; i++) pagesDrawLine(x + i * 11 / 13, y + 4 + P[i], x + (i + 1) * 11 / 13, y + 4 + P[i + 1], on);
+                break;
+            }
+            case WI_SUN:
+                pagesFillCircle(x + 5, y + 4, 3, on);
+                pagesDrawLine(x + 9, y + 1, x + 10, y, on);
+                pagesDrawLine(x + 9, y + 7, x + 10, y + 8, on);
+                pagesDrawLine(x + 1, y + 1, x, y, on);
+                break;
+            case WI_RADIO:
+                pagesDrawRect(x, y + 4, 10, 5, on);
+                pagesDrawLine(x + 2, y + 4, x + 8, y, on);
+                pagesFillRect(x + 6, y + 6, 2, 1, on);
+                break;
+            case WI_WIND:
+                pagesDrawLine(x, y + 2, x + 7, y + 2, on);
+                pagesFillRect(x + 8, y + 1, 1, 1, on);
+                pagesDrawLine(x, y + 5, x + 9, y + 5, on);
+                pagesFillRect(x + 10, y + 6, 1, 1, on);
+                break;
+            default: break;
+        }
+    }
+
+    // Marco, fondo y cabecera; filled = cabecera rellena (si no, solo el texto en el color: para el parpadeo)
+    static void winFrame(uint8_t ink, const char* title, const char* right, uint8_t icon, bool filled = true) {
+        pagesZone(PZ_BODY);
+        pagesFillRect(WIN_X, WIN_Y, WIN_W, WIN_H, false);
+        pagesInk(ink);
+        pagesDrawRect(WIN_X, WIN_Y, WIN_W, WIN_H, true);
+        pagesDrawRect(WIN_X + 1, WIN_Y + 1, WIN_W - 2, WIN_H - 2, true);
+        if (filled) pagesFillRect(WIN_X + 2, WIN_Y + 2, WIN_W - 4, 10, true);
+        const int tx = icon == WI_NONE ? WIN_X + 4 : WIN_X + 16;
+        if (icon != WI_NONE) winIcon(WIN_X + 4, WIN_Y + 3, icon, filled);
+        char t[24];
+        snprintf(t, sizeof(t), "%s", title);
+        const int rightW = right && right[0] ? 6 * (int)strlen(right) + 4 : 0;
+        const int maxChars = (WIN_X + WIN_W - 4 - rightW - tx) / 6;
+        if (maxChars >= 0 && maxChars < (int)sizeof(t)) t[maxChars] = '\0';
+        pagesText(tx, WIN_Y + 3, t, 1, filled);
+        if (rightW) pagesText(WIN_X + WIN_W - 4 - 6 * (int)strlen(right), WIN_Y + 3, right, 1, filled);
+        pagesInk(INK_TEXT);
+    }
+
+    // Linea de contenido (0..3) recortada al ancho de la ventana
+    static void winLine(int row, const char* text, uint8_t ink = INK_TEXT) {
+        char t[32];
+        snprintf(t, sizeof(t), "%s", text);
+        if (WIN_COLS < (int)sizeof(t)) t[WIN_COLS] = '\0';
+        pagesInk(ink);
+        pagesText(WIN_X + 5, WIN_Y + 13 + row * 9, t, 1, false);
+        pagesInk(INK_TEXT);
+    }
+
+    // Barra de botones: rellena del color (alarmas) o texto apagado sobre una raya (mensaje)
+    static void winButtons(uint8_t ink, const char* text, bool filled) {
+        pagesInk(ink);
+        if (filled) {
+            pagesFillRect(WIN_X + 2, WIN_Y + WIN_H - 11, WIN_W - 4, 9, true);
+            pagesText(WIN_X + 5, WIN_Y + WIN_H - 10, text, 1, true);
+        } else {
+            pagesInk(INK_MUTED);
+            pagesDrawLine(WIN_X + 3, WIN_Y + WIN_H - 13, WIN_X + WIN_W - 4, WIN_Y + WIN_H - 13, true);
+            pagesText(WIN_X + 5, WIN_Y + WIN_H - 10, text, 1, false);
+        }
+        pagesInk(INK_TEXT);
+    }
+
+    static uint8_t levelInk(uint8_t level) {
+        return level >= 3 ? INK_BAD : level == 2 ? INK_LV2 : level == 1 ? INK_LV1 : INK_MUTED;
+    }
+
+    static uint8_t alertIcon(const plotter::Alert& a) {
+        switch (a.src) {
+            case plotter::AlertSrc::Tsunami: return WI_WAVE;
+            case plotter::AlertSrc::Usgs:
+            case plotter::AlertSrc::Emsc:    return WI_QUAKE;
+            case plotter::AlertSrc::Swpc:    return WI_SUN;
+            case plotter::AlertSrc::Same:    return WI_RADIO;
+            default: break;
+        }
+        return strstr(a.event.c_str(), "Wind") || strstr(a.event.c_str(), "wind") ? WI_WIND : WI_WARN;
+    }
+
+    // Hora local corta de un instante Unix ("Fri 06:00"); "" si no hay
+    static void fmtWhen(int64_t t, char* out, size_t size) {
+        out[0] = '\0';
+        if (t <= 0) return;
+        bool dst = false;
+        const int off = zoneOffsetMinutes(zoneMode, zoneHalfHours, (int64_t)t, &dst);
+        const time_t l = (time_t)t + (time_t)off * 60;
+        snprintf(out, size, "%s %02d:%02d", weekdayName(weekdayIndex((int64_t)l)), hour(l), minute(l));
+    }
+
+    // Ventana del aviso oficial mas grave sin ver
+    void drawAlertWindow(const plotter::Alert& a) {
+        char title[24];
+        const bool quake = a.src == plotter::AlertSrc::Usgs || a.src == plotter::AlertSrc::Emsc;
+        if (quake) snprintf(title, sizeof(title), "EARTHQUAKE");
+        else if (a.src == plotter::AlertSrc::Tsunami) snprintf(title, sizeof(title), "%s", a.level >= 3 ? "TSUNAMI WARN" : a.level == 2 ? "TSUNAMI ADV" : "TSUNAMI");
+        else if (a.src == plotter::AlertSrc::Swpc) snprintf(title, sizeof(title), "SPACE WX");
+        else if (a.src == plotter::AlertSrc::Same) snprintf(title, sizeof(title), "SAME ALERT");
+        else snprintf(title, sizeof(title), "%s", a.level >= 3 ? "RED WARNING" : a.level == 2 ? "ORANGE WARN" : a.level == 1 ? "YELLOW WARN" : "WARNING");
+        const uint8_t ink = levelInk(a.level);
+        const bool blink = a.level < 3 || ((millis() / 500) & 1);
+        winFrame(ink, title, plotter::alertSrcName(a.src), alertIcon(a), blink);
+        char when[16], line[40];
+        if (quake) {
+            char mag[8];
+            snprintf(mag, sizeof(mag), "%s", a.event.c_str());       // "M5.4 Earthquake" -> "M5.4"
+            char* sp = strchr(mag, ' ');
+            if (sp) *sp = '\0';
+            pagesInk(ink);
+            pagesText(WIN_X + 5, WIN_Y + 13, mag, 2, false);
+            pagesInk(INK_MUTED);
+            fmtWhen(a.onset, when, sizeof(when));
+            const int mx = WIN_X + 5 + 12 * (int)strlen(mag) + 6;
+            if (mx + 6 * (int)strlen(when) <= WIN_X + WIN_W - 4) pagesText(mx, WIN_Y + 17, when, 1, false);
+            pagesInk(INK_TEXT);
+            winLine(2, a.area.c_str());
+            winLine(3, a.text.c_str());
+        } else {
+            winLine(0, a.event.c_str(), ink);
+            winLine(1, a.area.c_str());
+            winLine(2, a.text.c_str());
+            char from[16], to[16];
+            fmtWhen(a.onset, from, sizeof(from));
+            fmtWhen(a.expires, to, sizeof(to));
+            if (from[0] && to[0]) snprintf(line, sizeof(line), "%s - %s", from, to);
+            else if (to[0]) snprintf(line, sizeof(line), "Until %s", to);
+            else line[0] = '\0';
+            winLine(3, line, INK_MUTED);
+        }
+        winButtons(ink, ALERTS::sounding() ? "1P mute  LP list" : "1P close  LP list", true);
+    }
+
+    // Ventana del mensaje recibido: remitente en grande, sin leer, hora y el principio del texto en dos lineas
+    void drawMessageWindow() {
+        const MsgEntry* e = nullptr;
+        for (uint8_t i = 0; i < msgLog.count() && !e; i++) if (msgLog.byRecent(i)->dir == 'R') e = msgLog.byRecent(i);
+        if (!e) { msgWinUntil = 0; return; }
+        char right[8] = "";
+        if (e->epoch > 0) {
+            bool dst = false;
+            const int off = zoneOffsetMinutes(zoneMode, zoneHalfHours, (int64_t)e->epoch, &dst);
+            const time_t l = (time_t)e->epoch + (time_t)off * 60;
+            snprintf(right, sizeof(right), "%02d:%02d", hour(l), minute(l));
+        }
+        winFrame(INK_FRAME, "MESSAGE", right, WI_MAIL, true);
+        pagesInk(INK_ACCENT);
+        const int callW = 12 * (int)strlen(e->call);
+        pagesText(WIN_X + 5, WIN_Y + 14, e->call, callW <= WIN_W - 40 ? 2 : 1, false);
+        const uint8_t unread = msgLog.unread();
+        if (unread > 1) {
+            char n[8];
+            snprintf(n, sizeof(n), "%u", (unsigned)unread);
+            pagesInk(INK_MUTED);
+            pagesText(WIN_X + WIN_W - 5 - 6 * (int)strlen(n), WIN_Y + 18, n, 1, false);
+        }
+        pagesInk(INK_TEXT);
+        // texto en dos lineas, cortando por palabras
+        const char* t = e->text;
+        char l1[32] = "", l2[32] = "";
+        size_t n = strlen(t);
+        size_t cut = n <= (size_t)WIN_COLS ? n : (size_t)WIN_COLS;
+        if (cut < n) { size_t k = cut; while (k > 0 && t[k] != ' ') k--; if (k > (size_t)WIN_COLS / 2) cut = k; }
+        snprintf(l1, sizeof(l1), "%.*s", (int)cut, t);
+        while (t[cut] == ' ') cut++;
+        snprintf(l2, sizeof(l2), "%s", t + cut);
+        pagesText(WIN_X + 5, WIN_Y + 31, l1, 1, false);
+        if (strlen(l2) > (size_t)WIN_COLS) { l2[WIN_COLS - 2] = '.'; l2[WIN_COLS - 1] = '.'; l2[WIN_COLS] = '\0'; }
+        pagesText(WIN_X + 5, WIN_Y + 40, l2, 1, false);
+        winButtons(INK_MUTED, "1P read  2P close", false);
+    }
+
+    bool alertWindowShown() {
+        if (alarmShown || sosState != SOS_IDLE) return false;
+        const plotter::Alert* a = ALERTS::popup();
+        if (!a) { alertWinId.clear(); return false; }
+        if (a->id != alertWinId) {                              // nueva: se enciende la pantalla
+            alertWinId = a->id;
+            displayToggle(true);
+            displayTime = millis();
+        }
+        return true;
+    }
+
+    bool messageWindowShown() {
+        return !alarmShown && sosState == SOS_IDLE && (int32_t)(msgWinUntil - millis()) > 0 && msgWinUntil != 0;
+    }
+
+    // TELEMETRY > ALERTS: avisos en vigor, el mas grave primero (cuadro del color del nivel, evento y zona)
+    void drawAlertsView() {
+        const plotter::AlertList& L = ALERTS::list();
+        char right[8];
+        snprintf(right, sizeof(right), "%u", (unsigned)L.size());
+        header("ALERTS", right);
+        if (L.size() == 0) { row(0, "No alerts in force"); row(2, "From the app (internet)"); row(3, "and NOAA Weather Radio"); return; }
+        const uint8_t ROWS = 6;
+        if (alertTop + ROWS > L.size()) alertTop = L.size() > ROWS ? (uint8_t)(L.size() - ROWS) : 0;
+        rowLimit = COLS - 2;
+        for (uint8_t i = 0; i < ROWS && alertTop + i < L.size(); i++) {
+            const plotter::Alert& a = L[alertTop + i];
+            const int y = ROW_Y0 + i * ROW_PITCH;
+            pagesInk(levelInk(a.level));
+            if (a.level > 0) pagesFillRect(0, y, 8, 8, true);
+            else pagesDrawRect(0, y, 8, 8, true);
+            pagesInk(INK_TEXT);
+            char line[48];
+            snprintf(line, sizeof(line), "%s %s", a.event.c_str(), a.area.c_str());
+            line[COLS - 2] = '\0';
+            if (i < MIRROR_ROWS) snprintf(mirrorRows[i], sizeof(mirrorRows[i]), "%s", line);
+            if (i == 0) pagesInk(INK_ACCENT);
+            text(11, y, line);
+            pagesInk(INK_TEXT);
+        }
+        rowLimit = COLS;
+    }
+
+    // TELEMETRY > SPACE WX: escalas G / R / S, flujo, rayos X, campo y viento solar, y el Kp de 24 h en barras
+    void drawSpaceView() {
+        const plotter::SpaceWx& w = ALERTS::space();
+        char right[12];
+        if (w.kpCount) snprintf(right, sizeof(right), "Kp %.1f", w.kpNow());
+        else snprintf(right, sizeof(right), "--");
+        header("SPACE WX", right);
+        const int barsW = 8 * 6;                                 // 8 barras de 5 px y 1 de hueco
+        const int x0 = PW - barsW - 2;
+        rowLimit = min(COLS, (x0 - 4) / 6);
+        const struct { char b; int v; const char* name; } sc[] = {{'G', w.g, "Geomag"}, {'R', w.r, "Radio"}, {'S', w.s, "Radiation"}};
+        for (int i = 0; i < 3; i++) {
+            const uint8_t ink = sc[i].v >= 4 ? INK_BAD : sc[i].v == 3 ? INK_LV2 : sc[i].v >= 1 ? INK_LV1 : INK_GOOD;
+            pagesInk(ink);
+            if (sc[i].v >= 0) row((uint8_t)i, "%c%d %s", sc[i].b, sc[i].v, sc[i].name);
+            else row((uint8_t)i, "%c- %s", sc[i].b, sc[i].name);
+            pagesInk(INK_TEXT);
+        }
+        if (w.sfi > 0) row(3, "SFI %.0f", w.sfi);
+        if (!w.xray.empty()) row(4, "X-ray %s", w.xray.c_str());
+        if (w.bz < 999) row(5, "Bz %+.0f nT", w.bz);
+        else if (w.windKms > 0) row(5, "Wind %.0f km/s", w.windKms);
+        rowLimit = COLS;
+        // Kp: barras de 0 a 9 (5 px por unidad), raya de puntos en Kp 5 (tormenta)
+        const int yb = 62;
+        pagesInk(INK_MUTED);
+        pagesDrawLine(x0 - 2, yb, PW - 1, yb, true);
+        for (int x = x0 - 2; x < PW; x += 2) pagesFillRect(x, yb - 25, 1, 1, true);
+        text(x0, ROW_Y0, "Kp 24h");
+        for (int i = 0; i < w.kpCount && i < 8; i++) {
+            const float v = w.kp[i];
+            pagesInk(v >= 7 ? INK_BAD : v >= 6 ? INK_LV2 : v >= 5 ? INK_LV1 : INK_GOOD);
+            const int hgt = max(1, (int)lroundf(v * 5));
+            pagesFillRect(x0 + i * 6, yb - hgt, 5, hgt, true);
+        }
+        pagesInk(INK_TEXT);
+        if (ALERTS::spaceAgeS() > 3600) {
+            char age[8];
+            formatAge(ALERTS::spaceAgeS() * 1000UL, age, sizeof(age));
+            (void)age;
+        }
+    }
+
+    static bool moveWxView(int direction) {
+        if (page != PAGE_WX) return false;
+        if (wxView == 1 && direction != 0) {                     // ALERTS: pasa las filas si no caben
+            const plotter::AlertList& L = ALERTS::list();
+            if (direction > 0 && alertTop + 6 < L.size()) { alertTop++; return true; }
+            if (direction < 0 && alertTop > 0) { alertTop--; return true; }
+        }
+        uint8_t seq[3], n = 0;
+        seq[n++] = 0;
+        if (ALERTS::list().size() > 0) seq[n++] = 1;
+        if (ALERTS::hasSpace()) seq[n++] = 2;
+        int at = 0;
+        for (uint8_t i = 0; i < n; i++) if (seq[i] == wxView) at = i;
+        const int to = at + direction;
+        if (to < 0 || to >= n) return false;
+        wxView = seq[to];
+        alertTop = 0;
+        return true;
+    }
+
     // Pantalla de alarma: sustituye a la pagina mientras esta visible
     void drawAlarm() {
-        bool blink = (millis() / 500) & 1;
+        // Ventana sobre la pagina (EA7JRS): rojo para emergencias, ambar para el riesgo de colision AIS
+        const bool blink = (millis() / 500) & 1;
         const char* title = alarmTitle((AlarmKind)alarmKind);
-        pagesZone(PZ_TOP);
-        pagesInk(INK_BAD);
-        if (blink) {
-            pagesFillRect(0, 0, PW, 9, true);
-            pagesText((PW - 6 * (int)strlen(title)) / 2, 1, title, 1, true);
-        } else {
-            pagesText((PW - 6 * (int)strlen(title)) / 2, 1, title, 1, false);
-            pagesDrawRect(0, 0, PW, 9, true);
-        }
-        pagesZone(PZ_BODY);
-        pagesInk(INK_ACCENT);
-        text(2, 12, alarmCall, 2);
-        pagesInk(INK_TEXT);
-        text(0, 30, alarmText);
+        const bool cpa = alarmKind == ALARM_AIS_CPA;
+        const uint8_t ink = cpa ? INK_WARN : INK_BAD;
+        const uint8_t icon = (alarmKind == ALARM_AIS_CPA || alarmKind == ALARM_AIS_SOS) ? WI_SHIP : alarmKind == ALARM_MOB ? WI_PERSON : WI_WARN;
+        char age[8];
+        formatAge(millis() - alarmMs, age, sizeof(age));
+        winFrame(ink, title, age, icon, blink || !alarmSounding);
         int index = heard.indexOf(alarmCall);
         const Station* st = index >= 0 ? heard.byRecent((uint8_t)index) : nullptr;
+        pagesInk(INK_TEXT);
+        pagesText(WIN_X + 5, WIN_Y + 14, alarmCall, 12 * (int)strlen(alarmCall) <= WIN_W - 10 ? 2 : 1, false);
+        winLine(2, alarmText, ink);
+        char line[40];
         double myLat, myLon;
-        char line[32];
         if (st && st->hasPosition) {
             if (ownPosition(myLat, myLon)) {
-                char distance[12];
+                char distance[12], since[8];
                 double km = distanceKm(myLat, myLon, st->lat, st->lon);
                 double bearing = bearingDeg(myLat, myLon, st->lat, st->lon);
                 fmtDist(km, distance, sizeof(distance));
-                snprintf(line, sizeof(line), "%s %03.0f %s", distance, bearing, cardinal16(bearing));
+                formatAge(millis() - st->lastMs, since, sizeof(since));
+                snprintf(line, sizeof(line), "%s %03.0f %s  Pos %s", distance, bearing, cardinal16(bearing), since);
             } else {
                 snprintf(line, sizeof(line), "No own position");
             }
         } else {
             snprintf(line, sizeof(line), "No position known");
         }
-        line[COLS] = '\0';
-        text(0, 39, line);
-        char age[8];
-        formatAge(millis() - alarmMs, age, sizeof(age));
-        if (st && st->hasPosition) {
-            char since[8];
-            formatAge(millis() - st->lastMs, since, sizeof(since));
-            snprintf(line, sizeof(line), "Rx %s ago  Pos %s", age, since);
-        } else {
-            snprintf(line, sizeof(line), "Rx %s ago", age);
-        }
-        line[COLS] = '\0';
-        text(0, 48, line);
-        pagesZone(PZ_BOTTOM);
-        pagesInk(INK_BAD);
-        pagesFillRect(0, 56, PW, 8, true);
-        if (alarmSounding) pagesText(2, 56, st && st->hasPosition ? "1P mute  LP GO TO" : "1P mute", 1, true);
-        else pagesText(2, 56, st && st->hasPosition ? "1P close LP GO TO" : "1P close", 1, true);
-        pagesInk(INK_TEXT);
-        pagesZone(PZ_BODY);
+        winLine(3, line);
+        const char* btn = alarmSounding ? (st && st->hasPosition ? "1P mute   LP GO TO" : "1P mute") : (st && st->hasPosition ? "1P close  LP GO TO" : "1P close");
+        winButtons(ink, btn, true);
+        snprintf(mirrorTitle, sizeof(mirrorTitle), "%s", title);
+        snprintf(mirrorRows[0], sizeof(mirrorRows[0]), "%s", alarmCall);
+        snprintf(mirrorRows[1], sizeof(mirrorRows[1]), "%s", alarmText);
+        snprintf(mirrorRows[2], sizeof(mirrorRows[2]), "%.27s", line);
     }
 
     // ---- Sol y luna (Manuel - EA7JRS): vistas CLOCK > SUN y CLOCK > MOON y los iconos pequenos del reloj ----
@@ -3052,9 +3373,9 @@ namespace PAGES_Utils {
         msgLog.addReceived(call, text, epochNow());
         if (msgMode != MM_LIST && msgCursor + 1 < msgLog.count()) msgCursor++;      // el cursor sigue en el mismo mensaje
         touchLog();
-        char toast[26];
-        snprintf(toast, sizeof(toast), "MSG %.9s", call);
-        showToast(toast);
+        msgWinUntil = millis() + 8000;              // ventana del mensaje (8 s o hasta pulsar) (EA7JRS)
+        displayToggle(true);
+        displayTime = millis();
     }
 
     // Mensaje enviado desde el usuario. ackId > 0 si se pidio confirmacion
@@ -3601,6 +3922,12 @@ namespace PAGES_Utils {
             }
         }
 
+        {                                                   // aviso oficial nuevo: se enciende la pantalla (EA7JRS)
+            static std::string woke;
+            const plotter::Alert* a = ALERTS::popup();
+            if (a && a->id != woke) { woke = a->id; displayToggle(true); displayTime = nowMs; }
+            else if (!a) woke.clear();
+        }
         if (alarmSounding) {
             if (nowMs - alarmStartMs > ALARM_MAX_MS) {
                 alarmSounding = false;
@@ -5245,12 +5572,6 @@ namespace PAGES_Utils {
             pagesFlush();
             return;
         }
-        if (alarmShown) {
-            drawAlarm();
-            if ((int32_t)(toastUntil - millis()) > 0 && toastText[0]) drawToast();
-            pagesFlush();
-            return;
-        }
         switch (page) {
             case PAGE_MAIN:    drawMain();      break;
             case PAGE_MSG:     drawMessages();  break;
@@ -5278,9 +5599,16 @@ namespace PAGES_Utils {
             case PAGE_BCAST:   drawBcastPage(); break;
             default: break;
         }
-        if (submenuOpen && millis() - submenuMs > SUBMENU_TIMEOUT_MS) submenuOpen = false;
-        if (submenuOpen) drawSubmenu();
-        else if (aprsMode() && (int32_t)(barUntil - millis()) > 0) drawBar();
+        // ventanas sobre la pagina (EA7JRS): alarma, aviso oficial, mensaje recibido
+        const plotter::Alert* alert = alertWindowShown() ? ALERTS::popup() : nullptr;
+        if (alarmShown) drawAlarm();
+        else if (alert) drawAlertWindow(*alert);
+        else if (messageWindowShown()) drawMessageWindow();
+        else {
+            if (submenuOpen && millis() - submenuMs > SUBMENU_TIMEOUT_MS) submenuOpen = false;
+            if (submenuOpen) drawSubmenu();
+            else if (aprsMode() && (int32_t)(barUntil - millis()) > 0) drawBar();
+        }
         if ((int32_t)(toastUntil - millis()) > 0 && toastText[0]) drawToast();
         pagesFlush();
     }
@@ -5467,6 +5795,7 @@ namespace PAGES_Utils {
         boardView = 0;
         gpsView = 0;
         clockView = 0;
+        wxView = 0;
         msgMode = MM_LIST;
         msgCursor = 0;
         barUntil = millis() + BAR_VISIBLE_MS;
@@ -5533,6 +5862,21 @@ namespace PAGES_Utils {
             else alarmShown = false;
             return;
         }
+        if (alertWindowShown()) {                    // aviso oficial: 1P calla el zumbador; la siguiente cierra
+            if (ALERTS::sounding()) ALERTS::mute();
+            else ALERTS::popupClose();
+            return;
+        }
+        if (messageWindowShown()) {                  // mensaje recibido: 1P lo abre en MESSAGES
+            msgWinUntil = 0;
+            page = PAGE_MSG;
+            changedPage();
+            msgMode = MM_DETAIL;
+            msgCursor = 0;
+            for (uint8_t i = 0; i < msgLog.count(); i++) if (msgLog.byRecent(i)->dir == 'R') { msgCursor = i; break; }
+            if (msgLog.markRead(msgCursor)) { touchLog(); afterReadChange(); }
+            return;
+        }
         if (submenuOpen) {
             uint8_t count;
             itemsFor(page, count);
@@ -5540,14 +5884,14 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(+1) || moveListCursor(+1) || moveTeamCursor(+1) || moveBoardView(+1) || moveGpsView(+1) || moveClockView(+1)) return;
+        if (moveMessageCursor(+1) || moveListCursor(+1) || moveTeamCursor(+1) || moveBoardView(+1) || moveGpsView(+1) || moveClockView(+1) || moveWxView(+1)) return;
         do { page = (page + 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
 
     void previous() {
         if (sosState == SOS_COUNTDOWN) { sosCancel(); return; }
-        if (alarmShown) { next(); return; }
+        if (alarmShown || alertWindowShown() || messageWindowShown()) { next(); return; }
         if (submenuOpen) {
             uint8_t count;
             itemsFor(page, count);
@@ -5555,7 +5899,7 @@ namespace PAGES_Utils {
             submenuMs = millis();
             return;
         }
-        if (moveMessageCursor(-1) || moveListCursor(-1) || moveTeamCursor(-1) || moveBoardView(-1) || moveGpsView(-1) || moveClockView(-1)) return;
+        if (moveMessageCursor(-1) || moveListCursor(-1) || moveTeamCursor(-1) || moveBoardView(-1) || moveGpsView(-1) || moveClockView(-1) || moveWxView(-1)) return;
         do { page = (page + PAGE_COUNT - 1) % PAGE_COUNT; } while (!pageVisible(page));
         changedPage();
     }
@@ -5567,6 +5911,8 @@ namespace PAGES_Utils {
             alarmShown = false;
             return true;
         }
+        if (alertWindowShown()) { ALERTS::mute(); ALERTS::popupClose(); return true; }
+        if (messageWindowShown()) { msgWinUntil = 0; return true; }
         if (submenuOpen) {
             submenuOpen = false;
             submenuId = SM_PAGE;
@@ -5590,6 +5936,10 @@ namespace PAGES_Utils {
         }
         if (page == PAGE_CLOCK && clockView != 0) {            // vista SUN o MOON -> CLOCK
             clockView = 0;
+            return true;
+        }
+        if (page == PAGE_WX && wxView != 0) {                  // ALERTS o SPACE WX -> TELEMETRY
+            wxView = 0;
             return true;
         }
         if (page == PAGE_MSG && msgMode != MM_LIST) {          // detalle -> explorar -> lista
@@ -5782,6 +6132,13 @@ namespace PAGES_Utils {
             else goToStation(st);
             return PAGES_CMD_NONE;
         }
+        if (alertWindowShown()) {                    // LP: cierra y abre la lista de avisos (TELEMETRY > ALERTS)
+            ALERTS::mute();
+            ALERTS::popupClose();
+            if (pageVisible(PAGE_WX)) { page = PAGE_WX; changedPage(); wxView = 1; }
+            return PAGES_CMD_NONE;
+        }
+        if (messageWindowShown()) { next(); return PAGES_CMD_NONE; }
         if (!submenuOpen) {
             if (page == PAGE_LIST && listBrowse) {               // explorando: GO TO la estacion marcada
                 uint8_t view[HeardList::CAPACITY];

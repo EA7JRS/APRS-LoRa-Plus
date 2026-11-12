@@ -46,6 +46,8 @@ namespace SA868 {
     const char* modemName();                // "AFSK 1200", "G3RUH 9600" o "M17"
     long     rxFreqHz();                    // frecuencias en uso (las del modo: sa868, perfil FSK en 9600, sa868.m17FreqHz en M17, CAT)
     long     txFreqHz();
+    bool     sameTake(char* out, size_t size);  // NOAA Weather Radio: cabecera SAME nueva (o "NNNN") en un canal WX1..WX7 en FM
+    uint32_t sameBursts();
     long     m17FreqHz();                   // la de M17 (la de la configuracion o la sugerida para la banda del modulo)
     bool     m17Sms(const char* dst, const char* text);    // SMS M17 (protocolo 0x05) a un indicativo o a "@ALL"; bloquea mientras emite
     uint32_t m17Lsfs();                     // M17: cabeceras (LSF) oidas
