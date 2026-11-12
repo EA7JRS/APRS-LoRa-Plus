@@ -1,12 +1,10 @@
 # Changelog
 
-## Próxima versión
+## 5.4.2 — 2026-11-12
 - **Rotor: el sol y la luna** como fuentes 6 y 7 (ruido solar, rebote lunar), también fuera del modo SAT: WebUI *Antenna rotor*, menú y orden BLE `tgt`. Sol y luna de Meeus (la luna topocéntrica, con el paralaje), refracción media; bajo el horizonte el rotor espera.
 - **CLOCK**: la línea del sol se alterna cada 4 s con la luna (iluminada, creciente o menguante, salida y puesta).
 - **TELEMETRY** (tiempo de internet): fuerza Beaufort junto al viento.
 - Fórmulas comunes del ecosistema en `lib/aprs_formulas` (copia parcial de `lib/plotter_core` del plotter: `astro`, `geo`, `wind`, `wxcalc`; `tools/sync_formulas.sh`). La declinación del WMM2025 y el punto de rocío ya estaban en el tracker.
-
-## 5.4.2 — 2026-11-12
 - **Hora como en el resto de equipos APRS LoRa+:** manda el GPS; sin GPS, **NTP** en cuanto hay WiFi como cliente (`ntp.roa.es`, hora oficial de España del ROA; de reserva `hora.roa.es` y `pool.ntp.org`), luego el RTC (que se pone al día también con NTP) y DAPNET. El reloj del sistema (`time()`) se mantiene igual que el del firmware. CLOCK muestra `NTP` / `DAPNET`; evento BLE `info` con `clk` (`src`, `age`, `ntp`). `include/time_sync.h`.
 - **Instalador web, grupo Náutica:** lanzador nuevo *Náutica* con el **APRS LoRa+ Plotter** (plotter náutico para la Waveshare ESP32-S3-Touch-LCD-7B), junto a Tracker, Rotor, Gateway y Display; enlace directo `#nautica`. Las Pages recogen `web-site-plotter.zip` de la release con la misma etiqueta de `EA7JRS/APRS-LoRa-Plus-Plotter` (el secreto `FLASHER_TOKEN` debe poder leer ese repositorio). El grupo trae también el **instrumento de viento APRS LoRa+ Wind** (placa `waveshare_lcd4_wind`, Waveshare ESP32-S3-Touch-LCD-4): al detectarlo (`device=wind`) el instalador pasa al grupo Náutica.
 - **Firmware oficial o modificado:** el evento `info` lleva la huella del firmware (`elf`, `app_elf_sha256`) y `ota/<placa>.json` la del publicado (`elfSha`, `tools/make_web_assets.py`); la app muestra **OFFICIAL** o **CUSTOM FIRMWARE** (solo informativo: solo se puede comprobar la versión publicada).
