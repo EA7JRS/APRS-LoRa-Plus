@@ -48,13 +48,19 @@
     #define NOTIF_DEF_BUZZER_TONE   39
     #define NOTIF_DEF_BUZZER_VCC    48
 #elif defined(HELTEC_WIRELESS_TRACKER)
-    // Heltec Wireless Tracker: los de otras placas son pines de la radio (13 BUSY, 14 DIO1), el control del divisor de bateria (2)
-    // y el GNSS (33): LED de mensajes en el LED de la placa (18) y el resto en pines libres de la cabecera J3 (17, 16, 4, 5)
+    // Heltec Wireless Tracker (mapa de pines HT-Tracker V1 de Heltec; Manuel, 2026-11-12): los de otras placas son pines de la radio
+    // (13 BUSY, 14 DIO1), del divisor de bateria (2) y del GNSS (33). Accesorios en la cabecera J3 y en el UART0 (libre: el USB es
+    // el nativo del 19 / 20): LED rojo de emision 17, LED verde de mensajes 18 (el de la placa), linterna 44, zumbador tono 5 y
+    // alimentacion 43 (el ROM saca el registro de arranque por el 43: con el tono parado el zumbador no suena). Manipulador CW en el
+    // 15 / 16 (los del cristal de 32 kHz, sin cristal en la placa) y teclado FH-2 en el 4 (ADC1_CH3). I2C de sensores en 7 / 6.
     #define NOTIF_DEF_LED_TX        17
     #define NOTIF_DEF_LED_MESSAGE   BOARD_USER_LED
-    #define NOTIF_DEF_FLASHLIGHT    16
-    #define NOTIF_DEF_BUZZER_TONE   4
-    #define NOTIF_DEF_BUZZER_VCC    5
+    #define NOTIF_DEF_FLASHLIGHT    44
+    #define NOTIF_DEF_BUZZER_TONE   5
+    #define NOTIF_DEF_BUZZER_VCC    43
+    #define CW_DEF_KEY_PIN          15
+    #define CW_DEF_DAH_PIN          16
+    #define CW_DEF_KEYPAD_PIN       4
 #else
     #define NOTIF_DEF_LED_TX        13
     #define NOTIF_DEF_LED_MESSAGE   2
@@ -1265,13 +1271,23 @@ void Configuration::setWsprDefaults() {
     for (int i = 0; i < 7; i++) { wspr.ppCorrHz[i] = 0; wspr.ppDriftTenths[i] = 0; }
 }
 
+#ifndef CW_DEF_KEY_PIN
+    #define CW_DEF_KEY_PIN          -1
+#endif
+#ifndef CW_DEF_DAH_PIN
+    #define CW_DEF_DAH_PIN          -1
+#endif
+#ifndef CW_DEF_KEYPAD_PIN
+    #define CW_DEF_KEYPAD_PIN       -1
+#endif
+
 void Configuration::setCwDefaults() {
     cw.wpm = 15;
     cw.keyMode = 0;
-    cw.keyPin = -1;
-    cw.dahPin = -1;
+    cw.keyPin = CW_DEF_KEY_PIN;             // jack del manipulador: punta (vertical / punto) y anillo (raya); -1 = sin asignar
+    cw.dahPin = CW_DEF_DAH_PIN;
     cw.swapPaddles = false;
-    cw.keypadPin = -1;
+    cw.keypadPin = CW_DEF_KEYPAD_PIN;       // teclado Yaesu FH-2 (pin con ADC1)
     for (int i = 0; i < CW_MESSAGE_COUNT; i++) cw.keypadMv[i] = 0;
     cw.keyTx = true;
     cw.sidetone = true;

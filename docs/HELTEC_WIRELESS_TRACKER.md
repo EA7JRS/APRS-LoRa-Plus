@@ -14,11 +14,30 @@ Placa `heltec_wireless_tracker` (instalador web y `heltec_wireless_tracker.zip` 
 | Alimentación de GNSS y pantalla | `Vext` (GPIO 3 a nivel alto) | `VEXT_CTRL 3`: al apagar el GPS (ahorro) también se apaga la pantalla |
 | Batería | Li-ion 3,7 V con carga (SH1.25-2) | divisor 390 k + 100 k en GPIO 1 (VBAT = lectura × 4,9, como la hoja de datos); `ADC_CTRL 2` a nivel alto para medir (V1.1) |
 | Botones | USER (GPIO 0) y RST | `BUTTON_PIN 0` (también despierta del reposo) |
-| LED | LED de usuario en GPIO 18 | LED de mensajes por defecto (*Notifications*, apagado hasta que lo actives). Los demás avisos, por defecto en pines libres de J3: LED de emisión 17, linterna 16, zumbador 4 (tono) y 5 (alimentación) |
+| LED | LED de usuario en GPIO 18 | LED de mensajes por defecto (*Notifications*, apagado hasta que lo actives) |
 | I2C libre | — | SDA 7, SCL 6 (sensores: BME280, etc.) |
 | Bluetooth / WiFi | BLE 5, WiFi b/g/n | BLE KISS y servicio de control (app y Display), WebUI y punto de acceso |
 
 **Banda:** la web de Heltec vende el modelo LF como «470–510 MHz», pero su hoja de datos (V1.1) lo da también para **EU433 (433,175–434,665 MHz)**, que es el de 70 cm y el que hay que usar en España (433,775 MHz). El perfil de 434,855 MHz queda un poco por encima de ese margen; el de 439,9125 MHz, bastante fuera (perderá potencia y sensibilidad). Potencia: 21 ± 1 dBm en todas las bandas.
+
+## Accesorios: pines de serie
+
+Del mapa de pines HT-Tracker V1 de Heltec. Son los valores de serie de la WebUI (*Notifications* y *CW*): se aplican a una
+configuración nueva o restablecida; en una ya guardada se cambian a mano. Todo va apagado hasta que se activa.
+
+| Accesorio | GPIO | Dónde | Notas |
+|---|---|---|---|
+| LED rojo (emisión) | 17 | J3 | con resistencia en serie (≈330 Ω) |
+| LED verde (mensajes) | 18 | J3 y LED de la placa | se enciende también el de la placa |
+| Linterna (flash) | 44 | U0RXD | libre: el USB es el nativo (19 / 20) |
+| Zumbador: tono | 5 | J3 | |
+| Zumbador: alimentación | 43 | U0TXD | el ROM saca el registro de arranque por aquí: con el tono parado no suena |
+| Jack del manipulador CW: punta (vertical / punto) | 15 | J3 (XTAL_32K_P) | contacto a GND, la entrada lleva pull-up; la placa no monta el cristal de 32 kHz |
+| Jack del manipulador CW: anillo (raya) | 16 | J3 (XTAL_32K_N) | ídem |
+| Teclado Yaesu FH-2 | 4 | J3 (ADC1_CH3) | escalera de resistencias con pull-up a 3V3; calibrar en *CW* |
+| Sensores I2C (BME280...) | 7 SDA / 6 SCL | J3 | |
+
+Evitar 0, 3, 45 y 46 (pines de arranque), 19 / 20 (USB) y 26–32 (flash).
 
 ## Lo que hace el firmware con esta placa
 

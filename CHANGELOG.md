@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Heltec Wireless Tracker, pines de serie de los accesorios** (mapa HT-Tracker V1): LED rojo de emisión 17, LED verde de mensajes 18 (el de la placa), linterna 44 (antes 16, pin del cristal de 32 kHz), zumbador tono 5 y alimentación 43, jack del manipulador CW 15 (punta) / 16 (anillo) y teclado FH-2 en el 4 (ADC1). Tabla en `docs/HELTEC_WIRELESS_TRACKER.md`.
 - WebUI, *About*: sin la línea «2023-26 CA2RXU: LoRa APRS Tracker Firmware» ; el crédito y la licencia quedan en una línea: «GPL-3.0 · Based on LoRa APRS Tracker © 2023-26 CA2RXU». *Version date* al día (2026-11-12).
 - Registro de arranque: «APRS LoRa+ (c) 2026 Manuel - EA7JRS» (sin «base: CA2RXU LoRa APRS Tracker»).
 - **Punto de acceso de configuración (WEB-CONF):** manteniendo el botón 2 s se sale y arranca normal (antes el botón no hacía nada y solo se salía al guardar en la WebUI o a los 2 min sin nadie conectado). El registro dice por qué se abrió (indicativo aún NOCALL-7 o punto de acceso encendido).

@@ -168,6 +168,10 @@ namespace BOARD_PINS {
         #ifdef BOARD_USER_LED
             add(BOARD_USER_LED, 'a', "Board user LED (free for a notification LED)");
         #endif
+        #ifdef HELTEC_WIRELESS_TRACKER
+            add(15, 'a', "XTAL_32K_P pad (no crystal fitted): CW key jack, tip");
+            add(16, 'a', "XTAL_32K_N pad (no crystal fitted): CW key jack, ring");
+        #endif
         #ifdef BOARD_BL_PIN
             add(BOARD_BL_PIN, 'u', "Display backlight");
         #endif
