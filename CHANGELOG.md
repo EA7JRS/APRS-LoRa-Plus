@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## 5.4.4 — 2026-11-12
 - **T-TWR Plus Rev2.1, audio de FM por el altavoz más limpio** (cuando lo alimenta el ESP32: silenciador automático o reducción de ruido). El temporizador del altavoz iba a 13,33 kHz y el ADC a 13,2 kHz: el anillo se vaciaba y salía un 0 cada ~75 muestras (un zumbido de unos 130 Hz y distorsión). Ahora va a 13,21 kHz y el anillo se mantiene a media carga (repite o salta una muestra suelta en vez de cortar). Además, banda de voz de 300 a 3000 Hz (fuera la continua, el zumbido, los tonos CTCSS y el soplido de arriba) y limitador suave en lugar del recorte duro con volumen alto (`FmDsp::VoiceFilter`, pruebas en `tools/fm/test_fm_dsp.cpp`).
 - **CI:** el ELF con los símbolos de cada placa queda como artefacto de la compilación (90 días), para traducir las direcciones de un reinicio (`Saved PC`, backtrace).
 - **Pantallas a color (Heltec Wireless Tracker, T-Deck y T-Deck Plus).** Las páginas usan un lienzo de 160 × 80 (26 columnas en vez de 21; cabecera arriba, barra de iconos abajo y el cuerpo centrado): la pantalla entera en la Heltec y ×2 en la T-Deck (320 × 160, centrado en vertical) con los colores de la app: cabecera cian, primera línea en ámbar, selección en verde, marcos en cian, brújulas con la N en rojo, barras de uso verde / ámbar / rojo, SOS y alarmas en rojo. MESSAGES enseña el principio de cada mensaje.
