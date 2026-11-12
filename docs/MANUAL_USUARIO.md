@@ -233,7 +233,7 @@ Hora local grande, segundos, fecha con día de la semana, línea de **UTC y zona
 
 La cabecera indica la fuente de hora: `GPS`, `NTP`, `DAPNET`, `RTC` (con la antigüedad de la última sincronización) o `SYS`. Sin hora válida aparece `NO TIME`.
 
-**De dónde sale la hora (5.4.2)**, con las mismas reglas que el resto de equipos APRS LoRa+: manda el **GPS**; sin GPS, **NTP** en cuanto el tracker tiene WiFi como cliente (KISS por TCP, salida NMEA por TCP, rotor por la red): `ntp.roa.es`, la hora oficial de España (Real Instituto y Observatorio de la Armada), con `hora.roa.es` y `pool.ntp.org` de reserva; después el **RTC** (T-Beam Supreme, que se pone al día con el GPS y con NTP) y la hora de **DAPNET**. El evento BLE `info` lo dice en `clk` (`src`, `age`, `ntp`).
+**De dónde sale la hora (5.4.2)**, con las mismas reglas que el resto de equipos APRS LoRa+: manda el **GPS**; sin GPS, **NTP** en cuanto el tracker tiene WiFi como cliente (KISS por TCP, salida NMEA por TCP, rotor por la red): `ntp.roa.es`, la hora oficial de España (Real Instituto y Observatorio de la Armada), con `hora.roa.es` y `pool.ntp.org` de reserva; después el **RTC** (T-Beam Supreme, que se pone al día con el GPS y con NTP) y la hora de **DAPNET**. El evento BLE `info` lo dice en `clk` (`src`, `age`, `ntp`). La T-Beam v0.7 va sin NTP (no le cabe el cliente SNTP en la IRAM).
 
 **Submenú:**
 - **Zone** — segundo nivel: *auto EU* (CET/CEST con cambio horario europeo automático), *UTC* o manual (±0,5 h).

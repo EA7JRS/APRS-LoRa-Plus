@@ -21,7 +21,9 @@
 #include <TinyGPS++.h>
 #include <sys/time.h>
 #include <time.h>
+#ifndef TIME_NO_NTP
 #include <esp_sntp.h>
+#endif
 #include "TimeLib.h"
 #include "rtc_utils.h"
 #include <logger.h>
@@ -39,7 +41,9 @@ namespace TIME_Utils {
         volatile bool    ntpDone   = false;         // lo marca el cliente SNTP (tarea de lwIP); se aplica en loop()
         uint32_t         lastCheck = 0;
 
+#ifndef TIME_NO_NTP
         void onSntp(struct timeval*) { ntpDone = true; }
+#endif
 
         void mark(Source s) { src = s; setMs = millis() ? millis() : 1; }
     }
@@ -54,12 +58,14 @@ namespace TIME_Utils {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "TIME", "Hora del GPS (antes %s)", sourceName());
         }
         mark(SRC_GPS);
+#ifndef TIME_NO_NTP
         const time_t t = now();                     // reloj del sistema igual que TimeLib (+-1 s)
         const time_t sys = time(nullptr);
         if (sys < t - 1 || sys > t + 1) {
             struct timeval tv = {t, 0};
             settimeofday(&tv, nullptr);
         }
+#endif
     }
 
     void note(Source s) {
@@ -68,6 +74,10 @@ namespace TIME_Utils {
     }
 
     void loop() {
+#ifdef TIME_NO_NTP                                  // placas sin IRAM libre (T-Beam v0.7): solo GPS, RTC y DAPNET
+        (void)lastCheck; (void)ntpDone;
+        return;
+#else
         if (ntpDone) {                              // NTP acaba de poner el reloj del sistema
             ntpDone = false;
             const time_t t = time(nullptr);
@@ -87,6 +97,7 @@ namespace TIME_Utils {
         configTime(0, 0, NTP_SERVER_1, NTP_SERVER_2, NTP_SERVER_3);    // UTC: el firmware trabaja en UTC y aplica la zona al mostrar
         started = true;
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "TIME", "NTP: %s, %s, %s", NTP_SERVER_1, NTP_SERVER_2, NTP_SERVER_3);
+#endif
     }
 
     Source source() { return src; }
