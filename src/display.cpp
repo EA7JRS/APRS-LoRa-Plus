@@ -847,7 +847,7 @@ void startupScreen(uint8_t index, const String& version, const String& callsign)
     #ifdef HAS_APRS_PAGES
         PAGES_Utils::showSplash(version, callsign);     // logo APRS LoRa+, version e indicativo
         delay(2000);
-        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "APRS LoRa+ (c) 2026 Manuel - EA7JRS (base: CA2RXU LoRa APRS Tracker)");
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "APRS LoRa+ (c) 2026 Manuel - EA7JRS");
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Version: %s", version.c_str());
         return;
     #endif
@@ -859,7 +859,7 @@ void startupScreen(uint8_t index, const String& version, const String& callsign)
         case 3: workingFreq += "US]"; break;
     }
     displayShow(" LoRa APRS", "      (TRACKER)", workingFreq, "", "", "  EA7JRS  " + version, 4000);
-    logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "APRS LoRa+ (c) 2026 Manuel - EA7JRS (base: CA2RXU LoRa APRS Tracker)");
+    logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "APRS LoRa+ (c) 2026 Manuel - EA7JRS");
     logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Version: %s", version.c_str());
 }
 

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- Registro de arranque: «APRS LoRa+ (c) 2026 Manuel - EA7JRS» (sin «base: CA2RXU LoRa APRS Tracker»).
 - **Punto de acceso de configuración (WEB-CONF):** manteniendo el botón 2 s se sale y arranca normal (antes el botón no hacía nada y solo se salía al guardar en la WebUI o a los 2 min sin nadie conectado). El registro dice por qué se abrió (indicativo aún NOCALL-7 o punto de acceso encendido).
 - **Guardar la configuración con el SPIFFS casi lleno** (placas con la partición de 192 KB, como la Heltec Wireless Tracker): si no cabe la copia temporal se escribe directamente sobre el fichero; antes una copia a medias podía darse por buena o no guardarse nada. El registro muestra lo ocupado del SPIFFS al arrancar y al fallar.
 
