@@ -1,0 +1,58 @@
+# Copyright (C) 2026 Manuel - EA7JRS
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Traduce direcciones de un reinicio (Saved PC, backtrace) a funcion y linea: compila la placa en el commit indicado (el de la
+# release que llevaba el equipo) y pasa las direcciones por addr2line del compilador de PlatformIO. El resultado sale en el log
+# y en el resumen de la ejecucion. Manual: Actions > Decode addresses > Run workflow.
+name: Decode addresses
+
+on:
+    workflow_dispatch:
+        inputs:
+            target:
+                description: "Entorno de PlatformIO (p. ej. lilygo_t_twr_plus)"
+                required: true
+            ref:
+                description: "Commit, rama o etiqueta compilada (la del firmware que fallo, p. ej. v5.4.3)"
+                required: true
+            addresses:
+                description: "Direcciones separadas por espacios (p. ej. 0x42243535 0x4038062e)"
+                required: true
+
+permissions:
+    contents: read
+
+jobs:
+    decode:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ inputs.ref }}
+
+            - uses: actions/setup-python@v7
+              with:
+                  python-version: "3.13"
+
+            - name: Install PlatformIO Core
+              run: pip install --upgrade platformio
+
+            - name: Build target
+              run: pio run -e ${{ inputs.target }}
+
+            - name: Decode
+              env:
+                  ADDRS: ${{ inputs.addresses }}
+                  TARGET: ${{ inputs.target }}
+              run: |
+                  ELF=.pio/build/$TARGET/firmware.elf
+                  A2L=$(find ~/.platformio/packages -name '*-elf-addr2line' -path '*toolchain-xtensa*' | head -1)
+                  [ -z "$A2L" ] && A2L=$(find ~/.platformio/packages -name '*-elf-addr2line' | head -1)
+                  echo "addr2line: $A2L"
+                  echo "firmware.bin sha256: $(sha256sum .pio/build/$TARGET/firmware.bin | cut -d' ' -f1)"   # comparar con el de la release
+                  echo "### $TARGET @ ${{ inputs.ref }}" >> $GITHUB_STEP_SUMMARY
+                  for a in $ADDRS; do
+                      r=$("$A2L" -pfiaC -e "$ELF" "$a")
+                      echo "$r"
+                      echo "- \`$r\`" >> $GITHUB_STEP_SUMMARY
+                  done
