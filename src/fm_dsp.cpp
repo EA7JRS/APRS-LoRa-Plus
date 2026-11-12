@@ -192,4 +192,39 @@ namespace FmDsp {
         else if (isOn && level < OFF_DB) isOn = false;
         return true;
     }
+
+    // ---------- Banda de voz y limitador para el altavoz ----------
+    // Biquads de Robert Bristow-Johnson (Audio EQ Cookbook), Butterworth: paso alto y paso bajo de 4.o orden (dos secciones)
+    static void rbj(float fs, float f0, float q, bool high, float& b0, float& b1, float& b2, float& a1, float& a2) {
+        const float w = 2.0f * 3.14159265f * f0 / fs, cw = cosf(w), al = sinf(w) / (2.0f * q), a0 = 1.0f + al;
+        if (high) { b0 = (1.0f + cw) / 2.0f; b1 = -(1.0f + cw); b2 = b0; }
+        else      { b0 = (1.0f - cw) / 2.0f; b1 = 1.0f - cw;    b2 = b0; }
+        a1 = -2.0f * cw; a2 = 1.0f - al;
+        b0 /= a0; b1 /= a0; b2 /= a0; a1 /= a0; a2 /= a0;
+    }
+
+    void VoiceFilter::begin(float fs, float lowHz, float highHz) {
+        if (highHz > fs * 0.45f) highHz = fs * 0.45f;
+        rbj(fs, lowHz,  0.5412f, true,  hp1.b0, hp1.b1, hp1.b2, hp1.a1, hp1.a2);     // Q de las dos secciones de un Butterworth de 4.o orden
+        rbj(fs, lowHz,  1.3066f, true,  hp2.b0, hp2.b1, hp2.b2, hp2.a1, hp2.a2);
+        rbj(fs, highHz, 0.5412f, false, lp1.b0, lp1.b1, lp1.b2, lp1.a1, lp1.a2);
+        rbj(fs, highHz, 1.3066f, false, lp2.b0, lp2.b1, lp2.b2, lp2.a1, lp2.a2);
+        reset();
+    }
+
+    void VoiceFilter::reset() {
+        hp1.z1 = hp1.z2 = hp2.z1 = hp2.z2 = lp1.z1 = lp1.z2 = lp2.z1 = lp2.z2 = 0;
+    }
+
+    float VoiceFilter::process(float x) {
+        return lp2.run(lp1.run(hp2.run(hp1.run(x))));
+    }
+
+    float VoiceFilter::limit(float x) {
+        const float a = fabsf(x);
+        if (a <= 0.6f) return x;
+        const float y = 0.6f + 0.4f * tanhf((a - 0.6f) / 0.4f);
+        return x < 0 ? -y : y;
+    }
+
 }

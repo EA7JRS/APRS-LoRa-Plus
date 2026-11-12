@@ -111,9 +111,12 @@ namespace SA868 {
     static FmDsp::NoiseDetector fmNoise;
     static FmDsp::AutoSquelch   fmAuto;
     static FmDsp::NoiseReducer* fmNr        = nullptr;
+    static FmDsp::VoiceFilter   fmVoice;                    // banda de voz del altavoz (Rev2.1) (EA7JRS)
     static sdm_channel_handle_t spkSdm      = nullptr;
     static gptimer_handle_t     spkTimer    = nullptr;
     static constexpr int        SPK_RING    = 2048;
+    static constexpr int        SPK_LOW     = 768;          // ~58 ms en el anillo antes de sonar; el ADC entrega de 256 en 256 muestras
+    static constexpr int        SPK_HIGH    = 1536;         // ~116 ms: por encima se recorta el retraso
     static int8_t               spkRing[SPK_RING];
     static volatile uint16_t    spkHead = 0, spkTail = 0;
     // CW (modo MORSE): A1A con el PTT o MCW (tono), escucha por el silenciamiento del ruido; tono local por el altavoz (Rev2.1)
@@ -512,10 +515,26 @@ namespace SA868 {
         spkHead = next;
     }
 
+    // El ADC y este temporizador no van exactamente al mismo ritmo: antes, cuando el anillo se vaciaba salia un 0 (un chasquido
+    // cada ~75 muestras con el temporizador a 13,33 kHz: zumbido y distorsion). Ahora el anillo se mantiene a media carga: por
+    // debajo de SPK_LOW se repite la ultima muestra y por encima de SPK_HIGH se salta una (cambios de una muestra, inaudibles).
+    // Sin datos, la ultima muestra se mantiene en vez de caer a 0 (EA7JRS).
     static bool IRAM_ATTR spkTick(gptimer_handle_t, const gptimer_alarm_event_data_t*, void*) {
-        int8_t s = 0;
-        if (spkTail != spkHead) { s = spkRing[spkTail]; spkTail = (uint16_t)((spkTail + 1) % SPK_RING); }
-        sdm_channel_set_pulse_density(spkSdm, s);
+        static int8_t last = 0;
+        static bool   filling = true;
+        const uint16_t fill = (uint16_t)((spkHead + SPK_RING - spkTail) % SPK_RING);
+        if (fill == 0) filling = true;
+        else if (filling && fill >= SPK_LOW) filling = false;
+        if (!filling) {
+            if (fill > SPK_HIGH) spkTail = (uint16_t)((spkTail + 1) % SPK_RING);           // va por delante: se salta una
+            if (fill < SPK_LOW / 2) {
+                // se esta quedando sin datos: esta vez repite la ultima (no avanza)
+            } else if (spkTail != spkHead) {
+                last = spkRing[spkTail];
+                spkTail = (uint16_t)((spkTail + 1) % SPK_RING);
+            }
+        }
+        sdm_channel_set_pulse_density(spkSdm, last);
         return false;
     }
 
@@ -530,13 +549,13 @@ namespace SA868 {
         gptimer_config_t tc = {};
         tc.clk_src = GPTIMER_CLK_SRC_DEFAULT;
         tc.direction = GPTIMER_COUNT_UP;
-        tc.resolution_hz = 1000000;
+        tc.resolution_hz = 10000000;                        // 10 MHz: 757 cuentas = 13,21 kHz (con 1 MHz eran 75 = 13,33 kHz)
         if (gptimer_new_timer(&tc, &spkTimer) != ESP_OK) return false;
         gptimer_event_callbacks_t cb = {};
         cb.on_alarm = spkTick;
         gptimer_register_event_callbacks(spkTimer, &cb, nullptr);
         gptimer_alarm_config_t ac = {};
-        ac.alarm_count = 1000000 / RX_FS;                   // ~76 us
+        ac.alarm_count = 10000000 / RX_FS;                  // ~75,7 us
         ac.reload_count = 0;
         ac.flags.auto_reload_on_alarm = true;
         gptimer_set_alarm_action(spkTimer, &ac);
@@ -593,10 +612,11 @@ namespace SA868 {
                 if (!fmMode) continue;
                 if (fmNoise.feed(x)) fmSoftOpen = fmAuto.softUpdate(fmNoise, fmRssiDbm, fw == Firmware::OPENRTX);
                 if (espAudio) {
-                    float y = fmNr ? fmNr->process(x) : x;
-                    y = gate ? y * gain : 0.0f;
-                    int s = (int)lroundf(y * 127.0f);
-                    spkPush((int8_t)constrain(s, -127, 127));
+                    // banda de voz (300-3000 Hz: fuera continua, zumbido, CTCSS y el soplido de arriba) y limitador suave en vez del
+                    // recorte duro de antes (distorsionaba con volumen alto) (EA7JRS)
+                    float y = fmVoice.process(fmNr ? fmNr->process(x) : x);
+                    y = gate ? FmDsp::VoiceFilter::limit(y * gain) : 0.0f;
+                    spkPush((int8_t)lroundf(y * 127.0f));
                 }
             }
         }
@@ -633,6 +653,7 @@ namespace SA868 {
         } else if (mode96 ? !g3rx.begin(RX_FS_9600) : !demod.begin(RX_FS)) return false;
         if (fmMode) {
             fmNoise.begin((float)RX_FS);
+            fmVoice.begin((float)RX_FS);
             if (espAudio && Config.fm.nrLevel > 0) {
                 fmNr = new FmDsp::NoiseReducer();
                 if (fmNr) { fmNr->begin(); fmNr->setStrength(Config.fm.nrLevel / 3.0f); }

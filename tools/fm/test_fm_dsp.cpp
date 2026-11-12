@@ -48,7 +48,34 @@ static std::vector<float> hiss(float seconds, float amp) {
 
 static double energy(const std::vector<float>& v, size_t from = 0) { double e = 0; for (size_t i = from; i < v.size(); i++) e += (double)v[i] * v[i]; return e; }
 
+// ganancia en regimen permanente de VoiceFilter a una frecuencia (amplitud de salida / de entrada)
+static float voiceGain(float hz) {
+    VoiceFilter f; f.begin(FS);
+    float peak = 0;
+    for (int i = 0; i < (int)FS; i++) {
+        const float y = f.process(0.5f * sinf(2.0f * (float)M_PI * hz * i / FS));
+        if (i > FS / 2) peak = std::max(peak, fabsf(y));
+    }
+    return peak / 0.5f;
+}
+
 int main() {
+    // banda de voz del altavoz: 1 kHz pasa, 60 Hz (zumbido), 100 Hz (CTCSS) y 5 kHz (soplido) se atenuan; limitador acotado
+    {
+        CHECK(fabsf(voiceGain(1000) - 1.0f) < 0.1f);
+        CHECK(voiceGain(600) > 0.85f && voiceGain(2400) > 0.85f);
+        CHECK(voiceGain(60) < 0.02f);
+        CHECK(voiceGain(100) < 0.05f);
+        CHECK(voiceGain(5500) < 0.08f);
+        VoiceFilter f; f.begin(FS);
+        float dc = 0;
+        for (int i = 0; i < (int)FS; i++) dc = f.process(0.3f);          // continua: desaparece
+        CHECK(fabsf(dc) < 1e-3f);
+        CHECK(VoiceFilter::limit(0.3f) == 0.3f);
+        CHECK(VoiceFilter::limit(5.0f) <= 1.0f && VoiceFilter::limit(5.0f) > 0.95f);
+        CHECK(VoiceFilter::limit(-5.0f) >= -1.0f);
+        CHECK(VoiceFilter::limit(0.8f) > 0.7f && VoiceFilter::limit(0.8f) < 0.8f);
+    }
     // detector: el soplido parece ruido, la voz no, el silencio tampoco
     {
         NoiseDetector d; d.begin(FS);

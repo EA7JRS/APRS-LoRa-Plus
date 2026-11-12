@@ -11,6 +11,8 @@
  *    sube el nivel si se abre con ruido y lo prueba a bajar cuando el canal lleva tiempo libre.
  *  - NoiseReducer: reduccion de ruido por resta espectral (STFT de 256 puntos con solape del 50 %, ventana raiz de Hann,
  *    estimacion del ruido por minimos, ganancia suavizada para evitar el "ruido musical").
+ *  - VoiceFilter: banda de voz para el altavoz (paso alto de 300 Hz: corrientes continuas, zumbido y tonos CTCSS; paso bajo de
+ *    3 kHz de cuarto orden: soplido por encima de la voz) y limitador suave (sin recortes duros que distorsionen).
  */
 
 #ifndef FM_DSP_H_
@@ -84,6 +86,20 @@ namespace FmDsp {
         int   blockLen = 26, n = 0;
         float prev = 0, e = 0, ref = -200, level = 0, smooth = 0;
         bool  isOn = false;
+    };
+
+    class VoiceFilter {
+    public:
+        void  begin(float fs, float lowHz = 300.0f, float highHz = 3000.0f);
+        float process(float x);                 // banda de voz
+        void  reset();
+        static float limit(float x);            // limitador suave: lineal hasta 0,6 y luego curva hasta +-1 (nunca lo pasa)
+    private:
+        struct Biquad {
+            float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
+            float run(float x) { const float y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; return y; }
+        };
+        Biquad hp1, hp2, lp1, lp2;
     };
 
     void fft(float* re, float* im, int n, bool inverse);    // radix 2, n potencia de 2 (<= 1024)
