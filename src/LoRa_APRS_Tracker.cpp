@@ -92,7 +92,7 @@ ____________________________________________________________________*/
 #endif
 
 
-String      versionDate             = "2026-11-01";
+String      versionDate             = "2026-11-12";
 String      versionNumber           = "5.4.4";
 const char* lastResetReason         = "";       // motivo del ultimo reinicio si no fue normal (fallo, vigilante, tension baja): log, pantalla y evento info
 
