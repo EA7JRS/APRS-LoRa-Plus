@@ -34,6 +34,7 @@
 #include "display.h"
 #include "ais_vessel.h"
 #include "logger.h"
+#include "aprs_tocall.h"
 #ifdef HAS_SA868
     #include "fm_utils.h"
 #endif
@@ -220,7 +221,7 @@ namespace STATION_Utils {
         if (miceActive) {
             packet = APRSPacketLib::generateMiceGPSBeaconPacket(currentBeacon->micE, currentBeacon->callsign, currentBeacon->symbol, currentBeacon->overlay, path, gps.location.lat(), gps.location.lng(), GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), GPS_Utils::getAltitudeMeters());
         } else {
-            packet = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, "APLRT1", path, currentBeacon->overlay, APRSPacketLib::encodeGPSIntoBase91(gps.location.lat(), gps.location.lng(), GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), currentBeacon->symbol, Config.sendAltitude, GPS_Utils::getAltitudeFeet(), sendStandingUpdate));
+            packet = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, APRS_TOCALL, path, currentBeacon->overlay, APRSPacketLib::encodeGPSIntoBase91(gps.location.lat(), gps.location.lng(), GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), currentBeacon->symbol, Config.sendAltitude, GPS_Utils::getAltitudeFeet(), sendStandingUpdate));
         }
 
         String batteryVoltage = BATTERY_Utils::getBatteryInfoVoltage();
@@ -357,7 +358,7 @@ namespace STATION_Utils {
         KISS_NET::onTx(packet);
 
         delay(1500);                                        // un respiro entre los dos paquetes para el receptor
-        packet = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, "APLRT1", path, currentBeacon->overlay,
+        packet = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, APRS_TOCALL, path, currentBeacon->overlay,
                      APRSPacketLib::encodeGPSIntoBase91(lat, lng, GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), currentBeacon->symbol, Config.sendAltitude, altFeet, false));
         packet += "EMERGENCY SOS";
         displayShow("<<< SOS >>>", "", packet, 100);

@@ -22,6 +22,7 @@
 #include "gps_utils.h"
 #include <APRSPacketLib.h>
 #include <TinyGPS++.h>
+#include "aprs_tocall.h"
 
 extern logging::Logger  logger;
 extern Configuration    Config;
@@ -584,7 +585,7 @@ namespace FM_Utils {
         }
     }
 
-    // "EA7JRS-7>APLRT1,WIDE1-1:info" -> "EA7JRS-7>APLRT1,ARISS:info"
+    // "EA7JRS-7>APZLRT,WIDE1-1:info" -> "EA7JRS-7>APZLRT,ARISS:info"
     static String satPath(const char* tnc2) {
         const char* gt = strchr(tnc2, '>');
         const char* colon = strchr(tnc2, ':');
@@ -617,7 +618,7 @@ namespace FM_Utils {
         if (!info || !info[0]) { note("No message"); return false; }
         String call = currentBeacon ? currentBeacon->callsign : String("");
         call.trim();
-        return satAprsTx(satPath((call + ">APLRT1:" + info).c_str()));
+        return satAprsTx(satPath((call + ">" APRS_TOCALL ":" + info).c_str()));
     }
 
     bool satSendPosition(const char* comment) {
@@ -626,7 +627,7 @@ namespace FM_Utils {
         if (gps.location.isValid() && gps.location.age() < 10000UL) { lat = gps.location.lat(); lon = gps.location.lng(); }
         else { SatCore::Observer o; if (!SAT_Utils::observer(o)) { note("No position"); return false; } lat = o.latDeg; lon = o.lonDeg; }
         if (!currentBeacon) return false;
-        String p = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, "APLRT1", Config.sat.aprsPath, currentBeacon->overlay,
+        String p = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, APRS_TOCALL, Config.sat.aprsPath, currentBeacon->overlay,
                        APRSPacketLib::encodeGPSIntoBase91(lat, lon, 0, 0, currentBeacon->symbol, false, 0, false));
         String c = comment && comment[0] ? String(comment) : currentBeacon->comment;
         if (c.length() > 40) c = c.substring(0, 40);                   // corto: el digipetidor de la ISS es muy concurrido

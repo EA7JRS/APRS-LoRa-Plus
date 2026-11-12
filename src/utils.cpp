@@ -25,6 +25,7 @@
 #include "display.h"
 #include "utils.h"
 #include "notification_utils.h"
+#include "aprs_tocall.h"
 #ifdef HAS_APRS_PAGES
     #include "pages_utils.h"
 #endif
@@ -123,7 +124,7 @@ namespace Utils {
                 uint32_t statusTx = currentTime - statusTime;
                 lastTx = currentTime - lastTxTime;
                 if (statusTx > 10 * 60 * 1000 && lastTx > 10 * 1000) {
-                    LoRa_Utils::sendNewPacket(APRSPacketLib::generateStatusPacket(currentBeacon->callsign, "APLRT1", Config.path, currentBeacon->status));
+                    LoRa_Utils::sendNewPacket(APRSPacketLib::generateStatusPacket(currentBeacon->callsign, APRS_TOCALL, Config.path, currentBeacon->status));
                     statusUpdate = false;
                 }
             }

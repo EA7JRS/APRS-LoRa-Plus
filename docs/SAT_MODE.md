@@ -64,7 +64,7 @@ Limitaciones: solo SX1262 / SX1268 (frecuencia 400-510 MHz en esta fase); la rad
 | Subida del transmisor | Qué se emite |
 |---|---|
 | **CW** | El texto en Morse (velocidad de *CW WPM*); la frecuencia de la portadora se recalcula en cada elemento. Máximo 25 s; el botón la corta |
-| **FSK / GMSK** | Trama AX.25 UI `INDICATIVO>APLRT1:texto` en G3RUH (el indicativo es el del perfil de baliza activo). El texto es el campo de información: puede ser APRS (`>estado`, `:INDICATIVO:mensaje`) |
+| **FSK / GMSK** | Trama AX.25 UI `INDICATIVO>APZLRT:texto` en G3RUH (el indicativo es el del perfil de baliza activo). El texto es el campo de información: puede ser APRS (`>estado`, `:INDICATIVO:mensaje`) |
 | **LoRa** | El texto como carga útil, con SF / BW / CR de la descripción del transmisor (máx. 10 s en el aire) |
 
 La frecuencia de emisión es la de subida del transmisor con el Doppler del instante (`f·(1 + vr/c)`, con la velocidad radial del satélite) y el ajuste de ppm global del tracker. Un transpondedor lineal se emite en el centro de su banda de subida.

@@ -22,6 +22,7 @@
 #include "fm_utils.h"
 #include "sa868_radio.h"
 #endif
+#include "aprs_tocall.h"
 
 extern Configuration    Config;
 extern logging::Logger  logger;
@@ -283,7 +284,7 @@ namespace SATTX_Utils {
                 if (!good) setMsg(c.aborted ? "CW stopped" : "CW failed");
             } else if (kind == SATRX_Utils::K_FSK) {
                 char tnc2[200];
-                snprintf(tnc2, sizeof(tnc2), "%s>APLRT1:%s", call.c_str(), text);
+                snprintf(tnc2, sizeof(tnc2), "%s>" APRS_TOCALL ":%s", call.c_str(), text);
                 good = LoRa_Utils::satTxAx25(tnc2) > 0;
                 if (!good) setMsg("AX.25 frame invalid");
             } else {

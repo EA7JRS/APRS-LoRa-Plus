@@ -2,7 +2,7 @@
  * Modo SAT, fase 3: emision hacia el satelite con la frecuencia de subida precompensada por Doppler, y secuenciador de
  * conmutacion (preamplificador, amplificador / rele, PTT de un equipo externo).
  *   CW      -> el texto en Morse con la portadora del SX126x
- *   FSK     -> trama AX.25 UI "INDICATIVO>APLRT1:texto" en G3RUH
+ *   FSK     -> trama AX.25 UI "INDICATIVO>APZLRT:texto" (APRS_TOCALL) en G3RUH
  *   LoRa    -> el texto como carga util
  * En la T-TWR (SA868): APRS AFSK 1200 por un digipetidor (ISS 145,825 MHz, ruta sat.aprsPath) y FM de voz con el PTT (FM_Utils::sat*).
  * Nunca emite solo: cada emision la pide el usuario (menu o app) y solo si la habilita la WebUI, hay un indicativo real, el

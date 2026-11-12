@@ -855,6 +855,7 @@ namespace PAGES_Core {
         }
         struct Entry { const char* pattern; const char* name; };
         static const Entry own[] = {                            // nombres propios del proyecto (tienen prioridad sobre la lista oficial)
+            { "APZLR?", "APRS LoRa+" }, { "APLJR?", "APRS LoRa+" },    // los nuestros (experimental y el pedido al registro)
             { "APLRT?", "LoRa Tracker" }, { "APLRG?", "LoRa iGate" }, { "APLG??", "LoRa iGate" }, { "APLT??", "LoRa Tracker" },
             { "APLR??", "LoRa APRS" }
         };
