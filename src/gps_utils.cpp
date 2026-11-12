@@ -30,6 +30,7 @@
 #include "imu_utils.h"
 #include "gps_utils.h"
 #include "gnss_sky.h"
+#include "time_sync.h"
 #include "casic_pcas.h"
 #include "display.h"
 #include "logger.h"
@@ -686,7 +687,10 @@ namespace GPS_Utils {
     }
 
     void setDateFromData() {
-        if (gps.time.isValid() && gps.date.isValid() && gps.date.year() >= 2024) setTime(gps.time.hour(), gps.time.minute(), gps.time.second(), gps.date.day(), gps.date.month(), gps.date.year());
+        if (gps.time.isValid() && gps.date.isValid() && gps.date.year() >= 2024) {
+            setTime(gps.time.hour(), gps.time.minute(), gps.time.second(), gps.date.day(), gps.date.month(), gps.date.year());
+            TIME_Utils::gpsTimeSet();       // fuente GPS y reloj del sistema al dia (EA7JRS)
+        }
     }
 
     void calculateDistanceTraveled() {

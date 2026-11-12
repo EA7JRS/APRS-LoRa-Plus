@@ -22,6 +22,7 @@
 
 #include "board_pinout.h"
 #include "rtc_utils.h"
+#include "time_sync.h"
 
 #ifdef TTGO_T_Beam_S3_SUPREME_V3
 
@@ -147,6 +148,7 @@ namespace {
         bool   flagSet;
         if (readRtcTime(t, flagSet) && !flagSet) {
             setTime(t);
+            TIME_Utils::note(TIME_Utils::SRC_RTC);
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "RTC", "Hora del sistema tomada del RTC");
         } else {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "RTC", "RTC sin hora valida, esperando GPS");
@@ -224,6 +226,7 @@ namespace RTC_Utils {
         bool ok85063 = decodeTime(snapshot + BASE_PCF85063, t85063, flag85063) && !flag85063;
         if (ok8563 != ok85063 && year() < 2024) {
             setTime(ok8563 ? t8563 : t85063);
+            TIME_Utils::note(TIME_Utils::SRC_RTC);
             systemApplied = true;
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "RTC", "Hora inicial cargada en setup (%s)", ok8563 ? "PCF8563" : "PCF85063A");
         }
@@ -249,6 +252,14 @@ namespace RTC_Utils {
         return state == RTC_RUNNING;
     }
 
+    void syncFromSystem() {
+        static uint32_t last = 0;
+        if (state != RTC_RUNNING || year() < 2024) return;
+        if (last != 0 && millis() - last < GPS_SYNC_PERIOD_MS) return;
+        last = millis() ? millis() : 1;
+        if (writeTime(now())) logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "RTC", "RTC actualizado desde NTP");
+    }
+
 }
 
 #else
@@ -257,6 +268,7 @@ namespace RTC_Utils {
     void setup() {}
     void update() {}
     bool isReady() { return false; }
+    void syncFromSystem() {}
 }
 
 #endif

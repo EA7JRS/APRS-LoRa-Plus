@@ -55,6 +55,7 @@ ____________________________________________________________________*/
 #include "imu_utils.h"
 #include "mag_utils.h"
 #include "rtc_utils.h"
+#include "time_sync.h"
 #include "nmea_link.h"
 #include "cat_net.h"
 #include "thermal_utils.h"
@@ -385,6 +386,7 @@ void loop() {
     IMU_Utils::update();
     MAG_Utils::update();
     RTC_Utils::update();
+    TIME_Utils::loop();                                             // NTP (ntp.roa.es) con WiFi cliente si el GPS no da hora (EA7JRS)
     WX_Utils::update();
     if (gpsIsActive) {
         GPS_Utils::getData();
