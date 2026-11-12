@@ -103,7 +103,7 @@
     const T = {
         es: {
             sub: "Instala o actualiza el firmware conectando la placa por USB. Funciona en Chrome o Edge (ordenador o Android).",
-            s0: "Dispositivo", dTracker: "Tracker APRS multimodo (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Control de rotor de antenas compatible con Hamlib", dGateway: "iGate / pasarela APRS LoRa+", dDisplay: "Pantalla táctil grande para el tracker (por BLE)", gNautica: "Náutica", dPlotter: "Plotter náutico: carta, AIS, NMEA 2000 (pantalla Waveshare de 7\")",
+            s0: "Dispositivo", dTracker: "Tracker APRS multimodo (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Control de rotor de antenas compatible con Hamlib", dGateway: "iGate / pasarela APRS LoRa+", dDisplay: "Pantalla táctil grande para el tracker (por BLE)", gNautica: "Náutica", dPlotter: "Plotter náutico (pantalla Waveshare de 7\") e instrumento de viento (4\")",
             devNone: "Aún no hay versión publicada de este dispositivo en el instalador.", otherDev: "La placa conectada es otro dispositivo: ",
             uf2btn: "Descargar firmware (.uf2)", uf2help: "Raspberry Pi Pico 2 / Pico 2 W: conéctala con el botón BOOTSEL pulsado, aparece una unidad USB (RP2350); copia en ella el archivo .uf2 y la placa se reinicia con el firmware nuevo. La configuración se conserva.",
             nobrowser: "Este navegador no puede hablar con el puerto USB (Web Serial). Usa Chrome o Edge en un ordenador, o Chrome en Android con cable OTG.",
@@ -115,14 +115,14 @@
             n3: "Una instalación por USB repone la tabla de particiones; el primer arranque puede tardar unos segundos.",
             foot: "Proyecto de código abierto (GPL-3.0). Instalador basado en ESP Web Tools.",
             priv: "Contador anónimo de visitas e instalaciones (GoatCounter): sin cookies, sin IP ni datos personales; solo cuenta la visita y la placa elegida.",
-            reading: "Leyendo la placa…", noanswer: "La placa no ha respondido. Tiene que llevar un firmware APRS LoRa+ (tracker 5.3.1 o posterior, rotor, gateway o display 5.3.4 o posterior, plotter 5.4.1 o posterior); si no, elige el dispositivo y la placa a mano.",
+            reading: "Leyendo la placa…", noanswer: "La placa no ha respondido. Tiene que llevar un firmware APRS LoRa+ (tracker 5.3.1 o posterior, rotor, gateway o display 5.3.4 o posterior, plotter o instrumento de viento 5.4.1 o posterior); si no, elige el dispositivo y la placa a mano.",
             found: "Placa detectada: ", installed: "versión instalada ", newer: "Hay una versión más nueva: ", uptodate: "Ya tienes la última versión (", unknownBoard: "Esa placa no está en la lista de esta versión.",
             avail: "Versión disponible: ", loading: "Cargando lista de placas…", loadfail: "No se pudo cargar la lista de placas.", otaYes: "actualización web desde la propia placa: sí", otaNo: "esta placa solo se actualiza por USB",
             pick: "— elige tu placa —", noport: "No se ha elegido ningún puerto.", err: "Error: "
         },
         en: {
             sub: "Install or update the firmware by connecting the board over USB. Works in Chrome or Edge (computer or Android).",
-            s0: "Device", dTracker: "Multimode APRS tracker (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Hamlib-compatible antenna rotor controller", dGateway: "APRS LoRa+ iGate / gateway", dDisplay: "Large touch screen for the tracker (over BLE)", gNautica: "Nautical", dPlotter: "Chartplotter: chart, AIS, NMEA 2000 (Waveshare 7\" screen)",
+            s0: "Device", dTracker: "Multimode APRS tracker (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Hamlib-compatible antenna rotor controller", dGateway: "APRS LoRa+ iGate / gateway", dDisplay: "Large touch screen for the tracker (over BLE)", gNautica: "Nautical", dPlotter: "Chartplotter (Waveshare 7\" screen) and wind instrument (4\")",
             devNone: "No release of this device is in the installer yet.", otherDev: "The connected board is another device: ",
             uf2btn: "Download firmware (.uf2)", uf2help: "Raspberry Pi Pico 2 / Pico 2 W: plug it in while holding BOOTSEL, a USB drive (RP2350) shows up; copy the .uf2 file to it and the board restarts with the new firmware. Settings are kept.",
             nobrowser: "This browser cannot talk to the USB port (Web Serial). Use Chrome or Edge on a computer, or Chrome on Android with an OTG cable.",
@@ -134,7 +134,7 @@
             n3: "A USB install rewrites the partition table; the first boot may take a few seconds.",
             foot: "Open source project (GPL-3.0). Installer based on ESP Web Tools.",
             priv: "Anonymous visit and install counter (GoatCounter): no cookies, no IP or personal data; it only counts the visit and the chosen board.",
-            reading: "Reading the board…", noanswer: "The board did not answer. It must run APRS LoRa+ firmware (tracker 5.3.1 or later, rotor, gateway or display 5.3.4 or later, plotter 5.4.1 or later); otherwise pick the device and the board by hand.",
+            reading: "Reading the board…", noanswer: "The board did not answer. It must run APRS LoRa+ firmware (tracker 5.3.1 or later, rotor, gateway or display 5.3.4 or later, plotter or wind instrument 5.4.1 or later); otherwise pick the device and the board by hand.",
             found: "Board detected: ", installed: "installed version ", newer: "A newer version is available: ", uptodate: "You already have the latest version (", unknownBoard: "That board is not in this release.",
             avail: "Available version: ", loading: "Loading board list…", loadfail: "Could not load the board list.", otaYes: "update from the board's own web page: yes", otaNo: "this board is updated over USB only",
             pick: "— choose your board —", noport: "No port selected.", err: "Error: "
@@ -144,7 +144,7 @@
     const $ = id => document.getElementById(id);
     let latest = null, detected = null, device = "tracker", loadFailed = false;
     const BASE = { tracker: "", rotor: "rotor/", gateway: "gateway/", display: "display/", plotter: "plotter/" };
-    const ALIAS = { nautica: "plotter" };                         // enlace directo al grupo Nautica: ...#nautica
+    const ALIAS = { nautica: "plotter", wind: "plotter" };        // grupo Nautica: ...#nautica, y el instrumento de viento (device=wind) va con el plotter
     const base = () => BASE[device];
 
     // Contador anonimo (EA7JRS): GoatCounter (https://www.goatcounter.com), gratuito, sin cookies ni datos personales.
@@ -234,7 +234,7 @@
         device = dev; latest = null; loadFailed = false;
         render();
         fetch(base() + "latest.json?_t=" + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-            .then(j => { latest = j; if (detected && (detected.device || "tracker") === device && latest.boards[detected.board]) $("board").value = detected.board; render(); })
+            .then(j => { latest = j; if (detected && (ALIAS[detected.device] || detected.device || "tracker") === device && latest.boards[detected.board]) $("board").value = detected.board; render(); })
             .catch(() => { loadFailed = true; render(); });
     }
 
@@ -274,7 +274,8 @@
         ev("detect/" + info.board);
         st.className = "status ok";
         st.textContent = t("found") + info.device + " · " + info.board + " · " + t("installed") + info.version + " · " + info.chip;
-        if (info.device !== device) { load(info.device in BASE ? info.device : "tracker"); return; }      // otro dispositivo: se cambia solo
+        const dev = ALIAS[info.device] || info.device;
+        if (dev !== device) { load(dev in BASE ? dev : "tracker"); return; }      // otro dispositivo: se cambia solo
         if (latest && latest.boards[info.board]) $("board").value = info.board;
         else if (latest) { st.className = "status warn"; st.textContent += " — " + t("unknownBoard"); }
         showAvail();

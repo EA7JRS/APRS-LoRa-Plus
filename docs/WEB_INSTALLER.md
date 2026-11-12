@@ -16,7 +16,7 @@ Tracker, rotor, gateway, display y app llevan **el mismo número de versión** (
 | `/rotor/` | APRS LoRa+ Rotor | `web-site-rotor.zip` de la release `vX.Y.Z` de `EA7JRS/APRS-LoRa-Plus-Rotor` (su `release.yml`) |
 | `/gateway/` | APRS LoRa+ Gateway | `web-site-gateway.zip` de la release `vX.Y.Z` de `EA7JRS/APRS-LoRa-Plus-I-Gateway` (pendiente de su workflow) |
 | `/display/` | APRS LoRa+ Display (Waveshare ESP32-S3-Touch-LCD-7B) | `web-site-display.zip` de la release `vX.Y.Z` de `EA7JRS/APRS-LoRa-Plus-Display` (su `release.yml`) |
-| `/plotter/` | Grupo **Náutica**: APRS LoRa+ Plotter (plotter náutico para la Waveshare ESP32-S3-Touch-LCD-7B) | `web-site-plotter.zip` de la release `vX.Y.Z` de `EA7JRS/APRS-LoRa-Plus-Plotter` (su `release.yml`) |
+| `/plotter/` | Grupo **Náutica**: APRS LoRa+ Plotter (plotter náutico, Waveshare ESP32-S3-Touch-LCD-7B, placa `waveshare_lcd7b`) y su instrumento de viento APRS LoRa+ Wind (Waveshare ESP32-S3-Touch-LCD-4, placa `waveshare_lcd4_wind`), las dos en el mismo `latest.json` | `web-site-plotter.zip` de la release `vX.Y.Z` de `EA7JRS/APRS-LoRa-Plus-Plotter` (su `release.yml`) |
 
 El job `pages` de `build.yml` descarga esos `.zip` de las releases con **la misma etiqueta** y los descomprime en `rotor/`, `gateway/`, `display/` y `plotter/`. Esos repositorios son privados: hay que crear en este repositorio el secreto **`FLASHER_TOKEN`** (token de acceso de grano fino de GitHub, solo lectura de *Contents* de esos repositorios; **al añadir el Plotter hay que darle también acceso a `APRS-LoRa-Plus-Plotter`**). Sin el secreto, o si el otro repositorio aún no tiene esa release, el instalador dice «aún no hay versión publicada» en ese lanzador y el tracker se publica igual.
 
@@ -32,4 +32,4 @@ Orden para publicar una versión: release del rotor, del gateway, del display y 
 - `ota/<placa>.json`: tamaño y SHA-256 (los usa la app Android)
 
 Para que *Detectar placa* lo reconozca, el firmware contesta por USB a la línea `APRS-INFO?` con
-`APRS-LoRa-Plus: device=<tracker|rotor|gateway|display|plotter> board=<placa> version=<X.Y.Z> chip=<chip> ota=<0|1>` (el tracker, por compatibilidad, sin `device=`).
+`APRS-LoRa-Plus: device=<tracker|rotor|gateway|display|plotter|wind> board=<placa> version=<X.Y.Z> chip=<chip> ota=<0|1>` (el tracker, por compatibilidad, sin `device=`). `wind` (el instrumento de viento) se trata como `plotter`: el instalador lo lleva al grupo Náutica (`ALIAS` de `web/index.html`).
