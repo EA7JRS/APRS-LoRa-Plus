@@ -90,7 +90,7 @@ namespace WEB_Utils {
         String json = "{\"configurable\":";
         json += GPS_Utils::gpsConfigurable() ? "true" : "false";
         json += ",\"module\":";
-        json += String((int)module);                                  // 0 sin respuesta o sin configurar, 1 u-blox (UBX), 2 NMEA sin UBX (CASIC: L76K u otro)
+        json += String((int)module);                                  // 0 sin respuesta o sin configurar, 1 u-blox (UBX), 2 NMEA sin UBX (CASIC: L76K u otro), 3 Unicore UC6580
         json += ",\"antenna\":";
         json += String((int)GPS_Utils::antennaStatus());              // L76K: 0 desconocido, 1 OK, 2 abierta, 3 cortocircuito
         if (GPS_Utils::hasLastPosition()) {                           // tema automatico de la WebUI (salida y puesta del sol): 2 decimales bastan
@@ -583,7 +583,8 @@ namespace WEB_Utils {
                 if (mask & 13) Config.gps.cnMask = mask & 13;
                 Config.gps.nmeaLean = request->hasParam("gps.nmeaLean", true);
             } else {
-                const bool okMask = !(((mask & 16) || (mask & 32)) && !(mask & 1)) && !((mask & 4) && (mask & 8)) && (mask & 15) != 0;
+                const bool bdsGlo = GPS_Utils::gpsModule() != 3 && (mask & 4) && (mask & 8);     // el UC6580 (3) admite los dos a la vez
+                const bool okMask = !(((mask & 16) || (mask & 32)) && !(mask & 1)) && !bdsGlo && (mask & 15) != 0;
                 if (okMask) Config.gps.gnssMask = mask;
             }
             Config.gps.assistNow       = request->hasParam("gps.assistNow", true);

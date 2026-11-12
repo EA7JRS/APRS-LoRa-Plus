@@ -251,16 +251,32 @@ namespace GPS_Utils {
         static uint8_t  ucStep = 0;
         static uint32_t ucAt   = 0;
         static void ucStart(uint32_t delayMs) { ucStep = 1; ucAt = millis() + delayMs; }
+        // Mascara de CFGSYS (protocolo UFirebird II de Unicore) desde Config.gps.gnssMask (1 GPS, 2 Galileo, 4 BeiDou, 8 GLONASS,
+        // 16 QZSS, 32 SBAS): cada constelacion en L1 y L5 a la vez (el L5 se enciende o apaga por constelacion entera). QZSS y SBAS
+        // solo con GPS. Bits: 0 GPS L1CA, 2 GPS L5, 4 BDS B1I, 6 BDS B2a, 8 GLONASS L1, 12 GAL E1, 14 GAL E5a, 16 QZSS L1CA,
+        // 18 QZSS L5, 20 SBAS. Antes iba fijo h35155 (todas menos SBAS, y el bit 17 reservado puesto)
+        static uint32_t ucSysMask(int m) {
+            uint32_t v = 0;
+            if (m & 1) v |= (1UL << 0) | (1UL << 2);
+            if (m & 4) v |= (1UL << 4) | (1UL << 6);
+            if (m & 8) v |= (1UL << 8);
+            if (m & 2) v |= (1UL << 12) | (1UL << 14);
+            if ((m & 16) && (m & 1)) v |= (1UL << 16) | (1UL << 18);
+            if ((m & 32) && (m & 1)) v |= (1UL << 20);
+            if (v == 0) v = (1UL << 0) | (1UL << 2);                // ninguna principal: GPS
+            return v;
+        }
         static void ucPump() {
-            static const char* const cmds[] = { "$CFGSYS,h35155", "$CFGMSG,0,1,0", "$CFGMSG,0,2,1", "$CFGMSG,0,3,1", "$CFGMSG,6,0,0", "$CFGMSG,6,1,0" };
+            static const char* const cmds[] = { nullptr, "$CFGMSG,0,1,0", "$CFGMSG,0,2,1", "$CFGMSG,0,3,1", "$CFGMSG,6,0,0", "$CFGMSG,6,1,0" };
             if (ucStep == 0 || (int32_t)(millis() - ucAt) < 0) return;
             const uint8_t i = ucStep - 1;
             if (i >= sizeof(cmds) / sizeof(cmds[0])) {
                 ucStep = 0;
-                logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "GPS", "UC6580: GPS+BDS+GLO+GAL+SBAS+QZSS (L1/L5), GSA y GSV");
+                logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "GPS", "UC6580: CFGSYS h%lX (L1/L5), GSA y GSV", (unsigned long)ucSysMask(Config.gps.gnssMask));
                 return;
             }
-            gpsSerial.print(cmds[i]);
+            if (cmds[i]) gpsSerial.print(cmds[i]);
+            else         gpsSerial.printf("$CFGSYS,h%lX", (unsigned long)ucSysMask(Config.gps.gnssMask));
             gpsSerial.print("\r\n");
             ucStep++;
             ucAt = millis() + (i == 0 ? 800 : 150);                 // CFGSYS reinicia el receptor
@@ -636,6 +652,8 @@ namespace GPS_Utils {
     uint8_t gpsModule() {
         #ifdef GPS_CONFIG_CONSTELLATIONS
             return gpsModuleType;
+        #elif defined(GNSS_UC6580)
+            return 3;                                       // Unicore UC6580 (Heltec Wireless Tracker): CFGSYS al encenderlo
         #else
             return 0;
         #endif
@@ -702,7 +720,7 @@ namespace GPS_Utils {
     #endif
 
     bool gpsConfigurable() {
-        #ifdef GPS_CONFIG_CONSTELLATIONS
+        #if defined(GPS_CONFIG_CONSTELLATIONS) || defined(GNSS_UC6580)
             return true;
         #else
             return false;

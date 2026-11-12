@@ -1492,7 +1492,7 @@ function checkConnection() {
 
 // ---- GPS receiver section ----
 const GPS_GNSS_BITS = [["gps.useGps", 1], ["gps.useGalileo", 2], ["gps.useBeidou", 4], ["gps.useGlonass", 8], ["gps.useQzss", 16], ["gps.useSbas", 32]];
-let gpsModuleKind = -1;   // -1 unknown, 0 no answer, 1 u-blox, 2 NMEA without UBX (L76K?), 3 board does not configure the receiver
+let gpsModuleKind = -1;   // -1 unknown, 0 no answer, 1 u-blox, 2 NMEA without UBX (L76K?), 3 board does not configure the receiver, 4 Unicore UC6580
 
 // Returns the message for an invalid constellation combination ("" when valid)
 function gpsGnssProblem() {
@@ -1502,7 +1502,7 @@ function gpsGnssProblem() {
         return (on[1] || on[4] || on[8]) ? "" : "Enable at least one of GPS, BeiDou or GLONASS.";
     }
     if ((on[16] || on[32]) && !on[1]) return "SBAS and QZSS need GPS enabled.";
-    if (on[4] && on[8]) return "BeiDou and GLONASS cannot be used together.";
+    if (on[4] && on[8] && gpsModuleKind !== 4) return "BeiDou and GLONASS cannot be used together.";     // the UC6580 can
     if (!(on[1] || on[2] || on[4] || on[8])) return "Enable at least one of GPS, Galileo, BeiDou or GLONASS.";
     return "";
 }
@@ -1544,6 +1544,13 @@ function applyGpsModule(info) {
         gpsModuleKind = 3;
         panel.classList.add("opt-na");
         el.innerHTML = '<span class="badge text-bg-secondary">Not configurable</span> <span class="text-muted">This board does not configure the GNSS receiver. The values are saved but not applied.</span>';
+    } else if (info.module === 3) {
+        gpsModuleKind = 4;
+        panel.querySelectorAll(".m10-only").forEach(b => b.classList.add("opt-na"));
+        ["gps.dynModel", "gps.minElev"].forEach(id => mark(id, true));
+        rate.value = "1000";
+        [...rate.options].forEach(o => { o.disabled = o.value !== "1000"; });
+        el.innerHTML = '<span class="badge text-bg-info">Unicore UC6580</span> <span class="text-muted">Dual band L1 + L5. GPS, Galileo, BeiDou, GLONASS, QZSS and SBAS in any combination (QZSS and SBAS need GPS); applied at start-up with the CFGSYS command, which restarts the receiver. Rate, dynamic model and elevation mask are not configured on this receiver.</span>';
     } else if (info.module === 1) {
         gpsModuleKind = 1;
         rateOptions(false);

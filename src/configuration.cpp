@@ -782,7 +782,12 @@ bool Configuration::readFile() {
         READ("gps", gps, kGpsFields);
         {
             const int mask = gps.gnssMask;
-            const bool okMask = (mask > 0 && mask < 64) && !(((mask & 16) || (mask & 32)) && !(mask & 1)) && !((mask & 4) && (mask & 8)) && (mask & 15) != 0;
+            #ifdef GNSS_UC6580
+                const bool bdsGlo = false;                         // el UC6580 usa BeiDou y GLONASS a la vez (el M10 no)
+            #else
+                const bool bdsGlo = (mask & 4) && (mask & 8);
+            #endif
+            const bool okMask = (mask > 0 && mask < 64) && !(((mask & 16) || (mask & 32)) && !(mask & 1)) && !bdsGlo && (mask & 15) != 0;
             if (!okMask) gps.gnssMask = factoryMask;               // combinacion no valida en el M10: se conserva la de fabrica
         }
         if (!(gps.dynModel == 0 || (gps.dynModel >= 2 && gps.dynModel <= 9))) gps.dynModel = 0;

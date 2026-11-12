@@ -48,6 +48,13 @@
     #define GPS_RESET           35
     #define GPS_BAUDRATE        115200
     #define GNSS_UC6580             // Unicore UC6580: configuracion al encender (gps_utils.cpp) (EA7JRS)
+    // Constelaciones de serie: todas (el UC6580 usa a la vez GPS, Galileo, BeiDou, GLONASS, QZSS y SBAS, en L1 y L5)
+    #define GPS_USE_GPS             1
+    #define GPS_USE_GALILEO         1
+    #define GPS_USE_BEIDOU          1
+    #define GPS_USE_GLONASS         1
+    #define GPS_USE_QZSS            1
+    #define GPS_USE_SBAS            1
     #define GPS_RESET_ACTIVE    LOW // reset del GNSS activo a nivel bajo
 
     //  OTHER
