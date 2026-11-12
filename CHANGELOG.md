@@ -1,5 +1,8 @@
 # Changelog
 
+## Sin publicar
+- **Identificador propio en APRS:** las tramas del tracker salen con destino `APZLRT` (rango experimental, `include/aprs_tocall.h`) en vez de `APLRT1`, el de CA2RXU, que hacía que aprs.fi lo mostrase como «Ricardo, CA2RXU · ESP32 LoRa Tracker». Se cambiará por el que asigne el registro de identificadores APRS (pedido `APLJR?`). La pantalla de estaciones oídas llama «APRS LoRa+» a `APZLR?` y `APLJR?`.
+
 ## 5.4.3 — 2026-11-12
 _La 5.4.2 no llegó a publicarse: todo lo preparado para ella sale en la 5.4.3._
 
