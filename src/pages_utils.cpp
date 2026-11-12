@@ -40,6 +40,7 @@
 #include "imu_utils.h"
 #include "mag_utils.h"
 #include "rtc_utils.h"
+#include "time_sync.h"
 #include "wx_utils.h"
 #include "utils.h"
 #include "lora_utils.h"
@@ -2030,6 +2031,8 @@ namespace {
         char source[12] = "NONE";
         if (haveTime) {
             if (gpsTime) snprintf(source, sizeof(source), "GPS");
+            else if (TIME_Utils::source() == TIME_Utils::SRC_NTP || TIME_Utils::source() == TIME_Utils::SRC_DAPNET)
+                snprintf(source, sizeof(source), "%s", TIME_Utils::sourceName());     // NTP (ntp.roa.es) o DAPNET
             else if (RTC_Utils::isReady()) snprintf(source, sizeof(source), "RTC");
             else snprintf(source, sizeof(source), "SYS");
             if (!gpsTime && lastGpsTimeMs != 0) {                       // edad de la ultima sincronizacion con el GPS

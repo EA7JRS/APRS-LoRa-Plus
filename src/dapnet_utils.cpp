@@ -6,6 +6,7 @@
 #include <TinyGPS++.h>
 #include "TimeLib.h"
 #include "dapnet_utils.h"
+#include "time_sync.h"
 #include "configuration.h"
 #include "logger.h"
 
@@ -60,6 +61,7 @@ namespace DAPNET_Utils {
             timeUtc = utc;
             if (utc && Config.dapnet.timeSync && !gpsTimeOk()) {        // solo la hora UTC, y solo si el GPS no da hora
                 setTime(t.hour, t.minute, t.second, t.day, t.month, t.year);
+                TIME_Utils::note(TIME_Utils::SRC_DAPNET);
                 applied = true;
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "DAPNET", "Clock set from DAPNET: %s UTC", timeText);
             }

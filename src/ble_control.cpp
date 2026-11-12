@@ -17,6 +17,7 @@
 #endif
 #include <logger.h>
 #include "ble_control.h"
+#include "time_sync.h"
 #include "gnss_sky.h"
 #include "configuration.h"
 #include "board_pinout.h"
@@ -286,7 +287,13 @@ namespace {
             if (lastResetDetail[0]) doc["rstAt"] = lastResetDetail;   // modo y segundos en marcha
             if (lastResetTasks[0]) doc["rstTask"] = lastResetTasks;   // vigilante: tareas en el nucleo 0 / 1
         }
-        if (POWER_Utils::pmuOffReason()[0]) doc["pmuOff"] = POWER_Utils::pmuOffReason();    // la PMU se apago sola (VSYS LOW...)
+        if (POWER_Utils::pmuOffReason()[0]) doc["pmuOff"] = POWER_Utils::pmuOffReason();
+        {                                                           // reloj: quien puso la hora (GPS, NTP, RTC, DAPNET) y hace cuanto
+            JsonObject clk = doc["clk"].to<JsonObject>();
+            clk["src"] = TIME_Utils::sourceName();
+            if (TIME_Utils::sinceMs()) clk["age"] = TIME_Utils::sinceMs() / 1000;
+            if (TIME_Utils::ntpStarted()) clk["ntp"] = TIME_Utils::NTP_SERVER_1;
+        }    // la PMU se apago sola (VSYS LOW...)
         JsonObject caps = doc["caps"].to<JsonObject>();
         #ifdef NMEA_OUTPUT
             caps["nmea"] = true;

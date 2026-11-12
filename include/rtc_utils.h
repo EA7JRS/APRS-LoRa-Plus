@@ -24,6 +24,7 @@ namespace RTC_Utils {
     void setup();
     void update();
     bool isReady();
+    void syncFromSystem();          // escribe en el RTC la hora del sistema (la puso NTP); como mucho una vez por hora
 
 }
 
