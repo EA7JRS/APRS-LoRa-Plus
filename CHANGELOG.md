@@ -1,7 +1,7 @@
 # Changelog
 
 ## Sin publicar
-- WebUI, *About*: sin la línea «2023-26 CA2RXU: LoRa APRS Tracker Firmware» (sigue el crédito «Based on CA2RXU LoRa APRS Tracker…» y la licencia). *Version date* al día (2026-11-12).
+- WebUI, *About*: sin la línea «2023-26 CA2RXU: LoRa APRS Tracker Firmware» ; el crédito y la licencia quedan en una línea: «GPL-3.0 · Based on LoRa APRS Tracker © 2023-26 CA2RXU». *Version date* al día (2026-11-12).
 - Registro de arranque: «APRS LoRa+ (c) 2026 Manuel - EA7JRS» (sin «base: CA2RXU LoRa APRS Tracker»).
 - **Punto de acceso de configuración (WEB-CONF):** manteniendo el botón 2 s se sale y arranca normal (antes el botón no hacía nada y solo se salía al guardar en la WebUI o a los 2 min sin nadie conectado). El registro dice por qué se abrió (indicativo aún NOCALL-7 o punto de acceso encendido).
 - **Guardar la configuración con el SPIFFS casi lleno** (placas con la partición de 192 KB, como la Heltec Wireless Tracker): si no cabe la copia temporal se escribe directamente sobre el fichero; antes una copia a medias podía darse por buena o no guardarse nada. El registro muestra lo ocupado del SPIFFS al arrancar y al fallar.
