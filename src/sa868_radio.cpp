@@ -111,7 +111,7 @@ namespace SA868 {
     static FmDsp::NoiseDetector fmNoise;
     static FmDsp::AutoSquelch   fmAuto;
     static FmDsp::NoiseReducer* fmNr        = nullptr;
-    static FmDsp::VoiceFilter   fmVoice;                    // banda de voz del altavoz (Rev2.1) (EA7JRS)
+    static FmDsp::VoiceFilter   spkVoice;                   // banda de voz del altavoz (Rev2.1) (EA7JRS)
     static sdm_channel_handle_t spkSdm      = nullptr;
     static gptimer_handle_t     spkTimer    = nullptr;
     static constexpr int        SPK_RING    = 2048;
@@ -614,7 +614,7 @@ namespace SA868 {
                 if (espAudio) {
                     // banda de voz (300-3000 Hz: fuera continua, zumbido, CTCSS y el soplido de arriba) y limitador suave en vez del
                     // recorte duro de antes (distorsionaba con volumen alto) (EA7JRS)
-                    float y = fmVoice.process(fmNr ? fmNr->process(x) : x);
+                    float y = spkVoice.process(fmNr ? fmNr->process(x) : x);
                     y = gate ? FmDsp::VoiceFilter::limit(y * gain) : 0.0f;
                     spkPush((int8_t)lroundf(y * 127.0f));
                 }
@@ -653,7 +653,7 @@ namespace SA868 {
         } else if (mode96 ? !g3rx.begin(RX_FS_9600) : !demod.begin(RX_FS)) return false;
         if (fmMode) {
             fmNoise.begin((float)RX_FS);
-            fmVoice.begin((float)RX_FS);
+            spkVoice.begin((float)RX_FS);
             if (espAudio && Config.fm.nrLevel > 0) {
                 fmNr = new FmDsp::NoiseReducer();
                 if (fmNr) { fmNr->begin(); fmNr->setStrength(Config.fm.nrLevel / 3.0f); }
