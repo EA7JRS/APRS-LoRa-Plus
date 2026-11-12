@@ -22,19 +22,20 @@ namespace GNSS_Sky {
     uint8_t  len = 0;
     bool     inLine = false;
 
-    // Sistema del talker ("GP" GPS, "GL" GLONASS, "GA" Galileo, "GB"/"BD" BeiDou, "GQ"/"QZ" QZSS)
+    // Sistema del talker ("GP" GPS, "GL" GLONASS, "GA" Galileo, "GB"/"BD" BeiDou, "GQ"/"QZ" QZSS, "GI" NavIC)
     char talkerSys(const char* t) {
         if (t[0] == 'G' && t[1] == 'P') return 'G';
         if (t[0] == 'G' && t[1] == 'L') return 'R';
         if (t[0] == 'G' && t[1] == 'A') return 'E';
         if ((t[0] == 'G' && t[1] == 'B') || (t[0] == 'B' && t[1] == 'D')) return 'C';
         if ((t[0] == 'G' && t[1] == 'Q') || (t[0] == 'Q' && t[1] == 'Z')) return 'J';
+        if ((t[0] == 'G' && t[1] == 'I') || (t[0] == 'I' && t[1] == 'R')) return 'I';   // NavIC (UC6580 del Heltec Wireless Tracker)
         return 'N';
     }
 
-    // Sistema de GSA en NMEA 4.10 (ultimo campo): 1 GPS, 2 GLONASS, 3 Galileo, 4 BeiDou, 5 QZSS
+    // Sistema de GSA en NMEA 4.10/4.11 (ultimo campo): 1 GPS, 2 GLONASS, 3 Galileo, 4 BeiDou, 5 QZSS, 6 NavIC
     char gsaSys(int id) {
-        switch (id) { case 1: return 'G'; case 2: return 'R'; case 3: return 'E'; case 4: return 'C'; case 5: return 'J'; default: return 0; }
+        switch (id) { case 1: return 'G'; case 2: return 'R'; case 3: return 'E'; case 4: return 'C'; case 5: return 'J'; case 6: return 'I'; default: return 0; }
     }
 
     // SBAS dentro de GP (numeracion NMEA de u-blox: 33-64) y QZSS 193-202 en algunos receptores
