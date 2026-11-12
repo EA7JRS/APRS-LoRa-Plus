@@ -55,6 +55,8 @@
     #define ADC_CTRL            2   // HELTEC Wireless Tracker ADC_CTRL = HIGH powers the voltage divider to read BatteryPin. Only on V05 = V1.1
     #define VEXT_CTRL           3   // To turn on GPS and TFT
 
+    #define BOARD_USER_LED      18  // LED de usuario de la placa (hoja de datos V1.1): LED de mensajes por defecto (EA7JRS)
+
     #define BOARD_I2C_SDA       7
     #define BOARD_I2C_SCL       6
 

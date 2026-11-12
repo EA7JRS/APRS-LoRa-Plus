@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Heltec Wireless Tracker:** pines de aviso por defecto propios (los de otras placas eran la radio, el divisor de batería y el GNSS y quedaban sin asignar): LED de mensajes en el LED de la placa (GPIO 18), LED de emisión 17, linterna 16, zumbador 4 / 5; el GPIO 18 sale como «Board user LED» en la lista de pines. NavIC en el gráfico del cielo (UC6580). `docs/HELTEC_WIRELESS_TRACKER.md`.
 - **Identificador propio en APRS:** las tramas del tracker salen con destino `APZLRT` (rango experimental, `include/aprs_tocall.h`) en vez de `APLRT1`, el de CA2RXU, que hacía que aprs.fi lo mostrase como «Ricardo, CA2RXU · ESP32 LoRa Tracker». Se cambiará por el que asigne el registro de identificadores APRS (pedido `APLJR?`). La pantalla de estaciones oídas llama «APRS LoRa+» a `APZLR?` y `APLJR?`.
 
 ## 5.4.3 — 2026-11-12

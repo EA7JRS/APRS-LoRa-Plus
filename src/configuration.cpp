@@ -47,6 +47,14 @@
     #define NOTIF_DEF_FLASHLIGHT    45
     #define NOTIF_DEF_BUZZER_TONE   39
     #define NOTIF_DEF_BUZZER_VCC    48
+#elif defined(HELTEC_WIRELESS_TRACKER)
+    // Heltec Wireless Tracker: los de otras placas son pines de la radio (13 BUSY, 14 DIO1), el control del divisor de bateria (2)
+    // y el GNSS (33): LED de mensajes en el LED de la placa (18) y el resto en pines libres de la cabecera J3 (17, 16, 4, 5)
+    #define NOTIF_DEF_LED_TX        17
+    #define NOTIF_DEF_LED_MESSAGE   BOARD_USER_LED
+    #define NOTIF_DEF_FLASHLIGHT    16
+    #define NOTIF_DEF_BUZZER_TONE   4
+    #define NOTIF_DEF_BUZZER_VCC    5
 #else
     #define NOTIF_DEF_LED_TX        13
     #define NOTIF_DEF_LED_MESSAGE   2

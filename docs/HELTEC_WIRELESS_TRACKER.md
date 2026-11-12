@@ -14,7 +14,7 @@ Placa `heltec_wireless_tracker` (instalador web y `heltec_wireless_tracker.zip` 
 | Alimentación de GNSS y pantalla | `Vext` (GPIO 3 a nivel alto) | `VEXT_CTRL 3`: al apagar el GPS (ahorro) también se apaga la pantalla |
 | Batería | Li-ion 3,7 V con carga (SH1.25-2) | divisor 390 k + 100 k en GPIO 1 (VBAT = lectura × 4,9, como la hoja de datos); `ADC_CTRL 2` a nivel alto para medir (V1.1) |
 | Botones | USER (GPIO 0) y RST | `BUTTON_PIN 0` (también despierta del reposo) |
-| LED | LED de usuario en GPIO 18 | no viene asignado: se puede usar como LED de avisos (WebUI > Notifications, pin 18) |
+| LED | LED de usuario en GPIO 18 | LED de mensajes por defecto (*Notifications*, apagado hasta que lo actives). Los demás avisos, por defecto en pines libres de J3: LED de emisión 17, linterna 16, zumbador 4 (tono) y 5 (alimentación) |
 | I2C libre | — | SDA 7, SCL 6 (sensores: BME280, etc.) |
 | Bluetooth / WiFi | BLE 5, WiFi b/g/n | BLE KISS y servicio de control (app y Display), WebUI y punto de acceso |
 

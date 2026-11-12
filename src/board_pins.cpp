@@ -165,6 +165,9 @@ namespace BOARD_PINS {
         #ifdef VEXT_CTRL
             add(VEXT_CTRL, 'u', "Vext power control");
         #endif
+        #ifdef BOARD_USER_LED
+            add(BOARD_USER_LED, 'a', "Board user LED (free for a notification LED)");
+        #endif
         #ifdef BOARD_BL_PIN
             add(BOARD_BL_PIN, 'u', "Display backlight");
         #endif
