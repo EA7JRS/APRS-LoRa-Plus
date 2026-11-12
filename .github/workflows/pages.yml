@@ -79,20 +79,21 @@ jobs:
                   run-id: ${{ steps.run.outputs.id }}
                   github-token: ${{ secrets.GITHUB_TOKEN }}
 
-            # Rotor, Gateway y Display en el mismo instalador (lanzadores rotor/, gateway/ y display/): su release con la MISMA version adjunta
+            # Rotor, Gateway, Display y Plotter (grupo Nautica) en el mismo instalador (rotor/, gateway/, display/ y plotter/): su release con la MISMA version adjunta
             # web-site-<dispositivo>.zip. Son repositorios privados: hace falta el secreto FLASHER_TOKEN (token de acceso de grano
-            # fino con permiso de lectura de "Contents" en esos tres repositorios). Sin el secreto o sin esa release, el instalador
+            # fino con permiso de lectura de "Contents" en esos repositorios). Sin el secreto o sin esa release, el instalador
             # muestra "aun no hay version publicada" en ese dispositivo y el del tracker se publica igual.
-            - name: Rotor, Gateway y Display (misma version)
+            - name: Rotor, Gateway, Display y Plotter (misma version)
               env:
                   GH_TOKEN: ${{ secrets.FLASHER_TOKEN }}
                   TAG: ${{ inputs.tag }}
               run: |
-                  for dev in rotor gateway display; do
+                  for dev in rotor gateway display plotter; do
                       case "$dev" in
                           rotor) repo=EA7JRS/APRS-LoRa-Plus-Rotor ;;
                           gateway) repo=EA7JRS/APRS-LoRa-Plus-I-Gateway ;;
                           display) repo=EA7JRS/APRS-LoRa-Plus-Display ;;
+                          plotter) repo=EA7JRS/APRS-LoRa-Plus-Plotter ;;
                       esac
                       if [ -z "$GH_TOKEN" ]; then echo "::warning::Sin el secreto FLASHER_TOKEN: el instalador no incluye $dev"; continue; fi
                       rm -rf "/tmp/$dev"
