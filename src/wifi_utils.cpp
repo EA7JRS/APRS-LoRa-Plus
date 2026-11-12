@@ -19,6 +19,7 @@
 #include <logger.h>
 #include <WiFi.h>
 #include "configuration.h"
+#include "board_pinout.h"
 #include "web_utils.h"
 #include "display.h"
 #include "pages_utils.h"
@@ -27,6 +28,8 @@ extern      Configuration       Config;
 extern      logging::Logger     logger;
 
 uint32_t    noClientsTime        = 0;
+static const uint32_t WEBCONF_SKIP_MAGIC = 0x57434F46;                 // "WCOF"
+RTC_NOINIT_ATTR static uint32_t skipWebConfOnce;                        // sobrevive a ESP.restart()
 
 
 namespace WIFI_Utils {
@@ -41,16 +44,43 @@ namespace WIFI_Utils {
     }
 
     void checkIfWiFiAP() {
-        if (Config.wifiAP.active || Config.beacons[0].callsign == "NOCALL-7"){
+        const bool skip = skipWebConfOnce == WEBCONF_SKIP_MAGIC;     // se salio con el boton: este arranque, normal
+        skipWebConfOnce = 0;
+        if (!skip && (Config.wifiAP.active || Config.beacons[0].callsign == "NOCALL-7")){
             #ifdef HAS_APRS_PAGES
                 PAGES_Utils::showWifiAp("APRSLoRa+tracker", Config.wifiAP.password.c_str(), "192.168.4.1", 0, 120);
             #else
                 displayShow(" LoRa APRS", "    ** WEB-CONF **","", "WiFiAP:APRSLoRa+tracker", "IP    :   192.168.4.1","");
             #endif
-            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration Started!");
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration Started! (%s)",
+                       Config.beacons[0].callsign == "NOCALL-7" ? "callsign still NOCALL-7: set it in the WebUI" : "WiFi AP turned on");
             startAutoAP();
             WEB_Utils::setup();
+            #ifdef BUTTON_PIN
+                pinMode(BUTTON_PIN, INPUT_PULLUP);
+                uint32_t pressedAt = 0;
+            #endif
             while (true) {
+                #ifdef BUTTON_PIN
+                    // Mantener el boton 2 s: sale del punto de acceso y arranca normal (antes solo salia al guardar o a los 2 min sin
+                    // nadie conectado, y el boton no hacia nada) (EA7JRS)
+                    if (digitalRead(BUTTON_PIN) == LOW) {
+                        if (pressedAt == 0) pressedAt = millis();
+                        else if (millis() - pressedAt >= 2000) {
+                            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration stopped with the button");
+                            #ifdef HAS_APRS_PAGES
+                                displayPopup("APRS LoRa+", "Leaving WiFi AP", Config.beacons[0].callsign == "NOCALL-7" ? "Callsign: NOCALL!" : "Restarting...", -1, 1500);
+                            #endif
+                            Config.wifiAP.active = false;
+                            Config.writeFile();
+                            skipWebConfOnce = WEBCONF_SKIP_MAGIC;
+                            WiFi.softAPdisconnect(true);
+                            ESP.restart();
+                        }
+                    } else {
+                        pressedAt = 0;
+                    }
+                #endif
                 #ifdef HAS_APRS_PAGES
                     static uint32_t lastDraw = 0;
                     if (millis() - lastDraw >= 1000) {

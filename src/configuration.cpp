@@ -665,18 +665,33 @@ bool Configuration::writeFile() {
         data["other"]["cadFskRssi"]                 = cadFskRssi;
         data["other"]["email"]                      = email;
 
+        const size_t need = measureJson(data);
         const size_t written = serializeJson(data, configFile);
         configFile.close();
-        if (written == 0) {
-            Serial.println("Error: config not written, keeping the previous one");
+        if (written != need) {
+            // Sin sitio para la copia temporal (SPIFFS de 192 KB casi lleno: datos de satelites, mensajes...): antes se daba por
+            // buena una copia a medias o no se guardaba nada. Ahora se escribe directamente sobre el fichero (EA7JRS).
             SPIFFS.remove("/tracker_conf.tmp");
-            return false;
+            Serial.printf("Config: no room for the temporary copy (%u of %u bytes; SPIFFS %u / %u used), writing in place\n",
+                          (unsigned)written, (unsigned)need, (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
+            SPIFFS.remove("/tracker_conf.json");
+            File direct = SPIFFS.open("/tracker_conf.json", "w");
+            const size_t again = direct ? serializeJson(data, direct) : 0;
+            if (direct) direct.close();
+            if (again != need) {
+                Serial.printf("Error: config not saved (%u of %u bytes; SPIFFS %u / %u used)\n",
+                              (unsigned)again, (unsigned)need, (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
+                return false;
+            }
+            Serial.println("Config saved");
+            return true;
         }
         SPIFFS.remove("/tracker_conf.json");
         if (!SPIFFS.rename("/tracker_conf.tmp", "/tracker_conf.json")) {
             Serial.println("Error: could not replace the config file");
             return false;
         }
+        Serial.println("Config saved");
         return true;
     } catch (...) {
         Serial.println("Error: Exception occurred while saving config");
@@ -1453,7 +1468,7 @@ void Configuration::init() {
             return;
         }
     }
-    Serial.println("SPIFFS Ready");
+    Serial.printf("SPIFFS Ready (%u / %u bytes used)\n", (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
 
     if (!SPIFFS.exists("/tracker_conf.json")) {
         Serial.println("Config not found, creating default...");

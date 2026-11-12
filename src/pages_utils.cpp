@@ -5197,7 +5197,7 @@ namespace PAGES_Utils {
         row(1, "SSID %.15s", ssid);
         row(2, "Pass %.15s", password);
         row(3, "IP   %s", ip);
-        row(4, "Clients: %d", clients);
+        row(4, "Clients %d  Hold: exit", clients);      // mantener el boton 2 s: sale del punto de acceso
         if (clients > 0 || idleSecsLeft < 0) row(5, "In use");
         else                                 row(5, "Closes in %d:%02d", idleSecsLeft / 60, idleSecsLeft % 60);
         pagesFlush();

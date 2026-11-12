@@ -1,5 +1,9 @@
 # Changelog
 
+## Sin publicar
+- **Punto de acceso de configuración (WEB-CONF):** manteniendo el botón 2 s se sale y arranca normal (antes el botón no hacía nada y solo se salía al guardar en la WebUI o a los 2 min sin nadie conectado). El registro dice por qué se abrió (indicativo aún NOCALL-7 o punto de acceso encendido).
+- **Guardar la configuración con el SPIFFS casi lleno** (placas con la partición de 192 KB, como la Heltec Wireless Tracker): si no cabe la copia temporal se escribe directamente sobre el fichero; antes una copia a medias podía darse por buena o no guardarse nada. El registro muestra lo ocupado del SPIFFS al arrancar y al fallar.
+
 ## 5.4.4 — 2026-11-12
 - **T-TWR Plus Rev2.1, audio de FM por el altavoz más limpio** (cuando lo alimenta el ESP32: silenciador automático o reducción de ruido). El temporizador del altavoz iba a 13,33 kHz y el ADC a 13,2 kHz: el anillo se vaciaba y salía un 0 cada ~75 muestras (un zumbido de unos 130 Hz y distorsión). Ahora va a 13,21 kHz y el anillo se mantiene a media carga (repite o salta una muestra suelta en vez de cortar). Además, banda de voz de 300 a 3000 Hz (fuera la continua, el zumbido, los tonos CTCSS y el soplido de arriba) y limitador suave en lugar del recorte duro con volumen alto (`FmDsp::VoiceFilter`, pruebas en `tools/fm/test_fm_dsp.cpp`).
 - **CI:** el ELF con los símbolos de cada placa queda como artefacto de la compilación (90 días), para traducir las direcciones de un reinicio (`Saved PC`, backtrace).
