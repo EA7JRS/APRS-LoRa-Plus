@@ -49,6 +49,8 @@
     #include "fm_utils.h"
     #include "fm_core.h"
     #include "ble_control.h"
+#include "astro.h"            // lib/aprs_formulas (formulas del plotter): luna
+#include "wind.h"             // Beaufort
 #endif
 #include "cw_morse.h"
 #include "bcast_radio.h"
@@ -76,6 +78,8 @@
 #include "cat_net.h"
 #include "iaru_auto.h"
 #include "ble_control.h"
+#include "astro.h"            // lib/aprs_formulas (formulas del plotter): luna
+#include "wind.h"             // Beaufort
 
 #ifndef PAGES_GYRO_SIGN
     #define PAGES_GYRO_SIGN     -1      // sentido inicial del giroscopio (se corrige solo al girar con la brujula valida)
@@ -1835,8 +1839,9 @@ namespace {
         if (d.hasWind) {
             char g[10] = "";
             if (d.hasGust) snprintf(g, sizeof(g), " G%.0f", d.gustMs * 3.6f);
-            if (d.windDeg >= 0) row(2, "Wind %.0fkm/h %s%s", d.windMs * 3.6f, cardinal16(d.windDeg), g);
-            else                row(2, "Wind %.0fkm/h%s", d.windMs * 3.6f, g);
+            const int bf = plotter::beaufort(d.windMs / 0.514444f);            // fuerza Beaufort (formulas del plotter)
+            if (d.windDeg >= 0) row(2, "F%d %.0fkm/h %s%s", bf, d.windMs * 3.6f, cardinal16(d.windDeg), g);
+            else                row(2, "F%d Wind %.0fkm/h%s", bf, d.windMs * 3.6f, g);
         }
         char fc[20]; float d3 = NAN;
         const bool haveFc = NET_WX::forecast(fc, sizeof(fc), &d3);   // pronostico con la presion de internet y su tendencia de 3 h
@@ -2076,9 +2081,23 @@ namespace {
         else snprintf(buffer, sizeof(buffer), "UTC %02d:%02d", hour(t), minute(t));
         text(4, 48, buffer);
 
-        // orto y ocaso con la posicion propia
+        // orto y ocaso con la posicion propia; cada 4 s se alterna con la luna (fase, iluminada, salida y puesta)
         double lat, lon;
-        if (ownPosition(lat, lon)) {
+        if (ownPosition(lat, lon) && (millis() / 4000) % 2 == 1) {
+            int y, m, d;
+            civilFromEpoch((int64_t)t, y, m, d);
+            const double hours = hour(t) + minute(t) / 60.0 + second(t) / 3600.0;
+            const double age = plotter::moonAgeDays(y, m, d, hours);
+            double mr, ms;
+            bool hr, hs;
+            plotter::moonTimes(y, m, d, lat, lon, mr, hr, ms, hs);
+            char a[6] = "--:--", b[6] = "--:--";
+            if (hr) { int v = ((int)lround(mr) + offsetMin + 2880) % 1440; snprintf(a, sizeof(a), "%02d:%02d", v / 60, v % 60); }
+            if (hs) { int v = ((int)lround(ms) + offsetMin + 2880) % 1440; snprintf(b, sizeof(b), "%02d:%02d", v / 60, v % 60); }
+            snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(plotter::moonIllumination(age) * 100),
+                     age < 14.765 ? '+' : '-', a, b);                         // + creciente, - menguante
+            text(4, 56, buffer);
+        } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
             double sunrise, sunset;

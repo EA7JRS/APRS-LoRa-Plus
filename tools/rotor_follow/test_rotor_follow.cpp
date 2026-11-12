@@ -5,6 +5,7 @@
  */
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 #include "rotor_follow.h"
 #include "rot_proto.h"
 
@@ -65,8 +66,10 @@ int main() {
     CHECK(!callMatches("EA7JRSX", "EA7JRS"));
 
     // Fuentes
-    CHECK(validSource(0) && validSource(4) && validSource(5) && !validSource(3) && !validSource(6));
-    CHECK(nextSource(SRC_FIXED, false) == SRC_LAST_HEARD && nextSource(SRC_CW_BEACON, false) == SRC_APRS_TARGET && nextSource(SRC_CW_BEACON, true) == SRC_SAT);
+    CHECK(validSource(0) && validSource(4) && validSource(5) && validSource(6) && validSource(7) && !validSource(3) && !validSource(8));
+    CHECK(nextSource(SRC_FIXED, false) == SRC_LAST_HEARD && nextSource(SRC_CW_BEACON, false) == SRC_SUN && nextSource(SRC_SUN, false) == SRC_MOON);
+    CHECK(nextSource(SRC_MOON, false) == SRC_APRS_TARGET && nextSource(SRC_MOON, true) == SRC_SAT);
+    CHECK(strcmp(sourceName(SRC_SUN), "sun") == 0 && strcmp(sourceName(SRC_MOON), "moon") == 0);
 
     // Estimacion de una estacion en movimiento: 60 km/h al norte durante 60 s = 1 km (0,008993 grados de latitud)
     double pl, po;

@@ -39,7 +39,7 @@ Dentro del menú clásico, 2P vuelve a las pantallas. La barra de iconos de abaj
 | **COMPASS** | Rosa de los vientos y flecha hacia una estación (GO TO) | Target · Next station · Heading · North · Declination · Reset align |
 | **ALTIMETER** | Altitud, velocidad vertical (0 si estás parado), QNH y perfil de altitud | Span · Reset profile · QNH |
 | **TELEMETRY** | Temperatura, punto de rocío, humedad, presión + tendencia, gas, **pronóstico** | — |
-| **CLOCK** | Hora local, fecha, orto y ocaso | Zone · Format · Sync from GPS |
+| **CLOCK** | Hora local, fecha, orto y ocaso, luna (fase, salida y puesta) | Zone · Format · Sync from GPS |
 | **LORA** | Frecuencia, SF, BW, CR, potencia, contadores, RSSI, S-meter, tiempo en el aire | Next profile · Power · Reset counters · Heard list |
 | **SYSTEM** | Heap, PSRAM, Flash, batería, tiempo encendido, Bluetooth y WiFi | — |
 

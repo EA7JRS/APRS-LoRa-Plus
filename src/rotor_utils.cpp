@@ -18,6 +18,8 @@
 #include "configuration.h"
 #include "board_pinout.h"
 #include "pages_utils.h"
+#include "rotor_follow.h"
+#include "astro.h"            // lib/aprs_formulas (formulas del plotter): sol y luna
 
 #ifdef HAS_BT_CLASSIC
     #include <BluetoothSerial.h>
@@ -307,6 +309,19 @@ namespace ROTOR_Utils {
             tgtDist = 0;
             snprintf(tgtName, sizeof(tgtName), "GPredict");
             tracking = el >= 0.0f; el = el > 0.0f ? el : 0.0f; have = true; parked = false;
+        } else if (src == RotorFollow::SRC_SUN || src == RotorFollow::SRC_MOON) {   // sol o luna (Meeus; la luna con el paralaje)
+            SatCore::Observer o;
+            if (!SAT_Utils::observer(o) || !SAT_Utils::haveTime()) return;
+            int y, mo, d;
+            double h, a, e, dist;
+            plotter::unixToUtc((long long)now(), y, mo, d, h);
+            if (src == RotorFollow::SRC_SUN) plotter::sunPosition(y, mo, d, h, o.latDeg, o.lonDeg, e, a);
+            else plotter::moonPosition(y, mo, d, h, o.latDeg, o.lonDeg, e, a, dist);
+            e += plotter::refractionDeg(e);                                        // lo que ve la antena
+            tgtDist = 0;
+            snprintf(tgtName, sizeof(tgtName), "%s", src == RotorFollow::SRC_SUN ? "Sun" : "Moon");
+            if (e < 0) return;                                                     // bajo el horizonte: espera
+            az = (float)a; el = (float)e; tracking = true; have = true; parked = false;
         } else if (src != 0) {                                                     // objetivo terrestre: estacion APRS de la brujula o objetivo fijo
             SatCore::Observer o;
             double tLat = 0, tLon = 0, tAlt = 0;

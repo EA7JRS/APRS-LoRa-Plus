@@ -39,7 +39,7 @@ In the classic menu, 2P returns to the screens. The icon bar at the bottom appea
 | **COMPASS** | Compass rose and arrow to a station (GO TO) | Target · Next station · Heading · North · Declination · Reset align |
 | **ALTIMETER** | Altitude, vertical speed (0 when stopped), QNH and altitude profile | Span · Reset profile · QNH |
 | **TELEMETRY** | Temperature, dew point, humidity, pressure + trend, gas, **forecast** | — |
-| **CLOCK** | Local time, date, sunrise and sunset | Zone · Format · Sync from GPS |
+| **CLOCK** | Local time, date, sunrise and sunset, moon (phase, rise and set) | Zone · Format · Sync from GPS |
 | **LORA** | Frequency, SF, BW, CR, power, counters, RSSI, S-meter, time on air | Next profile · Power · Reset counters · Heard list |
 | **SYSTEM** | Heap, PSRAM, Flash, battery, uptime, Bluetooth and WiFi | — |
 

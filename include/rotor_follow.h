@@ -29,17 +29,21 @@
 namespace RotorFollow {
 
     // Fuentes del rotor (Config.rotor.source). El 3 es el programa externo (GPredict / rotctld), que nunca se guarda.
-    enum Source : int { SRC_SAT = 0, SRC_APRS_TARGET = 1, SRC_FIXED = 2, SRC_EXTERNAL = 3, SRC_LAST_HEARD = 4, SRC_CW_BEACON = 5 };
+    // 6 y 7: el sol y la luna (ruido solar, rebote lunar), con las formulas del plotter (lib/aprs_formulas)
+    enum Source : int { SRC_SAT = 0, SRC_APRS_TARGET = 1, SRC_FIXED = 2, SRC_EXTERNAL = 3, SRC_LAST_HEARD = 4, SRC_CW_BEACON = 5,
+                        SRC_SUN = 6, SRC_MOON = 7 };
 
-    inline bool validSource(int s) { return s == SRC_SAT || s == SRC_APRS_TARGET || s == SRC_FIXED || s == SRC_LAST_HEARD || s == SRC_CW_BEACON; }
+    inline bool validSource(int s) { return s == SRC_SAT || s == SRC_APRS_TARGET || s == SRC_FIXED || s == SRC_LAST_HEARD || s == SRC_CW_BEACON ||
+                                            s == SRC_SUN || s == SRC_MOON; }
 
     // Siguiente fuente del menu (la de satelite solo en el modo SAT)
     inline int nextSource(int s, bool satMode) {
-        static const int order[] = { SRC_SAT, SRC_APRS_TARGET, SRC_FIXED, SRC_LAST_HEARD, SRC_CW_BEACON };
+        static const int order[] = { SRC_SAT, SRC_APRS_TARGET, SRC_FIXED, SRC_LAST_HEARD, SRC_CW_BEACON, SRC_SUN, SRC_MOON };
+        const int N = sizeof(order) / sizeof(order[0]);
         int i = 0;
-        for (int k = 0; k < 5; k++) if (order[k] == s) i = k;
-        for (int k = 1; k <= 5; k++) {
-            const int n = order[(i + k) % 5];
+        for (int k = 0; k < N; k++) if (order[k] == s) i = k;
+        for (int k = 1; k <= N; k++) {
+            const int n = order[(i + k) % N];
             if (n == SRC_SAT && !satMode) continue;
             return n;
         }
@@ -54,6 +58,8 @@ namespace RotorFollow {
             case SRC_EXTERNAL:    return "GPredict";
             case SRC_LAST_HEARD:  return "last heard";
             case SRC_CW_BEACON:   return "CW beacon";
+            case SRC_SUN:         return "sun";
+            case SRC_MOON:        return "moon";
         }
         return "?";
     }
