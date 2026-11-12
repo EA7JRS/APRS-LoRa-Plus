@@ -51,6 +51,9 @@ Estado: **FW** = el firmware lo expone por BLE; **App** = la app Android tiene e
 | T-TWR: portadora de calibración de frecuencia | `carrier` | sí | sí |
 | Radio comercial por I2C (RDA5807M, Si4703, Si4735): sintonía, búsqueda, volumen, banda, mono, presintonías, RDS (nombre, texto, hora), RSSI / SNR / estéreo | `bcast`, `bcastset`, evento `bcast` | sí | sí |
 | T-TWR: DAPNET (VHF / UHF) y CW A1A / MCW (modo MORSE) | los de DAPNET y MORSE de siempre | sí | sí |
+| Pantallas a color (Heltec Wireless Tracker, T-Deck): tema oscuro / claro / automático y bienvenida | `cfgset` (`display.theme`, `display.splash`), `act sys_theme` | sí | sí |
+| Batería: estado (también sin PMU), tiempo que queda, %/h, ahorro automático | evento `sensors` (`bst`, `bLeftH`, `bPctH`, `bSave`), `cfgset` (`battery.saveBelow`) | sí | sí |
+| GNSS: satélites por banda (L1 / L5 / L2) | evento `sky` (7.º campo) | sí | sí |
 | Sesiones interactivas con el pulsador (entrenador, sintonías WSPR / CW-baliza) | pendiente de orden propia | no | no |
 
 La orden `att` la manda la app con el móvil sujeto al soporte del rotor (boca arriba, parte de arriba del móvil hacia delante; ajuste de cero en la app). Comprobar los signos con el montaje real.
