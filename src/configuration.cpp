@@ -19,6 +19,8 @@
 #include <ArduinoJson.h>
 #include <cstddef>
 #include <SPIFFS.h>
+#include <esp_log.h>
+#include <stdarg.h>
 #include "configuration.h"
 #include "rotor_follow.h"
 #include "board_pins.h"
@@ -692,6 +694,14 @@ static bool writeChecked(const char* path, const String& text) {
     return ok;
 }
 
+// Linea al registro de arranque por el mismo camino que los mensajes del sistema ("E (40) SPIFFS: ..."): sale en el registro
+// del instalador web y en cualquier monitor aunque el USB CDC no muestre Serial (programa que no activa DTR).
+void consoleLog(const char* fmt, ...) {
+    char buf[160];
+    va_list ap; va_start(ap, fmt); vsnprintf(buf, sizeof(buf), fmt, ap); va_end(ap);
+    esp_log_write(ESP_LOG_ERROR, "APRS", "W (%lu) APRS: %s\n", (unsigned long)esp_log_timestamp(), buf);
+}
+
 // Guardado seguro de la configuracion (Manuel - EA7JRS). Con el SPIFFS de 192 KB casi lleno (Heltec Wireless Tracker y placas de
 // 4 MB) se perdia todo: si no cabia la copia temporal se borraba la buena antes de escribir la nueva, y si tampoco cabia, quedaba
 // sin fichero y el siguiente arranque cargaba la de serie. Ahora: copia temporal comprobada; si no cabe, se libera sitio (copias
@@ -700,6 +710,7 @@ static bool writeChecked(const char* path, const String& text) {
 bool Configuration::saveConfigText(const String& text) {
     auto fsInfo = [&](const char* what) {
         Serial.printf("Config: %s (%u bytes; SPIFFS %u / %u used)\n", what, (unsigned)text.length(), (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
+        consoleLog("config %s (%u bytes; SPIFFS %u / %u used)", what, (unsigned)text.length(), (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
     };
     auto replaceWithTmp = [&]() -> bool {
         SPIFFS.remove("/tracker_conf.json");
@@ -750,6 +761,7 @@ bool Configuration::readFile() {
 
     if (configFile) {
         Serial.printf("Config file: %u bytes (SPIFFS %u / %u used)\n", (unsigned)configFile.size(), (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
+        consoleLog("config file %u bytes (SPIFFS %u / %u used)", (unsigned)configFile.size(), (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
         bool needsRewrite = false;
         JsonDocument data;
         DeserializationError error = deserializeJson(data, configFile);
@@ -1523,16 +1535,21 @@ Configuration::Configuration() {
 void Configuration::init() {
     if (!SPIFFS.begin(false)) {
         Serial.println("SPIFFS Mount Failed, formatting...");
-
+        consoleLog("SPIFFS not valid: formatting (keep the power on, a few seconds)");
+        const uint32_t t0 = millis();
         if (!SPIFFS.begin(true)) {
             Serial.println("SPIFFS Format Failed");
+            consoleLog("SPIFFS format FAILED after %lu ms: the configuration cannot be saved", (unsigned long)(millis() - t0));
             return;
         }
+        consoleLog("SPIFFS formatted in %lu ms", (unsigned long)(millis() - t0));
     }
     Serial.printf("SPIFFS Ready (%u / %u bytes used)\n", (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
+    consoleLog("SPIFFS ready (%u / %u bytes used)", (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
 
     if (!SPIFFS.exists("/tracker_conf.json")) {
         Serial.println("Config not found, creating default...");
+        consoleLog("no configuration file: default configuration");
         setDefaultValues();
         writeFile();                                // sin reiniciar (ver readFile): la configuracion por defecto ya esta en memoria
         return;

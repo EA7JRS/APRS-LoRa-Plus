@@ -199,6 +199,14 @@ extern bool gpsIsActive;
 
 void setup() {
     Serial.begin(115200);
+    #if ARDUINO_USB_MODE && ARDUINO_USB_CDC_ON_BOOT
+        Serial.setTxTimeoutMs(0);   // USB nativo (ESP32-S3/C3): sin esto, con un programa que no activa DTR (registro del instalador web) no sale nada de Serial
+    #endif
+    {
+        static const char* const R[] = {"?", "power on / RST key", "external", "software", "CRASH", "INT WDT", "TASK WDT", "WDT", "deep sleep", "LOW VOLTAGE", "SDIO", "USB", "JTAG", "eFuse", "power glitch", "CPU lockup"};
+        const int r = (int)esp_reset_reason();
+        consoleLog("APRS LoRa+ tracker 5.4.4, reset: %s (%d)", (r >= 0 && r < (int)(sizeof(R) / sizeof(R[0]))) ? R[r] : "?", r);
+    }
     Serial.println("\n=== LoRa APRS Tracker 5.4.4 | build: main (2026-11-12) ===");   // si no ves esta linea, no se ha grabado este firmware
     FW_Update::printBanner();                                      // placa + version para el instalador web USB
     Config.init();                                                 // antes estaba en el constructor global (provocaba el bucle de arranque)

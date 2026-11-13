@@ -588,4 +588,6 @@ private:
     bool readFile();
 };
 
+void consoleLog(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+
 #endif
