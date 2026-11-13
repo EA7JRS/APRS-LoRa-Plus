@@ -1241,7 +1241,11 @@ namespace {
             header(PAGE_TITLES[PAGE_LAST]);
             row(1, "No station heard yet");
             row(3, "Waiting for packets");
+            #ifdef HAS_SA868
+            row(4, "on %.4f MHz", LoRa_Utils::liveFreqHz() / 1000000.0);
+            #else
             row(4, "on %.3f MHz", Config.loraTypes[loraIndex].frequency / 1000000.0);
+            #endif
             return;
         }
         char counter[8];
@@ -3157,6 +3161,15 @@ namespace {
         if (digiCount > 0) row(2, "Rx %lu Tx %lu Dig %lu", (unsigned long)rxCount, (unsigned long)txCount, (unsigned long)digiCount);
         else row(2, "Rx %lu  Tx %lu", (unsigned long)rxCount, (unsigned long)txCount);
         const Station* s = heard.byRecent(0);
+        #ifdef HAS_SA868                                // FM: sin SNR (eso es de LoRa)
+        if (s) {
+            char sm[10];
+            sMeterText(s->rssi, sm, sizeof(sm));
+            row(3, "%s %ddBm", sm, s->rssi);
+        } else {
+            row(3, "S- ---dBm");
+        }
+        #else
         if (s) {
             char sm[10];
             sMeterText(s->rssi, sm, sizeof(sm));
@@ -3164,6 +3177,7 @@ namespace {
         } else {
             row(3, "S- --- SNR ---");
         }
+        #endif
         char age[8];
         if (lastRxCall[0]) {
             formatAge(millis() - lastRxMs, age, sizeof(age));
@@ -3176,8 +3190,13 @@ namespace {
         formatAirtime(airtime.txLastHourMs(now), tx, sizeof(tx));
         formatAirtime(airtime.rxLastHourMs(now), rx, sizeof(rx));
         float duty = airtime.txDutyPercent(now);
-        if (duty < 1.0f) row(5, "ToA T%s %.2f%% R%s", tx, duty, rx);
-        else row(5, "ToA T%s %.1f%% R%s", tx, duty, rx);
+        #ifdef HAS_SA868
+        const char* air = "Air";                        // tiempo en el aire (ToA es de LoRa)
+        #else
+        const char* air = "ToA";
+        #endif
+        if (duty < 1.0f) row(5, "%s T%s %.2f%% R%s", air, tx, duty, rx);
+        else row(5, "%s T%s %.1f%% R%s", air, tx, duty, rx);
     }
 
     // Fila con barra de nivel: etiqueta, barra de 56 px y porcentaje de uso
@@ -3473,9 +3492,20 @@ namespace PAGES_Utils {
         }
     }
 
+    // Tiempo en el aire de una trama: LoRa por SF / BW / CR; en la T-TWR (SA868) banderas del TXDELAY + la trama a 1200, 9600 o
+    // 4800 bit/s (M17), con un 5 % de relleno de bits (EA7JRS)
+    static uint32_t frameAirMs(int bytes) {
+        #ifdef HAS_SA868
+            const uint32_t bps = SA868::modeM17() ? 4800 : (SA868::mode9600() ? 9600 : 1200);
+            return (uint32_t)(Config.sa868.txDelayMs > 0 ? Config.sa868.txDelayMs : 0) + (uint32_t)((bytes + 4) * 8 * 1050UL / bps);
+        #else
+            const LoraType& lora = *currentLoRaType;
+            return (uint32_t)loraTimeOnAirMs(lora.spreadingFactor, lora.signalBandwidth, lora.codingRate4, bytes);
+        #endif
+    }
+
     void onRx(int bytes) {
-        const LoraType& lora = *currentLoRaType;
-        airtime.addRx(millis(), (uint32_t)loraTimeOnAirMs(lora.spreadingFactor, lora.signalBandwidth, lora.codingRate4, bytes));
+        airtime.addRx(millis(), frameAirMs(bytes));
     }
 
     void onDigipeat() {
@@ -3483,8 +3513,7 @@ namespace PAGES_Utils {
     }
 
     void onTx(int bytes) {
-        const LoraType& lora = *currentLoRaType;
-        airtime.addTx(millis(), (uint32_t)loraTimeOnAirMs(lora.spreadingFactor, lora.signalBandwidth, lora.codingRate4, bytes));
+        airtime.addTx(millis(), frameAirMs(bytes));
         txCount++;
         lastTxMs = millis();
         haveTx   = true;

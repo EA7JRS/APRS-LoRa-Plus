@@ -80,6 +80,15 @@ extern int                  wxModuleType;
 extern bool                 gpsIsActive;
 
 String      freqChangeWarning;
+
+// Ultima linea del decodificador: RSSI y SNR; en la T-TWR (FM) solo RSSI, el SNR es de LoRa (EA7JRS)
+static String rssiSnrLine() {
+    #ifdef HAS_SA868
+        return "< RSSI:" + String(lastReceivedPacket.rssi) + " dBm";
+    #else
+        return "< RSSI:" + String(lastReceivedPacket.rssi) + " SNR:" + String(lastReceivedPacket.snr);
+    #endif
+}
 uint8_t     lowBatteryPercent       = 21;
 
 #if defined(TTGO_T_DECK_PLUS) || defined(TTGO_T_DECK_GPS)
@@ -396,7 +405,11 @@ namespace MENU_Utils {
                         case 3: freqChangeWarning = "      US --> EU"; break;
                     }
                 }
-                displayShow("LORA FREQ>", "","   Confirm Change?", freqChangeWarning, "", "<Back         Select>");
+                #ifdef HAS_SA868
+                    displayShow("RADIO FREQ>", "", "  Set it in the", "  WebUI or RADIO", "", "<Back         Select>");
+                #else
+                    displayShow("LORA FREQ>", "","   Confirm Change?", freqChangeWarning, "", "<Back         Select>");
+                #endif
                 break;
 
             case 220:   // 2.Configuration ---> Display ---> ECO Mode
@@ -492,15 +505,15 @@ namespace MENU_Utils {
                         String pathDec = (lastReceivedPacket.path.length() > 14) ? "P:" : "PATH:  ";
                         pathDec += lastReceivedPacket.path;
 
-                        displayShow(firstLineDecoder, "GPS " + String(lastReceivedPacket.latitude,3) + " " + String(lastReceivedPacket.longitude,3), courseSpeedAltitude, "D:" + String(distanceKm) + "km    " + String(courseTo,0), pathDec, "< RSSI:" + String(lastReceivedPacket.rssi) + " SNR:" + String(lastReceivedPacket.snr));
+                        displayShow(firstLineDecoder, "GPS " + String(lastReceivedPacket.latitude,3) + " " + String(lastReceivedPacket.longitude,3), courseSpeedAltitude, "D:" + String(distanceKm) + "km    " + String(courseTo,0), pathDec, rssiSnrLine());
                     } else if (lastReceivedPacket.type == 1) {    // message
-                        displayShow(firstLineDecoder, "ADDRESSEE: " + lastReceivedPacket.addressee, "MSG:  " + lastReceivedPacket.payload, "", "", "< RSSI:" + String(lastReceivedPacket.rssi) + " SNR:" + String(lastReceivedPacket.snr));
+                        displayShow(firstLineDecoder, "ADDRESSEE: " + lastReceivedPacket.addressee, "MSG:  " + lastReceivedPacket.payload, "", "", rssiSnrLine());
                     } else if (lastReceivedPacket.type == 2) {    // status
-                        displayShow(firstLineDecoder, "-------STATUS-------", lastReceivedPacket.payload, "", "", "< RSSI:" + String(lastReceivedPacket.rssi) + " SNR:" + String(lastReceivedPacket.snr));
+                        displayShow(firstLineDecoder, "-------STATUS-------", lastReceivedPacket.payload, "", "", rssiSnrLine());
                     } else if (lastReceivedPacket.type == 3) {    // telemetry
-                        displayShow(firstLineDecoder, "------TELEMETRY------", "", "", "", "< RSSI:" + String(lastReceivedPacket.rssi) + " SNR:" + String(lastReceivedPacket.snr));
+                        displayShow(firstLineDecoder, "------TELEMETRY------", "", "", "", rssiSnrLine());
                     } else if (lastReceivedPacket.type == 5) {    // object
-                        displayShow(firstLineDecoder, "-------OBJECT-------", "", "", "", "< RSSI:" + String(lastReceivedPacket.rssi) + " SNR:" + String(lastReceivedPacket.snr));
+                        displayShow(firstLineDecoder, "-------OBJECT-------", "", "", "", rssiSnrLine());
                     }
                 }
                 break;
@@ -782,6 +795,9 @@ namespace MENU_Utils {
                         } else {
                             thirdRowMainMenu = String(Utils::getMaidenheadLocator(gps.location.lat(), gps.location.lng(), 8));
                         }
+                        #ifdef HAS_SA868
+                        thirdRowMainMenu += " " + String(LoRa_Utils::liveFreqHz() / 1000000.0, 3);    // T-TWR: frecuencia del SA868 (no hay perfiles LoRa)
+                        #else
                         thirdRowMainMenu += " LoRa[";
                         if (LoRa_Utils::isAisActive()) {
                             thirdRowMainMenu += "AIS]";
@@ -794,6 +810,7 @@ namespace MENU_Utils {
                                 default: thirdRowMainMenu += "--]"; break;
                             }
                         }
+                        #endif
                     }
 
                     for (int i = thirdRowMainMenu.length(); i < 18; i++) {
