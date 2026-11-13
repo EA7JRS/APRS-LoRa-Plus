@@ -223,6 +223,7 @@ void setup() {
 
     POWER_Utils::setup();
     displaySetup();
+    Config.prepareStorage();                                       // SPIFFS sin formato: se prepara aqui, con la pantalla y el progreso
     lastResetReason = abnormalResetReason();
     if (lastResetReason[0]) {
         if (crumbMagic == CRUMB_MAGIC) {

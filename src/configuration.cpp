@@ -20,6 +20,8 @@
 #include <cstddef>
 #include <SPIFFS.h>
 #include <esp_log.h>
+#include <esp_partition.h>
+#include <sdkconfig.h>
 #include <stdarg.h>
 #include "configuration.h"
 #include "rotor_follow.h"
@@ -1532,17 +1534,86 @@ Configuration::Configuration() {
     // porque el planificador FreeRTOS aun no existe (assert xTaskGetIdleTaskHandleForCore). Ver init().
 }
 
+// Prepara el SPIFFS (Manuel - EA7JRS). Lo que hace SPIFFS_format (borrar cada bloque y escribir su numero magico), pero:
+// - solo borra los bloques que no estan ya en blanco (un bloque borrado se lee todo 0xFF) y salta los ya preparados, asi que
+//   si se corta la alimentacion a medias, el siguiente arranque sigue donde se quedo;
+// - con la pantalla encendida y el porcentaje.
+// Si aun asi no se puede montar, formateo normal de SPIFFS.
+void Configuration::prepareStorage() {
+    if (!storagePending) return;
+    const uint32_t t0 = millis();
+    bool mounted = false;
+#if defined(CONFIG_SPIFFS_USE_MAGIC) && defined(CONFIG_SPIFFS_PAGE_SIZE)
+    const esp_partition_t* part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, nullptr);
+    if (part) {
+        const uint32_t BLK = 4096, PAGE = CONFIG_SPIFFS_PAGE_SIZE;
+        const uint32_t blocks = part->size / BLK;
+        uint32_t luPages = (BLK / PAGE) * 2 / PAGE; if (luPages < 1) luPages = 1;
+        const uint32_t magicAt = luPages * PAGE - 4;            // numero magico (2 bytes) y numero de borrados (2 bytes) del bloque
+        static uint8_t buf[256];
+        uint32_t erased = 0;
+        int shown = -1;
+        bool ok = true;
+        consoleLog("SPIFFS: preparing %lu blocks", (unsigned long)blocks);
+        for (uint32_t b = 0; b < blocks && ok; b++) {
+            const int pct = (int)(b * 100 / blocks);
+            if (pct / 5 != shown) {
+                shown = pct / 5;
+                displayShow("STORAGE", "Preparing the", "internal memory", String(pct) + " %", "Keep it powered on", "(only the first time)", 0);
+            }
+#if defined(CONFIG_SPIFFS_USE_MAGIC_LENGTH)
+            const uint16_t magic = (uint16_t)(0x20140529u ^ PAGE ^ (blocks - b));
+#else
+            const uint16_t magic = (uint16_t)(0x20140529u ^ PAGE);
+#endif
+            const uint8_t mark[4] = {(uint8_t)(magic & 0xFF), (uint8_t)(magic >> 8), 0, 0};
+            bool blank = true, ready = true;
+            for (uint32_t o = 0; o < BLK && (blank || ready); o += sizeof(buf)) {
+                if (esp_partition_read(part, b * BLK + o, buf, sizeof(buf)) != ESP_OK) { blank = ready = false; break; }
+                for (uint32_t i = 0; i < sizeof(buf); i++) {
+                    const uint32_t a = o + i;
+                    const uint8_t want = (a >= magicAt && a < magicAt + 4) ? mark[a - magicAt] : 0xFF;
+                    if (buf[i] != 0xFF) blank = false;
+                    if (buf[i] != want) ready = false;
+                }
+            }
+            if (ready) continue;
+            if (!blank) {
+                if (esp_partition_erase_range(part, b * BLK, BLK) != ESP_OK) { ok = false; break; }
+                erased++;
+            }
+            if (esp_partition_write(part, b * BLK + magicAt, mark, sizeof(mark)) != ESP_OK) ok = false;
+        }
+        mounted = ok && SPIFFS.begin(false);
+        consoleLog("SPIFFS: %s in %lu ms (%lu blocks erased)", mounted ? "prepared" : "could not be prepared", (unsigned long)(millis() - t0), (unsigned long)erased);
+    }
+#endif
+    if (!mounted) {
+        displayShow("STORAGE", "Formatting the", "internal memory", "up to 2 minutes", "Keep it powered on", "", 0);
+        const uint32_t t1 = millis();
+        mounted = SPIFFS.begin(true);
+        consoleLog("SPIFFS format %s in %lu ms", mounted ? "done" : "FAILED", (unsigned long)(millis() - t1));
+    }
+    storagePending = false;
+    if (!mounted) {
+        displayShow("STORAGE", "Memory error:", "the settings", "cannot be saved", "", "", 3000);
+        return;
+    }
+    consoleLog("SPIFFS ready (%u / %u bytes used)", (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
+    writeFile();                                    // configuracion de serie (la que ya esta en memoria)
+}
+
 void Configuration::init() {
     if (!SPIFFS.begin(false)) {
-        Serial.println("SPIFFS Mount Failed, formatting...");
-        consoleLog("SPIFFS not valid: formatting (keep the power on, a few seconds)");
-        const uint32_t t0 = millis();
-        if (!SPIFFS.begin(true)) {
-            Serial.println("SPIFFS Format Failed");
-            consoleLog("SPIFFS format FAILED after %lu ms: the configuration cannot be saved", (unsigned long)(millis() - t0));
-            return;
-        }
-        consoleLog("SPIFFS formatted in %lu ms", (unsigned long)(millis() - t0));
+        // Sin sistema de archivos (placa nueva, o el instalador web, que no graba el SPIFFS para no borrar la configuracion).
+        // Antes se formateaba aqui, con la pantalla aun apagada: en la T-TWR Plus (SPIFFS de 3,4 MB) tardaba casi un minuto
+        // en negro, al reiniciarla se cortaba y volvia a empezar, y nunca se guardaba nada. Ahora se arranca con la
+        // configuracion de serie en memoria y prepareStorage() lo hace tras encender la pantalla, con progreso y reanudable.
+        Serial.println("SPIFFS Mount Failed: it will be prepared after the display starts");
+        consoleLog("SPIFFS not valid: default configuration until it is prepared");
+        setDefaultValues();
+        storagePending = true;
+        return;
     }
     Serial.printf("SPIFFS Ready (%u / %u bytes used)\n", (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
     consoleLog("SPIFFS ready (%u / %u bytes used)", (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());

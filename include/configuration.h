@@ -583,6 +583,8 @@ public:
     bool saveConfigText(const String& text);       // guardado seguro (copia temporal comprobada, libera sitio, nunca deja sin configuracion)
     Configuration();
     void init();                // montar SPIFFS y leer/crear la configuracion; llamar desde setup()
+    bool storagePending = false;    // SPIFFS sin sistema de archivos al arrancar: configuracion de serie en memoria hasta prepareStorage()
+    void prepareStorage();          // prepara el SPIFFS con la pantalla ya encendida (progreso), lo monta y guarda la configuracion
 
 private:
     bool readFile();
