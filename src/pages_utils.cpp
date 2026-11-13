@@ -3858,8 +3858,9 @@ namespace PAGES_Utils {
     void update() {
         uint32_t nowMs = millis();
         #ifdef HAS_SA868
-        {   // encoder de la T-TWR: sintoniza en la pagina FM o en la radio comercial; en las demas cuenta como actividad (hombre caido)
-            const int clicks = FM_Utils::takeEncoder();
+        {   // encoder de la T-TWR: sintoniza en la pagina FM o en la radio comercial; en las demas paginas y en los menus lo
+            // toma BUTTON_Utils para moverse (pagina u opcion siguiente / anterior)
+            const int clicks = encoderWanted() ? FM_Utils::takeEncoder() : 0;
             if (clicks) {
                 if (page == PAGE_FM && fmDialActive()) FM_Utils::dial(clicks);
                 else if (page == PAGE_BCAST && viewing() && !submenuOpen) BCAST::step(clicks);
@@ -6930,6 +6931,19 @@ namespace PAGES_Utils {
 
     // El encoder sintoniza solo con la pagina FM a la vista y sin submenu (T-TWR)
     bool fmDialActive() { return viewing() && page == PAGE_FM && !submenuOpen && !alarmShown; }
+
+    // La pagina a la vista usa el encoder (sintonia, lista); si no, sirve para moverse por paginas y menus
+    bool encoderWanted() {
+        #ifdef HAS_SA868
+            if (fmDialActive()) return true;
+            if (!viewing() || submenuOpen || alarmShown) return false;
+            if (page == PAGE_BCAST || page == PAGE_AIS) return true;
+            #ifdef HAS_SAT
+                if (page == PAGE_SAT && (FM_Utils::satOn() || (satView != 3 && satView != 4))) return true;
+            #endif
+        #endif
+        return false;
+    }
 
 }
 

@@ -25,6 +25,10 @@
 #include "display.h"
 #include "pages_utils.h"
 #include "pages_core.h"
+#ifdef LILYGO_T_TWR_PLUS
+    #include "fm_utils.h"
+    #include "sa868_radio.h"
+#endif
 
 #ifdef BUTTON_PIN
 
@@ -79,6 +83,12 @@
             OneButton userButton3 = OneButton(BUTTON3_PIN, true, true);
             OneButton userButton4 = OneButton(BUTTON4_PIN, true, true);
         #endif
+        #ifdef LILYGO_T_TWR_PLUS
+            // T-TWR Plus (EA7JRS): el pulsador del encoder es el boton de siempre (1P / LP / 2P); ademas, girar el encoder =
+            // pagina u opcion siguiente / anterior, PTT lateral = 2P (atras / menu) fuera de FM (en FM es el PTT), DOWN = LP
+            OneButton userButtonPtt  = OneButton(BUTTON2_PIN, true, true);
+            OneButton userButtonDown = OneButton(TTWR_BUTTON_DOWN, true, true);
+        #endif
 
         void singlePress1() {
             if (suppressed()) return;
@@ -128,8 +138,28 @@
             menuDisplay = 9000;
         }
 
+        #ifdef LILYGO_T_TWR_PLUS
+            static void encoderNav() {
+                #ifdef HAS_APRS_PAGES
+                    if (PAGES_Utils::encoderWanted()) return;              // la pagina lo usa (FM, radio comercial, AIS, SAT)
+                #endif
+                int clicks = FM_Utils::takeEncoder();
+                if (!clicks) return;
+                FM_Utils::activity();                                      // cuenta como actividad (hombre caido)
+                if (clicks > 3) clicks = 3; else if (clicks < -3) clicks = -3;
+                menuTime = millis();
+                for (; clicks > 0; clicks--) KEYBOARD_Utils::downArrow();
+                for (; clicks < 0; clicks++) KEYBOARD_Utils::upArrow();
+            }
+        #endif
+
         void loop() {
             if (!Config.simplifiedTrackerMode) {
+                #ifdef LILYGO_T_TWR_PLUS
+                    if (!SA868::modeFm()) userButtonPtt.tick();
+                    userButtonDown.tick();
+                    encoderNav();
+                #endif
                 userButton.tick();
                 #ifdef HAS_APRS_PAGES
                     pollSosGesture();
@@ -152,6 +182,11 @@
                     userButton2.attachClick(singlePress2);
                     userButton3.attachClick(singlePress3);
                     userButton4.attachClick(singlePress4);
+                #endif
+                #ifdef LILYGO_T_TWR_PLUS
+                    FM_Utils::encoderBegin();
+                    userButtonPtt.attachClick(doublePress1);
+                    userButtonDown.attachClick(longPress1);
                 #endif
             }
         }

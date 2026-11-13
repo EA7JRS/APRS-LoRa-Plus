@@ -111,6 +111,7 @@ public:
     uint8_t splash      = 1;    // bienvenida en las pantallas a color (Heltec Wireless Tracker, T-Deck): 1 logo de la app a todo color (de serie), 0 logo de las OLED en color
     uint8_t alertPopup  = 1;    // avisos oficiales (meteorologia, tsunamis, terremotos, tiempo espacial, SAME): ventana desde este nivel (1 amarillo, 2 naranja, 3 rojo, 4 nunca) (EA7JRS)
     uint8_t alertBuzz   = 3;    // y zumbador desde este nivel (4 = nunca)
+    uint8_t rgbLed      = 1;    // LED RGB de la placa (T-TWR Plus): 0 apagado, 1 bajo, 2 medio, 3 alto (EA7JRS)
 };
 
 class Battery {

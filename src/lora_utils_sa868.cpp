@@ -11,6 +11,7 @@
 
 #ifdef HAS_SA868
 
+#include "rgb_led.h"
 #include <Arduino.h>
 #include <SPI.h>          // RadioLib se sigue compilando (otras partes lo incluyen) y necesita SPI en el buscador de librerias
 #include <logger.h>
@@ -174,8 +175,10 @@ namespace LoRa_Utils {
         if (Config.notification.buzzerActive && Config.notification.txBeep) NOTIFICATION_Utils::beaconTxBeep();
 
         BLE_Control::rfEvent('t');                  // luz TX de la app (EA7JRS)
+        RGB_LED::tx(true);
         const bool sent = SA868::modeFm() ? FM_Utils::aprsTransmit(newPacket.c_str()) : SA868::transmit(newPacket.c_str());
         BLE_Control::rfEvent('i');
+        RGB_LED::tx(false);
         transmitFlag = true;
         if (sent) {
             #ifdef HAS_APRS_PAGES

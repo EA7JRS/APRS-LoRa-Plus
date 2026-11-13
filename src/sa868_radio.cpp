@@ -122,7 +122,7 @@ namespace SA868 {
     static constexpr int        SPK_RING    = 2048;
     static constexpr int        SPK_LOW     = 768;          // ~58 ms en el anillo antes de sonar; el ADC entrega de 256 en 256 muestras
     static constexpr int        SPK_HIGH    = 1536;         // ~116 ms: por encima se recorta el retraso
-    static int8_t               spkRing[SPK_RING];
+    static int16_t              spkRing[SPK_RING];         // muestras de 16 bits (antes 8: a volumen bajo quedaban pocos niveles, sonido "robotico")
     static volatile uint16_t    spkHead = 0, spkTail = 0;
     // CW (modo MORSE): A1A con el PTT o MCW (tono), escucha por el silenciamiento del ruido; tono local por el altavoz (Rev2.1)
     static bool                 cwMode      = false;
@@ -513,7 +513,7 @@ namespace SA868 {
 
     // ---- Altavoz desde el ESP32 (Rev2.1): sigma-delta en GPIO45 a 13,2 kHz desde un temporizador ------------------
 
-    static inline void spkPush(int8_t s) {
+    static inline void spkPush(int16_t s) {
         const uint16_t next = (uint16_t)((spkHead + 1) % SPK_RING);
         if (next == spkTail) return;                        // lleno: se pierde la muestra (el temporizador va mas lento)
         spkRing[spkHead] = s;
@@ -524,22 +524,36 @@ namespace SA868 {
     // cada ~75 muestras con el temporizador a 13,33 kHz: zumbido y distorsion). Ahora el anillo se mantiene a media carga: por
     // debajo de SPK_LOW se repite la ultima muestra y por encima de SPK_HIGH se salta una (cambios de una muestra, inaudibles).
     // Sin datos, la ultima muestra se mantiene en vez de caer a 0 (EA7JRS).
+    // Salida al doble de ritmo (26,4 kHz) con interpolacion lineal: las imagenes de la retencion de 13,2 kHz (voz de 3 kHz ->
+    // 10,2 kHz, audibles, sonido metalico) suben por encima de 23 kHz. Y los 16 bits se pasan a los 8 del sigma-delta con
+    // realimentacion del error (el ruido de cuantificacion sale de la banda de voz) (EA7JRS).
     static bool IRAM_ATTR spkTick(gptimer_handle_t, const gptimer_alarm_event_data_t*, void*) {
-        static int8_t last = 0;
-        static bool   filling = true;
-        const uint16_t fill = (uint16_t)((spkHead + SPK_RING - spkTail) % SPK_RING);
-        if (fill == 0) filling = true;
-        else if (filling && fill >= SPK_LOW) filling = false;
-        if (!filling) {
-            if (fill > SPK_HIGH) spkTail = (uint16_t)((spkTail + 1) % SPK_RING);           // va por delante: se salta una
-            if (fill < SPK_LOW / 2) {
-                // se esta quedando sin datos: esta vez repite la ultima (no avanza)
-            } else if (spkTail != spkHead) {
-                last = spkRing[spkTail];
-                spkTail = (uint16_t)((spkTail + 1) % SPK_RING);
+        static int32_t prev = 0, cur = 0, err = 0;
+        static bool    filling = true, half = false;
+        if (!half) {
+            int32_t next = cur;
+            const uint16_t fill = (uint16_t)((spkHead + SPK_RING - spkTail) % SPK_RING);
+            if (fill == 0) filling = true;
+            else if (filling && fill >= SPK_LOW) filling = false;
+            if (!filling) {
+                if (fill > SPK_HIGH) spkTail = (uint16_t)((spkTail + 1) % SPK_RING);           // va por delante: se salta una
+                if (fill < SPK_LOW / 2) {
+                    // se esta quedando sin datos: esta vez repite la ultima (no avanza)
+                } else if (spkTail != spkHead) {
+                    next = spkRing[spkTail];
+                    spkTail = (uint16_t)((spkTail + 1) % SPK_RING);
+                }
             }
+            prev = cur;
+            cur = next;
         }
-        sdm_channel_set_pulse_density(spkSdm, last);
+        int32_t v = (half ? (prev + cur) / 2 : prev) + err;
+        half = !half;
+        int32_t q = (v + 128) >> 8;
+        if (q > 127) q = 127; else if (q < -128) q = -128;
+        err = v - q * 256;
+        if (err > 256) err = 256; else if (err < -256) err = -256;
+        sdm_channel_set_pulse_density(spkSdm, (int8_t)q);
         return false;
     }
 
@@ -554,13 +568,13 @@ namespace SA868 {
         gptimer_config_t tc = {};
         tc.clk_src = GPTIMER_CLK_SRC_DEFAULT;
         tc.direction = GPTIMER_COUNT_UP;
-        tc.resolution_hz = 10000000;                        // 10 MHz: 757 cuentas = 13,21 kHz (con 1 MHz eran 75 = 13,33 kHz)
+        tc.resolution_hz = 40000000;                        // 40 MHz: 1515 cuentas = 26,40 kHz = 2 x 13,20 kHz
         if (gptimer_new_timer(&tc, &spkTimer) != ESP_OK) return false;
         gptimer_event_callbacks_t cb = {};
         cb.on_alarm = spkTick;
         gptimer_register_event_callbacks(spkTimer, &cb, nullptr);
         gptimer_alarm_config_t ac = {};
-        ac.alarm_count = 10000000 / RX_FS;                  // ~75,7 us
+        ac.alarm_count = 40000000 / (2 * RX_FS);            // ~37,9 us (dos salidas por muestra)
         ac.reload_count = 0;
         ac.flags.auto_reload_on_alarm = true;
         gptimer_set_alarm_action(spkTimer, &ac);
@@ -584,11 +598,11 @@ namespace SA868 {
             if (resetDemod) { if (m17) m17rx.reset(); else if (dap) pocRx.reset(); else if (ais) aisRx.reset(); else if (mode96) g3rx.reset(); else demod.reset(); resetDemod = false; }
             const uint32_t nSamples = got / SOC_ADC_DIGI_RESULT_BYTES;
             static float tonePh = 0;
-            auto tone = [&](bool on) -> int8_t {           // 700 Hz para el altavoz (tono local / CW recibida)
+            auto tone = [&](bool on) -> int16_t {          // 700 Hz para el altavoz (tono local / CW recibida)
                 if (!on) return 0;
                 tonePh += 2.0f * (float)M_PI * 700.0f / (float)RX_FS;
                 if (tonePh > 2.0f * (float)M_PI) tonePh -= 2.0f * (float)M_PI;
-                return (int8_t)(sinf(tonePh) * 12.0f * (float)constrain(Config.sa868.volume, 1, 8));
+                return (int16_t)(sinf(tonePh) * 12.0f * 256.0f * (float)constrain(Config.sa868.volume, 1, 8));
             };
             if (txActive) {                                 // en emision el ADC oye la propia senal: se descarta (el altavoz calla o da el tono local)
                 if (espAudio) for (uint32_t k = 0; k < nSamples; k++) spkPush(tone(cwSidetone));
@@ -623,7 +637,7 @@ namespace SA868 {
                     // recorte duro de antes (distorsionaba con volumen alto) (EA7JRS)
                     float y = spkVoice.process(fmNr ? fmNr->process(x) : x);
                     y = gate ? FmDsp::VoiceFilter::limit(y * gain) : 0.0f;
-                    spkPush((int8_t)lroundf(y * 127.0f));
+                    spkPush((int16_t)lroundf(y * 32767.0f));
                 }
             }
             if (sameOn && !sameReady) {

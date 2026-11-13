@@ -256,6 +256,7 @@ namespace {
         FC(Display, splash,     0, 1, 0, 1),
         FC(Display, alertPopup, 0, 1, 1, 4),
         FC(Display, alertBuzz,  0, 3, 1, 4),
+        FC(Display, rgbLed,     0, 1, 0, 3),
     };
     #ifdef HAS_BT_CLASSIC
         #define BT_USE_KISS_DEFAULT false
@@ -1416,6 +1417,7 @@ void Configuration::setDefaultValues() {
     display.splash                  = 1;
     display.alertPopup              = 1;
     display.alertBuzz               = 3;
+    display.rgbLed                  = 1;
 
     setCwDefaults();
     setWsprDefaults();

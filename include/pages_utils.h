@@ -62,6 +62,7 @@ namespace PAGES_Utils {
     void    beaconSent();               // se ha transmitido la baliza
     bool    wantsFastRefresh();         // true en la brujula (refresco ~5 Hz)
     bool    fmDialActive();             // T-TWR: el encoder sintoniza (pagina FM a la vista, sin submenu)
+    bool    encoderWanted();            // T-TWR: la pagina a la vista usa el encoder (si no, mueve por paginas y menus)
 
     uint8_t unreadCount();                      // mensajes recibidos sin leer
     const char* replyCallsign();                // destinatario para PAGES_CMD_REPLY

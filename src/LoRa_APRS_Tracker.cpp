@@ -49,6 +49,7 @@ ____________________________________________________________________*/
 #include "keyboard_utils.h"
 #include "joystick_utils.h"
 #include "configuration.h"
+#include "rgb_led.h"
 #include "battery_utils.h"
 #include "station_utils.h"
 #include "sensors_utils.h"
@@ -223,6 +224,7 @@ void setup() {
 
     POWER_Utils::setup();
     displaySetup();
+    RGB_LED::setup();
     Config.prepareStorage();                                       // SPIFFS sin formato: se prepara aqui, con la pantalla y el progreso
     lastResetReason = abnormalResetReason();
     if (lastResetReason[0]) {
@@ -360,7 +362,7 @@ void loop() {
     #endif
 
     ReceivedLoRaPacket packet = LoRa_Utils::receivePacket();
-    if (!packet.text.isEmpty()) BLE_Control::rfEvent('r', packet.rssi, packet.snr);     // luz RX de la app (EA7JRS)
+    if (!packet.text.isEmpty()) { BLE_Control::rfEvent('r', packet.rssi, packet.snr); RGB_LED::rx(); }     // luz RX de la app y LED RGB (EA7JRS)
     #ifdef HAS_SA868
         if (SA868::modeFm()) FM_Utils::loop();     // T-TWR: PTT, escaneo, ARTS, EAI; modos FM y SAT (VFO que sigue al satelite) (EA7JRS)
     #endif
@@ -388,6 +390,7 @@ void loop() {
     }
 
     MSG_Utils::ledNotification();
+    RGB_LED::loop();
     Utils::checkFlashlight();
     IARU_Auto::loop();                                              // region IARU automatica segun el GPS (si esta activada)
     STATION_Utils::checkListenedStationsByTimeAndDelete();

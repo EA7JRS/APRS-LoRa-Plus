@@ -127,8 +127,9 @@ namespace FmDsp {
     void NoiseReducer::setStrength(float s) {
         if (s < 0) s = 0;
         if (s > 1) s = 1;
-        beta = 0.5f + 2.0f * s;                             // sobrerresta: 0,5 .. 2,5
-        gmin = 0.35f - 0.27f * s;                           // suelo de ganancia: -9 dB .. -21 dB
+        // Mas suave que antes (0,5..2,5 y -9..-21 dB): con sobrerresta fuerte y suelo bajo la voz sonaba "robotica" (EA7JRS)
+        beta = 0.6f + 1.2f * s;                             // sobrerresta: 0,6 .. 1,8
+        gmin = 0.42f - 0.26f * s;                           // suelo de ganancia: -7,5 dB .. -16 dB
     }
 
     void NoiseReducer::frame() {
@@ -142,8 +143,12 @@ namespace FmDsp {
             if (frames == 1 || smoothPsd[k] < nz) nz = smoothPsd[k];             // minimos: el ruido es lo que queda en las pausas
             else nz *= 1.004f;                                                     // sube despacio (~+2 dB/s) si el ruido aumenta
             float g = smoothPsd[k] > 1e-12f ? 1.0f - beta * 2.2f * nz / smoothPsd[k] : gmin;      // 2,2: el minimo queda ~3,5 dB por debajo de la media del ruido
-            if (g < gmin) g = gmin;
-            gain[k] = 0.6f * gain[k] + 0.4f * g;                                   // suavizado: menos "ruido musical"
+            gRaw[k] = g < gmin ? gmin : g;
+        }
+        for (int k = 0; k <= N / 2; k++) {
+            // tambien suavizada entre bandas vecinas (1-2-1): sin bandas sueltas que se abren y cierran ("ruido musical")
+            const float g = (gRaw[k > 0 ? k - 1 : k] + 2.0f * gRaw[k] + gRaw[k < N / 2 ? k + 1 : k]) * 0.25f;
+            gain[k] = 0.6f * gain[k] + 0.4f * g;                                   // suavizado en el tiempo
             const float gg = frames < 8 ? 1.0f : gain[k];                          // primeros 60 ms: aprende sin tocar
             re[k] *= gg; im[k] *= gg;
             if (k > 0 && k < N / 2) { re[N - k] = re[k]; im[N - k] = -im[k]; }

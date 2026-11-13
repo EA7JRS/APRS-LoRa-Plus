@@ -47,6 +47,7 @@
     //  Pulsadores y otros
     #define BUTTON_PIN          21      // pulsador del encoder (el boton de un solo pulsador del tracker)
     #define BUTTON2_PIN         3       // PTT lateral
+    #define TTWR_BUTTON_DOWN    0       // boton DOWN (BOOT): fuera del arranque, pulsador normal
     #define TTWR_ENCODER_A      47
     #define TTWR_ENCODER_B      46
     #define TTWR_PIXEL_PIN      42      // LED WS2812

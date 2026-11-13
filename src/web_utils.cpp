@@ -230,6 +230,7 @@ namespace WEB_Utils {
         Config.display.splash                   = (uint8_t)constrain(getParamIntSafe("display.splash", Config.display.splash), 0, 1);
         Config.display.alertPopup               = (uint8_t)constrain(getParamIntSafe("display.alertPopup", Config.display.alertPopup), 1, 4);
         Config.display.alertBuzz                = (uint8_t)constrain(getParamIntSafe("display.alertBuzz", Config.display.alertBuzz), 1, 4);
+        Config.display.rgbLed                   = (uint8_t)constrain(getParamIntSafe("display.rgbLed", Config.display.rgbLed), 0, 3);
 
         //  Bluetooth
         Config.bluetooth.active                 = request->hasParam("bluetooth.active", true);

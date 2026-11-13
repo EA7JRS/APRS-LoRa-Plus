@@ -218,6 +218,7 @@ namespace BOARD_PINS {
             add(TTWR_ENCODER_A, 'u', "Encoder A");
             add(TTWR_ENCODER_B, 'u', "Encoder B");
             add(TTWR_PIXEL_PIN, 'u', "WS2812 LED");
+            add(TTWR_BUTTON_DOWN, 'u', "DOWN button (BOOT)");
             add(PMU_IRQ_PIN, 'u', "PMU interrupt");
             add(11, 'u', "TF MOSI"); add(12, 'u', "TF SCK"); add(13, 'u', "TF MISO");
             add(15, 'u', "Microphone ADC (Rev2.1)"); add(45, 'u', "Tone to amplifier (Rev2.1)");

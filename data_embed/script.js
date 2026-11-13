@@ -859,6 +859,7 @@ function loadSettings(settings) {
     document.getElementById("display.splash").value                     = settings.display.splash ?? 1;
     document.getElementById("display.alertPopup").value                 = settings.display.alertPopup ?? 1;
     document.getElementById("display.alertBuzz").value                  = settings.display.alertBuzz ?? 3;
+    document.getElementById("display.rgbLed").value                     = settings.display.rgbLed ?? 1;
     DisplayEcoModeCheckbox.checked  = settings.display.ecoMode;
     DisplayTimeout.disabled         = !DisplayEcoModeCheckbox.checked;
 

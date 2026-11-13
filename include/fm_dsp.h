@@ -65,10 +65,10 @@ namespace FmDsp {
         void  reset();
     private:
         void  frame();
-        float win[N], inBuf[N], outBuf[N], ready[HOP], noisePsd[N / 2 + 1], smoothPsd[N / 2 + 1], gain[N / 2 + 1];
+        float win[N], inBuf[N], outBuf[N], ready[HOP], noisePsd[N / 2 + 1], smoothPsd[N / 2 + 1], gain[N / 2 + 1], gRaw[N / 2 + 1];
         float re[N], im[N];
         int   pos = 0, outPos = 0;
-        float beta = 1.5f, gmin = 0.12f;
+        float beta = 1.1f, gmin = 0.25f;
         bool  primed = false;
         int   frames = 0;
     };
