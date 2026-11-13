@@ -241,7 +241,10 @@ namespace WEB_Utils {
             #else
                 Config.bluetooth.useBLE         = true;    // fixed as BLE
             #endif
-            Config.bluetooth.useKISS            = getParamIntSafe("bluetooth.useKISS", Config.bluetooth.useKISS) == 1;
+            const int protocol                  = getParamIntSafe("bluetooth.useKISS", Config.bluetooth.sppNmea ? 2 : (Config.bluetooth.useKISS ? 1 : 0));
+            // 2 = NMEA por Bluetooth clasico (plotter, OpenCPN); con BLE el NMEA va por el servicio de control y el KISS sigue
+            Config.bluetooth.sppNmea            = protocol == 2 && !Config.bluetooth.useBLE;
+            Config.bluetooth.useKISS            = protocol == 1 || (protocol == 2 && Config.bluetooth.useBLE);
             Config.bluetooth.controlPin         = constrain(getParamIntSafe("bluetooth.controlPin", Config.bluetooth.controlPin), 0, 999999);
         }
 

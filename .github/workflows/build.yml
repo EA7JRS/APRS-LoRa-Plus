@@ -108,6 +108,8 @@ jobs:
                       chip: esp32
                     - name: ttgo-lora32-v21_GPS
                       chip: esp32
+                    - name: ttgo-lora32-v21_MAPRS
+                      chip: esp32
                     - name: ttgo-lora32-v21_915_GPS
                       chip: esp32
                     - name: ttgo-lora32-v21_TNC

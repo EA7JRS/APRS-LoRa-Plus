@@ -30,6 +30,8 @@
 #include "net_wx.h"
 #include "alerts_utils.h"
 #include "ais_utils.h"
+#include "ais_vessel.h"
+#include "nmea_link.h"
 #ifdef HAS_SA868
 #include "tx_unlock.h"
 #endif
@@ -347,6 +349,10 @@ namespace {
             #ifdef HAS_SA868
                 caps["satFm"] = true;                                // el VFO de FM sigue al satelite (FM / APRS AFSK, ruta sat.aprsPath)
             #endif
+        #endif
+        caps["vessel"] = true;                                   // datos del barco del perfil nautico AIS (orden y evento "vessel")
+        #ifdef APRS_MAPRS_TRANSPONDER
+            caps["maprs"] = true;                                // APRS LoRa+ MAPRS transponder (clase B)
         #endif
         caps["ais"] = true;                                      // receptor AIS: eventos "ais", ordenes "aislist", "aisin", "aisset" (modo 12 en la T-TWR, modulo por UART)
         caps["netreq"] = true;                                   // el tracker puede pedir a la app que baje el tiempo o los satelites (evento "netreq")
@@ -987,6 +993,79 @@ namespace {
         }
         j.endArr();
         j.send(sendLine);
+    }
+
+    // Datos del barco del perfil nautico AIS (plotter APRS LoRa+ y app): orden y evento "vessel"
+    static void sendVessel() {
+        JW j("vessel");
+        const int index = Config.aisBeaconIndex();
+        #ifdef APRS_MAPRS_TRANSPONDER
+            j.flag("b", true);                                      // transpondedor de clase B: solo tipos 0 y 1
+        #else
+            j.flag("b", false);
+        #endif
+        if (index < 0) { j.flag("ok", false); j.send(sendLine); return; }
+        const Beacon& b = Config.beacons[index];
+        const AIS_Vessel::VesselType& v = AIS_Vessel::vesselType(b.aisVesselType);
+        j.flag("ok", true);
+        j.num("i", index);
+        j.flag("act", (int) myBeaconsIndex == index);
+        j.text("call", b.callsign.c_str());
+        j.unum("mmsi", b.aisMmsi);
+        j.text("n", b.aisName.c_str());
+        j.num("t", v.id);
+        const char cls[2] = { v.aisClass, 0 };
+        j.text("cls", cls);
+        j.num("st", v.shipType);
+        j.num("len", b.aisLength);
+        j.num("beam", b.aisBeam);
+        j.flt("dr", b.aisDraft, 1);
+        j.send(sendLine);
+    }
+
+    static void setVessel(JsonDocument& doc, const char* cmd, int id) {
+        const int index = Config.aisBeaconIndex();
+        if (index < 0) { reply(cmd, id, "no nautical AIS profile"); return; }
+        Beacon b = Config.beacons[index];
+        if (!doc["call"].isNull()) {                                // indicativo base: el SSID lo pone el tipo de barco
+            String call = String((const char*)(doc["call"] | ""));
+            call.trim(); call.toUpperCase();
+            int dash = call.indexOf('-');
+            if (dash > 0) call = call.substring(0, dash);
+            bool ok = call.length() >= 3 && call.length() <= 6;
+            for (size_t k = 0; ok && k < call.length(); k++) ok = isalnum((unsigned char)call[k]);
+            if (!ok) { reply(cmd, id, "bad callsign"); return; }
+            b.callsign = call;
+        }
+        if (!doc["mmsi"].isNull()) {
+            const uint32_t m = doc["mmsi"] | 0UL;
+            if (m != 0 && !AIS_Vessel::validMmsi(m)) { reply(cmd, id, "bad MMSI"); return; }
+            b.aisMmsi = m;
+        }
+        if (!doc["n"].isNull())    b.aisName   = String((const char*)(doc["n"] | ""));
+        if (!doc["t"].isNull()) {
+            const int t = doc["t"] | 0;
+            if (t < 0 || t >= AIS_Vessel::typeCount()) { reply(cmd, id, "bad type"); return; }
+            #ifdef APRS_MAPRS_TRANSPONDER
+                if (AIS_Vessel::vesselType((uint8_t)t).aisClass == AIS_Vessel::CLASS_A) { reply(cmd, id, "class B transponder"); return; }
+            #endif
+            b.aisVesselType = (uint8_t)t;
+        }
+        if (!doc["len"].isNull())  b.aisLength = (uint16_t)constrain((int)(doc["len"] | 0), 0, 999);
+        if (!doc["beam"].isNull()) b.aisBeam   = (uint16_t)constrain((int)(doc["beam"] | 0), 0, 126);
+        if (!doc["dr"].isNull())   b.aisDraft  = constrain((float)(doc["dr"] | 0.0f), 0.0f, 25.5f);
+        Config.enforceAisBeacon(b);                                 // SSID, simbolo, SmartBeacon y limites de la clase
+        Beacon& cur = Config.beacons[index];
+        const bool changed = cur.callsign != b.callsign || cur.aisMmsi != b.aisMmsi || cur.aisName != b.aisName || cur.aisVesselType != b.aisVesselType
+                          || cur.aisLength != b.aisLength || cur.aisBeam != b.aisBeam || fabsf(cur.aisDraft - b.aisDraft) > 0.01f;
+        if (changed) {
+            cur = b;
+            Config.writeFile();
+            STATION_Utils::aisStaticChanged();                      // la siguiente baliza lleva la etiqueta AIS: con los datos nuevos
+            NMEA_Link::ownVesselChanged();
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE Ctrl", "Vessel data updated (%s, MMSI %u)", cur.callsign.c_str(), (unsigned)cur.aisMmsi);
+        }
+        sendVessel();
     }
 
     // satrx / sattx: modo SAT; en la T-TWR tambien en FM (el VFO sigue al satelite)
@@ -2023,6 +2102,11 @@ namespace {
         else if (strcmp(cmd, "mode") == 0)    setMode(doc["m"] | -1, cmd, id);
         else if (strcmp(cmd, "profile") == 0) setProfile(doc["i"] | -1, cmd, id);
         else if (strcmp(cmd, "lora") == 0)    setLora(doc["i"] | -1, cmd, id);
+        else if (strcmp(cmd, "vessel") == 0) {                     // sin campos: consulta; con campos: cambia los datos del barco
+            if (doc["call"].isNull() && doc["mmsi"].isNull() && doc["n"].isNull() && doc["t"].isNull() && doc["len"].isNull()
+                && doc["beam"].isNull() && doc["dr"].isNull()) sendVessel();
+            else setVessel(doc, cmd, id);
+        }
         else if (strcmp(cmd, "beacon") == 0) {
             if (!aprsMode(Config.operatingMode)) { reply(cmd, id, "only in APRS modes"); return; }
             #ifdef HAS_APRS_PAGES

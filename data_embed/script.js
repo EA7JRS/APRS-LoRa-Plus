@@ -867,7 +867,7 @@ function loadSettings(settings) {
     document.getElementById("bluetooth.active").checked                 = settings.bluetooth.active;
     document.getElementById("bluetooth.deviceName").value               = settings.bluetooth.deviceName;
     document.getElementById("bluetooth.useBLE").value                   = settings.bluetooth.useBLE ? "1" : "0";
-    document.getElementById("bluetooth.useKISS").value                  = settings.bluetooth.useKISS ? "1" : "0";
+    document.getElementById("bluetooth.useKISS").value                  = settings.bluetooth.sppNmea ? "2" : (settings.bluetooth.useKISS ? "1" : "0");
     document.getElementById("bluetooth.controlPin").value               = String(settings.bluetooth.controlPin === undefined ? 123456 : settings.bluetooth.controlPin).padStart(6, "0");
     BluetoothActiveCheckbox.checked = settings.bluetooth.active;
     BluetoothDeviceName.disabled    = !BluetoothActiveCheckbox.checked;

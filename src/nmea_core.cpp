@@ -18,6 +18,7 @@
 
 #include "nmea_core.h"
 #include "nmea2000.h"
+#include <string.h>
 
 namespace NMEA_Core {
 
@@ -113,11 +114,8 @@ namespace NMEA_Core {
         }
     }
 
-    void Engine::emitAisPosition(uint32_t nowMs, int index, const NMEA0183::Gnss& own) {
-        const NMEA0183::AisStation& s = ais_.at(index);
-        char line[200];
-        int second = own.hasTime ? own.second : -1;
-        // Clase A: Mensaje Tipo 1 (emparejado con Mensaje Tipo 5 en emitAisStatic)
+    size_t Engine::buildPosition(const NMEA0183::AisStation& s, int second, char* line, size_t size) {
+        // Clase A: Mensaje Tipo 1 (emparejado con Mensaje Tipo 5 en buildStatic)
         if (s.hasInfo && s.info.aisClass == AIS_Vessel::CLASS_A) {
             uint8_t status = 15;
             bool moving = s.sogKnots >= 0.3;
@@ -127,18 +125,16 @@ namespace NMEA_Core {
                 else                                status = 0;     // navegando a motor
             }
             double heading = (moving && s.cogDeg >= 0) ? s.cogDeg : -1.0;
-            emit(line, NMEA0183::aisType1(s.mmsi, status, s.lat, s.lon, s.sogKnots, s.cogDeg, second, line, sizeof(line), heading));
-        } else {
-            // Clase B ("SO" o "CS") y estaciones APRS generales: Mensaje Tipo 18 (emparejado con Tipo 24 A/B)
-            bool carrierSense = !(s.hasInfo && s.info.aisClass == AIS_Vessel::CLASS_B_SO);
-            emit(line, NMEA0183::aisType18(s.mmsi, s.lat, s.lon, s.sogKnots, s.cogDeg, second, line, sizeof(line), carrierSense));
+            return NMEA0183::aisType1(s.mmsi, status, s.lat, s.lon, s.sogKnots, s.cogDeg, second, line, size, heading);
         }
-        ais_.markEmitted(index, nowMs);
+        // Clase B ("SO" o "CS") y estaciones APRS generales: Mensaje Tipo 18 (emparejado con Tipo 24 A/B)
+        bool carrierSense = !(s.hasInfo && s.info.aisClass == AIS_Vessel::CLASS_B_SO);
+        return NMEA0183::aisType18(s.mmsi, s.lat, s.lon, s.sogKnots, s.cogDeg, second, line, size, carrierSense);
     }
 
-    void Engine::emitAisStatic(uint32_t nowMs, int index) {
-        const NMEA0183::AisStation& s = ais_.at(index);
+    void Engine::emitStatic(const NMEA0183::AisStation& s, bool vdo) {
         char line[260];
+        size_t n;
         if (s.hasInfo) {                                                    // datos reales: nombre, tipo, dimensiones e indicativo sin SSID
             char callsign[12];
             AIS_Vessel::baseCallsign(s.callsign, callsign, sizeof(callsign));
@@ -148,17 +144,86 @@ namespace NMEA_Core {
             const char* name = s.info.name[0] ? s.info.name : callsign;
             if (s.info.aisClass == AIS_Vessel::CLASS_A) {
                 vdmSequence_ = (uint8_t) ((vdmSequence_ + 1) % 10);
-                emit(line, NMEA0183::aisType5(s.mmsi, callsign, name, s.info.shipType, toBow, toStern, toPort, toStarboard, s.info.draughtDm, vdmSequence_, line, sizeof(line)));
+                n = NMEA0183::aisType5(s.mmsi, callsign, name, s.info.shipType, toBow, toStern, toPort, toStarboard, s.info.draughtDm, vdmSequence_, line, sizeof(line));
+                if (vdo) NMEA0183::toVdo(line, n);
+                emit(line, n);
             } else {
-                emit(line, NMEA0183::aisType24A(s.mmsi, name, line, sizeof(line)));
-                emit(line, NMEA0183::aisType24B(s.mmsi, s.info.shipType, callsign, toBow, toStern, toPort, toStarboard, line, sizeof(line)));
+                n = NMEA0183::aisType24A(s.mmsi, name, line, sizeof(line));
+                if (vdo) NMEA0183::toVdo(line, n);
+                emit(line, n);
+                n = NMEA0183::aisType24B(s.mmsi, s.info.shipType, callsign, toBow, toStern, toPort, toStarboard, line, sizeof(line));
+                if (vdo) NMEA0183::toVdo(line, n);
+                emit(line, n);
             }
-            ais_.markStatic(index, nowMs);
             return;
         }
-        emit(line, NMEA0183::aisType24A(s.mmsi, s.callsign, line, sizeof(line)));
-        emit(line, NMEA0183::aisType24B(s.mmsi, 0, s.callsign, line, sizeof(line)));
+        n = NMEA0183::aisType24A(s.mmsi, s.callsign, line, sizeof(line));
+        if (vdo) NMEA0183::toVdo(line, n);
+        emit(line, n);
+        n = NMEA0183::aisType24B(s.mmsi, 0, s.callsign, line, sizeof(line));
+        if (vdo) NMEA0183::toVdo(line, n);
+        emit(line, n);
+    }
+
+    void Engine::emitAisPosition(uint32_t nowMs, int index, const NMEA0183::Gnss& own) {
+        char line[200];
+        emit(line, buildPosition(ais_.at(index), own.hasTime ? own.second : -1, line, sizeof(line)));
+        ais_.markEmitted(index, nowMs);
+    }
+
+    void Engine::emitAisStatic(uint32_t nowMs, int index) {
+        emitStatic(ais_.at(index), false);
         ais_.markStatic(index, nowMs);
+    }
+
+    // ---------- barco propio (!AIVDO) ----------
+    void Engine::setOwnVessel(const char* callsign, const AIS_Vessel::Info& info) {
+        char base[12];
+        AIS_Vessel::baseCallsign(callsign ? callsign : "", base, sizeof(base));
+        uint32_t mmsi = AIS_Vessel::validMmsi(info.mmsi) ? info.mmsi : NMEA0183::mmsiFromCallsign(base, options_.mid, 0);
+        bool same = own_.used && strcmp(own_.callsign, callsign ? callsign : "") == 0 && own_.mmsi == mmsi
+                 && own_.info.aisClass == info.aisClass && own_.info.length == info.length && own_.info.beam == info.beam
+                 && own_.info.draughtDm == info.draughtDm && own_.info.shipType == info.shipType && strcmp(own_.info.name, info.name) == 0;
+        if (same) return;
+        own_            = NMEA0183::AisStation();
+        own_.used       = true;
+        own_.mmsi       = mmsi;
+        own_.hasInfo    = true;
+        own_.info       = info;
+        own_.info.mmsi  = mmsi;
+        strncpy(own_.callsign, callsign ? callsign : "", sizeof(own_.callsign) - 1);
+        ownStaticDue_   = true;                                         // datos estaticos en cuanto cambian
+    }
+
+    void Engine::clearOwnVessel() { own_ = NMEA0183::AisStation(); }
+
+    bool Engine::isOwnCallsign(const char* callsign) const {
+        if (!own_.used || callsign == nullptr) return false;
+        char a[12], b[12];
+        AIS_Vessel::baseCallsign(callsign, a, sizeof(a));
+        AIS_Vessel::baseCallsign(own_.callsign, b, sizeof(b));
+        return a[0] && strcmp(a, b) == 0;
+    }
+
+    void Engine::emitOwnVessel(uint32_t nowMs, const NMEA0183::Gnss& g) {
+        if (!own_.used || !options_.ownVessel) return;
+        if (g.valid && (!ownStarted_ || (uint32_t) (nowMs - ownLast_) >= options_.ownPositionMs)) {
+            ownStarted_ = true;
+            ownLast_    = nowMs;
+            own_.lat      = g.lat;
+            own_.lon      = g.lon;
+            own_.sogKnots = g.sogKnots;
+            own_.cogDeg   = g.cogDegrees;
+            char line[200];
+            size_t n = buildPosition(own_, g.hasTime ? g.second : -1, line, sizeof(line));
+            NMEA0183::toVdo(line, n);
+            emit(line, n);
+        }
+        if (ownStaticDue_ || (uint32_t) (nowMs - ownStaticAt_) >= options_.aisStaticPeriodMs) {
+            ownStaticDue_ = false;
+            ownStaticAt_  = nowMs;
+            emitStatic(own_, true);
+        }
     }
 
     void Engine::update(uint32_t nowMs, const NMEA0183::Gnss& own, const NMEA0183::Environment& environment) {
@@ -168,6 +233,7 @@ namespace NMEA_Core {
             startedGnss_ = true;
             emitOwnGnss(nowMs, own);
         }
+        emitOwnVessel(nowMs, own);
         bool hasEnvironment = environment.hasTemperature || environment.hasHumidity || environment.hasPressure;
         if (options_.environment && hasEnvironment && (!startedEnvironment_ || (uint32_t) (nowMs - lastEnvironment_) >= options_.environmentPeriodMs)) {
             lastEnvironment_    = nowMs;
@@ -187,6 +253,7 @@ namespace NMEA_Core {
     void Engine::onAprsStation(uint32_t nowMs, const char* callsign, double lat, double lon, double sogKnots, double cogDeg, const NMEA0183::Gnss& own,
                                const AIS_Vessel::Info* info) {
         if (!options_.ais || callsign == nullptr || callsign[0] == 0) return;
+        if (isOwnCallsign(callsign)) return;                              // nuestra baliza repetida por un digipeater: ya sale como !AIVDO
         if (lat < -90.0 || lat > 90.0 || lon < -180.0 || lon > 180.0 || (lat == 0.0 && lon == 0.0)) return;
         bool isNew = false;
         int index = ais_.track(callsign, lat, lon, sogKnots, cogDeg, nowMs, isNew);

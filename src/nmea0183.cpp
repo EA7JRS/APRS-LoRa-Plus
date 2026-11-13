@@ -191,6 +191,27 @@ namespace NMEA0183 {
         return ::finish(lead, body, buffer, size);
     }
 
+    int toVdo(char* buffer, size_t length) {
+        static const char HEX[] = "0123456789ABCDEF";
+        int changed = 0;
+        size_t i = 0;
+        while (i < length) {
+            if (buffer[i] != '!') { i++; continue; }
+            size_t end = i + 1;
+            while (end < length && buffer[end] != '*' && buffer[end] != '\r' && buffer[end] != '\n') end++;
+            if (end + 2 < length && buffer[end] == '*' && end - i > 6 && memcmp(buffer + i + 3, "VDM,", 4) == 0) {
+                buffer[i + 5] = 'O';
+                uint8_t cs = 0;
+                for (size_t k = i + 1; k < end; k++) cs ^= (uint8_t) buffer[k];
+                buffer[end + 1] = HEX[cs >> 4];
+                buffer[end + 2] = HEX[cs & 0x0F];
+                changed++;
+            }
+            i = end;
+        }
+        return changed;
+    }
+
     size_t gga(const Gnss& g, char* buffer, size_t size) {
         char time[24], lat[24], lon[24], body[160];
         formatTime(time, sizeof(time), g);

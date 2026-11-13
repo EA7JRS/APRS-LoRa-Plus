@@ -16,6 +16,7 @@
  * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "product.h"
 #include <logger.h>
 #include <Wire.h>
 #include "custom_characters.h"
@@ -849,7 +850,7 @@ void startupScreen(uint8_t index, const String& version, const String& callsign)
     #ifdef HAS_APRS_PAGES
         PAGES_Utils::showSplash(version, callsign);     // logo APRS LoRa+, version e indicativo
         delay(2000);
-        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "APRS LoRa+ (c) 2026 Manuel - EA7JRS");
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", PRODUCT_NAME " (c) 2026 Manuel - EA7JRS");
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Version: %s", version.c_str());
         return;
     #endif

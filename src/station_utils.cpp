@@ -101,6 +101,11 @@ nearStation nearbyStations[nearbyStationsSize];
 
 namespace STATION_Utils {
 
+    void aisStaticChanged() {
+        aisStaticSent = false;
+        aisMmsiWarned = false;
+    }
+
     void nearStationInit() {
         for (int i = 0; i < nearbyStationsSize; i++) {
             nearbyStations[i].callsign    = "";
@@ -408,7 +413,12 @@ namespace STATION_Utils {
 
         if (!SPIFFS.exists(filePath)) {
             switch (type) {
-                case 0: myBeaconsIndex = 0; break;
+                case 0:
+                    myBeaconsIndex = 0;
+                    #ifdef APRS_MAPRS_TRANSPONDER
+                        if (Config.aisBeaconIndex() >= 0) myBeaconsIndex = (uint8_t) Config.aisBeaconIndex();   // MAPRS: el perfil nautico AIS
+                    #endif
+                    break;
                 case 1: loraIndex = 0; break;
                 case 2:
                     #ifdef HAS_TFT

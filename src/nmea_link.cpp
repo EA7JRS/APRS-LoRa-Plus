@@ -38,6 +38,9 @@
 #include "baro_utils.h"
 #include "wx_utils.h"
 #include "ble_control.h"
+#include "bluetooth_utils.h"
+#include "ais_vessel.h"
+#include <math.h>
 #include <string.h>
 
 #ifndef NMEA_USB
@@ -92,6 +95,7 @@ extern TinyGPSPlus      gps;
 extern Configuration    Config;
 extern logging::Logger  logger;
 extern bool             gpsIsActive;
+extern Beacon*          currentBeacon;
 
 namespace {
 
@@ -127,6 +131,28 @@ namespace {
             }
         }
         BLE_Control::nmea(text, length);                // al movil por BLE, solo si la app esta suscrita
+        #ifdef HAS_BT_CLASSIC
+            BLUETOOTH_Utils::nmea(text, length);        // Bluetooth clasico en modo NMEA (plotter, OpenCPN)
+        #endif
+    }
+
+    // Barco propio (!AIVDO) desde el perfil nautico AIS en uso; sin ese perfil, nada
+    uint32_t lastOwnCheck = 0;
+    void refreshOwnVessel(uint32_t now) {
+        if (lastOwnCheck != 0 && now - lastOwnCheck < 1000) return;
+        lastOwnCheck = now ? now : 1;
+        if (currentBeacon == nullptr || !currentBeacon->aisProfile) { engine.clearOwnVessel(); return; }
+        AIS_Vessel::Info info;
+        const AIS_Vessel::VesselType& vessel = AIS_Vessel::vesselType(currentBeacon->aisVesselType);
+        info.aisClass  = vessel.aisClass;
+        info.mmsi      = currentBeacon->aisMmsi;
+        info.length    = currentBeacon->aisLength;
+        info.beam      = currentBeacon->aisBeam;
+        info.draughtDm = (uint8_t) lroundf(currentBeacon->aisDraft * 10.0f);
+        info.shipType  = vessel.shipType;
+        strncpy(info.name, currentBeacon->aisName.c_str(), sizeof(info.name) - 1);
+        info.name[sizeof(info.name) - 1] = 0;
+        engine.setOwnVessel(currentBeacon->callsign.c_str(), info);
     }
 
     void startNetwork() {
@@ -279,6 +305,7 @@ namespace NMEA_Link {
                 if (WiFi.getMode() == WIFI_MODE_NULL && !Config.wifiAP.active) startNetwork();
             }
         #endif
+        refreshOwnVessel(now);
         engine.update(now, readGnss(), readEnvironment());
     }
 
@@ -293,6 +320,8 @@ namespace NMEA_Link {
         engine.onAprsStation(millis(), callsign, lat, lon, sogKnots, cog, readGnss(), hasInfo ? &info : nullptr);
     }
 
+    void ownVesselChanged() { lastOwnCheck = 0; }
+
 }
 
 #else
@@ -305,6 +334,7 @@ namespace NMEA_Link {
     void onAprsPosition(const char*, double, double, double, double, const char*) {}
     void sendRaw(const char* text, size_t length) { BLE_Control::nmea(text, length); }
     HardwareSerial* uartForAis() { return nullptr; }
+    void ownVesselChanged() {}
 }
 
 #endif

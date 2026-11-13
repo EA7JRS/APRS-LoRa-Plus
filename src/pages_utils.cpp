@@ -17,6 +17,7 @@
  * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "product.h"
 #include "pages_utils.h"
 #include "gnss_sky.h"
 #include "logo_splash.h"
@@ -5793,10 +5794,15 @@ namespace PAGES_Utils {
         // logo APRS LoRa+ (pin con L+ y ondas) centrado, y el nombre debajo (en color: "APRS" en blanco y "LoRa+" en verde)
         const int extra = PAGES_H - 64;                 // pantalla mas alta: el logo y el nombre bajan
         pagesBitmap2((PW - LOGO_SPLASH_W) / 2, 12 + extra * 5 / 8, LOGO_SPLASH_W, LOGO_SPLASH_H, LOGO_SPLASH);
+        const int nameW = 6 * (10 + (sizeof(PRODUCT_SHORT) > 1 ? (int)sizeof(PRODUCT_SHORT) : 0));   // "APRS LoRa+" y, en el MAPRS, " MAPRS"
         pagesInk(INK_TEXT);
-        pagesText((PW - 6 * 10) / 2, 52 + extra * 5 / 8, "APRS ", 1, false);
+        pagesText((PW - nameW) / 2, 52 + extra * 5 / 8, "APRS ", 1, false);
         pagesInk(INK_GOOD);
-        pagesText((PW - 6 * 10) / 2 + 30, 52 + extra * 5 / 8, "LoRa+", 1, false);
+        pagesText((PW - nameW) / 2 + 30, 52 + extra * 5 / 8, "LoRa+", 1, false);
+        if (sizeof(PRODUCT_SHORT) > 1) {
+            pagesInk(INK_ACCENT);
+            pagesText((PW - nameW) / 2 + 66, 52 + extra * 5 / 8, PRODUCT_SHORT, 1, false);
+        }
         pagesInk(INK_TEXT);
         pagesFlush();
     }

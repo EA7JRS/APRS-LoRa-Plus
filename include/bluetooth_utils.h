@@ -33,6 +33,7 @@ namespace BLUETOOTH_Utils {
     void getData(const uint8_t *buffer, size_t size);
     void sendToLoRa();
     void sendToPhone(const String& packet);
+    void nmea(const char* text, size_t length);     // frases NMEA por SPP (modo NMEA); nada en los demas modos
 
 }
 

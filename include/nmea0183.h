@@ -64,6 +64,8 @@ namespace NMEA0183 {
 
     uint8_t checksum(const char* body);
     size_t  finish(char lead, const char* body, char* buffer, size_t size);       // lead + body + *CS + CRLF     // XOR de los caracteres entre '$' (o '!') y '*'
+    // !AIVDM -> !AIVDO (barco propio) en todas las frases del buffer, con su checksum nuevo; devuelve cuantas cambia
+    int     toVdo(char* buffer, size_t length);
 
     // AIS: MMSI ficticio "8 MID nnnnn" derivado del indicativo (formato de equipo portatil VHF; evita los rangos de
     // emergencia 970/972/974 que dispararian alarmas SART/MOB/EPIRB en el plotter)

@@ -511,6 +511,7 @@ public:
     String  deviceName;
     bool    useBLE;
     bool    useKISS;
+    bool    sppNmea;                            // Bluetooth clasico: NMEA 0183 (AIS !AIVDM / !AIVDO, GNSS) en lugar de KISS / TNC2 (plotter, OpenCPN)
     int     controlPin;                         // PIN (0-999999) de emparejamiento del servicio de control BLE de la app (EA7JRS)
 };
 
@@ -580,6 +581,7 @@ public:
     bool ensureAisProfiles();                           // anade el perfil nautico y el perfil LoRa AIS si faltan (true si cambio algo)
     int  aisLoraIndex() const;                          // -1 si no hay perfil LoRa AIS
     int  aisBeaconIndex() const;                        // -1 si no hay perfil nautico AIS
+    bool callsignMissing() const;                       // indicativo sin poner (NOCALL): se abre la WebUI al arrancar
     bool writeFile();
     bool saveConfigText(const String& text);       // guardado seguro (copia temporal comprobada, libera sitio, nunca deja sin configuracion)
     Configuration();

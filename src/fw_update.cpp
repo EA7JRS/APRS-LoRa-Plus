@@ -2,6 +2,7 @@
  * Firmware information and updates. See fw_update.h
  * Part of AIS/LoRa APRS Tracker - Manuel Canca EA7JRS (based on LoRa APRS Tracker by Ricardo Guzman CA2RXU, GPL-3.0)
  */
+#include "product.h"
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
@@ -261,7 +262,7 @@ namespace FW_Update {
 
     String infoJson() {
         JsonDocument doc;
-        doc["name"]            = "APRS LoRa+";
+        doc["name"]            = PRODUCT_NAME;
         doc["version"]         = versionNumber;
         doc["board"]           = boardId();
         doc["chip"]            = ESP.getChipModel();

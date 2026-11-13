@@ -16,6 +16,7 @@
  * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "product.h"
 #include <logger.h>
 #include <WiFi.h>
 #include "configuration.h"
@@ -37,7 +38,7 @@ namespace WIFI_Utils {
     void startAutoAP() {
         WiFi.mode(WIFI_MODE_NULL);
         WiFi.mode(WIFI_AP);
-        WiFi.softAP("APRSLoRa+tracker", Config.wifiAP.password);
+        WiFi.softAP(PRODUCT_AP_SSID, Config.wifiAP.password);
         #ifdef RPC_MicroTracker
             digitalWrite(15, LOW);    // Led WiFI
         #endif
@@ -46,14 +47,14 @@ namespace WIFI_Utils {
     void checkIfWiFiAP() {
         const bool skip = skipWebConfOnce == WEBCONF_SKIP_MAGIC;     // se salio con el boton: este arranque, normal
         skipWebConfOnce = 0;
-        if (!skip && (Config.wifiAP.active || Config.beacons[0].callsign == "NOCALL-7")){
+        if (!skip && (Config.wifiAP.active || Config.callsignMissing())){
             #ifdef HAS_APRS_PAGES
-                PAGES_Utils::showWifiAp("APRSLoRa+tracker", Config.wifiAP.password.c_str(), "192.168.4.1", 0, 120);
+                PAGES_Utils::showWifiAp(PRODUCT_AP_SSID, Config.wifiAP.password.c_str(), "192.168.4.1", 0, 120);
             #else
-                displayShow(" LoRa APRS", "    ** WEB-CONF **","", "WiFiAP:APRSLoRa+tracker", "IP    :   192.168.4.1","");
+                displayShow(" LoRa APRS", "    ** WEB-CONF **","", "WiFiAP:" PRODUCT_AP_SSID, "IP    :   192.168.4.1","");
             #endif
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration Started! (%s)",
-                       Config.beacons[0].callsign == "NOCALL-7" ? "callsign still NOCALL-7: set it in the WebUI" : "WiFi AP turned on");
+                       Config.callsignMissing() ? "callsign still NOCALL: set it in the WebUI" : "WiFi AP turned on");
             startAutoAP();
             WEB_Utils::setup();
             #ifdef BUTTON_PIN
@@ -69,7 +70,7 @@ namespace WIFI_Utils {
                         else if (millis() - pressedAt >= 2000) {
                             logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Main", "WebConfiguration stopped with the button");
                             #ifdef HAS_APRS_PAGES
-                                displayPopup("APRS LoRa+", "Leaving WiFi AP", Config.beacons[0].callsign == "NOCALL-7" ? "Callsign: NOCALL!" : "Restarting...", -1, 1500);
+                                displayPopup("APRS LoRa+", "Leaving WiFi AP", Config.callsignMissing() ? "Callsign: NOCALL!" : "Restarting...", -1, 1500);
                             #endif
                             Config.wifiAP.active = false;
                             Config.writeFile();
@@ -87,7 +88,7 @@ namespace WIFI_Utils {
                         lastDraw = millis();
                         const int cli = WiFi.softAPgetStationNum();
                         const int left = (noClientsTime == 0) ? 120 : (int)(120 - (millis() - noClientsTime) / 1000);
-                        PAGES_Utils::showWifiAp("APRSLoRa+tracker", Config.wifiAP.password.c_str(), WiFi.softAPIP().toString().c_str(), cli, left < 0 ? 0 : left);
+                        PAGES_Utils::showWifiAp(PRODUCT_AP_SSID, Config.wifiAP.password.c_str(), WiFi.softAPIP().toString().c_str(), cli, left < 0 ? 0 : left);
                     }
                 #endif
                 if (WiFi.softAPgetStationNum() > 0) {

@@ -32,6 +32,8 @@ namespace NMEA_Link {
     void sendRaw(const char* text, size_t length);
     // UART de la salida NMEA (si esta activa y el modulo AIS esta configurado, con su pin RX): el receptor AIS lo comparte; nullptr si no
     HardwareSerial* uartForAis();
+    // los datos del barco (perfil nautico AIS) han cambiado: !AIVDO con los nuevos al momento
+    void ownVesselChanged();
 
 }
 

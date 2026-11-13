@@ -30,6 +30,7 @@
 #include "board_pinout.h"
 #include "display.h"
 #include "ais_vessel.h"
+#include "product.h"
 #include "logger.h"
 
 #ifdef NMEA_UART_TX_PIN
@@ -265,9 +266,10 @@ namespace {
     #endif
     const Field kBluetoothFields[] = {
         FB(BLUETOOTH, active,     FF_REQUIRED, false),
-        FS(BLUETOOTH, deviceName, FF_REQUIRED, "APRSLoRa+tracker"),
+        FS(BLUETOOTH, deviceName, FF_REQUIRED, PRODUCT_BT_NAME),
         FB(BLUETOOTH, useBLE,     FF_REQUIRED, false),                              // sin Bluetooth clasico queda fijo en BLE
         FB(BLUETOOTH, useKISS,    FF_REQUIRED, BT_USE_KISS_DEFAULT),
+        FB(BLUETOOTH, sppNmea,    0,           false),
         FC(BLUETOOTH, controlPin, 0,           123456, 0, 999999),
     };
     const Field kCwFields[] = {                                                     // los valores que faltan parten de setCwDefaults()
@@ -992,7 +994,7 @@ bool Configuration::readFile() {
         email                           = data["other"]["email"] | "";
 
         if (bluetooth.deviceName == "LoRaTracker") {                // nombre de serie anterior (5.4.0 y antes): pasa al nuevo
-            bluetooth.deviceName = "APRSLoRa+tracker";
+            bluetooth.deviceName = PRODUCT_BT_NAME;
             needsRewrite = true;
         }
 
@@ -1013,7 +1015,18 @@ bool Configuration::readFile() {
     }
 }
 
+bool Configuration::callsignMissing() const {
+    #ifdef APRS_MAPRS_TRANSPONDER
+        int index = aisBeaconIndex();                       // el transpondedor usa el perfil nautico AIS
+        if (index >= 0) return beacons[index].callsign.startsWith("NOCALL");
+    #endif
+    return !beacons.empty() && beacons[0].callsign == "NOCALL-7";
+}
+
 void Configuration::enforceAisBeacon(Beacon& beacon) {
+    #ifdef APRS_MAPRS_TRANSPONDER
+        if (AIS_Vessel::vesselType(beacon.aisVesselType).aisClass == AIS_Vessel::CLASS_A) beacon.aisVesselType = 0;   // transpondedor de clase B
+    #endif
     const AIS_Vessel::VesselType& vessel = AIS_Vessel::vesselType(beacon.aisVesselType);
     beacon.aisVesselType        = vessel.id;
     char forced[24];
@@ -1434,7 +1447,7 @@ void Configuration::setDefaultValues() {
     operatingMode                   = DEFAULT_MODE;
     savedMode                       = DEFAULT_MODE;
     bluetooth.active                = false;
-    bluetooth.deviceName            = "APRSLoRa+tracker";
+    bluetooth.deviceName            = PRODUCT_BT_NAME;
     #ifdef HAS_BT_CLASSIC
         bluetooth.useBLE            = false;
         bluetooth.useKISS           = false;
@@ -1442,6 +1455,7 @@ void Configuration::setDefaultValues() {
         bluetooth.useBLE            = true;    // fixed as BLE
         bluetooth.useKISS           = true;
     #endif
+    bluetooth.sppNmea               = false;
     bluetooth.controlPin            = 123456;
 
     for (int j = 0; j < 4; j++) {
@@ -1473,6 +1487,13 @@ void Configuration::setDefaultValues() {
         loraTypes.push_back(loraType);
     }
     ensureAisProfiles();                                    // 4.o perfil de baliza (nautico AIS) y 5.o perfil LoRa (fijo SF9 / CR 4/5)
+    #ifdef APRS_MAPRS_TRANSPONDER
+        // APRS LoRa+ MAPRS transponder: arranca con el perfil nautico AIS (clase B), escucha antes de emitir (CAD) y con
+        // Bluetooth BLE encendido para el plotter y la app
+        bluetooth.active            = true;
+        bluetooth.useBLE            = true;
+        bluetooth.useKISS           = true;
+    #endif
 
     battery.sendVoltage             = false;
     battery.voltageAsTelemetry      = false;

@@ -132,6 +132,7 @@ namespace BLUETOOTH_Utils {
     }
 
     void sendToPhone(const String& packet) {
+        if (Config.bluetooth.sppNmea) return;                          // modo NMEA: el plotter recibe frases NMEA, no tramas APRS
         if (!packet.isEmpty()) {
             if (useKiss) {
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_DEBUG, "BT RX Kiss", "%s", serialReceived.c_str());
@@ -141,6 +142,12 @@ namespace BLUETOOTH_Utils {
                 SerialBT.println(packet);
             }
         }
+    }
+
+    // Modo NMEA (WebUI > Bluetooth > Protocol: NMEA): las frases de la salida NMEA (AIS, barco propio, GNSS) al plotter
+    void nmea(const char* text, size_t length) {
+        if (!bluetoothActive || Config.bluetooth.useBLE || !Config.bluetooth.sppNmea || !bluetoothConnected) return;
+        SerialBT.write((const uint8_t*) text, length);
     }
 
 }

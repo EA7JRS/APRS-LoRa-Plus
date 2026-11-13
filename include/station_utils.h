@@ -33,6 +33,7 @@ namespace STATION_Utils {
 
     void    checkStandingUpdateTime();
     void    sendBeacon();
+    void    aisStaticChanged();     // datos del barco cambiados: la siguiente baliza lleva la etiqueta AIS: de nuevo
     bool    sendEmergencyBeacon();      // Mic-E Emergency + baliza con texto SOS; false si no hay posicion conocida
     void    saveIndex(uint8_t type, uint8_t index);
     void    loadIndex(uint8_t type);
