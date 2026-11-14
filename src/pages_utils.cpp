@@ -722,7 +722,8 @@ namespace {
     const int       XR                  = PAGES_W - 128;
     const int       COLS                = PAGES_W / 6;
     const int       ROW_Y0              = 11;
-    const int       ROW_PITCH           = 9;
+    const int       ROW_PITCH           = PAGES_EXTRA ? 10 : 9;     // TFT: una fila cada 10 px (aprovecha el alto; antes 9) (EA7JRS)
+    const int       ROW_HINT_Y          = ROW_Y0 + 5 * ROW_PITCH;   // ultima fila (ayuda / resumen bajo una lista de 5)
 
     HeardList       heard;
     AltProfile      altProfile;
@@ -1106,7 +1107,7 @@ namespace {
 
         // fila 0: indicativo y simbolo a la izquierda, tiempo hasta la proxima baliza a la derecha
         snprintf(line, sizeof(line), "%.9s %c", currentBeacon->callsign.c_str(), currentBeacon->symbol.length() > 0 ? currentBeacon->symbol[0] : ' ');
-        text(2, 11, line);
+        text(2, ROW_Y0 + 0 * ROW_PITCH, line);
         char next[16];
         if (beaconManualMode) {
             snprintf(next, sizeof(next), "TX manual");
@@ -1121,13 +1122,13 @@ namespace {
             formatShort(elapsed >= interval ? 0 : (interval - elapsed) / 1000, remaining, sizeof(remaining));
             snprintf(next, sizeof(next), "TX%s%s", smartBeaconActive ? "<" : " ", remaining);    // con SmartBeaconing puede salir antes
         }
-        text(PW - 2 - 6 * (int)strlen(next), 11, next);
+        text(PW - 2 - 6 * (int)strlen(next), ROW_Y0 + 0 * ROW_PITCH, next);
 
         // fila 1: fecha y hora UTC
         time_t t = now();
         if (year(t) < 2024) snprintf(line, sizeof(line), "--- no time ---");
         else snprintf(line, sizeof(line), "%02d/%02d/%04d %02d:%02d UTC", day(t), month(t), year(t), hour(t), minute(t));
-        text(2, 20, line);
+        text(2, ROW_Y0 + 1 * ROW_PITCH, line);
 
         // fila 2: posicion y estado del GPS (FIX, ~ ultima posicion, SLEEP)
         double lat, lon;
@@ -1138,7 +1139,7 @@ namespace {
             const char* state = !gpsIsActive ? "SLEEP" : (gps.location.isValid() ? "FIX" : "~");
             formatPosition(lat, lon, state, line, sizeof(line));
         }
-        text(2, 29, line);
+        text(2, ROW_Y0 + 2 * ROW_PITCH, line);
 
         // fila 3: locator, banda LoRa y satelites con calidad HDOP
         const char* tag = "--";
@@ -1153,7 +1154,7 @@ namespace {
         if (gps.hdop.isValid()) quality = gps.hdop.hdop() > 5 ? 'X' : (gps.hdop.hdop() > 2 ? '-' : '+');
         if (gpsIsActive) snprintf(line, sizeof(line), "%s %s %02u%c", locator, tag, (unsigned)gps.satellites.value(), quality);
         else snprintf(line, sizeof(line), "%s %s --", locator, tag);
-        text(2, 38, line);
+        text(2, ROW_Y0 + 3 * ROW_PITCH, line);
 
         // fila 4: ultima estacion recibida
         if (lastRxCall[0]) {
@@ -1163,7 +1164,7 @@ namespace {
         } else {
             snprintf(line, sizeof(line), "Rx ---");
         }
-        text(2, 47, line);
+        text(2, ROW_Y0 + 4 * ROW_PITCH, line);
 
         // fila 5: avisos (mensajes, correo Winlink) o altitud, velocidad y rumbo (con brujula en parado)
         if (msgLog.unread() > 0) snprintf(line, sizeof(line), "** NEW MSG: %u **", (unsigned)msgLog.unread());
@@ -1177,7 +1178,7 @@ namespace {
             snprintf(line, sizeof(line), "A=%s %s %03.0f", altText, speedText, courseOrHeading);
         }
         else snprintf(line, sizeof(line), "A=--- GPS sleeping");
-        text(2, 56, line);
+        text(2, ROW_Y0 + 5 * ROW_PITCH, line);
     }
 
     // Brujula pequena hacia la estacion: norte arriba, o rumbo arriba si el GPS da un rumbo fiable
@@ -1284,7 +1285,8 @@ namespace {
         #ifdef HAS_TFT
             const int ICON_LIMIT = COLS - 9, ICON_FROM_ROW = 2;
             const int ICON_X = ICON_LIMIT * 6 + (PW - ICON_LIMIT * 6 - APRS_ICON_PX) / 2;
-            const int ICON_Y = ROW_Y0 + 2 * ROW_PITCH + (54 + PAGES_EXTRA - ROW_Y0 - 2 * ROW_PITCH - APRS_ICON_PX) / 2;
+            const int ICON_TOP = ROW_Y0 + 2 * ROW_PITCH, ICON_BOTTOM = 54 + PAGES_EXTRA;      // de la fila 2 a la barra
+            const int ICON_Y = min(ICON_TOP + (ICON_BOTTOM - ICON_TOP - APRS_ICON_PX) / 2, ICON_BOTTOM - 1 - APRS_ICON_PX);
         #else
             const int ICON_LIMIT = COLS - 4, ICON_FROM_ROW = 3;
             const int ICON_X = 104 + XR, ICON_Y = 40;
@@ -1425,7 +1427,7 @@ namespace {
         char line[28];
         if (listBrowse) snprintf(line, sizeof(line), "1P dn LP goto 2P exit");
         else snprintf(line, sizeof(line), "%u heard  %s", (unsigned)heard.count(), listSort == SORT_NEAREST ? "nearest" : listSort == SORT_NAME ? "by name" : "recent");
-        text(2, 56, line);
+        text(2, ROW_HINT_Y, line);
     }
 
     uint32_t epochNow() {
@@ -1510,7 +1512,7 @@ namespace {
         if (msgMode == MM_BROWSE) snprintf(line, sizeof(line), "1P dn LP open 2P exit");
         else if (msgLog.unread() > 0) snprintf(line, sizeof(line), "%u new  Hold: read", (unsigned)msgLog.unread());   // el menu abre el mensaje sin leer mas reciente
         else snprintf(line, sizeof(line), "Hold: read / reply");
-        text(2, 56, line);
+        text(2, ROW_HINT_Y, line);
     }
 
     void drawMessageDetail() {
@@ -1524,12 +1526,13 @@ namespace {
         const char* label = stateLabel(state);
         text(PW - 2 - 6 * (int)strlen(label), 11, label);
         formatMessageDateTime(e->epoch, line, sizeof(line));
-        text(2, 20, line);
+        text(2, ROW_Y0 + ROW_PITCH, line);
         size_t position = 0;
         char piece[32];
         int lines = 0;
-        for (int r = 0; r < 4 && wrapNext(e->text, position, COLS, piece, sizeof(piece)); r++) { text(0, 30 + r * 8, piece); lines++; }
-        if (lines <= 3) text(2, 56, keyboardConnected ? "Hold: reply" : "Hold: quick reply");           // si el texto deja libre la ultima linea
+        const int pitch = PAGES_EXTRA ? 9 : 8;                    // TFT: lineas del texto algo mas separadas
+        for (int r = 0; r < 4 && wrapNext(e->text, position, COLS, piece, sizeof(piece)); r++) { text(0, (PAGES_EXTRA ? 31 : 30) + r * pitch, piece); lines++; }
+        if (lines <= 3) text(2, ROW_HINT_Y, keyboardConnected ? "Hold: reply" : "Hold: quick reply");           // si el texto deja libre la ultima linea
     }
 
     void drawMessages() {
@@ -3441,7 +3444,7 @@ namespace {
             pagesInk(p < 15 ? INK_BAD : p < 30 ? INK_LV2 : p < 50 ? INK_LV1 : INK_GOOD);
             if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
             pagesInk(INK_TEXT);
-            rowDy = 4;                                            // las filas de debajo, algo mas abajo (sobra sitio encima de la barra)
+            rowDy = PAGES_EXTRA && ROW_PITCH == 9 ? 4 : 0;        // con filas de 10 px ya quedan bien
             row(3, "%.2f V  %s", volts, BatteryModel::stateName((BatteryModel::State)st));
         #else
             pagesInk(p < 15 ? INK_BAD : (p < 40 ? INK_WARN : INK_GOOD));
@@ -3478,14 +3481,15 @@ namespace {
         header(PAGE_TITLES[PAGE_BOARD], batteryViewAvailable() ? "1P BATT" : (linkAvailable() ? "1P LINK" : nullptr));
         uint32_t heapTotal = ESP.getHeapSize();
         int heapUsed = heapTotal > 0 ? (int)(100UL * (heapTotal - ESP.getFreeHeap()) / heapTotal) : -1;
+        const int my = PAGES_EXTRA ? 12 : 11;                       // TFT: medidores cada 12 px y las dos lineas mas abajo
         meter(13, "Heap", heapUsed);
 
         uint32_t psramTotal = psramFound() ? ESP.getPsramSize() : 0;
-        meter(24, "PSRAM", psramTotal > 0 ? (int)(100UL * (psramTotal - ESP.getFreePsram()) / psramTotal) : -1);   // -1 = sin PSRAM: n/a
+        meter(13 + my, "PSRAM", psramTotal > 0 ? (int)(100UL * (psramTotal - ESP.getFreePsram()) / psramTotal) : -1);   // -1 = sin PSRAM: n/a
 
         uint32_t sketch = ESP.getSketchSize();                      // firmware dentro de su particion de aplicacion
         uint32_t partition = sketch + ESP.getFreeSketchSpace();
-        meter(35, "Flash", partition > 0 ? (int)(100UL * sketch / partition) : -1);
+        meter(13 + 2 * my, "Flash", partition > 0 ? (int)(100UL * sketch / partition) : -1);
 
         char uptime[12];
         formatUptime(millis() / 1000, uptime, sizeof(uptime));
@@ -3493,13 +3497,13 @@ namespace {
         if (batteryConnected) snprintf(line, sizeof(line), "Bat %sV  Up %s", BATTERY_Utils::getBatteryInfoVoltage().c_str(), uptime);
         else snprintf(line, sizeof(line), "USB  Up %s", uptime);
         line[COLS] = '\0';
-        text(2, 47, line);
+        text(2, PAGES_EXTRA ? 51 : 47, line);
 
         const char* bt = !bluetoothActive ? "off" : (bluetoothConnected ? "CON" : "on");
         const uint8_t kiss = KISS_NET::state();
         const char* wifi = (WiFi.getMode() & WIFI_MODE_AP) ? "AP" : (kiss == 2 ? "CON" : (kiss == 1 ? ".." : "off"));
         snprintf(line, sizeof(line), "BT:%s  WiFi:%s", bt, wifi);
-        text(2, 56, line);
+        text(2, PAGES_EXTRA ? 61 : 56, line);
     }
 
 }   // namespace
@@ -3977,7 +3981,7 @@ namespace PAGES_Utils {
             } else {
                 snprintf(line, sizeof(line), "%s", slot.seen ? "No position yet" : "Not heard yet");
             }
-            text(2, 56, line);
+            text(2, ROW_HINT_Y, line);
             return;
         }
         if (Config.team.pollSec >= 60) row(5, "OUT %um  poll %us", (unsigned)Config.team.timeoutMin, (unsigned)Config.team.pollSec);
