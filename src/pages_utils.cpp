@@ -1958,7 +1958,8 @@ namespace {
             pagesFillCircle(cx, cy, 1, true);
         }
 
-        // lectura numerica
+        // lectura numerica; en las TFT las lineas de abajo se reparten hasta la barra (EA7JRS)
+        const int L1 = PAGES_EXTRA ? 41 : 38, L2 = PAGES_EXTRA ? 51 : 47, L3 = PAGES_EXTRA ? 61 : 56;
         char label[8];
         snprintf(label, sizeof(label), "HDG %c", northTrue ? 'T' : 'M');
         text(2, 11, label);
@@ -1969,8 +1970,8 @@ namespace {
             pagesInk(INK_ACCENT);
             text(2, 20, value, 3);
             pagesInk(INK_TEXT);
-            if (valid) text(2, 46, cardinal16(heading), 2);
-            else text(2, 52, "no heading");
+            if (valid) text(2, PAGES_EXTRA ? 50 : 46, cardinal16(heading), 2);
+            else text(2, PAGES_EXTRA ? 56 : 52, "no heading");
             return;
         }
         pagesInk(INK_ACCENT);
@@ -1978,7 +1979,7 @@ namespace {
         pagesInk(INK_TEXT);
         if (valid) text(42, 24, cardinal16(heading));
         if (!targetOk) {
-            text(2, 38, ownPosition(myLat, myLon) ? "no target pos" : "no own pos");
+            text(2, L1, ownPosition(myLat, myLon) ? "no target pos" : "no own pos");
             return;
         }
         double km = distanceKm(myLat, myLon, target->lat, target->lon);
@@ -1991,15 +1992,15 @@ namespace {
         } else {
             snprintf(line, sizeof(line), "B%03d", (int)lround(bearing) % 360);
         }
-        text(2, 38, line);
+        text(2, L1, line);
         pagesInk(INK_TEXT);
         if (km < 0.05) {
             pagesInk(INK_GOOD);
-            text(2, 47, "ARRIVED");
+            text(2, L2, "ARRIVED");
             pagesInk(INK_TEXT);
             return;
         }
-        text(2, 47, distance);
+        text(2, L2, distance);
         float speed = GPS_Utils::getSpeedKmph();
         if (gpsIsActive && speed >= 2.0f && km / speed < 99.0) {
             char eta[12];
@@ -2008,7 +2009,7 @@ namespace {
         } else {
             snprintf(line, sizeof(line), "ETA ---");
         }
-        text(2, 56, line);
+        text(2, L3, line);
     }
 
     void drawAltimeter() {

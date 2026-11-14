@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Pantallas TFT, COMPASS:** las líneas del destino (rumbo, distancia, ETA) y el punto cardinal se reparten hasta la barra, al ritmo de la rosa más grande.
 - **Pantallas TFT: filas de texto cada 10 px** (antes 9) en las páginas hechas por filas (MAIN, LAST APRS, STATIONS, MESSAGES, GNSS, TELEMETRY, ALERTS, GROUP, LORA, SATELLITE…): las líneas se leen mejor y ocupan todo el alto; SYSTEM reparte sus medidores, y el texto de un mensaje abierto va algo más separado. **STATIONS** enseña además el rumbo en grados hacia cada estación, entre la distancia y el tiempo. Las OLED no cambian.
 - **Pantallas TFT, ALTIMETER y GROUP > RADAR:** la gráfica del perfil de altura pasa de 17 a 24 px de alto y el radar de los compañeros de 18 a 26 px de radio. Las OLED no cambian.
 - **Pantallas TFT, CLOCK, SUN, MOON y BATTERY:** en CLOCK la hora y los segundos van centrados, las líneas se reparten por todo el alto y la luna o el sol (12 px de radio, antes 6) quedan centrados en el hueco a la derecha; en SUN el arco pasa de 21 a 28 px con el horizonte más abajo y el sol mayor; en MOON el disco pasa de 24 a 27 px; en BATTERY el porcentaje queda solo en la cabecera, la pila arriba y casi el doble de alta, la tensión con el estado debajo, y el relleno verde desde el 50 %, amarillo del 30 al 50, naranja del 15 al 30 y rojo por debajo. Las OLED no cambian.
