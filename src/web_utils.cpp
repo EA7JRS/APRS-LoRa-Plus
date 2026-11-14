@@ -147,6 +147,25 @@ namespace WEB_Utils {
         request->send(200, "application/json", buffer);
     }
 
+    static volatile bool savePending = false;
+
+    void loop() {
+        if (!savePending) return;
+        delay(300);                                         // que salga la respuesta al navegador
+        savePending = false;
+        const uint32_t t0 = millis();
+        const bool ok = Config.writeFile();
+        consoleLog("WebUI: configuration %s in %lu ms", ok ? "saved" : "NOT SAVED", (unsigned long)(millis() - t0));
+        if (ok) {
+            Serial.println("Configuration saved successfully");
+            displayToggle(false);
+            delay(300);
+            ESP.restart();
+        }
+        Serial.println("Error saving configuration!");
+        displayShow("CONFIG", "", "Error: the settings", "were not saved", "(memory full?)", "", 4000);
+    }
+
     void handleWriteConfiguration(AsyncWebServerRequest *request) {
         Serial.println("Got new config from www");
 
@@ -782,27 +801,14 @@ namespace WEB_Utils {
             Config.ptt.postDelay                = getParamIntSafe("ptt.postDelay", Config.ptt.postDelay);
         }
 
-        bool saveSuccess = Config.writeFile();
-
-        if (saveSuccess) {
-            Serial.println("Configuration saved successfully");
-            AsyncWebServerResponse *response = request->beginResponse(302, "text/html", "");
-            response->addHeader("Location", "/?success=1");
-            request->send(response);
-
-            displayToggle(false);
-            delay(500);
-            ESP.restart();
-        } else {
-            Serial.println("Error saving configuration!");
-            String errorPage = "<!DOCTYPE html><html><head><title>Error</title></head><body>";
-            errorPage += "<h1>Configuration Error:</h1>";
-            errorPage += "<p>Couldn't save new configuration. Please try again.</p>";
-            errorPage += "<a href='/'>Back</a></body></html>";
-
-            AsyncWebServerResponse *response = request->beginResponse(500, "text/html", errorPage);
-            request->send(response);
-        }
+        // El fichero se escribe en WEB_Utils::loop(), no aqui: esta funcion corre en la tarea de AsyncTCP, que vigila el
+        // perro guardian (5 s); en las placas de 4 MB (Heltec Wireless Tracker) el SPIFFS casi lleno hace limpieza al
+        // escribir y el guardado pasaba de 5 s: la placa se reiniciaba a medias y arrancaba con la configuracion anterior (EA7JRS)
+        savePending = true;
+        Serial.println("Configuration received: saving");
+        AsyncWebServerResponse *response = request->beginResponse(302, "text/html", "");
+        response->addHeader("Location", "/?success=1");
+        request->send(response);
     }
 
     void handleAction(AsyncWebServerRequest *request) {
