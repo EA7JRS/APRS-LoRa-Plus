@@ -29,6 +29,7 @@
     small, .muted { color: var(--muted); }
     #lang { float:right; }
     esp-web-install-button button { font: inherit; padding: 12px 18px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; font-weight: 600; }
+    label.erase { display:inline-flex; align-items:center; gap:6px; margin:4px 0 8px; cursor:pointer; }
     ul { margin: 6px 0 0 18px; padding: 0; }
     .head { display:flex; align-items:center; gap:12px; margin-bottom:4px; }
     .head .logo { height:56px; width:56px; flex-shrink:0; border-radius:11px; object-fit:cover; }
@@ -84,6 +85,8 @@
     <div class="card">
         <h2 data-i="s3"></h2>
         <p class="muted" data-i="s3help"></p>
+        <label class="erase"><input type="checkbox" id="eraseFlash"> <span data-i="erase"></span></label>
+        <p class="muted warn" id="eraseWarn" hidden data-i="eraseWarn"></p>
         <esp-web-install-button id="install"></esp-web-install-button>
         <div id="uf2" hidden><p><a class="dl" id="uf2link" href="#" download data-i="uf2btn"></a></p><p class="muted" data-i="uf2help"></p></div>
         <ul class="muted">
@@ -113,6 +116,8 @@
             s1: "1. Reconocer la placa conectada", s1help: "Conecta la placa por USB y pulsa el botón: se lee la placa y la versión instalada.",
             detect: "Detectar placa", s2: "2. Versión disponible", board: "Placa", s3: "3. Instalar / actualizar",
             s3help: "Se conserva la configuración guardada en la placa (indicativo, WiFi, pines…). Cierra otros programas que usen el puerto serie.",
+            erase: "Borrar la flash (instalación limpia)",
+            eraseWarn: "Al instalar se te preguntará si borrar toda la flash; borra también la configuración guardada (indicativo, WiFi, pines…).",
             n1: "Si la placa no aparece en la lista de puertos, mantén pulsado BOOT mientras la conectas.",
             n2: "Las placas con dos copias de firmware (p. ej. T-Beam S3 Supreme) también se pueden actualizar desde la web de configuración de la propia placa.",
             n3: "Una instalación por USB repone la tabla de particiones; el primer arranque puede tardar unos segundos.",
@@ -132,6 +137,8 @@
             s1: "1. Recognise the connected board", s1help: "Connect the board over USB and press the button: the board and the installed version are read.",
             detect: "Detect board", s2: "2. Available version", board: "Board", s3: "3. Install / update",
             s3help: "The settings stored in the board (callsign, WiFi, pins…) are kept. Close other programs that use the serial port.",
+            erase: "Erase the flash (clean install)",
+            eraseWarn: "On install you will be asked whether to erase the whole flash; it also wipes the stored settings (callsign, WiFi, pins…).",
             n1: "If the board does not show in the port list, hold BOOT while plugging it in.",
             n2: "Boards with two firmware copies (e.g. T-Beam S3 Supreme) can also be updated from the board's own configuration web page.",
             n3: "A USB install rewrites the partition table; the first boot may take a few seconds.",
@@ -213,7 +220,7 @@
         uf2.hidden = true;
         if (!latest || !name) {
             box.textContent = loadFailed ? t("devNone") : ""; if (loadFailed) box.className = "status warn";
-            inst.removeAttribute("manifest"); inst.style.display = "none"; return;
+            manifestJson = null; inst.removeAttribute("manifest"); inst.style.display = "none"; return;
         }
         const b = latest.boards[name];
         let html = esc(t("avail")) + "<strong>" + esc(b.version) + "</strong> · " + esc(b.ota ? t("otaYes") : t("otaNo"));
@@ -224,13 +231,33 @@
         }
         box.innerHTML = html;
         if (b.uf2) {                                              // Raspberry Pi Pico 2: se copia el .uf2 a la unidad de BOOTSEL
-            inst.removeAttribute("manifest"); inst.style.display = "none";
+            manifestJson = null; inst.removeAttribute("manifest"); inst.style.display = "none";
             $("uf2link").href = base() + b.uf2;
             uf2.hidden = false;
             return;
         }
-        inst.setAttribute("manifest", base() + "manifests/" + name + ".json");
+        manifestJson = base() + "manifests/" + name + ".json";
         inst.style.display = "";
+        setInstallManifest();
+    }
+
+    // Manifiesto que se pasa a ESP Web Tools: el de la placa o, con la casilla «Borrar la flash» marcada, una copia con
+    // new_install_prompt_erase=true (ESP Web Tools pregunta antes de grabar si borrar toda la flash). Las rutas se vuelven
+    // absolutas porque la copia va como blob: (sin base relativa).
+    let manifestJson = null, lastBlob = null;
+    async function setInstallManifest() {
+        const inst = $("install");
+        if (!manifestJson) { inst.removeAttribute("manifest"); return; }
+        if (lastBlob) { URL.revokeObjectURL(lastBlob); lastBlob = null; }
+        if (!$("eraseFlash").checked) { inst.setAttribute("manifest", manifestJson); return; }
+        try {
+            const abs = new URL(manifestJson, location.href);
+            const m = await fetch(abs.href).then(r => r.json());
+            m.new_install_prompt_erase = true;
+            (m.builds || []).forEach(b => (b.parts || []).forEach(p => { p.path = new URL(p.path, abs).href; }));
+            lastBlob = URL.createObjectURL(new Blob([JSON.stringify(m)], { type: "application/json" }));
+            inst.setAttribute("manifest", lastBlob);
+        } catch (e) { inst.setAttribute("manifest", manifestJson); }   // si falla, instala sin borrar
     }
 
     function load(dev) {
@@ -286,6 +313,7 @@
 
     $("lang").addEventListener("click", () => { lang = lang === "es" ? "en" : "es"; render(); });
     $("board").addEventListener("change", showAvail);
+    $("eraseFlash").addEventListener("change", () => { $("eraseWarn").hidden = !$("eraseFlash").checked; setInstallManifest(); });
     $("detect").addEventListener("click", detect);
     document.querySelectorAll("[data-dev]").forEach(b => b.addEventListener("click", () => { if (b.dataset.dev !== device) load(b.dataset.dev); }));
 
