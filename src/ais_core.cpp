@@ -473,6 +473,16 @@ namespace AisCore {
         return nullptr;
     }
 
+    bool Table::remove(uint32_t mmsi) {
+        for (int i = 0; i < n; i++) {
+            if (v[i].mmsi != mmsi) continue;
+            for (int k = i + 1; k < n; k++) v[k - 1] = v[k];
+            n--;
+            return true;
+        }
+        return false;
+    }
+
     Vessel* Table::update(const Report& r, uint32_t nowMs, char channel) {
         if (r.mmsi == 0) return nullptr;
         Vessel* x = find(r.mmsi);

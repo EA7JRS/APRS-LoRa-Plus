@@ -17,13 +17,16 @@
 
 namespace AIS_Utils {
 
-    enum Source : uint8_t { SRC_RADIO = 0, SRC_MODULE = 1, SRC_APP = 2 };
+    enum Source : uint8_t { SRC_RADIO = 0, SRC_MODULE = 1, SRC_APP = 2, SRC_APRS = 3 };
 
     void        begin();                                     // al arrancar (modulo externo por UART)
     void        loop();                                      // bucle principal
     bool        active();                                    // modo AIS, modulo externo o barcos recibidos de la app
     void        onMessage(const uint8_t* msg, size_t nbits, char channel, Source src);
     bool        feedNmea(const char* line, Source src);      // una frase !AIVDM (modulo o app)
+    // Baliza APRS LoRa del perfil nautico AIS (etiqueta "AIS:..." o perfil LoRa AIS en uso): barco en la tabla AIS como uno de
+    // verdad (clase, MMSI, nombre, dimensiones), canal 'L'. Sin etiqueta todavia, con el MMSI ficticio del indicativo
+    void        onAprsVessel(const char* callsign, double lat, double lon, double speedKmh, double courseDeg, const char* packetText);
 
     AisCore::Table& table();
     bool        own(AisCore::Own& out);                      // posicion y movimiento propios (GPS)

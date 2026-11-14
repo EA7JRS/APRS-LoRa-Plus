@@ -50,6 +50,7 @@ Dentro del menú clásico, 2P vuelve a las pantallas. La barra de iconos de abaj
 - **Modo de baliza** (letra arriba a la derecha en MAIN): **A** automática, **S** SmartBeaconing, **M** manual (solo sale lo que mandes con *Send beacon*).
 - **Potencia de LoRa:** LORA → LP → Power → +1 / −1 dBm. Se guarda y se mantiene al reiniciar.
 - **S-meter (VHF/UHF):** S9 = −93 dBm, 6 dB por punto. Fila `S8 -99 SNR 5.0` en LORA.
+- **APRS LoRa+ MAPRS transponder** (LilyGO T3 v1.6.1, 433 MHz): transponder AIS de clase B por APRS LoRa. Pon indicativo y datos del barco en la WebUI (*Beacons*) o en el plotter (Ajustes > Embarcación); el plotter y la app lo ven como AIS (`!AIVDO` el propio) por BLE o Bluetooth clásico (*Protocol: NMEA*). Ver el manual, apartado 38.
 
 ## 4. Emergencias
 

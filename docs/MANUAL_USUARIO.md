@@ -738,6 +738,18 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 - **App Android:** el dial de la banda A muestra la frecuencia y la modulación del modo en curso; luces TX / RX / MSG / EMG; ventanas de emergencia (baliza o mensaje APRS, socorro y colisión AIS, EAI propia y hombre caído) con *SILENCE ALARM* (calla también el tracker), *STOP EAI* e *I'M OK*. En Android Auto las alertas se leen en voz alta y los remitentes llevan su símbolo APRS. Mapa con el radar nacional de AEMET. Protocolo en `BLE_CONTROL.md` (eventos `status` `f`/`mod`, `rf`, `led`, `eai`; órdenes `alarm`, `eai`).
 - Sin probar en placa.
 
+## 38. APRS LoRa+ MAPRS transponder (sin publicar)
+
+Transpondedor AIS **de clase B** por APRS LoRa en la **LilyGO T3 v1.6.1** (LoRa32 V2.1, SX1278 de 433 MHz, GPS y OLED). Entorno `ttgo-lora32-v21_MAPRS` del instalador web; el resto del firmware es el del tracker.
+
+- **No es AIS de VHF:** emite balizas APRS LoRa del perfil náutico AIS en 433,775 MHz (SF9, CR 4/5), banda de aficionados. Lo reciben los equipos APRS LoRa+ con ese perfil; un tracker con el perfil regional (SF12) no lo oye. Los barcos con AIS de verdad no lo ven.
+- **Primer arranque:** perfil de baliza náutico AIS (tipo velero o lancha de recreo; los de clase A no se admiten), escucha antes de emitir (CAD), Bluetooth BLE encendido y SmartBeacon AIS de clase B. Sin indicativo, abre la WebUI en el punto de acceso **APRSLoRa+MAPRS**: indicativo, MMSI, nombre, eslora, manga y calado en *Beacons*.
+- **Etiqueta legible:** cada 6 minutos (y en la primera baliza) el comentario lleva `AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;`, que aprs.fi enseña tal cual. Los trackers leen también la forma compacta anterior (`AIS:C224123456,12x4x1.8,37,SEA BREEZE;`). En aprs.fi sale como estación APRS (símbolo de velero o barco, rumbo y velocidad), no como barco AIS: el feed AIS de aprs.fi es solo para receptores AIS de verdad.
+- **En los trackers que lo oyen:** el barco entra en su **tabla AIS** (página AIS, pestaña AIS de la app, CPA y alarma de colisión) con su MMSI, nombre, clase y dimensiones, por el canal «L» («APRS LoRa»). Antes de la primera etiqueta, con el MMSI ficticio 8 224 nnnnn del indicativo, que se sustituye al llegar la etiqueta. Con salida NMEA (Supreme, MAPRS) sale además como `!AIVDM`.
+- **En el plotter o la app (NMEA):** el barco propio como **`!AIVDO`** (posición cada 10 s con fix, datos estáticos cada 6 min y al cambiar) y las estaciones APRS oídas como blancos AIS (`!AIVDM`). Por **BLE** (servicio de control con el PIN; el plotter APRS LoRa+ y la app) o por **Bluetooth clásico** con *Bluetooth > Protocol > NMEA (BT Classic)* (OpenCPN y plotters con SPP). El ESP32 no puede tener BLE y Bluetooth clásico a la vez: se elige uno en *Bluetooth Type*. Sin NMEA por USB (es la consola).
+- **Datos del barco desde el plotter:** el plotter APRS LoRa+ (Ajustes > Embarcación) manda la orden `vessel` al enlazarse y al guardar; el transponder los guarda en su perfil náutico. Si el plotter no tiene datos, toma los del transponder. La baliza siguiente lleva la etiqueta nueva.
+- Sin probar en la placa.
+
 ## Apéndice A — Mapa de pulsaciones por página
 
 | Página | LP abre | Opciones |

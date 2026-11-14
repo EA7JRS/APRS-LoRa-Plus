@@ -71,9 +71,10 @@ namespace AIS_Vessel {
         char        name[21]    = {0};
     };
 
-    // "AIS:C224123456,12x4x1.8,37,SEA BREEZE;"  -> devuelve la longitud (0 si no cabe o los datos no son validos)
+    // "AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;" (legible en aprs.fi) -> devuelve la longitud
+    // (0 si no cabe o los datos no son validos)
     size_t      buildTag(const Info& info, char* out, size_t size);
-    // Busca la etiqueta en cualquier texto (comentario o trama completa)
+    // Busca la etiqueta en cualquier texto (comentario o trama completa); tambien la forma compacta anterior "AIS:C224123456,12x4x1.8,37,NAME;"
     bool        parseTag(const char* text, Info& info);
 
     // Reparto de las dimensiones AIS (bow/stern/port/starboard) a partir de eslora y manga con la antena en el centro

@@ -184,6 +184,34 @@ int main() {
     off.clearOwnVessel();
     CHECK(!off.hasOwnVessel(), "clearOwnVessel");
 
+
+    // ---- etiqueta AIS legible (aprs.fi) y la compacta anterior ----
+    {
+        AIS_Vessel::Info i, o;
+        i.aisClass = AIS_Vessel::CLASS_B_CS; i.mmsi = 224123456; i.length = 12; i.beam = 4; i.draughtDm = 18; i.shipType = 36;
+        strcpy(i.name, "Sea Breeze");
+        char tag[96];
+        size_t n = AIS_Vessel::buildTag(i, tag, sizeof(tag));
+        CHECK(n > 0 && strcmp(tag, "AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;") == 0, "etiqueta: %s", tag);
+        std::string pkt = std::string("!3726.00N/00600.00WY") + tag;
+        CHECK(AIS_Vessel::parseTag(pkt.c_str(), o) && o.mmsi == 224123456 && o.aisClass == 'C' && o.length == 12 && o.beam == 4
+              && o.draughtDm == 18 && o.shipType == 36 && strcmp(o.name, "SEA BREEZE") == 0, "lectura de la legible");
+        i.aisClass = AIS_Vessel::CLASS_A; i.length = 0; i.beam = 0; i.shipType = 70; i.name[0] = 0; i.draughtDm = 0;
+        n = AIS_Vessel::buildTag(i, tag, sizeof(tag));
+        CHECK(strcmp(tag, "AIS A: -, MMSI 224123456, ?x? m, draft 0.0 m, type 70;") == 0, "clase A sin datos: %s", tag);
+        CHECK(AIS_Vessel::parseTag(tag, o) && o.aisClass == 'A' && o.shipType == 70 && o.length == 0 && o.name[0] == 0, "lectura clase A");
+        i.aisClass = AIS_Vessel::CLASS_B_SO; i.shipType = 37; i.length = 8; i.beam = 3; strcpy(i.name, "LANCHA");
+        AIS_Vessel::buildTag(i, tag, sizeof(tag));
+        CHECK(AIS_Vessel::parseTag(tag, o) && o.aisClass == 'S' && o.shipType == 37, "clase B SO: %s", tag);
+        CHECK(AIS_Vessel::parseTag("hola AIS:C224123456,12x4x1.8,37,SEA BREEZE; adios", o) && o.mmsi == 224123456 && o.shipType == 37
+              && strcmp(o.name, "SEA BREEZE") == 0, "compacta anterior");
+        CHECK(!AIS_Vessel::parseTag("AIS B-CS: X, MMSI 12345, 12x4 m, draft 1.8 m, sailing;", o), "MMSI malo");
+        CHECK(!AIS_Vessel::parseTag("AIS receiver on 161.975 MHz", o), "texto que no es etiqueta");
+        CHECK(AIS_Vessel::parseTag("AIS on board. AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;", o), "segunda aparicion");
+        i.mmsi = 0;
+        CHECK(AIS_Vessel::buildTag(i, tag, sizeof(tag)) == 0, "sin MMSI no hay etiqueta");
+    }
+
     printf("%d comprobaciones, %d fallos\n", checks, fails);
     return fails ? 1 : 0;
 }

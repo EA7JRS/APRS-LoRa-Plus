@@ -884,6 +884,18 @@ namespace PAGES_Core {
                     const char* closeBar = strchr(p + 1, '|');
                     if (closeBar && (closeBar - p) <= 16) { p = closeBar + 1; continue; }
                 }
+                // Etiqueta nautica legible "AIS B-CS: NOMBRE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;": solo el nombre
+                if (strncmp(p, "AIS A: ", 7) == 0 || strncmp(p, "AIS B-SO: ", 10) == 0 || strncmp(p, "AIS B-CS: ", 10) == 0) {
+                    const char* semi  = strchr(p, ';');
+                    const char* name  = strchr(p, ':') + 2;
+                    const char* comma = strchr(name, ',');
+                    if (semi && comma && comma < semi) {
+                        for (const char* q = name; q < comma && n + 1 < size; q++) out[n++] = *q;
+                        if (n + 1 < size && semi[1] && semi[1] != ' ') out[n++] = ' ';
+                        p = semi + 1;
+                        continue;
+                    }
+                }
                 // Si viene etiqueta nautica "AIS:C224...,12x4x1.8,36,NOMBRE;", extraer el nombre legible
                 if (strncmp(p, "AIS:", 4) == 0) {
                     const char* semi = strchr(p + 4, ';');

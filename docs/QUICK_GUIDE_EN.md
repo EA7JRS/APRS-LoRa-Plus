@@ -50,6 +50,7 @@ In the classic menu, 2P returns to the screens. The icon bar at the bottom appea
 - **Beacon mode** (letter at the top right of MAIN): **A** automatic, **S** SmartBeaconing, **M** manual (only what you send with *Send beacon* goes out).
 - **LoRa power:** LORA → LP → Power → +1 / −1 dBm. Saved and kept after reboot.
 - **S-meter (VHF/UHF):** S9 = −93 dBm, 6 dB per point. Row `S8 -99 SNR 5.0` in LORA.
+- **APRS LoRa+ MAPRS transponder** (LilyGO T3 v1.6.1, 433 MHz): class B AIS transponder over APRS LoRa. Set the callsign and vessel data in the WebUI (*Beacons*) or on the plotter (Ajustes > Embarcación); the plotter and the app see it as AIS (own vessel `!AIVDO`) over BLE or Bluetooth Classic (*Protocol: NMEA*). See the manual, section 38.
 
 ## 4. Emergencies
 

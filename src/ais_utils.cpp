@@ -17,6 +17,9 @@
 #include "pages_utils.h"
 #include "ble_control.h"
 #include "nmea_link.h"
+#include "nmea0183.h"
+#include "ais_vessel.h"
+#include "lora_utils.h"
 #ifdef HAS_SA868
 #include "sa868_radio.h"
 #endif
@@ -24,6 +27,7 @@
 extern Configuration    Config;
 extern logging::Logger  logger;
 extern TinyGPSPlus      gps;
+extern Beacon*          currentBeacon;
 
 namespace AIS_Utils {
 
@@ -51,6 +55,7 @@ namespace AIS_Utils {
             case SRC_RADIO:  return Config.operatingMode == MODE_AIS ? (channel() == 'B' ? "SA868 B" : "SA868 A") : "radio";
             case SRC_MODULE: return "module";
             case SRC_APP:    return "app";
+            case SRC_APRS:   return "APRS LoRa";
             default:         return Config.operatingMode == MODE_AIS ? (channel() == 'B' ? "SA868 B" : "SA868 A") : (uart ? "module" : "-");
         }
     }
@@ -140,6 +145,82 @@ namespace AIS_Utils {
         if (lastMmsi[slot] == v.mmsi && now - lastSent[slot] < 3000) return;
         lastMmsi[slot] = v.mmsi; lastSent[slot] = now;
         BLE_Control::aisEvent(v);
+    }
+
+    // ---- balizas APRS LoRa AIS (perfil nautico): datos estaticos de la etiqueta, que solo llega cada 6 min ----
+    struct AprsBoat { char call[12]; uint32_t mmsi; bool tagged; AIS_Vessel::Info info; uint32_t ms; };
+    static AprsBoat aprsBoats[16];
+
+    static AprsBoat* aprsBoat(const char* call, bool create) {
+        AprsBoat* old = nullptr;                                    // hueco libre o, si no, el mas antiguo
+        for (AprsBoat& b : aprsBoats) {
+            if (b.call[0] && strcmp(b.call, call) == 0) return &b;
+            if (!old) old = &b;
+            else if (!b.call[0]) { if (old->call[0]) old = &b; }
+            else if (old->call[0] && (int32_t)(b.ms - old->ms) < 0) old = &b;
+        }
+        if (!create) return nullptr;
+        memset(old, 0, sizeof(*old));
+        snprintf(old->call, sizeof(old->call), "%s", call);
+        return old;
+    }
+
+    void onAprsVessel(const char* callsign, double lat, double lon, double speedKmh, double courseDeg, const char* packetText) {
+        if (!callsign || !callsign[0] || (lat == 0.0 && lon == 0.0)) return;
+        char base[12], ownBase[12];
+        AIS_Vessel::baseCallsign(callsign, base, sizeof(base));
+        if (currentBeacon) {                                        // la propia, repetida por un digipeater
+            AIS_Vessel::baseCallsign(currentBeacon->callsign.c_str(), ownBase, sizeof(ownBase));
+            if (strcmp(base, ownBase) == 0) return;
+        }
+        AIS_Vessel::Info info;
+        const bool tag = packetText && AIS_Vessel::parseTag(packetText, info);
+        AprsBoat* b = aprsBoat(callsign, false);
+        if (!tag && !b && !LoRa_Utils::isAisActive()) return;     // estacion APRS normal: no es un barco AIS
+        if (!b) b = aprsBoat(callsign, true);
+        const uint32_t now = millis();
+        b->ms = now;
+        if (tag) {
+            const uint32_t mmsi = AIS_Vessel::validMmsi(info.mmsi) ? info.mmsi : NMEA0183::mmsiFromCallsign(callsign, 224, 0);
+            if (b->mmsi && b->mmsi != mmsi) tbl.remove(b->mmsi);    // antes con el MMSI ficticio
+            b->mmsi = mmsi;
+            b->info = info;
+            b->tagged = true;
+        } else if (!b->mmsi) b->mmsi = NMEA0183::mmsiFromCallsign(callsign, 224, 0);
+
+        AisCore::Report r;
+        memset(&r, 0, sizeof(r));
+        const bool classA = b->tagged && b->info.aisClass == AIS_Vessel::CLASS_A;
+        r.type = classA ? 1 : 18;
+        r.mmsi = b->mmsi;
+        r.cls = classA ? AisCore::CL_A : AisCore::CL_B;
+        r.hasPos = true; r.lat = lat; r.lon = lon;
+        r.hdg = 511;
+        if (speedKmh >= 0) { r.hasSog = true; r.sogKn = (float)(speedKmh / 1.852); }
+        if (speedKmh > 1.0 && courseDeg >= 0) { r.hasCog = true; r.cogDeg = (float)courseDeg; }
+        if (classA && r.hasSog) { r.hasStatus = true; r.status = r.sogKn < 0.3f ? 1 : (b->info.shipType == 36 ? 8 : 0); }
+        snprintf(r.call, sizeof(r.call), "%.7s", base);
+        r.hasCall = true;
+        snprintf(r.name, sizeof(r.name), "%s", b->tagged && b->info.name[0] ? b->info.name : base);
+        r.hasName = true;
+        if (b->tagged) {
+            r.hasShip = true; r.shipType = b->info.shipType;
+            uint16_t toBow, toStern; uint8_t toPort, toStar;
+            AIS_Vessel::splitDimensions(b->info.length, b->info.beam, toBow, toStern, toPort, toStar);
+            if (b->info.length || b->info.beam) { r.hasDim = true; r.toBow = toBow; r.toStern = toStern; r.toPort = toPort; r.toStar = toStar; }
+            if (b->info.draughtDm) { r.hasDraught = true; r.draughtM = b->info.draughtDm / 10.0f; }
+        }
+        nMsgs++; lastMs = now; lastSrc = SRC_APRS;
+        AisCore::Vessel* v = tbl.update(r, now, 'L');
+        if (!v) return;
+        logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "AIS", "APRS %s MMSI %09lu %s", callsign, (unsigned long)v->mmsi, v->name);
+        notifyApp(*v);
+        char id[12]; stationId(*v, id, sizeof(id));
+        #ifdef HAS_APRS_PAGES
+        PAGES_Utils::aisTarget(id, true, v->lat, v->lon, v->hasSog ? v->sogKn * 1.852f : 0.0f, v->hasCog ? v->cogDeg : 0.0f, nullptr, false);
+        #else
+        (void)id;
+        #endif
     }
 
     static void handle(const uint8_t* msg, size_t nbits, char ch, Source src, bool fwd) {

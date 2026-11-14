@@ -29,6 +29,7 @@
 #include "msg_utils.h"
 #include "gps_utils.h"
 #include "nmea_link.h"
+#include "ais_utils.h"
 #include "pages_utils.h"
 #include "display.h"
 #include "logger.h"
@@ -490,6 +491,8 @@ namespace MSG_Utils {
                     if (lastReceivedPacket.type == 0 || lastReceivedPacket.type == 4) {      // posicion (GPS y Mic-E): objetivo AIS en la salida NMEA
                         NMEA_Link::onAprsPosition(lastReceivedPacket.sender.c_str(), lastReceivedPacket.latitude, lastReceivedPacket.longitude,
                                                   lastReceivedPacket.speed, lastReceivedPacket.course, packet.text.c_str());
+                        AIS_Utils::onAprsVessel(lastReceivedPacket.sender.c_str(), lastReceivedPacket.latitude, lastReceivedPacket.longitude,   // barco APRS LoRa AIS en la tabla AIS
+                                                lastReceivedPacket.speed, lastReceivedPacket.course, packet.text.c_str());
                     }
 
                     if (lastReceivedPacket.type == 1 && lastReceivedPacket.addressee == currentBeacon->callsign) {

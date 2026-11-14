@@ -163,6 +163,7 @@ namespace AisCore {
         int      count() const { return n; }
         Vessel*  at(int i) { return (i >= 0 && i < n) ? &v[i] : nullptr; }
         Vessel*  find(uint32_t mmsi);
+        bool     remove(uint32_t mmsi);
         // indices ordenados por distancia (los que no tienen posicion al final)
         int      sorted(const Own& o, int* idx, int max);
         void     clear() { n = 0; }

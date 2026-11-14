@@ -19,6 +19,8 @@ jobs:
                   chip: esp32s3
                 - name: lilygo_t_twr_plus
                   chip: esp32s3
+                - name: ttgo-lora32-v21_MAPRS
+                  chip: esp32
         steps:
             - uses: actions/checkout@v7
 
