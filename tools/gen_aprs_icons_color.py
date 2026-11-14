@@ -5,7 +5,7 @@
 hojas de 48 px de aprs-symbols (hessu/aprs-symbols, tools/assets/aprs-symbols; las mismas de la app Android): tabla primaria '/',
 secundaria '\\' y superposiciones (0-9, A-Z). Cada icono: paleta de hasta 15 colores (RGB565 + opacidad 0-255; el indice 0 es
 transparente) y 4 bits por pixel, dos pixeles por byte (el de la izquierda en los 4 bits altos).
-Tamanos: 24 px (LAST) y 8 px (lista STATIONS). Uso: python3 tools/gen_aprs_icons_color.py"""
+Tamanos: 40 px (LAST; antes 24) y 8 px (lista STATIONS). Uso: python3 tools/gen_aprs_icons_color.py"""
 import os
 from PIL import Image
 
@@ -96,14 +96,14 @@ def main():
 // Paleta de hasta 15 colores (el indice 0 de los pixeles es transparente) y 4 bits por pixel, el de la izquierda en los bits altos
 template <int S> struct AprsIconColorT { uint8_t n; uint16_t c[15]; uint8_t a[15]; uint8_t px[S * S / 2]; };
 """)
-        for size in (24, 8):
+        for size in (40, 8):
             f.write(f"typedef AprsIconColorT<{size}> AprsIconColor{size};\n")
-        for size in (24, 8):
+        for size in (40, 8):
             f.write(f"\n#define AprsIconColor AprsIconColor{size}\n")
             emit(f, f"APRS_COLOR{size}_PRIMARY", [(chr(FIRST + i), encode(t, size)) for i, t in enumerate(prim)], size)
             emit(f, f"APRS_COLOR{size}_SECONDARY", [(chr(FIRST + i), encode(t, size)) for i, t in enumerate(sec)], size)
-            if size == 24:
-                emit(f, "APRS_COLOR24_OVERLAY", [(ch, encode(ovl[ord(ch) - FIRST], size)) for ch in OVERLAYS], size)
+            if size == 40:
+                emit(f, "APRS_COLOR40_OVERLAY", [(ch, encode(ovl[ord(ch) - FIRST], size)) for ch in OVERLAYS], size)
             f.write("#undef AprsIconColor\n")
         f.write('\n#define APRS_COLOR_OVERLAYS "%s"\n' % OVERLAYS)
     print(OUT, os.path.getsize(OUT))

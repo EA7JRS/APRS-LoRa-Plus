@@ -1194,21 +1194,27 @@ namespace {
         pagesInk(INK_TEXT);
     }
 
-    // Icono APRS de 24x24 (tabla primaria o secundaria); con superposicion, la letra o el digito va en el centro
+    // Icono APRS (tabla primaria o secundaria): 40x40 a color en las TFT, 24x24 en las OLED; con superposicion, la letra o el
+    // digito va en el centro
+    #ifdef HAS_TFT
+        const int APRS_ICON_PX = 40;
+    #else
+        const int APRS_ICON_PX = 24;
+    #endif
     bool drawAprsIcon(int x, int y, char symbol, char table) {
         if (symbol < APRS_ICON_FIRST || symbol >= APRS_ICON_FIRST + APRS_ICON_COUNT) return false;
         #ifdef HAS_TFT
             {   // a color, como en la app y en aprs.fi; superposicion (letra o digito) con su propio dibujo (Manuel - EA7JRS)
-                const AprsIconColor24& ic = (table == '/' ? APRS_COLOR24_PRIMARY : APRS_COLOR24_SECONDARY)[symbol - APRS_ICON_FIRST];
-                pagesIcon4(x, y, 24, ic.c, ic.a, ic.px, false);
+                const AprsIconColor40& ic = (table == '/' ? APRS_COLOR40_PRIMARY : APRS_COLOR40_SECONDARY)[symbol - APRS_ICON_FIRST];
+                pagesIcon4(x, y, 40, ic.c, ic.a, ic.px, false);
                 if (table != '/' && table != '\\') {
                     const char* o = strchr(APRS_COLOR_OVERLAYS, table);
                     if (o && table) {
-                        const AprsIconColor24& ov = APRS_COLOR24_OVERLAY[o - APRS_COLOR_OVERLAYS];
-                        pagesIcon4(x, y, 24, ov.c, ov.a, ov.px, false);
+                        const AprsIconColor40& ov = APRS_COLOR40_OVERLAY[o - APRS_COLOR_OVERLAYS];
+                        pagesIcon4(x, y, 40, ov.c, ov.a, ov.px, false);
                     } else {
                         char t[2] = { table, '\0' };
-                        pagesText(x + 9, y + 8, t, 1, false);
+                        pagesText(x + 17, y + 16, t, 1, false);
                     }
                 }
                 return true;
@@ -1268,17 +1274,28 @@ namespace {
         }
 
         const bool showIcon = lastView == 0 && s->symbol >= APRS_ICON_FIRST && s->symbol < APRS_ICON_FIRST + APRS_ICON_COUNT;
+        // Hueco del icono: a la derecha de las filas 2 a 5 (en las TFT de 160 px, 58 x 41 px: icono de 40 centrado; en las OLED de
+        // 128 px, la esquina de 24) (EA7JRS)
+        #ifdef HAS_TFT
+            const int ICON_LIMIT = COLS - 9, ICON_FROM_ROW = 2;
+            const int ICON_X = ICON_LIMIT * 6 + (PW - ICON_LIMIT * 6 - APRS_ICON_PX) / 2;
+            const int ICON_Y = ROW_Y0 + 2 * ROW_PITCH + (54 + PAGES_EXTRA - ROW_Y0 - 2 * ROW_PITCH - APRS_ICON_PX) / 2;
+        #else
+            const int ICON_LIMIT = COLS - 4, ICON_FROM_ROW = 3;
+            const int ICON_X = 104 + XR, ICON_Y = 40;
+        #endif
         if (lastView == 0) {
             if (s->kind == KIND_OBJECT && s->comment[0]) row(1, "OBJ %.17s", s->comment);
             else row(1, "%-7s %.13s", kindName(s->kind), s->device);
+            if (showIcon && ICON_FROM_ROW == 2) rowLimit = ICON_LIMIT;  // filas 2 a 5 (TFT) o 3 a 5 (OLED): dejan libre el hueco del icono
             if (!s->hasPosition) {
                 row(2, "No position");
-                if (showIcon) rowLimit = COLS - 4;
+                if (showIcon) rowLimit = ICON_LIMIT;
                 row(3, "Last: %s", packetTypeName(s->type));
             } else {
                 if (haveBearing) row(2, "D %s %s %03d", distance, cardinal16(bearing), (int)lround(bearing) % 360);
                 else row(2, "D --- (no own GPS)");
-                if (showIcon) rowLimit = COLS - 4;                     // filas 3 a 5: dejan libre la esquina inferior derecha (x >= PW - 24) para el icono
+                if (showIcon) rowLimit = ICON_LIMIT;
                 char speedText[12], altText[12];
                 formatSpeedUnits(s->speed, unitSystem, speedText, sizeof(speedText));
                 formatAltitudeUnits(s->altitude, unitSystem, altText, sizeof(altText));
@@ -1290,7 +1307,7 @@ namespace {
             row(4, "S %s", smeter + 1);                           // S espacio valor
             row(5, "Pkts %u  %s", (unsigned)s->packets, s->status[0] ? s->status : packetTypeName(s->type));
             rowLimit = COLS;
-            if (showIcon) drawAprsIcon(104 + XR, 40, s->symbol, s->table);
+            if (showIcon) drawAprsIcon(ICON_X, ICON_Y, s->symbol, s->table);
             else if (haveBearing) miniCompass(114 + XR, 39, 9, (float)bearing);
         } else {
             if (s->hasPosition) {
@@ -1694,7 +1711,7 @@ namespace {
         }
 
         // cielo a la derecha: anillos de 0 y 45 grados de elevacion, norte arriba; relleno = usado en el fix
-        const int r = 22, cx = PW - 2 - r, cy = 37;
+        const int r = 22 + PAGES_EXTRA * 3 / 8, cx = PW - 2 - r, cy = 37 + PAGES_EXTRA / 4;   // 28 px en las TFT (antes 22)
         pagesInk(INK_MUTED);
         pagesDrawCircle(cx, cy, r, true);
         pagesDrawCircle(cx, cy, r / 2, true);
@@ -1711,7 +1728,7 @@ namespace {
         }
         pagesInk(INK_TEXT);
 
-        rowLimit = COLS - 9;                                // las filas dejan libre el cielo
+        rowLimit = min(COLS - 9, (cx - r - 2) / 6);         // las filas dejan libre el cielo
         if (n == 0) {
             row(0, "No GSV data");
             row(1, gpsIsActive ? "waiting..." : "GPS off");
@@ -1864,7 +1881,7 @@ namespace {
     }
 
     void drawCompass() {
-        const int cx = 100 + XR, cy = 37, radius = 22;
+        const int radius = 22 + PAGES_EXTRA * 3 / 8, cx = PAGES_EXTRA ? PW - 4 - radius : 100 + XR, cy = 37 + PAGES_EXTRA / 4;   // 28 px en las TFT
         bool valid = fusion.valid();
         float decl = currentDeclination();
         float trueHeading = valid ? fusion.heading() : 0.0f;
@@ -2246,7 +2263,7 @@ namespace {
 
     // ---- Ventanas emergentes (Manuel - EA7JRS): mensaje, alarma, avisos oficiales. Sobre la pagina, con marco doble,
     // cabecera del color del tipo, contenido y una barra de botones abajo. En monocromo, igual sin colores.
-    const int WIN_X = 4, WIN_Y = 2, WIN_W = PAGES_W - 8, WIN_H = 62;
+    const int WIN_X = 4, WIN_Y = PAGES_EXTRA ? 10 : 2, WIN_W = PAGES_W - 8, WIN_H = 62;     // en las TFT, donde estaba (el cuerpo ya no baja 8 px)
     const int WIN_COLS = (PAGES_W - 8 - 10) / 6;            // 23 columnas en 160 px, 18 en 128
 
     enum WinIcon : uint8_t { WI_NONE, WI_MAIL, WI_WARN, WI_SHIP, WI_PERSON, WI_WAVE, WI_QUAKE, WI_SUN, WI_RADIO, WI_WIND };
