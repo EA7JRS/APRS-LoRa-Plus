@@ -1288,12 +1288,14 @@ namespace LoRa_Utils {
             if (len == 0 || len > LRFHSS::MAX_PAYLOAD) return RADIOLIB_ERR_PACKET_TOO_LONG;
             radio.standby();
             #if defined(RADIO_HAS_XTAL)
-                radio.tcxoVoltage = 0.0;                            // cristal sin TCXO (igual que beginModem)
+                const float lrfTcxo = 0.0;                          // cristal sin TCXO (igual que beginModem)
             #else
-                radio.tcxoVoltage = 1.6;                            // valor por defecto de begin(); applyBoardRadioSettings() lo sube a 1,8 V si la placa lo pide
+                const float lrfTcxo = 1.6;                          // valor por defecto de begin(); applyBoardRadioSettings() lo sube a 1,8 V si la placa lo pide
             #endif
-            int state = radio.beginLRFHSS(LRFHSS_BW[constrain(Config.lrfhss.bwIdx, 0, 9)], LRFHSS_CR[constrain(Config.lrfhss.crIdx, 0, 3)], Config.lrfhss.narrowGrid);
-            if (state == RADIOLIB_ERR_NONE) state = radio.setFrequency((float)((double)(Config.lrfhss.freqHz + ppmCorrectionHz(Config.lrfhss.freqHz)) / 1e6));      // LR-FHSS (desactivado): sin afinado de PLL
+            // SX1262 / SX1268::beginLRFHSS empieza por la frecuencia (y tapa la version de 3 argumentos de la clase base): llamada
+            // con (ancho, tasa, rejilla) el ancho entraba como frecuencia = 0 MHz y devolvia -12 (frecuencia no valida)
+            const float lrfMHz = (float)((double)(Config.lrfhss.freqHz + ppmCorrectionHz(Config.lrfhss.freqHz)) / 1e6);     // sin afinado de PLL
+            int state = radio.beginLRFHSS(lrfMHz, LRFHSS_BW[constrain(Config.lrfhss.bwIdx, 0, 9)], LRFHSS_CR[constrain(Config.lrfhss.crIdx, 0, 3)], Config.lrfhss.narrowGrid, 10, lrfTcxo, false);
             if (state == RADIOLIB_ERR_NONE) {
                 applyBoardRadioSettings();
                 setPower(Config.lrfhss.powerDbm);
