@@ -8,6 +8,22 @@ Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KI
 
 > **English:** APRS LoRa+ extends the CA2RXU LoRa APRS Tracker/Station firmware (ESP32 + LoRa + GPS) with new radio modes (APRS FSK 9600 G3RUH, CW/Morse, WSPR beacon, DAPNET pager receiver), an 11-page one-button UI, quick-reply messaging, global frequency (ppm) calibration and a reorganised Web UI. Documentation is mostly in Spanish; the user manual and quick guide are also available in English (see below). GPL-3.0.
 
+## Ecosistema APRS LoRa+
+
+Este repositorio es el tracker y el centro del ecosistema (hospeda el [instalador web](https://ea7jrs.github.io/APRS-LoRa-Plus/)). Proyectos relacionados:
+
+| Proyecto | Qué es |
+|---|---|
+| [APRS-LoRa-Plus-Android](https://github.com/EA7JRS/APRS-LoRa-Plus-Android) | App Android compañera del tracker (BLE/KISS, mensajería, SDR, satélites, rotor, Android Auto…) |
+| [APRS-LoRa-Plus-Display](https://github.com/EA7JRS/APRS-LoRa-Plus-Display) | Pantallas táctiles Waveshare para el tracker, por BLE |
+| [APRS-LoRa-Plus-Rotor](https://github.com/EA7JRS/APRS-LoRa-Plus-Rotor) | Controlador de rotores compatible con Hamlib |
+| [APRS-LoRa-Plus-I-Gateway](https://github.com/EA7JRS/APRS-LoRa-Plus-I-Gateway) | iGate / pasarela APRS LoRa+ |
+| [APRS-LoRa-Plus-Plotter](https://github.com/EA7JRS/APRS-LoRa-Plus-Plotter) | Plotter náutico (Waveshare 7″) e instrumento de viento (4″) |
+| [APRS-LoRa-Plus-NMEA2000](https://github.com/EA7JRS/APRS-LoRa-Plus-NMEA2000) | Pasarela de las estaciones APRS al bus NMEA 2000 del barco (XIAO ESP32-S3) |
+| [**SAT-APRS+**](https://github.com/EA7JRS/sat-aprs) | Estación de alertas de emergencia por APRS en PC Debian (NUC): fuentes oficiales y de RF → APRS, consola web y salida NMEA 2000 |
+
+El transponder AIS **MAPRS** (LilyGO T3, 433 MHz) es una variante del propio tracker; se instala desde el grupo «Náutica» del instalador web.
+
 ## Novedades respecto a la base
 
 | Área | Qué aporta |
