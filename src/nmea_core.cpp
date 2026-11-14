@@ -128,7 +128,13 @@ namespace NMEA_Core {
             double heading = (moving && s.cogDeg >= 0) ? s.cogDeg : -1.0;
             return NMEA0183::aisType1(s.mmsi, status, s.lat, s.lon, s.sogKnots, s.cogDeg, second, line, size, heading);
         }
-        // Clase B ("SO" o "CS") y estaciones APRS generales: Mensaje Tipo 18 (emparejado con Tipo 24 A/B)
+        // Estaciones APRS de tierra (sin perfil "AIS:"): ayuda a la navegacion virtual (Mensaje 21), sin alarma de abordaje
+        if (!s.hasInfo && options_.aton) {
+            char name[24];
+            AIS_Vessel::sanitizeName(s.callsign, name, sizeof(name));
+            return NMEA0183::aisType21(s.mmsi, name, s.lat, s.lon, second, line, size);
+        }
+        // Clase B ("SO" o "CS") y barcos con perfil "AIS:": Mensaje Tipo 18 (emparejado con Tipo 24 A/B)
         bool carrierSense = !(s.hasInfo && s.info.aisClass == AIS_Vessel::CLASS_B_SO);
         return NMEA0183::aisType18(s.mmsi, s.lat, s.lon, s.sogKnots, s.cogDeg, second, line, size, carrierSense);
     }
@@ -159,6 +165,7 @@ namespace NMEA_Core {
             }
             return;
         }
+        if (options_.aton) return;                                          // el mensaje 21 (AtoN) ya lleva el nombre: sin estatico
         n = NMEA0183::aisType24A(s.mmsi, s.callsign, line, sizeof(line));
         if (vdo) NMEA0183::toVdo(line, n);
         emit(line, n);

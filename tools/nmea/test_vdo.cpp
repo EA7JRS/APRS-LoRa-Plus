@@ -91,6 +91,23 @@ int main() {
         CHECK(NMEA0183::toVdo(gps, n) == 0, "RMC no se toca");
     }
 
+    // ---- AtoN (mensaje 21): estacion generica como ayuda virtual ----
+    {
+        char line[260];
+        char nm[24];
+        AIS_Vessel::sanitizeName("EA7JRS-9", nm, sizeof(nm));
+        size_t n = NMEA0183::aisType21(338123456, nm, 36.55, -6.25, 34, line, sizeof(line));
+        out.clear(); sink(line, n, nullptr);
+        CHECK(out.size() == 1 && out[0].rfind("!AIVDM,", 0) == 0, "AtoN como VDM: %s", out.empty() ? "" : out[0].c_str());
+        CHECK(checksumOk(out[0]), "checksum AtoN: %s", out[0].c_str());
+        AisCore::NmeaReader reader;
+        AisCore::Report r{};
+        CHECK(reader.feed(out[0].c_str()) && AisCore::decode(reader.data, reader.nbits, r), "AtoN se decodifica");
+        CHECK(r.type == 21 && r.mmsi == 338123456 && r.aidType == 0, "AtoN tipo/mmsi/ayuda: %u %u %u", r.type, r.mmsi, r.aidType);
+        CHECK(r.hasName && strcmp(r.name, nm) == 0, "AtoN nombre '%s' = '%s'", r.name, nm);
+        CHECK(r.hasPos && fabs(r.lat - 36.55) < 1e-4 && fabs(r.lon + 6.25) < 1e-4, "AtoN pos %f %f", r.lat, r.lon);
+    }
+
     // ---- motor: barco propio clase B "CS" ----
     NMEA_Core::Options o;
     o.gnss = false; o.environment = false;
@@ -151,7 +168,25 @@ int main() {
     e.onAprsStation(362000, "EA7JRS-9", 36.5, -6.3, 5, 270, fix(36.5, -6.3, 5, 270, 2));
     CHECK(out.empty() && e.stationCount() == 0, "indicativo propio ignorado (%zu frases)", out.size());
     e.onAprsStation(362000, "EA1ABC-5", 36.6, -6.2, 3, 90, fix(36.5, -6.3, 5, 270, 2));
-    CHECK(countPrefix("!AIVDM") == 3 && countPrefix("!AIVDO") == 0, "otra estacion como VDM");
+    // por defecto (aton on) una estacion generica sale como una sola ayuda virtual (mensaje 21)
+    CHECK(countPrefix("!AIVDM") == 1 && countPrefix("!AIVDO") == 0, "estacion generica como AtoN (%d)", countPrefix("!AIVDM"));
+    {
+        AisCore::NmeaReader rr; AisCore::Report rep{};
+        CHECK(rr.feed(out.back().c_str()) && AisCore::decode(rr.data, rr.nbits, rep) && rep.type == 21 && rep.aidType == 0,
+              "estacion generica decodifica como mensaje 21");
+    }
+
+    // ---- aton = off: la estacion generica vuelve a salir como clase B (18 + 24A + 24B) ----
+    {
+        NMEA_Core::Options ob;
+        ob.gnss = false; ob.environment = false; ob.aton = false;
+        NMEA_Core::Engine eb;
+        eb.configure(ob);
+        eb.setSink(sink, nullptr);
+        out.clear();
+        eb.onAprsStation(362000, "EA1ABC-5", 36.6, -6.2, 3, 90, fix(36.5, -6.3, 5, 270, 2));
+        CHECK(countPrefix("!AIVDM") == 3 && countPrefix("!AIVDO") == 0, "aton off: estacion generica como clase B (%d)", countPrefix("!AIVDM"));
+    }
 
     // mismo dato: no vuelve a mandar estaticos; dato nuevo: si
     out.clear();

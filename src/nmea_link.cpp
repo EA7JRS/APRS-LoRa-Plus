@@ -78,6 +78,11 @@
 #ifndef NMEA_OUT_AIS
     #define NMEA_OUT_AIS            1
 #endif
+// Estaciones APRS de tierra (sin perfil "AIS:") como ayuda a la navegacion AIS (mensaje 21), no como buque clase B:
+// asi el plotter no dispara la alarma de abordaje falsa. Los barcos con perfil "AIS:" siguen como buque.
+#ifndef NMEA_OUT_AIS_ATON
+    #define NMEA_OUT_AIS_ATON       1
+#endif
 #ifndef NMEA_N2K_SEASMART
     #define NMEA_N2K_SEASMART       0
 #endif
@@ -276,6 +281,7 @@ namespace NMEA_Link {
         options.gnss        = NMEA_OUT_GNSS != 0;
         options.environment = NMEA_OUT_ENV != 0;
         options.ais         = NMEA_OUT_AIS != 0;
+        options.aton        = NMEA_OUT_AIS_ATON != 0;
         options.seaSmart    = NMEA_N2K_SEASMART != 0;
         options.actisense   = NMEA_N2K_ACTISENSE != 0;
         options.mid         = NMEA_AIS_MID;

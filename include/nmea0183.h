@@ -74,6 +74,8 @@ namespace NMEA0183 {
     // sogKnots < 0 y cogDegrees < 0 = no disponible; second < 0 = no disponible
     // carrierSense = true: clase B "CS"; false: clase B "SO"
     size_t aisType18(uint32_t mmsi, double lat, double lon, double sogKnots, double cogDegrees, int second, char* buffer, size_t size, bool carrierSense = true);
+    // Mensaje 21: ayuda a la navegacion (AtoN) virtual, para las estaciones APRS de tierra (no dispara la alarma de abordaje del plotter)
+    size_t aisType21(uint32_t mmsi, const char* name, double lat, double lon, int second, char* buffer, size_t size);
     size_t aisType24A(uint32_t mmsi, const char* name, char* buffer, size_t size);
     size_t aisType24B(uint32_t mmsi, uint8_t shipType, const char* callsign, char* buffer, size_t size);
     size_t aisType24B(uint32_t mmsi, uint8_t shipType, const char* callsign, uint16_t toBow, uint16_t toStern, uint8_t toPort, uint8_t toStarboard, char* buffer, size_t size);

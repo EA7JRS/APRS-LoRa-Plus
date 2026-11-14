@@ -33,6 +33,7 @@ namespace NMEA_Core {
         bool        gnss                = true;         // RMC, GGA, VTG, GLL y ZDA
         bool        environment         = true;         // MDA y XDR
         bool        ais                 = true;         // !AIVDM de las estaciones APRS oidas
+        bool        aton                = true;         // estaciones de tierra (sin perfil "AIS:") como ayuda a la navegacion (mensaje 21), sin alarma de abordaje
         bool        seaSmart            = false;        // NMEA 2000 como $PCDIN
         bool        actisense           = false;        // NMEA 2000 como Actisense N2K ASCII
         uint16_t    mid                 = 224;          // MID del MMSI sintetico (224 = Espana)

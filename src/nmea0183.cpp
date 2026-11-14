@@ -341,6 +341,29 @@ namespace NMEA0183 {
         return vdm(bits, buffer, size);
     }
 
+    size_t aisType21(uint32_t mmsi, const char* name, double lat, double lon, int second, char* buffer, size_t size) {
+        Bits bits;
+        bits.put(21, 6);                                    // tipo de mensaje
+        bits.put(0, 2);                                     // repeticion
+        bits.put(mmsi, 30);
+        bits.put(0, 5);                                     // tipo de ayuda: 0 = sin especificar
+        putText(bits, name, 20);                            // nombre de la ayuda (120 bits)
+        bits.put(0, 1);                                     // precision de posicion
+        bool valid = lat >= -90.0 && lat <= 90.0 && lon >= -180.0 && lon <= 180.0;
+        bits.putSigned(valid ? (int32_t) lround(lon * 600000.0) : 108600000, 28);
+        bits.putSigned(valid ? (int32_t) lround(lat * 600000.0) : 54600000, 27);
+        bits.put(0, 30);                                    // dimensiones / referencia: sin datos
+        bits.put(0, 4);                                     // tipo de EPFD
+        bits.put(second >= 0 && second <= 59 ? (uint32_t) second : 60U, 6);
+        bits.put(0, 1);                                     // fuera de posicion
+        bits.put(0, 8);                                     // reservado regional
+        bits.put(0, 1);                                     // RAIM
+        bits.put(1, 1);                                     // AtoN virtual (no existe fisicamente)
+        bits.put(0, 1);                                     // modo asignado
+        bits.put(0, 1);                                     // spare
+        return vdm(bits, buffer, size);
+    }
+
     size_t aisType24A(uint32_t mmsi, const char* name, char* buffer, size_t size) {
         Bits bits;
         bits.put(24, 6);

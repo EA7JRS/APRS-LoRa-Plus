@@ -87,3 +87,8 @@ jobs:
               run: |
                   g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/ais/test_ais.cpp src/ais_core.cpp -o /tmp/test_ais
                   /tmp/test_ais
+
+            - name: Transpondedor AIS (barco propio VDO, AtoN de las estaciones APRS)
+              run: |
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/nmea/test_vdo.cpp src/nmea_core.cpp src/nmea0183.cpp src/nmea2000.cpp src/ais_vessel.cpp src/ais_core.cpp -o /tmp/test_vdo
+                  /tmp/test_vdo
