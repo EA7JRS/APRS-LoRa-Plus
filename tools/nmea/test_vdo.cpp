@@ -132,6 +132,18 @@ int main() {
         if (x.type == 24 && x.part == 1) b = strcmp(x.call, "EA7JRS") == 0 && x.shipType == 37 && x.toBow + x.toStern == 12 && x.toPort + x.toStar == 4;
     }
     CHECK(a && b, "24A nombre y 24B indicativo, tipo y dimensiones");
+    strcpy(info.call, "EBXY");
+    e.setOwnVessel("EA7JRS-5", info);
+    out.clear();
+    e.update(361500, nofix, env);
+    r = decodeVdo();
+    bool mc = false;
+    for (auto& x : r) if (x.type == 24 && x.part == 1) mc = strcmp(x.call, "EBXY") == 0;
+    CHECK(mc, "24B con el distintivo maritimo");
+    info.call[0] = 0;
+    e.setOwnVessel("EA7JRS-5", info);
+    out.clear();
+    e.update(361600, nofix, env);
 
     // nuestra propia baliza repetida por un digipeater no crea un blanco; otra estacion si (como VDM)
     out.clear();
@@ -206,6 +218,14 @@ int main() {
         CHECK(AIS_Vessel::parseTag("hola AIS:C224123456,12x4x1.8,37,SEA BREEZE; adios", o) && o.mmsi == 224123456 && o.shipType == 37
               && strcmp(o.name, "SEA BREEZE") == 0, "compacta anterior");
         CHECK(!AIS_Vessel::parseTag("AIS B-CS: X, MMSI 12345, 12x4 m, draft 1.8 m, sailing;", o), "MMSI malo");
+        i.aisClass = AIS_Vessel::CLASS_B_CS; i.mmsi = 224123456; i.length = 12; i.beam = 4; i.draughtDm = 18; i.shipType = 36;
+        strcpy(i.name, "SEA BREEZE"); strcpy(i.call, "ebxy");
+        AIS_Vessel::buildTag(i, tag, sizeof(tag));
+        CHECK(strcmp(tag, "AIS B-CS: SEA BREEZE, MMSI 224123456, call EBXY, 12x4 m, draft 1.8 m, sailing;") == 0, "con distintivo: %s", tag);
+        CHECK(AIS_Vessel::parseTag(tag, o) && strcmp(o.call, "EBXY") == 0 && o.length == 12, "lectura del distintivo");
+        char sc[8];
+        CHECK(AIS_Vessel::sanitizeCall("eb-xy 12345", sc, sizeof(sc)) == 7 && strcmp(sc, "EBXY123") == 0, "distintivo saneado: %s", sc);
+        i.call[0] = 0;
         CHECK(!AIS_Vessel::parseTag("AIS receiver on 161.975 MHz", o), "texto que no es etiqueta");
         CHECK(AIS_Vessel::parseTag("AIS on board. AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;", o), "segunda aparicion");
         i.mmsi = 0;

@@ -251,6 +251,7 @@ namespace STATION_Utils {
                     info.shipType   = vessel.shipType;
                     strncpy(info.name, currentBeacon->aisName.c_str(), sizeof(info.name) - 1);
                     info.name[sizeof(info.name) - 1] = 0;
+                    AIS_Vessel::sanitizeCall(currentBeacon->aisCall.c_str(), info.call, sizeof(info.call));
                     char tag[96];
                     if (AIS_Vessel::buildTag(info, tag, sizeof(tag)) > 0) {
                         packet += tag;

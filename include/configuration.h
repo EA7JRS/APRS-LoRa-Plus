@@ -95,6 +95,7 @@ public:
     bool        aisProfile      = false;
     uint8_t     aisVesselType   = 0;        // indice de la tabla de embarcaciones (clase AIS, SSID y simbolo salen de ahi)
     String      aisName;                    // nombre de la embarcacion (max. 20 caracteres)
+    String      aisCall;                    // distintivo de llamada maritimo del MMSI (max. 7; vacio = el indicativo APRS)
     uint32_t    aisMmsi         = 0;        // 9 digitos; 0 = no definido (no se envian datos estaticos)
     uint16_t    aisLength       = 0;        // eslora (m)
     uint16_t    aisBeam         = 0;        // manga (m)

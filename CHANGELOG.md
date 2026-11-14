@@ -5,6 +5,7 @@
 - **Barco propio como `!AIVDO`** en la salida NMEA (Supreme y MAPRS) con el perfil náutico AIS: posición cada 10 s con fix y datos estáticos cada 6 min y al cambiar (`NMEA_Core::Engine::setOwnVessel`, `NMEA0183::toVdo`). La baliza propia repetida por un digipeater ya no crea un blanco AIS.
 - **Balizas APRS LoRa AIS en la tabla AIS** de todos los trackers (página AIS, app, CPA y alarma), con MMSI, nombre, clase y dimensiones de la etiqueta (canal «L», fuente «APRS LoRa»); antes de la etiqueta, con el MMSI ficticio del indicativo.
 - **Etiqueta AIS legible** en el comentario (se lee en aprs.fi): `AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;`. Se sigue leyendo la compacta anterior; la pantalla muestra solo el nombre.
+- **Distintivo marítimo del MMSI** en el perfil náutico AIS (WebUI *Beacons*, `aisCall`, máx. 7): va en los datos estáticos AIS (24B / 5, `!AIVDO`, tabla AIS de los trackers) y en la etiqueta (`, call EBXY`); vacío = el indicativo APRS.
 - **Orden y evento BLE `vessel`** (datos del barco del perfil náutico; `caps.vessel`, `caps.maprs`): el plotter APRS LoRa+ los mantiene iguales que los suyos.
 - **Bluetooth clásico, protocolo NMEA** (WebUI *Bluetooth > Protocol*): frases NMEA de la salida NMEA en lugar de tramas KISS / TNC2.
 - Pruebas en el PC: `tools/nmea/test_vdo.cpp` (41 comprobaciones).

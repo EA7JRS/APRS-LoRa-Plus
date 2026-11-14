@@ -199,7 +199,7 @@ namespace AIS_Utils {
         if (speedKmh >= 0) { r.hasSog = true; r.sogKn = (float)(speedKmh / 1.852); }
         if (speedKmh > 1.0 && courseDeg >= 0) { r.hasCog = true; r.cogDeg = (float)courseDeg; }
         if (classA && r.hasSog) { r.hasStatus = true; r.status = r.sogKn < 0.3f ? 1 : (b->info.shipType == 36 ? 8 : 0); }
-        snprintf(r.call, sizeof(r.call), "%.7s", base);
+        snprintf(r.call, sizeof(r.call), "%.7s", b->tagged && b->info.call[0] ? b->info.call : base);   // distintivo maritimo si lo hay
         r.hasCall = true;
         snprintf(r.name, sizeof(r.name), "%s", b->tagged && b->info.name[0] ? b->info.name : base);
         r.hasName = true;

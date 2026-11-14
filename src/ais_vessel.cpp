@@ -17,6 +17,7 @@
  */
 
 #include "ais_vessel.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,6 +122,17 @@ namespace AIS_Vessel {
         return length < 6 ? 6 : (length > 24 ? 24 : length);
     }
 
+    size_t sanitizeCall(const char* call, char* out, size_t size) {
+        size_t n = 0;
+        if (size == 0) return 0;
+        for (; call && *call && n + 1 < size && n < 7; call++) {
+            const char c = (char) toupper((unsigned char) *call);
+            if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) out[n++] = c;
+        }
+        out[n] = 0;
+        return n;
+    }
+
     // Etiqueta legible (aprs.fi y cualquier programa APRS la muestran tal cual en el comentario):
     //   "AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;"
     // Clase "A", "B-SO" o "B-CS"; tipo "sailing" (36), "pleasure" (37) u otro como "type 70". Sin eslora ni manga: "?x? m".
@@ -138,8 +150,10 @@ namespace AIS_Vessel {
         if (info.shipType == 36)      snprintf(type, sizeof(type), "sailing");
         else if (info.shipType == 37) snprintf(type, sizeof(type), "pleasure");
         else                          snprintf(type, sizeof(type), "type %u", (unsigned) info.shipType);
-        int n = snprintf(out, size, "AIS %s: %s, MMSI %lu, %s, draft %u.%u m, %s;", cls, name[0] ? name : "-", (unsigned long) info.mmsi, dims,
-                         (unsigned) (info.draughtDm / 10), (unsigned) (info.draughtDm % 10), type);
+        char call[8], callPart[16] = "";
+        if (sanitizeCall(info.call, call, sizeof(call)) > 0) snprintf(callPart, sizeof(callPart), ", call %s", call);
+        int n = snprintf(out, size, "AIS %s: %s, MMSI %lu%s, %s, draft %u.%u m, %s;", cls, name[0] ? name : "-", (unsigned long) info.mmsi, callPart,
+                         dims, (unsigned) (info.draughtDm / 10), (unsigned) (info.draughtDm % 10), type);
         return n > 0 && (size_t) n < size ? (size_t) n : 0;
     }
 
@@ -202,6 +216,12 @@ namespace AIS_Vessel {
             if (end == p || !validMmsi((uint32_t) mmsi)) return false;
             parsed.mmsi = (uint32_t) mmsi;
             p = end;
+            if (skip(p, ", call ")) {                               // distintivo maritimo (opcional)
+                size_t k = 0;
+                while (((*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9')) && k < 7) parsed.call[k++] = *p++;
+                parsed.call[k] = 0;
+                if (!k) return false;
+            }
             if (!skip(p, ", ")) return false;
             if (skip(p, "?x? m")) {
                 parsed.length = parsed.beam = 0;

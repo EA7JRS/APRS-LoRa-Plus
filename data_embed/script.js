@@ -378,6 +378,16 @@ function renderAisBeacon(beacons, index) {
                         <label for="beacons.${index}.aisMmsi">MMSI (9 digits; empty = not sent)</label>
                     </div>
                 </div>
+                <div class="row g-2 mb-2 align-items-center">
+                    <div class="form-floating col-12 col-md-6">
+                        <input type="text" class="form-control form-control-sm" maxlength="7"
+                            name="beacons.${index}.aisCall" id="beacons.${index}.aisCall"
+                            value="${beacons.aisCall || ""}"
+                            oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');">
+                        <label for="beacons.${index}.aisCall">Maritime call sign (max. 7)</label>
+                    </div>
+                    <div class="col-12 col-md-6"><small class="text-muted">Call sign of the ship station licence that goes with the MMSI; AIS sends it in the static data. Empty = the APRS callsign.</small></div>
+                </div>
                 <div class="row g-2 mb-2">
                     <div class="form-floating col-4">
                         <input type="number" class="form-control form-control-sm" min="${v.cls !== "A" ? 6 : 0}" max="${v.cls !== "A" ? 24 : 999}" step="1"
@@ -1867,7 +1877,12 @@ function boardPinInit() {
         .then(r => r.json())
         .then(i => {
             const name = i.board || "";
-            if (i.maprs) aisClassBOnly();
+            if (i.maprs) {                              // APRS LoRa+ MAPRS transponder: nombre en la cabecera y solo clase B
+                const sub = document.getElementById("brandSub");
+                if (sub) sub.firstChild.textContent = "MAPRS transponder ";
+                document.title = "APRS LoRa+ MAPRS transponder";
+                aisClassBOnly();
+            }
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x

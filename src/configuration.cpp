@@ -243,6 +243,7 @@ namespace {
         FB(Beacon, aisProfile,         0, false),
         FB(Beacon, aisVesselType,      0, 0),
         FS(Beacon, aisName,            0, ""),
+        FS(Beacon, aisCall,            0, ""),
         FB(Beacon, aisMmsi,            0, 0),
         FB(Beacon, aisLength,          0, 0),
         FB(Beacon, aisBeam,            0, 0),
@@ -1039,6 +1040,9 @@ void Configuration::enforceAisBeacon(Beacon& beacon) {
     char name[21];
     AIS_Vessel::sanitizeName(beacon.aisName.c_str(), name, sizeof(name));
     beacon.aisName              = name;
+    char mcall[8];
+    AIS_Vessel::sanitizeCall(beacon.aisCall.c_str(), mcall, sizeof(mcall));
+    beacon.aisCall              = mcall;
     if (!AIS_Vessel::validMmsi(beacon.aisMmsi)) beacon.aisMmsi = 0;
     beacon.aisLength = AIS_Vessel::clampLength(vessel.aisClass, beacon.aisLength);   // clase B (recreo): 6 - 24 m
     if (beacon.aisBeam > 126)   beacon.aisBeam   = 126;

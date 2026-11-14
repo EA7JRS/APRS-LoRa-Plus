@@ -19,6 +19,7 @@
 #include "nmea_core.h"
 #include "nmea2000.h"
 #include <string.h>
+#include <stdio.h>
 
 namespace NMEA_Core {
 
@@ -142,6 +143,7 @@ namespace NMEA_Core {
             uint8_t  toPort, toStarboard;
             AIS_Vessel::splitDimensions(s.info.length, s.info.beam, toBow, toStern, toPort, toStarboard);
             const char* name = s.info.name[0] ? s.info.name : callsign;
+            if (s.info.call[0]) snprintf(callsign, sizeof(callsign), "%s", s.info.call);   // distintivo maritimo del MMSI
             if (s.info.aisClass == AIS_Vessel::CLASS_A) {
                 vdmSequence_ = (uint8_t) ((vdmSequence_ + 1) % 10);
                 n = NMEA0183::aisType5(s.mmsi, callsign, name, s.info.shipType, toBow, toStern, toPort, toStarboard, s.info.draughtDm, vdmSequence_, line, sizeof(line));
@@ -183,7 +185,8 @@ namespace NMEA_Core {
         uint32_t mmsi = AIS_Vessel::validMmsi(info.mmsi) ? info.mmsi : NMEA0183::mmsiFromCallsign(base, options_.mid, 0);
         bool same = own_.used && strcmp(own_.callsign, callsign ? callsign : "") == 0 && own_.mmsi == mmsi
                  && own_.info.aisClass == info.aisClass && own_.info.length == info.length && own_.info.beam == info.beam
-                 && own_.info.draughtDm == info.draughtDm && own_.info.shipType == info.shipType && strcmp(own_.info.name, info.name) == 0;
+                 && own_.info.draughtDm == info.draughtDm && own_.info.shipType == info.shipType && strcmp(own_.info.name, info.name) == 0
+                 && strcmp(own_.info.call, info.call) == 0;
         if (same) return;
         own_            = NMEA0183::AisStation();
         own_.used       = true;

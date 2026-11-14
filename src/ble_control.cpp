@@ -1013,6 +1013,7 @@ namespace {
         j.text("call", b.callsign.c_str());
         j.unum("mmsi", b.aisMmsi);
         j.text("n", b.aisName.c_str());
+        j.text("mc", b.aisCall.c_str());                            // distintivo maritimo del MMSI
         j.num("t", v.id);
         const char cls[2] = { v.aisClass, 0 };
         j.text("cls", cls);
@@ -1043,6 +1044,7 @@ namespace {
             b.aisMmsi = m;
         }
         if (!doc["n"].isNull())    b.aisName   = String((const char*)(doc["n"] | ""));
+        if (!doc["mc"].isNull())   b.aisCall   = String((const char*)(doc["mc"] | ""));
         if (!doc["t"].isNull()) {
             const int t = doc["t"] | 0;
             if (t < 0 || t >= AIS_Vessel::typeCount()) { reply(cmd, id, "bad type"); return; }
@@ -1056,7 +1058,7 @@ namespace {
         if (!doc["dr"].isNull())   b.aisDraft  = constrain((float)(doc["dr"] | 0.0f), 0.0f, 25.5f);
         Config.enforceAisBeacon(b);                                 // SSID, simbolo, SmartBeacon y limites de la clase
         Beacon& cur = Config.beacons[index];
-        const bool changed = cur.callsign != b.callsign || cur.aisMmsi != b.aisMmsi || cur.aisName != b.aisName || cur.aisVesselType != b.aisVesselType
+        const bool changed = cur.callsign != b.callsign || cur.aisMmsi != b.aisMmsi || cur.aisName != b.aisName || cur.aisCall != b.aisCall || cur.aisVesselType != b.aisVesselType
                           || cur.aisLength != b.aisLength || cur.aisBeam != b.aisBeam || fabsf(cur.aisDraft - b.aisDraft) > 0.01f;
         if (changed) {
             cur = b;
@@ -2103,7 +2105,7 @@ namespace {
         else if (strcmp(cmd, "profile") == 0) setProfile(doc["i"] | -1, cmd, id);
         else if (strcmp(cmd, "lora") == 0)    setLora(doc["i"] | -1, cmd, id);
         else if (strcmp(cmd, "vessel") == 0) {                     // sin campos: consulta; con campos: cambia los datos del barco
-            if (doc["call"].isNull() && doc["mmsi"].isNull() && doc["n"].isNull() && doc["t"].isNull() && doc["len"].isNull()
+            if (doc["call"].isNull() && doc["mmsi"].isNull() && doc["n"].isNull() && doc["mc"].isNull() && doc["t"].isNull() && doc["len"].isNull()
                 && doc["beam"].isNull() && doc["dr"].isNull()) sendVessel();
             else setVessel(doc, cmd, id);
         }

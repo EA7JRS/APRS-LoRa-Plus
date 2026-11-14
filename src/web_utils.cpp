@@ -190,6 +190,7 @@ namespace WEB_Utils {
             if (beacon.aisProfile) {                    // perfil nautico AIS: simbolo, SSID y SmartBeacon salen del tipo de embarcacion
                 beacon.aisVesselType = (uint8_t) getParamIntSafe(prefix + "aisVesselType", beacon.aisVesselType);
                 beacon.aisName       = getParamStringSafe(prefix + "aisName", beacon.aisName);
+                beacon.aisCall       = getParamStringSafe(prefix + "aisCall", beacon.aisCall);
                 beacon.aisMmsi       = (uint32_t) strtoul(getParamStringSafe(prefix + "aisMmsi", String(beacon.aisMmsi)).c_str(), nullptr, 10);
                 beacon.aisLength     = (uint16_t) constrain(getParamIntSafe(prefix + "aisLength", beacon.aisLength), 0, 999);
                 beacon.aisBeam       = (uint16_t) constrain(getParamIntSafe(prefix + "aisBeam", beacon.aisBeam), 0, 126);

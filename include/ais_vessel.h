@@ -58,6 +58,8 @@ namespace AIS_Vessel {
     // Nombre en mayusculas con los caracteres que admite AIS y que no rompen la etiqueta (sin , ; :), maximo 20
     size_t      sanitizeName(const char* name, char* out, size_t size);
     bool        validMmsi(uint32_t mmsi);
+    // Distintivo de llamada maritimo (el de la licencia de la estacion de barco, con el MMSI): A-Z 0-9, maximo 7
+    size_t      sanitizeCall(const char* call, char* out, size_t size);
     // Eslora admitida: clase B (recreo) 6 - 24 m; clase A sin limite practico (hasta 999 m). 0 = sin indicar
     uint16_t    clampLength(char aisClass, uint16_t length);               // MMSI de buque: 200000000 - 799999999
 
@@ -69,9 +71,11 @@ namespace AIS_Vessel {
         uint8_t     draughtDm   = 0;        // calado, decimas de metro
         uint8_t     shipType    = 0;
         char        name[21]    = {0};
+        char        call[8]     = {0};      // distintivo maritimo (vacio = el indicativo APRS sin SSID)
     };
 
-    // "AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;" (legible en aprs.fi) -> devuelve la longitud
+    // "AIS B-CS: SEA BREEZE, MMSI 224123456, call EBXY, 12x4 m, draft 1.8 m, sailing;" (legible en aprs.fi; ", call ..." solo
+    // con distintivo maritimo) -> devuelve la longitud
     // (0 si no cabe o los datos no son validos)
     size_t      buildTag(const Info& info, char* out, size_t size);
     // Busca la etiqueta en cualquier texto (comentario o trama completa); tambien la forma compacta anterior "AIS:C224123456,12x4x1.8,37,NAME;"
