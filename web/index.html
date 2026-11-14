@@ -64,9 +64,7 @@
             <button type="button" data-dev="rotor"><b>Rotor</b><small data-i="dRotor"></small></button>
             <button type="button" data-dev="gateway"><b>Gateway</b><small data-i="dGateway"></small></button>
             <button type="button" data-dev="display"><b>Display</b><small data-i="dDisplay"></small></button>
-            <button type="button" data-dev="plotter"><b data-i="gNautica"></b><small data-i="dPlotter"></small></button>
-            <button type="button" data-dev="maprs"><b>MAPRS</b><small data-i="dMaprs"></small></button>
-            <button type="button" data-dev="nmea2000"><b>NMEA 2000</b><small data-i="dNmea2000"></small></button>
+            <button type="button" data-dev="nautica"><b data-i="gNautica"></b><small data-i="dPlotter"></small></button>
         </div>
     </div>
 
@@ -111,7 +109,7 @@
     const T = {
         es: {
             sub: "Instala o actualiza el firmware conectando la placa por USB. Funciona en Chrome o Edge (ordenador o Android).",
-            s0: "Dispositivo", dTracker: "Tracker APRS multimodo (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Control de rotor de antenas compatible con Hamlib", dGateway: "iGate / pasarela APRS LoRa+", dDisplay: "Pantalla táctil grande para el tracker (por BLE)", gNautica: "Náutica", dPlotter: "Plotter náutico (pantalla Waveshare de 7\") e instrumento de viento (4\")", dMaprs: "Transponder AIS por APRS LoRa (LilyGO T3, 433 MHz)", dNmea2000: "Pasarela a NMEA 2000: estaciones APRS en el plotter Garmin (XIAO ESP32-S3)",
+            s0: "Dispositivo", dTracker: "Tracker APRS multimodo (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Control de rotor de antenas compatible con Hamlib", dGateway: "iGate / pasarela APRS LoRa+", dDisplay: "Pantalla táctil grande para el tracker (por BLE)", gNautica: "Náutica", dPlotter: "Plotter (7\"), instrumento de viento (4\"), transponder AIS MAPRS y pasarela NMEA 2000", dMaprs: "Transponder AIS por APRS LoRa (LilyGO T3, 433 MHz)", dNmea2000: "Pasarela a NMEA 2000: estaciones APRS en el plotter Garmin (XIAO ESP32-S3)",
             devNone: "Aún no hay versión publicada de este dispositivo en el instalador.", otherDev: "La placa conectada es otro dispositivo: ",
             uf2btn: "Descargar firmware (.uf2)", uf2help: "Raspberry Pi Pico 2 / Pico 2 W: conéctala con el botón BOOTSEL pulsado, aparece una unidad USB (RP2350); copia en ella el archivo .uf2 y la placa se reinicia con el firmware nuevo. La configuración se conserva.",
             nobrowser: "Este navegador no puede hablar con el puerto USB (Web Serial). Usa Chrome o Edge en un ordenador, o Chrome en Android con cable OTG.",
@@ -132,7 +130,7 @@
         },
         en: {
             sub: "Install or update the firmware by connecting the board over USB. Works in Chrome or Edge (computer or Android).",
-            s0: "Device", dTracker: "Multimode APRS tracker (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Hamlib-compatible antenna rotor controller", dGateway: "APRS LoRa+ iGate / gateway", dDisplay: "Large touch screen for the tracker (over BLE)", gNautica: "Nautical", dPlotter: "Chartplotter (Waveshare 7\" screen) and wind instrument (4\")", dMaprs: "AIS transponder over APRS LoRa (LilyGO T3, 433 MHz)", dNmea2000: "NMEA 2000 gateway: APRS stations on the Garmin plotter (XIAO ESP32-S3)",
+            s0: "Device", dTracker: "Multimode APRS tracker (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Hamlib-compatible antenna rotor controller", dGateway: "APRS LoRa+ iGate / gateway", dDisplay: "Large touch screen for the tracker (over BLE)", gNautica: "Nautical", dPlotter: "Chartplotter (7\"), wind instrument (4\"), MAPRS AIS transponder and NMEA 2000 gateway", dMaprs: "AIS transponder over APRS LoRa (LilyGO T3, 433 MHz)", dNmea2000: "NMEA 2000 gateway: APRS stations on the Garmin plotter (XIAO ESP32-S3)",
             devNone: "No release of this device is in the installer yet.", otherDev: "The connected board is another device: ",
             uf2btn: "Download firmware (.uf2)", uf2help: "Raspberry Pi Pico 2 / Pico 2 W: plug it in while holding BOOTSEL, a USB drive (RP2350) shows up; copy the .uf2 file to it and the board restarts with the new firmware. Settings are kept.",
             nobrowser: "This browser cannot talk to the USB port (Web Serial). Use Chrome or Edge on a computer, or Chrome on Android with an OTG cable.",
@@ -155,11 +153,21 @@
     let lang = (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en";
     const $ = id => document.getElementById(id);
     let latest = null, detected = null, device = "tracker", loadFailed = false;
-    const BASE = { tracker: "", rotor: "rotor/", gateway: "gateway/", display: "display/", plotter: "plotter/", maprs: "", nmea2000: "nmea2000/" };
-    const ALIAS = { nautica: "plotter", wind: "plotter", n2k: "nmea2000" };        // grupo Nautica: ...#nautica, y el instrumento de viento (device=wind) va con el plotter
-    // El MAPRS es una placa del tracker (misma carpeta); en el grupo Nautica solo se muestra esa placa. En Tracker siguen todas.
-    const FILTER = { maprs: n => /MAPRS/i.test(n) };
-    const base = () => BASE[device];
+    const BASE = { tracker: "", rotor: "rotor/", gateway: "gateway/", display: "display/" };
+    // Nautica: una sola tarjeta con las 4 placas (plotter 7", viento 4", MAPRS y pasarela NMEA 2000), que viven en tres
+    // carpetas distintas. Cada placa recuerda su carpeta (_base) para los manifiestos y el firmware.
+    const NAUTICA = [
+        { base: "plotter/" },                              // plotter (7") e instrumento de viento (4")
+        { base: "", filter: n => /MAPRS/i.test(n) },       // MAPRS: es una placa del tracker (misma carpeta)
+        { base: "nmea2000/" },                             // pasarela NMEA 2000 (XIAO)
+    ];
+    // Autodeteccion por USB -> dispositivo del instalador. El MAPRS no manda device= (sale como "tracker"): se enruta por el
+    // nombre de la placa. El plotter/viento (device=plotter/wind) y la pasarela (device=n2k) van a Nautica.
+    const ALIAS = { nautica: "nautica", maprs: "nautica", wind: "nautica", plotter: "nautica", n2k: "nautica" };
+    const FILTER = { tracker: n => !/MAPRS/i.test(n) };    // el MAPRS sale solo en Nautica, no en Tracker
+    const known = d => d === "nautica" || d in BASE;
+    const base = () => BASE[device] || "";
+    const boardBase = name => (latest && latest.boards[name] && latest.boards[name]._base != null) ? latest.boards[name]._base : base();
 
     // Contador anonimo (EA7JRS): GoatCounter (https://www.goatcounter.com), gratuito, sin cookies ni datos personales.
     // Para activarlo crea una cuenta, elige un codigo (p. ej. "ea7jrs") y ponlo aqui; vacio = sin contador y sin conexion a terceros.
@@ -238,11 +246,11 @@
         box.innerHTML = html;
         if (b.uf2) {                                              // Raspberry Pi Pico 2: se copia el .uf2 a la unidad de BOOTSEL
             manifestJson = null; inst.removeAttribute("manifest"); inst.style.display = "none";
-            $("uf2link").href = base() + b.uf2;
+            $("uf2link").href = boardBase(name) + b.uf2;
             uf2.hidden = false;
             return;
         }
-        manifestJson = base() + "manifests/" + name + ".json";
+        manifestJson = boardBase(name) + "manifests/" + name + ".json";
         inst.style.display = "";
         setInstallManifest();
     }
@@ -266,12 +274,40 @@
         } catch (e) { inst.setAttribute("manifest", manifestJson); }   // si falla, instala sin borrar
     }
 
+    function detectedHere() {                                     // dispositivo del instalador para la placa detectada
+        if (!detected) return null;
+        if (/MAPRS/i.test(detected.board || "")) return "nautica";
+        return ALIAS[detected.device] || detected.device || "tracker";
+    }
+    function pickDetectedBoard() {
+        if (detected && detectedHere() === device && latest && latest.boards[detected.board]) $("board").value = detected.board;
+    }
+
     function load(dev) {
         device = dev; latest = null; loadFailed = false;
         render();
+        if (dev === "nautica") { loadNautica(); return; }
         fetch(base() + "latest.json?_t=" + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-            .then(j => { latest = j; if (detected && (ALIAS[detected.device] || detected.device || "tracker") === device && latest.boards[detected.board]) $("board").value = detected.board; render(); })
+            .then(j => { latest = j; pickDetectedBoard(); render(); })
             .catch(() => { loadFailed = true; render(); });
+    }
+
+    async function loadNautica() {
+        try {
+            const parts = await Promise.all(NAUTICA.map(s =>
+                fetch(s.base + "latest.json?_t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null).then(j => ({ s, j }))));
+            const boards = {}; let version = null;
+            parts.forEach(({ s, j }) => {
+                if (!j) return; version = version || j.version;
+                Object.keys(j.boards || {}).forEach(n => {
+                    if (s.filter && !s.filter(n)) return;
+                    boards[n] = Object.assign({}, j.boards[n], { _base: s.base });
+                });
+            });
+            if (!version) { loadFailed = true; render(); return; }
+            latest = { version: version, boards: boards };
+            pickDetectedBoard(); render();
+        } catch (e) { loadFailed = true; render(); }
     }
 
     async function detect() {
@@ -310,8 +346,8 @@
         ev("detect/" + info.board);
         st.className = "status ok";
         st.textContent = t("found") + info.device + " · " + info.board + " · " + t("installed") + info.version + " · " + info.chip;
-        const dev = ALIAS[info.device] || info.device;
-        if (dev !== device) { load(dev in BASE ? dev : "tracker"); return; }      // otro dispositivo: se cambia solo
+        const dev = detectedHere();
+        if (dev !== device) { load(known(dev) ? dev : "tracker"); return; }       // otro dispositivo: se cambia solo
         if (latest && latest.boards[info.board]) $("board").value = info.board;
         else if (latest) { st.className = "status warn"; st.textContent += " — " + t("unknownBoard"); }
         showAvail();
@@ -331,7 +367,7 @@
     if (!("serial" in navigator)) { $("unsupported").hidden = false; $("detect").disabled = true; }
     let want = (location.hash || "").replace("#", "").toLowerCase();   // enlace directo: ...APRS-LoRa-Plus/#rotor
     if (want in ALIAS) want = ALIAS[want];
-    load(want in BASE ? want : "tracker");
+    load(known(want) ? want : "tracker");
 })();
 </script>
 </body>
