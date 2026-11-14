@@ -2064,7 +2064,7 @@ namespace {
                                         altitudeValue(hi, unitSystem), altitudeValue(lo, unitSystem));
         text(0, 29, line);
 
-        const int gx = 0, gy = 38, gw = PW, gh = 17;
+        const int gx = 0, gy = 38, gw = PW, gh = 17 + (PAGES_EXTRA ? 7 : 0);    // TFT: perfil mas alto (EA7JRS)
         pagesInk(INK_FRAME);
         pagesDrawRect(gx, gy, gw, gh, true);
         pagesInk(INK_GOOD);
@@ -2087,8 +2087,8 @@ namespace {
         char span[10], axis[14];
         formatAge((uint32_t)(points - 1) * altProfile.stepMs(), span, sizeof(span));
         snprintf(axis, sizeof(axis), "-%s", span);
-        text(1, 56, axis);
-        text(PW - 1 - 3 * 6, 56, "now");
+        text(1, gy + gh + 1, axis);
+        text(PW - 1 - 3 * 6, gy + gh + 1, "now");
     }
 
     // Tiempo de internet (la app lo manda con "wxnet": OpenWeatherMap / IQAir); arriba a la derecha "NET" para no confundirlo con un sensor
@@ -3868,7 +3868,7 @@ namespace PAGES_Utils {
     const uint8_t  TEAM_SCALE_COUNT   = sizeof(TEAM_SCALES_KM) / sizeof(TEAM_SCALES_KM[0]);
 
     void drawTeamRadar() {
-        const int cx = 106 + XR, cy = 37, radius = 18;
+        const int radius = PAGES_EXTRA ? 26 : 18, cx = PAGES_EXTRA ? PW - 4 - radius : 106 + XR, cy = PAGES_EXTRA ? 41 : 37;   // TFT: radar mayor (EA7JRS)
         double myLat = 0, myLon = 0;
         const bool haveMe = ownPosition(myLat, myLon);
         // escala: la menor que contiene a todos los miembros con posicion (con un 10 % de margen)
@@ -3918,8 +3918,9 @@ namespace PAGES_Utils {
             snprintf(line, sizeof(line), "%u%.6s %s", (unsigned)(i + 1), slot.call, distance);
             text(2, 11 + 9 * i, line);
         }
-        if (!haveMe) text(2, 56, "No own position");
-        else         text(2, 56, "1P zoom LP menu");
+        const int yHint = PAGES_EXTRA ? 62 : 56;
+        if (!haveMe) text(2, yHint, "No own position");
+        else         text(2, yHint, "1P zoom LP menu");
     }
 
     void drawTeamPage() {
