@@ -255,6 +255,9 @@ namespace {
     uint8_t         clockView           = 0;        // CLOCK: 0 = reloj, 1 = SUN (orto y ocaso), 2 = MOON (fase) (EA7JRS)
     uint8_t         wxView              = 0;        // TELEMETRY: 0 = sensores, 1 = ALERTS (avisos oficiales), 2 = SPACE WX (EA7JRS)
     uint8_t         alertTop            = 0;        // ALERTS: primera fila
+    uint8_t         alertSel            = 0;        // ALERTS: aviso marcado (LP lo abre)
+    bool            alertRead           = false;    // ALERTS: leyendo el aviso marcado entero
+    uint8_t         alertScroll         = 0;        // ALERTS: primera linea del texto a la vista
     uint32_t        msgWinUntil         = 0;        // ventana del mensaje recibido visible hasta este instante
     uint32_t        alertWinWakeMs      = 0;
     std::string     alertWinId;                     // aviso de la ventana que se ve
@@ -719,7 +722,8 @@ namespace {
     const int       XR                  = PAGES_W - 128;
     const int       COLS                = PAGES_W / 6;
     const int       ROW_Y0              = 11;
-    const int       ROW_PITCH           = 9;
+    const int       ROW_PITCH           = PAGES_EXTRA ? 10 : 9;     // TFT: una fila cada 10 px (aprovecha el alto; antes 9) (EA7JRS)
+    const int       ROW_HINT_Y          = ROW_Y0 + 5 * ROW_PITCH;   // ultima fila (ayuda / resumen bajo una lista de 5)
 
     HeardList       heard;
     AltProfile      altProfile;
@@ -787,6 +791,8 @@ namespace {
     uint8_t       mirrorPage = 0;
     uint32_t      mirrorMs = 0;
 
+    int           rowDy = 0;                                  // desplazamiento de las filas (BATTERY en las TFT)
+
     void row(uint8_t r, const char* format, ...) {
         char line[28];
         va_list args;
@@ -796,7 +802,7 @@ namespace {
         line[rowLimit] = '\0';              // 21 columnas de 6 px caben en 128 px, 26 en 160 (4 menos si hay un icono a la derecha)
         if (r < MIRROR_ROWS) snprintf(mirrorRows[r], sizeof(mirrorRows[r]), "%s", line);
         if (r == 0) pagesInk(INK_ACCENT);   // en color, la primera fila (el dato principal) en ambar
-        text(0, ROW_Y0 + r * ROW_PITCH, line);
+        text(0, ROW_Y0 + r * ROW_PITCH + rowDy, line);
         if (r == 0) pagesInk(INK_TEXT);
     }
 
@@ -1101,7 +1107,7 @@ namespace {
 
         // fila 0: indicativo y simbolo a la izquierda, tiempo hasta la proxima baliza a la derecha
         snprintf(line, sizeof(line), "%.9s %c", currentBeacon->callsign.c_str(), currentBeacon->symbol.length() > 0 ? currentBeacon->symbol[0] : ' ');
-        text(2, 11, line);
+        text(2, ROW_Y0 + 0 * ROW_PITCH, line);
         char next[16];
         if (beaconManualMode) {
             snprintf(next, sizeof(next), "TX manual");
@@ -1116,13 +1122,13 @@ namespace {
             formatShort(elapsed >= interval ? 0 : (interval - elapsed) / 1000, remaining, sizeof(remaining));
             snprintf(next, sizeof(next), "TX%s%s", smartBeaconActive ? "<" : " ", remaining);    // con SmartBeaconing puede salir antes
         }
-        text(PW - 2 - 6 * (int)strlen(next), 11, next);
+        text(PW - 2 - 6 * (int)strlen(next), ROW_Y0 + 0 * ROW_PITCH, next);
 
         // fila 1: fecha y hora UTC
         time_t t = now();
         if (year(t) < 2024) snprintf(line, sizeof(line), "--- no time ---");
         else snprintf(line, sizeof(line), "%02d/%02d/%04d %02d:%02d UTC", day(t), month(t), year(t), hour(t), minute(t));
-        text(2, 20, line);
+        text(2, ROW_Y0 + 1 * ROW_PITCH, line);
 
         // fila 2: posicion y estado del GPS (FIX, ~ ultima posicion, SLEEP)
         double lat, lon;
@@ -1133,7 +1139,7 @@ namespace {
             const char* state = !gpsIsActive ? "SLEEP" : (gps.location.isValid() ? "FIX" : "~");
             formatPosition(lat, lon, state, line, sizeof(line));
         }
-        text(2, 29, line);
+        text(2, ROW_Y0 + 2 * ROW_PITCH, line);
 
         // fila 3: locator, banda LoRa y satelites con calidad HDOP
         const char* tag = "--";
@@ -1148,7 +1154,7 @@ namespace {
         if (gps.hdop.isValid()) quality = gps.hdop.hdop() > 5 ? 'X' : (gps.hdop.hdop() > 2 ? '-' : '+');
         if (gpsIsActive) snprintf(line, sizeof(line), "%s %s %02u%c", locator, tag, (unsigned)gps.satellites.value(), quality);
         else snprintf(line, sizeof(line), "%s %s --", locator, tag);
-        text(2, 38, line);
+        text(2, ROW_Y0 + 3 * ROW_PITCH, line);
 
         // fila 4: ultima estacion recibida
         if (lastRxCall[0]) {
@@ -1158,7 +1164,7 @@ namespace {
         } else {
             snprintf(line, sizeof(line), "Rx ---");
         }
-        text(2, 47, line);
+        text(2, ROW_Y0 + 4 * ROW_PITCH, line);
 
         // fila 5: avisos (mensajes, correo Winlink) o altitud, velocidad y rumbo (con brujula en parado)
         if (msgLog.unread() > 0) snprintf(line, sizeof(line), "** NEW MSG: %u **", (unsigned)msgLog.unread());
@@ -1172,7 +1178,7 @@ namespace {
             snprintf(line, sizeof(line), "A=%s %s %03.0f", altText, speedText, courseOrHeading);
         }
         else snprintf(line, sizeof(line), "A=--- GPS sleeping");
-        text(2, 56, line);
+        text(2, ROW_Y0 + 5 * ROW_PITCH, line);
     }
 
     // Brujula pequena hacia la estacion: norte arriba, o rumbo arriba si el GPS da un rumbo fiable
@@ -1194,21 +1200,27 @@ namespace {
         pagesInk(INK_TEXT);
     }
 
-    // Icono APRS de 24x24 (tabla primaria o secundaria); con superposicion, la letra o el digito va en el centro
+    // Icono APRS (tabla primaria o secundaria): 40x40 a color en las TFT, 24x24 en las OLED; con superposicion, la letra o el
+    // digito va en el centro
+    #ifdef HAS_TFT
+        const int APRS_ICON_PX = 40;
+    #else
+        const int APRS_ICON_PX = 24;
+    #endif
     bool drawAprsIcon(int x, int y, char symbol, char table) {
         if (symbol < APRS_ICON_FIRST || symbol >= APRS_ICON_FIRST + APRS_ICON_COUNT) return false;
         #ifdef HAS_TFT
             {   // a color, como en la app y en aprs.fi; superposicion (letra o digito) con su propio dibujo (Manuel - EA7JRS)
-                const AprsIconColor24& ic = (table == '/' ? APRS_COLOR24_PRIMARY : APRS_COLOR24_SECONDARY)[symbol - APRS_ICON_FIRST];
-                pagesIcon4(x, y, 24, ic.c, ic.a, ic.px, false);
+                const AprsIconColor40& ic = (table == '/' ? APRS_COLOR40_PRIMARY : APRS_COLOR40_SECONDARY)[symbol - APRS_ICON_FIRST];
+                pagesIcon4(x, y, 40, ic.c, ic.a, ic.px, false);
                 if (table != '/' && table != '\\') {
                     const char* o = strchr(APRS_COLOR_OVERLAYS, table);
                     if (o && table) {
-                        const AprsIconColor24& ov = APRS_COLOR24_OVERLAY[o - APRS_COLOR_OVERLAYS];
-                        pagesIcon4(x, y, 24, ov.c, ov.a, ov.px, false);
+                        const AprsIconColor40& ov = APRS_COLOR40_OVERLAY[o - APRS_COLOR_OVERLAYS];
+                        pagesIcon4(x, y, 40, ov.c, ov.a, ov.px, false);
                     } else {
                         char t[2] = { table, '\0' };
-                        pagesText(x + 9, y + 8, t, 1, false);
+                        pagesText(x + 17, y + 16, t, 1, false);
                     }
                 }
                 return true;
@@ -1268,17 +1280,29 @@ namespace {
         }
 
         const bool showIcon = lastView == 0 && s->symbol >= APRS_ICON_FIRST && s->symbol < APRS_ICON_FIRST + APRS_ICON_COUNT;
+        // Hueco del icono: a la derecha de las filas 2 a 5 (en las TFT de 160 px, 58 x 41 px: icono de 40 centrado; en las OLED de
+        // 128 px, la esquina de 24) (EA7JRS)
+        #ifdef HAS_TFT
+            const int ICON_LIMIT = COLS - 9, ICON_FROM_ROW = 2;
+            const int ICON_X = ICON_LIMIT * 6 + (PW - ICON_LIMIT * 6 - APRS_ICON_PX) / 2;
+            const int ICON_TOP = ROW_Y0 + 2 * ROW_PITCH, ICON_BOTTOM = 54 + PAGES_EXTRA;      // de la fila 2 a la barra
+            const int ICON_Y = min(ICON_TOP + (ICON_BOTTOM - ICON_TOP - APRS_ICON_PX) / 2, ICON_BOTTOM - 1 - APRS_ICON_PX);
+        #else
+            const int ICON_LIMIT = COLS - 4, ICON_FROM_ROW = 3;
+            const int ICON_X = 104 + XR, ICON_Y = 40;
+        #endif
         if (lastView == 0) {
             if (s->kind == KIND_OBJECT && s->comment[0]) row(1, "OBJ %.17s", s->comment);
             else row(1, "%-7s %.13s", kindName(s->kind), s->device);
+            if (showIcon && ICON_FROM_ROW == 2) rowLimit = ICON_LIMIT;  // filas 2 a 5 (TFT) o 3 a 5 (OLED): dejan libre el hueco del icono
             if (!s->hasPosition) {
                 row(2, "No position");
-                if (showIcon) rowLimit = COLS - 4;
+                if (showIcon) rowLimit = ICON_LIMIT;
                 row(3, "Last: %s", packetTypeName(s->type));
             } else {
                 if (haveBearing) row(2, "D %s %s %03d", distance, cardinal16(bearing), (int)lround(bearing) % 360);
                 else row(2, "D --- (no own GPS)");
-                if (showIcon) rowLimit = COLS - 4;                     // filas 3 a 5: dejan libre la esquina inferior derecha (x >= PW - 24) para el icono
+                if (showIcon) rowLimit = ICON_LIMIT;
                 char speedText[12], altText[12];
                 formatSpeedUnits(s->speed, unitSystem, speedText, sizeof(speedText));
                 formatAltitudeUnits(s->altitude, unitSystem, altText, sizeof(altText));
@@ -1290,7 +1314,7 @@ namespace {
             row(4, "S %s", smeter + 1);                           // S espacio valor
             row(5, "Pkts %u  %s", (unsigned)s->packets, s->status[0] ? s->status : packetTypeName(s->type));
             rowLimit = COLS;
-            if (showIcon) drawAprsIcon(104 + XR, 40, s->symbol, s->table);
+            if (showIcon) drawAprsIcon(ICON_X, ICON_Y, s->symbol, s->table);
             else if (haveBearing) miniCompass(114 + XR, 39, 9, (float)bearing);
         } else {
             if (s->hasPosition) {
@@ -1373,8 +1397,11 @@ namespace {
         for (uint8_t i = 0; i < ROWS; i++) {
             const Station* s = (top + i < n) ? heard.byRecent(view[top + i]) : nullptr;
             if (!s) break;
-            char distance[10] = "---", age[8], line[28];
-            if (s->hasPosition && haveMe) fmtDist(distanceKm(myLat, myLon, s->lat, s->lon), distance, sizeof(distance));
+            char distance[10] = "---", age[8], line[32], course[6] = "---";
+            if (s->hasPosition && haveMe) {
+                fmtDist(distanceKm(myLat, myLon, s->lat, s->lon), distance, sizeof(distance));
+                snprintf(course, sizeof(course), "%03d", (int)lround(bearingDeg(myLat, myLon, s->lat, s->lon)) % 360);
+            }
             formatAge(millis() - s->lastMs, age, sizeof(age));
             int y = ROW_Y0 + i * ROW_PITCH;
             bool selected = listBrowse && top + i == listCursor;
@@ -1385,13 +1412,14 @@ namespace {
                 if (XR >= 16 && s->symbol >= APRS_ICON_FIRST && s->symbol < APRS_ICON_FIRST + APRS_ICON_COUNT) {
                     const AprsIconColor8& ic = (s->table == '/' ? APRS_COLOR8_PRIMARY : APRS_COLOR8_SECONDARY)[s->symbol - APRS_ICON_FIRST];
                     pagesIcon4(0, y - 1, 8, ic.c, ic.a, ic.px, selected);
-                    snprintf(line, sizeof(line), "%-9.9s%7s%5s", s->call, distance, age);
+                    snprintf(line, sizeof(line), "%-9.9s%7s %3s%4s", s->call, distance, course, age);   // rumbo hacia la estacion, en grados (EA7JRS)
                     pagesText(11, y, line, 1, selected);
                     iconDrawn = true;
                 }
             #endif
             if (!iconDrawn) {
-                snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, age);
+                if (XR >= 16) snprintf(line, sizeof(line), "%c %-9.9s%6s %3s%4s", kindLetter(s->kind), s->call, distance, course, age);
+                else          snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, age);
                 pagesText(0, y, line, 1, selected);
             }
             pagesInk(INK_TEXT);
@@ -1399,7 +1427,7 @@ namespace {
         char line[28];
         if (listBrowse) snprintf(line, sizeof(line), "1P dn LP goto 2P exit");
         else snprintf(line, sizeof(line), "%u heard  %s", (unsigned)heard.count(), listSort == SORT_NEAREST ? "nearest" : listSort == SORT_NAME ? "by name" : "recent");
-        text(2, 56, line);
+        text(2, ROW_HINT_Y, line);
     }
 
     uint32_t epochNow() {
@@ -1484,7 +1512,7 @@ namespace {
         if (msgMode == MM_BROWSE) snprintf(line, sizeof(line), "1P dn LP open 2P exit");
         else if (msgLog.unread() > 0) snprintf(line, sizeof(line), "%u new  Hold: read", (unsigned)msgLog.unread());   // el menu abre el mensaje sin leer mas reciente
         else snprintf(line, sizeof(line), "Hold: read / reply");
-        text(2, 56, line);
+        text(2, ROW_HINT_Y, line);
     }
 
     void drawMessageDetail() {
@@ -1498,12 +1526,13 @@ namespace {
         const char* label = stateLabel(state);
         text(PW - 2 - 6 * (int)strlen(label), 11, label);
         formatMessageDateTime(e->epoch, line, sizeof(line));
-        text(2, 20, line);
+        text(2, ROW_Y0 + ROW_PITCH, line);
         size_t position = 0;
         char piece[32];
         int lines = 0;
-        for (int r = 0; r < 4 && wrapNext(e->text, position, COLS, piece, sizeof(piece)); r++) { text(0, 30 + r * 8, piece); lines++; }
-        if (lines <= 3) text(2, 56, keyboardConnected ? "Hold: reply" : "Hold: quick reply");           // si el texto deja libre la ultima linea
+        const int pitch = PAGES_EXTRA ? 9 : 8;                    // TFT: lineas del texto algo mas separadas
+        for (int r = 0; r < 4 && wrapNext(e->text, position, COLS, piece, sizeof(piece)); r++) { text(0, (PAGES_EXTRA ? 31 : 30) + r * pitch, piece); lines++; }
+        if (lines <= 3) text(2, ROW_HINT_Y, keyboardConnected ? "Hold: reply" : "Hold: quick reply");           // si el texto deja libre la ultima linea
     }
 
     void drawMessages() {
@@ -1694,7 +1723,7 @@ namespace {
         }
 
         // cielo a la derecha: anillos de 0 y 45 grados de elevacion, norte arriba; relleno = usado en el fix
-        const int r = 22, cx = PW - 2 - r, cy = 37;
+        const int r = 22 + PAGES_EXTRA * 3 / 8, cx = PW - 2 - r, cy = 37 + PAGES_EXTRA / 4;   // 28 px en las TFT (antes 22)
         pagesInk(INK_MUTED);
         pagesDrawCircle(cx, cy, r, true);
         pagesDrawCircle(cx, cy, r / 2, true);
@@ -1711,7 +1740,7 @@ namespace {
         }
         pagesInk(INK_TEXT);
 
-        rowLimit = COLS - 9;                                // las filas dejan libre el cielo
+        rowLimit = min(COLS - 9, (cx - r - 2) / 6);         // las filas dejan libre el cielo
         if (n == 0) {
             row(0, "No GSV data");
             row(1, gpsIsActive ? "waiting..." : "GPS off");
@@ -1864,7 +1893,7 @@ namespace {
     }
 
     void drawCompass() {
-        const int cx = 100 + XR, cy = 37, radius = 22;
+        const int radius = 22 + PAGES_EXTRA * 3 / 8, cx = PAGES_EXTRA ? PW - 4 - radius : 100 + XR, cy = 37 + PAGES_EXTRA / 4;   // 28 px en las TFT
         bool valid = fusion.valid();
         float decl = currentDeclination();
         float trueHeading = valid ? fusion.heading() : 0.0f;
@@ -1929,7 +1958,8 @@ namespace {
             pagesFillCircle(cx, cy, 1, true);
         }
 
-        // lectura numerica
+        // lectura numerica; en las TFT las lineas de abajo se reparten hasta la barra (EA7JRS)
+        const int L1 = PAGES_EXTRA ? 41 : 38, L2 = PAGES_EXTRA ? 51 : 47, L3 = PAGES_EXTRA ? 61 : 56;
         char label[8];
         snprintf(label, sizeof(label), "HDG %c", northTrue ? 'T' : 'M');
         text(2, 11, label);
@@ -1940,8 +1970,8 @@ namespace {
             pagesInk(INK_ACCENT);
             text(2, 20, value, 3);
             pagesInk(INK_TEXT);
-            if (valid) text(2, 46, cardinal16(heading), 2);
-            else text(2, 52, "no heading");
+            if (valid) text(2, PAGES_EXTRA ? 50 : 46, cardinal16(heading), 2);
+            else text(2, PAGES_EXTRA ? 56 : 52, "no heading");
             return;
         }
         pagesInk(INK_ACCENT);
@@ -1949,7 +1979,7 @@ namespace {
         pagesInk(INK_TEXT);
         if (valid) text(42, 24, cardinal16(heading));
         if (!targetOk) {
-            text(2, 38, ownPosition(myLat, myLon) ? "no target pos" : "no own pos");
+            text(2, L1, ownPosition(myLat, myLon) ? "no target pos" : "no own pos");
             return;
         }
         double km = distanceKm(myLat, myLon, target->lat, target->lon);
@@ -1962,15 +1992,15 @@ namespace {
         } else {
             snprintf(line, sizeof(line), "B%03d", (int)lround(bearing) % 360);
         }
-        text(2, 38, line);
+        text(2, L1, line);
         pagesInk(INK_TEXT);
         if (km < 0.05) {
             pagesInk(INK_GOOD);
-            text(2, 47, "ARRIVED");
+            text(2, L2, "ARRIVED");
             pagesInk(INK_TEXT);
             return;
         }
-        text(2, 47, distance);
+        text(2, L2, distance);
         float speed = GPS_Utils::getSpeedKmph();
         if (gpsIsActive && speed >= 2.0f && km / speed < 99.0) {
             char eta[12];
@@ -1979,7 +2009,7 @@ namespace {
         } else {
             snprintf(line, sizeof(line), "ETA ---");
         }
-        text(2, 56, line);
+        text(2, L3, line);
     }
 
     void drawAltimeter() {
@@ -2042,7 +2072,7 @@ namespace {
                                         altitudeValue(hi, unitSystem), altitudeValue(lo, unitSystem));
         text(0, 29, line);
 
-        const int gx = 0, gy = 38, gw = PW, gh = 17;
+        const int gx = 0, gy = 38, gw = PW, gh = 17 + (PAGES_EXTRA ? 7 : 0);    // TFT: perfil mas alto (EA7JRS)
         pagesInk(INK_FRAME);
         pagesDrawRect(gx, gy, gw, gh, true);
         pagesInk(INK_GOOD);
@@ -2065,8 +2095,8 @@ namespace {
         char span[10], axis[14];
         formatAge((uint32_t)(points - 1) * altProfile.stepMs(), span, sizeof(span));
         snprintf(axis, sizeof(axis), "-%s", span);
-        text(1, 56, axis);
-        text(PW - 1 - 3 * 6, 56, "now");
+        text(1, gy + gh + 1, axis);
+        text(PW - 1 - 3 * 6, gy + gh + 1, "now");
     }
 
     // Tiempo de internet (la app lo manda con "wxnet": OpenWeatherMap / IQAir); arriba a la derecha "NET" para no confundirlo con un sensor
@@ -2110,7 +2140,9 @@ namespace {
     void drawWxSensors();
     void drawAlertsView();
     void drawSpaceView();
+    void drawAlertReader();
     void drawWx() {
+        if (wxView == 1 && alertRead) { drawAlertReader(); return; }
         if (wxView == 1) { drawAlertsView(); return; }
         if (wxView == 2) { if (ALERTS::hasSpace()) { drawSpaceView(); return; } wxView = 0; }
         drawWxSensors();
@@ -2246,7 +2278,7 @@ namespace {
 
     // ---- Ventanas emergentes (Manuel - EA7JRS): mensaje, alarma, avisos oficiales. Sobre la pagina, con marco doble,
     // cabecera del color del tipo, contenido y una barra de botones abajo. En monocromo, igual sin colores.
-    const int WIN_X = 4, WIN_Y = 2, WIN_W = PAGES_W - 8, WIN_H = 62;
+    const int WIN_X = 4, WIN_Y = PAGES_EXTRA ? 10 : 2, WIN_W = PAGES_W - 8, WIN_H = 62;     // en las TFT, donde estaba (el cuerpo ya no baja 8 px)
     const int WIN_COLS = (PAGES_W - 8 - 10) / 6;            // 23 columnas en 160 px, 18 en 128
 
     enum WinIcon : uint8_t { WI_NONE, WI_MAIL, WI_WARN, WI_SHIP, WI_PERSON, WI_WAVE, WI_QUAKE, WI_SUN, WI_RADIO, WI_WIND };
@@ -2417,7 +2449,7 @@ namespace {
             else line[0] = '\0';
             winLine(3, line, INK_MUTED);
         }
-        winButtons(ink, ALERTS::sounding() ? "1P mute  LP list" : "1P close  LP list", true);
+        winButtons(ink, ALERTS::sounding() ? "1P mute  LP read" : "1P close  LP read", true);
     }
 
     // Ventana del mensaje recibido: remitente en grande, sin leer, hora y el principio del texto en dos lineas
@@ -2483,11 +2515,16 @@ namespace {
         header("ALERTS", right);
         if (L.size() == 0) { row(0, "No alerts in force"); row(2, "From the app (internet)"); row(3, "and NOAA Weather Radio"); return; }
         const uint8_t ROWS = 6;
+        if (alertSel >= L.size()) alertSel = (uint8_t)(L.size() - 1);
+        if (alertSel < alertTop) alertTop = alertSel;
+        if (alertSel >= alertTop + ROWS) alertTop = (uint8_t)(alertSel - ROWS + 1);
         if (alertTop + ROWS > L.size()) alertTop = L.size() > ROWS ? (uint8_t)(L.size() - ROWS) : 0;
         rowLimit = COLS - 2;
         for (uint8_t i = 0; i < ROWS && alertTop + i < L.size(); i++) {
             const plotter::Alert& a = L[alertTop + i];
             const int y = ROW_Y0 + i * ROW_PITCH;
+            const bool sel = alertTop + i == alertSel;
+            if (sel) { pagesInk(INK_SEL); pagesFillRect(10, y - 1, PW - 10, 9, true); }
             pagesInk(levelInk(a.level));
             if (a.level > 0) pagesFillRect(0, y, 8, 8, true);
             else pagesDrawRect(0, y, 8, 8, true);
@@ -2496,11 +2533,93 @@ namespace {
             snprintf(line, sizeof(line), "%s %s", a.event.c_str(), a.area.c_str());
             line[COLS - 2] = '\0';
             if (i < MIRROR_ROWS) snprintf(mirrorRows[i], sizeof(mirrorRows[i]), "%s", line);
-            if (i == 0) pagesInk(INK_ACCENT);
-            text(11, y, line);
+            if (sel) pagesText(11, y, line, 1, true);
+            else text(11, y, line);
             pagesInk(INK_TEXT);
         }
         rowLimit = COLS;
+    }
+
+    // ALERTS > aviso entero (EA7JRS): tipo, zona, vigencia, texto e instrucciones, partido por palabras; 1P baja una
+    // pantalla (al final, el aviso siguiente), 2P vuelve a la lista
+    static void alertLines(const plotter::Alert& a, std::vector<std::string>& out, uint8_t& accentLines) {
+        const size_t W = (size_t)COLS;
+        auto wrap = [&](const std::string& s) {
+            size_t i = 0;
+            while (i < s.size()) {
+                while (i < s.size() && s[i] == ' ') i++;
+                if (i >= s.size()) break;
+                size_t n = s.size() - i;
+                if (n > W) {
+                    n = W;
+                    size_t k = n;
+                    while (k > 0 && s[i + k] != ' ') k--;
+                    if (k > W / 3) n = k;
+                }
+                out.push_back(s.substr(i, n));
+                i += n;
+            }
+        };
+        out.clear();
+        wrap(a.event);
+        accentLines = (uint8_t)out.size();
+        wrap(a.area);
+        char from[16], to[16], line[40];
+        fmtWhen(a.onset, from, sizeof(from));
+        fmtWhen(a.expires, to, sizeof(to));
+        if (from[0] && to[0]) { snprintf(line, sizeof(line), "From %s", from); out.push_back(line); snprintf(line, sizeof(line), "To   %s", to); out.push_back(line); }
+        else if (to[0]) { snprintf(line, sizeof(line), "Until %s", to); out.push_back(line); }
+        else if (from[0]) { snprintf(line, sizeof(line), "Since %s", from); out.push_back(line); }
+        wrap(a.text);
+        wrap(a.instruction);
+        if (a.hasPos()) { snprintf(line, sizeof(line), "%.3f %.3f", a.lat, a.lon); out.push_back(line); }
+        snprintf(line, sizeof(line), "Source %s", plotter::alertSrcName(a.src));
+        out.push_back(line);
+    }
+
+    void drawAlertReader() {
+        const plotter::AlertList& L = ALERTS::list();
+        if (L.size() == 0) { alertRead = false; drawAlertsView(); return; }
+        if (alertSel >= L.size()) alertSel = (uint8_t)(L.size() - 1);
+        const plotter::Alert& a = L[alertSel];
+        std::vector<std::string> lines;
+        uint8_t accent = 0;
+        alertLines(a, lines, accent);
+        const uint8_t ROWS = 6;
+        if (alertScroll >= lines.size()) alertScroll = 0;
+        char right[10];
+        snprintf(right, sizeof(right), "%u/%u", (unsigned)(alertSel + 1), (unsigned)L.size());
+        header(a.level >= 3 ? "RED ALERT" : a.level == 2 ? "ORANGE ALERT" : a.level == 1 ? "YELLOW ALERT" : "ALERT", right);
+        pagesInk(levelInk(a.level));
+        pagesFillRect(0, ROW_Y0 - 1, 2, ROWS * ROW_PITCH, true);      // franja del color del nivel
+        for (uint8_t i = 0; i < ROWS && alertScroll + i < lines.size(); i++) {
+            const uint8_t k = alertScroll + i;
+            pagesInk(k < accent ? levelInk(a.level) : INK_TEXT);
+            const std::string& t = lines[k];
+            if (i < MIRROR_ROWS) snprintf(mirrorRows[i], sizeof(mirrorRows[i]), "%s", t.c_str());
+            text(4, ROW_Y0 + i * ROW_PITCH, t.c_str());
+        }
+        pagesInk(INK_MUTED);
+        if (alertScroll + ROWS < lines.size()) text(PW - 6, ROW_Y0 + (ROWS - 1) * ROW_PITCH, "v");     // hay mas abajo
+        pagesInk(INK_TEXT);
+    }
+
+    static bool scrollAlertReader(int direction) {
+        const plotter::AlertList& L = ALERTS::list();
+        if (L.size() == 0) { alertRead = false; return false; }
+        std::vector<std::string> lines;
+        uint8_t accent = 0;
+        alertLines(L[alertSel < L.size() ? alertSel : 0], lines, accent);
+        const uint8_t STEP = 5;                                    // deja una linea de la pantalla anterior
+        if (direction > 0) {
+            if (alertScroll + 6 < lines.size()) { alertScroll += STEP; return true; }
+            if (alertSel + 1 < L.size()) { alertSel++; alertScroll = 0; return true; }
+            alertScroll = 0;                                       // ultimo aviso: vuelve al principio
+            return true;
+        }
+        if (alertScroll > 0) { alertScroll = alertScroll > STEP ? alertScroll - STEP : 0; return true; }
+        if (alertSel > 0) { alertSel--; alertScroll = 0; return true; }
+        return true;
     }
 
     // TELEMETRY > SPACE WX: escalas G / R / S, flujo, rayos X, campo y viento solar, y el Kp de 24 h en barras
@@ -2548,10 +2667,11 @@ namespace {
 
     static bool moveWxView(int direction) {
         if (page != PAGE_WX) return false;
-        if (wxView == 1 && direction != 0) {                     // ALERTS: pasa las filas si no caben
+        if (wxView == 1 && alertRead && direction != 0) return scrollAlertReader(direction);
+        if (wxView == 1 && direction != 0) {                     // ALERTS: el cursor baja y sube por la lista
             const plotter::AlertList& L = ALERTS::list();
-            if (direction > 0 && alertTop + 6 < L.size()) { alertTop++; return true; }
-            if (direction < 0 && alertTop > 0) { alertTop--; return true; }
+            if (direction > 0 && alertSel + 1 < L.size()) { alertSel++; return true; }
+            if (direction < 0 && alertSel > 0) { alertSel--; return true; }
         }
         uint8_t seq[3], n = 0;
         seq[n++] = 0;
@@ -2563,6 +2683,8 @@ namespace {
         if (to < 0 || to >= n) return false;
         wxView = seq[to];
         alertTop = 0;
+        alertSel = 0;
+        alertRead = false;
         return true;
     }
 
@@ -2715,7 +2837,12 @@ namespace {
         pagesFillCircle(cx, cy, r, true);
         for (int k = 0; k < 8; k++) {
             const float a = k * (float)PI / 4;
-            pagesFillRect(cx + (int)lroundf((r + 2) * cosf(a)), cy + (int)lroundf((r + 2) * sinf(a)), 1, 1, true);
+            if (r >= 6) {                                       // grande: rayos de 3 px
+                pagesDrawLine(cx + (int)lroundf((r + 2) * cosf(a)), cy + (int)lroundf((r + 2) * sinf(a)),
+                              cx + (int)lroundf((r + 4) * cosf(a)), cy + (int)lroundf((r + 4) * sinf(a)), true);
+            } else {
+                pagesFillRect(cx + (int)lroundf((r + 2) * cosf(a)), cy + (int)lroundf((r + 2) * sinf(a)), 1, 1, true);
+            }
         }
         pagesInk(INK_TEXT);
     }
@@ -2755,8 +2882,9 @@ namespace {
         char a[6], b[6];
 
         const bool big = XR >= 16;                                   // 160 px: arco mayor
-        const int R = big ? 21 : 15;
-        const int cx = PW - (big ? 8 : 2) - R, hy = 46;
+        // TFT (EA7JRS): con el sitio que sobra encima de la barra, arco de 28 px, horizonte mas abajo y sol mayor
+        const int R = PAGES_EXTRA ? 28 : (big ? 21 : 15);
+        const int cx = PW - (PAGES_EXTRA ? 4 : (big ? 8 : 2)) - R, hy = PAGES_EXTRA ? 54 : 46;
         rowLimit = min(COLS, (cx - R - 2) / 6);
         int dayLen = 0;
         if (hasRise) {
@@ -2812,10 +2940,10 @@ namespace {
         frac = constrain(frac, 0.0f, 1.0f);
         const float ang = frac * (float)PI;
         if (up) {
-            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), 4);
+            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), PAGES_EXTRA ? 6 : 4);
         } else {
             pagesInk(INK_NIGHT);
-            pagesDrawCircle(cx + (int)lroundf(R * cosf(ang)), hy + (int)lroundf(R * 0.25f * sinf(ang)), 3, true);
+            pagesDrawCircle(cx + (int)lroundf(R * cosf(ang)), hy + (int)lroundf(R * 0.25f * sinf(ang)), PAGES_EXTRA ? 4 : 3, true);
             pagesInk(INK_TEXT);
         }
     }
@@ -2831,8 +2959,8 @@ namespace {
         snprintf(right, sizeof(right), "%d%%", (int)lround(mi.lit * 100));
         header("MOON", right);
         const bool big = XR >= 16;
-        const int r = big ? 24 : 17;
-        const int cx = PW - 2 - r, cy = 37;
+        const int r = PAGES_EXTRA ? 27 : (big ? 24 : 17);           // TFT: casi todo el alto libre (EA7JRS)
+        const int cx = PW - 2 - r, cy = 37 + (PAGES_EXTRA ? 3 : 0);
         rowLimit = min(COLS, (cx - r - 2) / 6);
         row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
         if (big) row(1, "Lit %d%% Age %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
@@ -2895,19 +3023,24 @@ namespace {
         int offsetMin = zoneOffsetMinutes(zoneMode, zoneHalfHours, (int64_t)t, &dst);
         time_t local = t + (time_t)offsetMin * 60;
 
+        // Filas: en las TFT se reparten por el sitio que sobra encima de la barra (EA7JRS)
+        const int Y_TIME = PAGES_EXTRA ? 15 : 13, Y_DATE = PAGES_EXTRA ? 43 : 40, Y_UTC = PAGES_EXTRA ? 52 : 48, Y_SKY = PAGES_EXTRA ? 61 : 56;
         char buffer[48];
         int hours = hour(local);
         if (clock24h) snprintf(buffer, sizeof(buffer), "%02d:%02d", hours, minute(local));
         else snprintf(buffer, sizeof(buffer), "%2d:%02d", hours % 12 == 0 ? 12 : hours % 12, minute(local));
+        // hora y segundos centrados como un bloque (5 cifras de 18 px, 4 de hueco y 2 de 12 px)
+        const int x0 = (PW - (5 * 18 + 4 + 2 * 12)) / 2;
         pagesInk(INK_ACCENT);
-        text(3 + XR / 2, 13, buffer, 3);
+        text(x0, Y_TIME, buffer, 3);
         pagesInk(INK_TEXT);
-        if (!clock24h) text(100 + XR / 2, 11, hours >= 12 ? "PM" : "AM");
+        if (!clock24h) text(x0 + 5 * 18 + 6, Y_TIME - 2, hours >= 12 ? "PM" : "AM");
         snprintf(buffer, sizeof(buffer), "%02d", second(local));
-        text(98 + XR / 2, 20, buffer, 2);
+        text(x0 + 5 * 18 + 4, Y_TIME + 7, buffer, 2);
 
         snprintf(buffer, sizeof(buffer), "%s %02d/%02d/%04d", weekdayName(weekdayIndex((int64_t)local)), day(local), month(local), year(local));
-        text(4, 40, buffer);
+        text(4, Y_DATE, buffer);
+        int textRight = 4 + 6 * (int)strlen(buffer);            // donde acaba el texto mas largo (el sol o la luna van a su derecha)
 
         // UTC y zona en uso
         char zone[16] = "";
@@ -2918,7 +3051,16 @@ namespace {
         }
         if (zone[0]) snprintf(buffer, sizeof(buffer), "UTC %02d:%02d  %s", hour(t), minute(t), zone);
         else snprintf(buffer, sizeof(buffer), "UTC %02d:%02d", hour(t), minute(t));
-        text(4, 48, buffer);
+        text(4, Y_UTC, buffer);
+        textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
+        // hueco del dibujo: a la derecha de las tres lineas, desde la fecha hasta la barra; el disco centrado en el
+        auto skyIcon = [&](int& cx, int& cy, int& r) {
+            const int left = textRight + 2, top = Y_DATE, bottom = 53 + PAGES_EXTRA;
+            r = min((PW - left) / 2 - 1, (bottom - top) / 2);
+            if (r > 12) r = 12;
+            cx = left + (PW - left) / 2;
+            cy = (top + bottom) / 2;
+        };
 
         // orto y ocaso con la posicion propia; cada 4 s se alterna con la luna (fase, iluminada, salida y puesta); en
         // pantallas de 160 px, el sol o la luna pequenos a la derecha
@@ -2929,8 +3071,9 @@ namespace {
             if (mi.hasRise) fmtLocalMin(mi.riseMin, offsetMin, a, sizeof(a));
             if (mi.hasSet) fmtLocalMin(mi.setMin, offsetMin, b, sizeof(b));
             snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(mi.lit * 100), mi.waxing ? '+' : '-', a, b);   // + creciente, - menguante
-            text(4, 56, buffer);
-            if (XR >= 16) drawMoonDisc(PW - 10, 47, 6, mi, lat < 0);
+            text(4, Y_SKY, buffer);
+            textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
+            if (XR >= 16) { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
         } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
@@ -2945,8 +3088,9 @@ namespace {
             } else {
                 snprintf(buffer, sizeof(buffer), sun > 0 ? "Sun: polar day" : "Sun: polar night");
             }
-            text(4, 56, buffer);
-            if (XR >= 16) drawSunIcon(PW - 10, 47, 4);
+            text(4, Y_SKY, buffer);
+            textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
+            if (XR >= 16) { int cx, cy, r; skyIcon(cx, cy, r); r -= 4; if (r >= 3) drawSunIcon(cx, cy, r); }   // el disco, sin los rayos
         }
     }
 
@@ -3277,24 +3421,39 @@ namespace {
         }
         const float pct = BATTERY_Utils::percent();
         const float volts = BATTERY_Utils::cellVoltage() * BATTERY_CELLS;
-        #ifdef HAS_AXP2101
-            String pmuPct = POWER_Utils::getBatteryInfoCurrent();     // la AXP2101 da su propio porcentaje (por ese nombre)
-            pmuPct.trim();
-            row(0, "%s%%  %.2f V", pmuPct.c_str(), volts);
+        #ifdef HAS_TFT
+            // TFT (EA7JRS): el porcentaje ya va en la cabecera; la pila arriba y mas alta, la tension con el estado debajo, y el
+            // relleno del color del nivel: verde desde el 50 %, amarillo del 30 al 50, naranja del 15 al 30 y rojo por debajo
+            const int bx = 2, by = 12, bw = PW - 10, bh = 24;
         #else
-            row(0, "%.0f%%  %.2f V", pct, volts);
+            #ifdef HAS_AXP2101
+                String pmuPct = POWER_Utils::getBatteryInfoCurrent();     // la AXP2101 da su propio porcentaje (por ese nombre)
+                pmuPct.trim();
+                row(0, "%s%%  %.2f V", pmuPct.c_str(), volts);
+            #else
+                row(0, "%.0f%%  %.2f V", pct, volts);
+            #endif
+            const int bx = 2, by = 21, bw = PW - 10, bh = 13;
         #endif
-        // pila: contorno, borne y relleno por la carga (verde, ambar por debajo del 40 %, rojo por debajo del 15 %)
-        const int bx = 2, by = 21, bw = PW - 10, bh = 13;
+        // pila: contorno, borne y relleno por la carga
+        const float p = pct < 0 ? 0 : (pct > 100 ? 100 : pct);
         pagesInk(INK_FRAME);
         pagesDrawRect(bx, by, bw, bh, true);
-        pagesFillRect(bx + bw, by + 4, 3, bh - 8, true);
-        const int fill = (int)lroundf((bw - 4) * (pct < 0 ? 0 : (pct > 100 ? 100 : pct)) / 100.0f);
-        pagesInk(pct < 15 ? INK_BAD : (pct < 40 ? INK_WARN : INK_GOOD));
-        if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
-        pagesInk(INK_TEXT);
+        pagesFillRect(bx + bw, by + bh / 4, 3, bh - 2 * (bh / 4), true);
+        const int fill = (int)lroundf((bw - 4) * p / 100.0f);
+        #ifdef HAS_TFT
+            pagesInk(p < 15 ? INK_BAD : p < 30 ? INK_LV2 : p < 50 ? INK_LV1 : INK_GOOD);
+            if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
+            pagesInk(INK_TEXT);
+            rowDy = PAGES_EXTRA && ROW_PITCH == 9 ? 4 : 0;        // con filas de 10 px ya quedan bien
+            row(3, "%.2f V  %s", volts, BatteryModel::stateName((BatteryModel::State)st));
+        #else
+            pagesInk(p < 15 ? INK_BAD : (p < 40 ? INK_WARN : INK_GOOD));
+            if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
+            pagesInk(INK_TEXT);
+            row(3, "%s", BatteryModel::stateName((BatteryModel::State)st));
+        #endif
 
-        row(3, "%s", BatteryModel::stateName((BatteryModel::State)st));
         float vph = 0, pph = 0;
         const bool have = BATTERY_Utils::trend(vph, pph);
         const float h = BATTERY_Utils::hoursLeft();
@@ -3312,6 +3471,7 @@ namespace {
             if (Config.battery.saveBelow == 0) row(5, "Saving: off");
             else row(5, "Saving <%u%%: %s", (unsigned)Config.battery.saveBelow, BATTERY_Utils::saving() ? "ON" : "ready");
         #endif
+        rowDy = 0;
     }
 
     void drawBoard() {
@@ -3322,14 +3482,15 @@ namespace {
         header(PAGE_TITLES[PAGE_BOARD], batteryViewAvailable() ? "1P BATT" : (linkAvailable() ? "1P LINK" : nullptr));
         uint32_t heapTotal = ESP.getHeapSize();
         int heapUsed = heapTotal > 0 ? (int)(100UL * (heapTotal - ESP.getFreeHeap()) / heapTotal) : -1;
+        const int my = PAGES_EXTRA ? 12 : 11;                       // TFT: medidores cada 12 px y las dos lineas mas abajo
         meter(13, "Heap", heapUsed);
 
         uint32_t psramTotal = psramFound() ? ESP.getPsramSize() : 0;
-        meter(24, "PSRAM", psramTotal > 0 ? (int)(100UL * (psramTotal - ESP.getFreePsram()) / psramTotal) : -1);   // -1 = sin PSRAM: n/a
+        meter(13 + my, "PSRAM", psramTotal > 0 ? (int)(100UL * (psramTotal - ESP.getFreePsram()) / psramTotal) : -1);   // -1 = sin PSRAM: n/a
 
         uint32_t sketch = ESP.getSketchSize();                      // firmware dentro de su particion de aplicacion
         uint32_t partition = sketch + ESP.getFreeSketchSpace();
-        meter(35, "Flash", partition > 0 ? (int)(100UL * sketch / partition) : -1);
+        meter(13 + 2 * my, "Flash", partition > 0 ? (int)(100UL * sketch / partition) : -1);
 
         char uptime[12];
         formatUptime(millis() / 1000, uptime, sizeof(uptime));
@@ -3337,13 +3498,13 @@ namespace {
         if (batteryConnected) snprintf(line, sizeof(line), "Bat %sV  Up %s", BATTERY_Utils::getBatteryInfoVoltage().c_str(), uptime);
         else snprintf(line, sizeof(line), "USB  Up %s", uptime);
         line[COLS] = '\0';
-        text(2, 47, line);
+        text(2, PAGES_EXTRA ? 51 : 47, line);
 
         const char* bt = !bluetoothActive ? "off" : (bluetoothConnected ? "CON" : "on");
         const uint8_t kiss = KISS_NET::state();
         const char* wifi = (WiFi.getMode() & WIFI_MODE_AP) ? "AP" : (kiss == 2 ? "CON" : (kiss == 1 ? ".." : "off"));
         snprintf(line, sizeof(line), "BT:%s  WiFi:%s", bt, wifi);
-        text(2, 56, line);
+        text(2, PAGES_EXTRA ? 61 : 56, line);
     }
 
 }   // namespace
@@ -3716,7 +3877,7 @@ namespace PAGES_Utils {
     const uint8_t  TEAM_SCALE_COUNT   = sizeof(TEAM_SCALES_KM) / sizeof(TEAM_SCALES_KM[0]);
 
     void drawTeamRadar() {
-        const int cx = 106 + XR, cy = 37, radius = 18;
+        const int radius = PAGES_EXTRA ? 26 : 18, cx = PAGES_EXTRA ? PW - 4 - radius : 106 + XR, cy = PAGES_EXTRA ? 41 : 37;   // TFT: radar mayor (EA7JRS)
         double myLat = 0, myLon = 0;
         const bool haveMe = ownPosition(myLat, myLon);
         // escala: la menor que contiene a todos los miembros con posicion (con un 10 % de margen)
@@ -3766,8 +3927,9 @@ namespace PAGES_Utils {
             snprintf(line, sizeof(line), "%u%.6s %s", (unsigned)(i + 1), slot.call, distance);
             text(2, 11 + 9 * i, line);
         }
-        if (!haveMe) text(2, 56, "No own position");
-        else         text(2, 56, "1P zoom LP menu");
+        const int yHint = PAGES_EXTRA ? 62 : 56;
+        if (!haveMe) text(2, yHint, "No own position");
+        else         text(2, yHint, "1P zoom LP menu");
     }
 
     void drawTeamPage() {
@@ -3820,7 +3982,7 @@ namespace PAGES_Utils {
             } else {
                 snprintf(line, sizeof(line), "%s", slot.seen ? "No position yet" : "Not heard yet");
             }
-            text(2, 56, line);
+            text(2, ROW_HINT_Y, line);
             return;
         }
         if (Config.team.pollSec >= 60) row(5, "OUT %um  poll %us", (unsigned)Config.team.timeoutMin, (unsigned)Config.team.pollSec);
@@ -5974,6 +6136,10 @@ namespace PAGES_Utils {
             clockView = 0;
             return true;
         }
+        if (page == PAGE_WX && wxView == 1 && alertRead) {     // aviso abierto -> lista de avisos
+            alertRead = false;
+            return true;
+        }
         if (page == PAGE_WX && wxView != 0) {                  // ALERTS o SPACE WX -> TELEMETRY
             wxView = 0;
             return true;
@@ -6168,10 +6334,18 @@ namespace PAGES_Utils {
             else goToStation(st);
             return PAGES_CMD_NONE;
         }
-        if (alertWindowShown()) {                    // LP: cierra y abre la lista de avisos (TELEMETRY > ALERTS)
+        if (alertWindowShown()) {                    // LP: cierra la ventana y abre el aviso entero (TELEMETRY > ALERTS)
+            const std::string id = ALERTS::popup() ? ALERTS::popup()->id : std::string();
             ALERTS::mute();
             ALERTS::popupClose();
-            if (pageVisible(PAGE_WX)) { page = PAGE_WX; changedPage(); wxView = 1; }
+            if (pageVisible(PAGE_WX)) {
+                page = PAGE_WX; changedPage(); wxView = 1;
+                const plotter::AlertList& L = ALERTS::list();
+                alertSel = 0;
+                for (size_t i = 0; i < L.size(); i++) if (L[i].id == id) alertSel = (uint8_t)i;
+                alertScroll = 0;
+                alertRead = L.size() > 0;
+            }
             return PAGES_CMD_NONE;
         }
         if (messageWindowShown()) { next(); return PAGES_CMD_NONE; }
@@ -6180,6 +6354,11 @@ namespace PAGES_Utils {
                 uint8_t view[HeardList::CAPACITY];
                 uint8_t n = stationView(view);
                 if (n > 0) goToStation(heard.byRecent(view[listCursor]));
+                return PAGES_CMD_NONE;
+            }
+            if (page == PAGE_WX && wxView == 1 && !alertRead && ALERTS::list().size() > 0) {   // ALERTS: abre el aviso marcado
+                alertRead = true;
+                alertScroll = 0;
                 return PAGES_CMD_NONE;
             }
             if (page == PAGE_MSG && msgMode == MM_BROWSE) {      // explorando: abre el mensaje marcado

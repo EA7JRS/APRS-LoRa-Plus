@@ -650,12 +650,12 @@ void displayShow(const String& header, const String& line1, const String& line2,
         #define PAGES_SCALE     2
         #define PAGES_OFFSET_X  0
         #define PAGES_OFFSET_Y  ((240 - PAGES_H * 2) / 2)
-        #define PAGES_BODY_DY   ((PAGES_H - 64) / 2)
+        #define PAGES_BODY_DY   0
     #else   // Heltec Wireless Tracker: lienzo de 160x80 entero; el cuerpo de 64 filas, 8 px mas abajo (Manuel - EA7JRS)
         #define PAGES_SCALE     1
         #define PAGES_OFFSET_X  0
         #define PAGES_OFFSET_Y  0
-        #define PAGES_BODY_DY   ((PAGES_H - 64) / 2)
+        #define PAGES_BODY_DY   0                       // el cuerpo pegado a la cabecera; sobran PAGES_EXTRA filas encima de la barra
     #endif
     // Paletas de la app Android (Theme.kt): oscura y clara. RGB565.
     #define RGB565(c) ((uint16_t)((((c) >> 8) & 0xF800) | (((c) >> 5) & 0x07E0) | (((c) >> 3) & 0x001F)))
@@ -692,7 +692,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
     }
 
     void pagesZone(uint8_t zone) {
-        pagesDy = zone == PZ_TOP ? 0 : (zone == PZ_BOTTOM ? 2 * PAGES_BODY_DY : PAGES_BODY_DY);
+        pagesDy = zone == PZ_TOP ? 0 : (zone == PZ_BOTTOM ? PAGES_EXTRA : PAGES_BODY_DY);
     }
 
     void pagesBegin() {

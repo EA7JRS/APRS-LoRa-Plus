@@ -37,6 +37,9 @@ namespace WEB_Utils {
     void handleBootstrapScript(AsyncWebServerRequest *request);
 
     void setup();
+    // Guarda la configuracion pedida por la WebUI fuera de la tarea del servidor web (el guardado puede tardar mas que el
+    // vigilante de AsyncTCP y reiniciaba la placa sin guardar); llamar desde el bucle que corra mientras la WebUI esta abierta
+    void loop();
 
 }
 

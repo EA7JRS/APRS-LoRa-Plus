@@ -62,6 +62,8 @@ namespace WIFI_Utils {
                 uint32_t pressedAt = 0;
             #endif
             while (true) {
+                WEB_Utils::loop();                                       // guardado pedido por la WebUI
+                delay(5);                                                // deja correr a la WiFi y al servidor web
                 #ifdef BUTTON_PIN
                     // Mantener el boton 2 s: sale del punto de acceso y arranca normal (antes solo salia al guardar o a los 2 min sin
                     // nadie conectado, y el boton no hacia nada) (EA7JRS)

@@ -50,7 +50,10 @@ void displayPopup(const String& title, const String& line1, const String& line2,
         #define PAGES_H     64
     #endif
     // Franjas verticales (Manuel - EA7JRS): las paginas se dibujan en 64 filas logicas; si la pantalla es mas alta,
-    // la cabecera queda arriba, la barra de iconos abajo y el cuerpo centrado entre las dos.
+    // la cabecera queda arriba, la barra de iconos abajo y el cuerpo justo debajo de la cabecera (antes centrado: dejaba una
+    // fila vacia arriba); lo que sobra (PAGES_EXTRA filas, encima de la barra) lo usan los dibujos grandes (cielo GNSS, brujula,
+    // icono de LAST).
+    #define PAGES_EXTRA (PAGES_H - 64)
     enum PagesZone : uint8_t { PZ_TOP, PZ_BODY, PZ_BOTTOM };
     void    pagesZone(uint8_t zone);                                        // vale hasta el siguiente pagesZone / pagesBegin (PZ_BODY)
     // Tintas (pantallas a color): el "on" de los dibujos sale con el color de la tinta en uso. En monocromo no hacen nada.
