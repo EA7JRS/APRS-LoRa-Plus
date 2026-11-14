@@ -123,8 +123,9 @@ namespace {
             payload[i] = armor((uint8_t) value);
         }
         payload[characters] = 0;
+        if (fill < 0 || fill > 5) fill = 0;             // relleno de 0 a 5 bits: un solo digito
         char body[96];
-        snprintf(body, sizeof(body), "AIVDM,1,1,,B,%s,%d", payload, fill);
+        snprintf(body, sizeof(body), "AIVDM,1,1,,B,%s,%c", payload, (char) ('0' + fill));
         return finish('!', body, buffer, size);
     }
 
