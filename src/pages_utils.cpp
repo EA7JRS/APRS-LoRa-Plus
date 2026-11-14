@@ -790,6 +790,8 @@ namespace {
     uint8_t       mirrorPage = 0;
     uint32_t      mirrorMs = 0;
 
+    int           rowDy = 0;                                  // desplazamiento de las filas (BATTERY en las TFT)
+
     void row(uint8_t r, const char* format, ...) {
         char line[28];
         va_list args;
@@ -799,7 +801,7 @@ namespace {
         line[rowLimit] = '\0';              // 21 columnas de 6 px caben en 128 px, 26 en 160 (4 menos si hay un icono a la derecha)
         if (r < MIRROR_ROWS) snprintf(mirrorRows[r], sizeof(mirrorRows[r]), "%s", line);
         if (r == 0) pagesInk(INK_ACCENT);   // en color, la primera fila (el dato principal) en ambar
-        text(0, ROW_Y0 + r * ROW_PITCH, line);
+        text(0, ROW_Y0 + r * ROW_PITCH + rowDy, line);
         if (r == 0) pagesInk(INK_TEXT);
     }
 
@@ -2827,7 +2829,12 @@ namespace {
         pagesFillCircle(cx, cy, r, true);
         for (int k = 0; k < 8; k++) {
             const float a = k * (float)PI / 4;
-            pagesFillRect(cx + (int)lroundf((r + 2) * cosf(a)), cy + (int)lroundf((r + 2) * sinf(a)), 1, 1, true);
+            if (r >= 6) {                                       // grande: rayos de 3 px
+                pagesDrawLine(cx + (int)lroundf((r + 2) * cosf(a)), cy + (int)lroundf((r + 2) * sinf(a)),
+                              cx + (int)lroundf((r + 4) * cosf(a)), cy + (int)lroundf((r + 4) * sinf(a)), true);
+            } else {
+                pagesFillRect(cx + (int)lroundf((r + 2) * cosf(a)), cy + (int)lroundf((r + 2) * sinf(a)), 1, 1, true);
+            }
         }
         pagesInk(INK_TEXT);
     }
@@ -2867,8 +2874,9 @@ namespace {
         char a[6], b[6];
 
         const bool big = XR >= 16;                                   // 160 px: arco mayor
-        const int R = big ? 21 : 15;
-        const int cx = PW - (big ? 8 : 2) - R, hy = 46;
+        // TFT (EA7JRS): con el sitio que sobra encima de la barra, arco de 28 px, horizonte mas abajo y sol mayor
+        const int R = PAGES_EXTRA ? 28 : (big ? 21 : 15);
+        const int cx = PW - (PAGES_EXTRA ? 4 : (big ? 8 : 2)) - R, hy = PAGES_EXTRA ? 54 : 46;
         rowLimit = min(COLS, (cx - R - 2) / 6);
         int dayLen = 0;
         if (hasRise) {
@@ -2924,10 +2932,10 @@ namespace {
         frac = constrain(frac, 0.0f, 1.0f);
         const float ang = frac * (float)PI;
         if (up) {
-            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), 4);
+            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), PAGES_EXTRA ? 6 : 4);
         } else {
             pagesInk(INK_NIGHT);
-            pagesDrawCircle(cx + (int)lroundf(R * cosf(ang)), hy + (int)lroundf(R * 0.25f * sinf(ang)), 3, true);
+            pagesDrawCircle(cx + (int)lroundf(R * cosf(ang)), hy + (int)lroundf(R * 0.25f * sinf(ang)), PAGES_EXTRA ? 4 : 3, true);
             pagesInk(INK_TEXT);
         }
     }
@@ -2943,8 +2951,8 @@ namespace {
         snprintf(right, sizeof(right), "%d%%", (int)lround(mi.lit * 100));
         header("MOON", right);
         const bool big = XR >= 16;
-        const int r = big ? 24 : 17;
-        const int cx = PW - 2 - r, cy = 37;
+        const int r = PAGES_EXTRA ? 27 : (big ? 24 : 17);           // TFT: casi todo el alto libre (EA7JRS)
+        const int cx = PW - 2 - r, cy = 37 + (PAGES_EXTRA ? 3 : 0);
         rowLimit = min(COLS, (cx - r - 2) / 6);
         row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
         if (big) row(1, "Lit %d%% Age %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
@@ -3007,19 +3015,24 @@ namespace {
         int offsetMin = zoneOffsetMinutes(zoneMode, zoneHalfHours, (int64_t)t, &dst);
         time_t local = t + (time_t)offsetMin * 60;
 
+        // Filas: en las TFT se reparten por el sitio que sobra encima de la barra (EA7JRS)
+        const int Y_TIME = PAGES_EXTRA ? 15 : 13, Y_DATE = PAGES_EXTRA ? 43 : 40, Y_UTC = PAGES_EXTRA ? 52 : 48, Y_SKY = PAGES_EXTRA ? 61 : 56;
         char buffer[48];
         int hours = hour(local);
         if (clock24h) snprintf(buffer, sizeof(buffer), "%02d:%02d", hours, minute(local));
         else snprintf(buffer, sizeof(buffer), "%2d:%02d", hours % 12 == 0 ? 12 : hours % 12, minute(local));
+        // hora y segundos centrados como un bloque (5 cifras de 18 px, 4 de hueco y 2 de 12 px)
+        const int x0 = (PW - (5 * 18 + 4 + 2 * 12)) / 2;
         pagesInk(INK_ACCENT);
-        text(3 + XR / 2, 13, buffer, 3);
+        text(x0, Y_TIME, buffer, 3);
         pagesInk(INK_TEXT);
-        if (!clock24h) text(100 + XR / 2, 11, hours >= 12 ? "PM" : "AM");
+        if (!clock24h) text(x0 + 5 * 18 + 6, Y_TIME - 2, hours >= 12 ? "PM" : "AM");
         snprintf(buffer, sizeof(buffer), "%02d", second(local));
-        text(98 + XR / 2, 20, buffer, 2);
+        text(x0 + 5 * 18 + 4, Y_TIME + 7, buffer, 2);
 
         snprintf(buffer, sizeof(buffer), "%s %02d/%02d/%04d", weekdayName(weekdayIndex((int64_t)local)), day(local), month(local), year(local));
-        text(4, 40, buffer);
+        text(4, Y_DATE, buffer);
+        int textRight = 4 + 6 * (int)strlen(buffer);            // donde acaba el texto mas largo (el sol o la luna van a su derecha)
 
         // UTC y zona en uso
         char zone[16] = "";
@@ -3030,7 +3043,16 @@ namespace {
         }
         if (zone[0]) snprintf(buffer, sizeof(buffer), "UTC %02d:%02d  %s", hour(t), minute(t), zone);
         else snprintf(buffer, sizeof(buffer), "UTC %02d:%02d", hour(t), minute(t));
-        text(4, 48, buffer);
+        text(4, Y_UTC, buffer);
+        textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
+        // hueco del dibujo: a la derecha de las tres lineas, desde la fecha hasta la barra; el disco centrado en el
+        auto skyIcon = [&](int& cx, int& cy, int& r) {
+            const int left = textRight + 2, top = Y_DATE, bottom = 53 + PAGES_EXTRA;
+            r = min((PW - left) / 2 - 1, (bottom - top) / 2);
+            if (r > 12) r = 12;
+            cx = left + (PW - left) / 2;
+            cy = (top + bottom) / 2;
+        };
 
         // orto y ocaso con la posicion propia; cada 4 s se alterna con la luna (fase, iluminada, salida y puesta); en
         // pantallas de 160 px, el sol o la luna pequenos a la derecha
@@ -3041,8 +3063,9 @@ namespace {
             if (mi.hasRise) fmtLocalMin(mi.riseMin, offsetMin, a, sizeof(a));
             if (mi.hasSet) fmtLocalMin(mi.setMin, offsetMin, b, sizeof(b));
             snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(mi.lit * 100), mi.waxing ? '+' : '-', a, b);   // + creciente, - menguante
-            text(4, 56, buffer);
-            if (XR >= 16) drawMoonDisc(PW - 10, 47, 6, mi, lat < 0);
+            text(4, Y_SKY, buffer);
+            textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
+            if (XR >= 16) { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
         } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
@@ -3057,8 +3080,9 @@ namespace {
             } else {
                 snprintf(buffer, sizeof(buffer), sun > 0 ? "Sun: polar day" : "Sun: polar night");
             }
-            text(4, 56, buffer);
-            if (XR >= 16) drawSunIcon(PW - 10, 47, 4);
+            text(4, Y_SKY, buffer);
+            textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
+            if (XR >= 16) { int cx, cy, r; skyIcon(cx, cy, r); r -= 4; if (r >= 3) drawSunIcon(cx, cy, r); }   // el disco, sin los rayos
         }
     }
 
@@ -3389,24 +3413,39 @@ namespace {
         }
         const float pct = BATTERY_Utils::percent();
         const float volts = BATTERY_Utils::cellVoltage() * BATTERY_CELLS;
-        #ifdef HAS_AXP2101
-            String pmuPct = POWER_Utils::getBatteryInfoCurrent();     // la AXP2101 da su propio porcentaje (por ese nombre)
-            pmuPct.trim();
-            row(0, "%s%%  %.2f V", pmuPct.c_str(), volts);
+        #ifdef HAS_TFT
+            // TFT (EA7JRS): el porcentaje ya va en la cabecera; la pila arriba y mas alta, la tension con el estado debajo, y el
+            // relleno del color del nivel: verde desde el 50 %, amarillo del 30 al 50, naranja del 15 al 30 y rojo por debajo
+            const int bx = 2, by = 12, bw = PW - 10, bh = 24;
         #else
-            row(0, "%.0f%%  %.2f V", pct, volts);
+            #ifdef HAS_AXP2101
+                String pmuPct = POWER_Utils::getBatteryInfoCurrent();     // la AXP2101 da su propio porcentaje (por ese nombre)
+                pmuPct.trim();
+                row(0, "%s%%  %.2f V", pmuPct.c_str(), volts);
+            #else
+                row(0, "%.0f%%  %.2f V", pct, volts);
+            #endif
+            const int bx = 2, by = 21, bw = PW - 10, bh = 13;
         #endif
-        // pila: contorno, borne y relleno por la carga (verde, ambar por debajo del 40 %, rojo por debajo del 15 %)
-        const int bx = 2, by = 21, bw = PW - 10, bh = 13;
+        // pila: contorno, borne y relleno por la carga
+        const float p = pct < 0 ? 0 : (pct > 100 ? 100 : pct);
         pagesInk(INK_FRAME);
         pagesDrawRect(bx, by, bw, bh, true);
-        pagesFillRect(bx + bw, by + 4, 3, bh - 8, true);
-        const int fill = (int)lroundf((bw - 4) * (pct < 0 ? 0 : (pct > 100 ? 100 : pct)) / 100.0f);
-        pagesInk(pct < 15 ? INK_BAD : (pct < 40 ? INK_WARN : INK_GOOD));
-        if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
-        pagesInk(INK_TEXT);
+        pagesFillRect(bx + bw, by + bh / 4, 3, bh - 2 * (bh / 4), true);
+        const int fill = (int)lroundf((bw - 4) * p / 100.0f);
+        #ifdef HAS_TFT
+            pagesInk(p < 15 ? INK_BAD : p < 30 ? INK_LV2 : p < 50 ? INK_LV1 : INK_GOOD);
+            if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
+            pagesInk(INK_TEXT);
+            rowDy = 4;                                            // las filas de debajo, algo mas abajo (sobra sitio encima de la barra)
+            row(3, "%.2f V  %s", volts, BatteryModel::stateName((BatteryModel::State)st));
+        #else
+            pagesInk(p < 15 ? INK_BAD : (p < 40 ? INK_WARN : INK_GOOD));
+            if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
+            pagesInk(INK_TEXT);
+            row(3, "%s", BatteryModel::stateName((BatteryModel::State)st));
+        #endif
 
-        row(3, "%s", BatteryModel::stateName((BatteryModel::State)st));
         float vph = 0, pph = 0;
         const bool have = BATTERY_Utils::trend(vph, pph);
         const float h = BATTERY_Utils::hoursLeft();
@@ -3424,6 +3463,7 @@ namespace {
             if (Config.battery.saveBelow == 0) row(5, "Saving: off");
             else row(5, "Saving <%u%%: %s", (unsigned)Config.battery.saveBelow, BATTERY_Utils::saving() ? "ON" : "ready");
         #endif
+        rowDy = 0;
     }
 
     void drawBoard() {
