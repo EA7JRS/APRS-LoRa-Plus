@@ -285,6 +285,12 @@ const AIS_VESSELS = [
 let AIS_CLASS_B_ONLY = false;
 function aisClassBOnly() {
     AIS_CLASS_B_ONLY = true;
+    document.querySelectorAll(".beacons.beacon-plain").forEach(e => e.classList.add("d-none"));   // los perfiles 1-3 no se usan
+    document.querySelectorAll(".beacon-num").forEach(e => e.classList.add("d-none"));
+    const h = document.querySelector("#sec-beaconing h5");
+    if (h && h.lastChild) h.lastChild.textContent = " Vessel (AIS nautical profile)";
+    const hs = h && h.parentElement.querySelector("small");
+    if (hs) hs.textContent = "The only profile of the transponder: vessel identity sent in its APRS LoRa AIS beacons.";
     document.querySelectorAll('select[id$=".aisVesselType"]').forEach(sel => {
         sel.querySelectorAll("option").forEach(o => {
             const v = AIS_VESSELS.find(x => x.id == o.value);
@@ -335,7 +341,7 @@ function renderAisBeacon(beacons, index) {
     });
     options += "</optgroup>";
     return `
-            <div class="d-flex align-items-start pt-3" style="flex: 0 0 50px; width: 50px;">
+            <div class="d-flex align-items-start pt-3 beacon-num" style="flex: 0 0 50px; width: 50px;">
                 <strong>${index + 1})</strong>
             </div>
             <div class="col">
@@ -450,6 +456,9 @@ function loadSettings(settings) {
     settings.beacons.forEach((beacons, index) => {
         const beaconElement = document.createElement("div");
         beaconElement.classList.add("row", "g-0", "beacons", "border-bottom", "py-2");
+        if (!beacons.aisProfile) beaconElement.classList.add("beacon-plain");   // MAPRS: oculto (solo el perfil nautico AIS)
+        if (!beacons.aisProfile && AIS_CLASS_B_ONLY) beaconElement.classList.add("d-none");
+        if (beacons.aisProfile && AIS_CLASS_B_ONLY) setTimeout(aisClassBOnly, 0);
 
         if (beacons.aisProfile) {
             beaconElement.innerHTML = renderAisBeacon(beacons, index);

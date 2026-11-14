@@ -1359,6 +1359,9 @@ namespace {
 
     void setProfile(int index, const char* cmd, int id) {
         if (index < 0 || index >= myBeaconsSize) { reply(cmd, id, "no such profile"); return; }
+        #ifdef APRS_MAPRS_TRANSPONDER
+            if (index != Config.aisBeaconIndex()) { reply(cmd, id, "MAPRS: only the nautical AIS profile"); return; }
+        #endif
         myBeaconsIndex      = (uint8_t)index;                           // lo mismo que el cambio de indicativo del menu
         currentBeacon       = &Config.beacons[myBeaconsIndex];
         statusUpdate        = true;

@@ -350,6 +350,9 @@ namespace KEYBOARD_Utils {
                 }
             }
         #endif
+        #ifdef APRS_MAPRS_TRANSPONDER
+            if (menuDisplay == 0 || menuDisplay == 200) return;         // MAPRS: un solo perfil (nautico AIS)
+        #endif
         if (menuDisplay == 0 || menuDisplay == 200) {
             if (myBeaconsIndex >= (myBeaconsSize - 1)) {
                 myBeaconsIndex = 0;

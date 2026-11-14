@@ -440,6 +440,9 @@ namespace STATION_Utils {
                 String logMessage;
                 if (type == 0) {
                     if (index < 0 || index >= (int)Config.beacons.size()) index = 0;
+                    #ifdef APRS_MAPRS_TRANSPONDER
+                        if (Config.aisBeaconIndex() >= 0) index = Config.aisBeaconIndex();   // MAPRS: solo el perfil nautico AIS
+                    #endif
                     myBeaconsIndex = (uint8_t)index;
                     logMessage = "Callsign Index:";
                 } else if (type == 1) {
