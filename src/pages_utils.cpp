@@ -1395,8 +1395,11 @@ namespace {
         for (uint8_t i = 0; i < ROWS; i++) {
             const Station* s = (top + i < n) ? heard.byRecent(view[top + i]) : nullptr;
             if (!s) break;
-            char distance[10] = "---", age[8], line[28];
-            if (s->hasPosition && haveMe) fmtDist(distanceKm(myLat, myLon, s->lat, s->lon), distance, sizeof(distance));
+            char distance[10] = "---", age[8], line[32], course[6] = "---";
+            if (s->hasPosition && haveMe) {
+                fmtDist(distanceKm(myLat, myLon, s->lat, s->lon), distance, sizeof(distance));
+                snprintf(course, sizeof(course), "%03d", (int)lround(bearingDeg(myLat, myLon, s->lat, s->lon)) % 360);
+            }
             formatAge(millis() - s->lastMs, age, sizeof(age));
             int y = ROW_Y0 + i * ROW_PITCH;
             bool selected = listBrowse && top + i == listCursor;
@@ -1407,13 +1410,14 @@ namespace {
                 if (XR >= 16 && s->symbol >= APRS_ICON_FIRST && s->symbol < APRS_ICON_FIRST + APRS_ICON_COUNT) {
                     const AprsIconColor8& ic = (s->table == '/' ? APRS_COLOR8_PRIMARY : APRS_COLOR8_SECONDARY)[s->symbol - APRS_ICON_FIRST];
                     pagesIcon4(0, y - 1, 8, ic.c, ic.a, ic.px, selected);
-                    snprintf(line, sizeof(line), "%-9.9s%7s%5s", s->call, distance, age);
+                    snprintf(line, sizeof(line), "%-9.9s%7s %3s%4s", s->call, distance, course, age);   // rumbo hacia la estacion, en grados (EA7JRS)
                     pagesText(11, y, line, 1, selected);
                     iconDrawn = true;
                 }
             #endif
             if (!iconDrawn) {
-                snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, age);
+                if (XR >= 16) snprintf(line, sizeof(line), "%c %-9.9s%6s %3s%4s", kindLetter(s->kind), s->call, distance, course, age);
+                else          snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, age);
                 pagesText(0, y, line, 1, selected);
             }
             pagesInk(INK_TEXT);
