@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Baliza LR-FHSS: «LRF error -12» en todas las placas.** La orden que arranca el modo recibía el ancho de banda en el sitio de la frecuencia (0 MHz, frecuencia no válida), así que la baliza no llegaba a emitir. Corregido (`LoRa_Utils::lrfhssSend`). Sin probar en la placa.
 - **T-TWR Plus, sin datos de LoRa en la pantalla:** la página RADIO pone «Air» en lugar de «ToA» y el S-meter con dBm sin SNR; el tiempo en el aire se calcula con el TXDELAY y la velocidad del módem (1200, 9600 o 4800 bit/s) en vez de con la fórmula de LoRa; LAST APRS sin estaciones dice la frecuencia del SA868 (antes la del perfil LoRa); el decodificador del menú antiguo enseña solo el RSSI, la línea del menú principal la frecuencia del SA868 en lugar de «LoRa[EU]», y *Change Frequency* remite a la WebUI o a la página RADIO.
 - **T-TWR Plus, LED RGB** (WS2812 del GPIO42, que no se usaba): rojo al emitir (APRS y PTT de FM), verde con cada trama recibida y más tenue con el silenciador abierto en FM, azul 1 s cada 5 s con mensajes sin leer y rojo parpadeando con una alarma. Brillo en *Display > RGB LED* (apagado / bajo / medio / alto; bajo de serie).
 - **T-TWR Plus, todos los botones con función:** girar el encoder = página u opción siguiente / anterior (también en los menús), salvo donde la página lo usa (sintonía en FM, radio comercial, lista AIS, SAT); **PTT lateral** = 2P (atrás / menú) fuera de FM (en FM sigue siendo el PTT); **DOWN** (GPIO0) = LP (abrir / elegir). El pulsador del encoder sigue igual (1P / LP / 2P y el gesto SOS).
