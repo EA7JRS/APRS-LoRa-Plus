@@ -160,7 +160,7 @@ namespace AIS_Utils {
             else if (old->call[0] && (int32_t)(b.ms - old->ms) < 0) old = &b;
         }
         if (!create) return nullptr;
-        memset(old, 0, sizeof(*old));
+        *old = AprsBoat{};                                          // inicializa por valor (AprsBoat lleva un tipo no trivial)
         snprintf(old->call, sizeof(old->call), "%s", call);
         return old;
     }
