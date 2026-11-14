@@ -65,6 +65,7 @@
             <button type="button" data-dev="gateway"><b>Gateway</b><small data-i="dGateway"></small></button>
             <button type="button" data-dev="display"><b>Display</b><small data-i="dDisplay"></small></button>
             <button type="button" data-dev="plotter"><b data-i="gNautica"></b><small data-i="dPlotter"></small></button>
+            <button type="button" data-dev="maprs"><b>MAPRS</b><small data-i="dMaprs"></small></button>
         </div>
     </div>
 
@@ -109,7 +110,7 @@
     const T = {
         es: {
             sub: "Instala o actualiza el firmware conectando la placa por USB. Funciona en Chrome o Edge (ordenador o Android).",
-            s0: "Dispositivo", dTracker: "Tracker APRS multimodo (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Control de rotor de antenas compatible con Hamlib", dGateway: "iGate / pasarela APRS LoRa+", dDisplay: "Pantalla táctil grande para el tracker (por BLE)", gNautica: "Náutica", dPlotter: "Plotter náutico (pantalla Waveshare de 7\") e instrumento de viento (4\")",
+            s0: "Dispositivo", dTracker: "Tracker APRS multimodo (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Control de rotor de antenas compatible con Hamlib", dGateway: "iGate / pasarela APRS LoRa+", dDisplay: "Pantalla táctil grande para el tracker (por BLE)", gNautica: "Náutica", dPlotter: "Plotter náutico (pantalla Waveshare de 7\") e instrumento de viento (4\")", dMaprs: "Transponder AIS por APRS LoRa (LilyGO T3, 433 MHz)",
             devNone: "Aún no hay versión publicada de este dispositivo en el instalador.", otherDev: "La placa conectada es otro dispositivo: ",
             uf2btn: "Descargar firmware (.uf2)", uf2help: "Raspberry Pi Pico 2 / Pico 2 W: conéctala con el botón BOOTSEL pulsado, aparece una unidad USB (RP2350); copia en ella el archivo .uf2 y la placa se reinicia con el firmware nuevo. La configuración se conserva.",
             nobrowser: "Este navegador no puede hablar con el puerto USB (Web Serial). Usa Chrome o Edge en un ordenador, o Chrome en Android con cable OTG.",
@@ -130,7 +131,7 @@
         },
         en: {
             sub: "Install or update the firmware by connecting the board over USB. Works in Chrome or Edge (computer or Android).",
-            s0: "Device", dTracker: "Multimode APRS tracker (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Hamlib-compatible antenna rotor controller", dGateway: "APRS LoRa+ iGate / gateway", dDisplay: "Large touch screen for the tracker (over BLE)", gNautica: "Nautical", dPlotter: "Chartplotter (Waveshare 7\" screen) and wind instrument (4\")",
+            s0: "Device", dTracker: "Multimode APRS tracker (LoRa, FSK, CW, WSPR, SAT…)", dRotor: "Hamlib-compatible antenna rotor controller", dGateway: "APRS LoRa+ iGate / gateway", dDisplay: "Large touch screen for the tracker (over BLE)", gNautica: "Nautical", dPlotter: "Chartplotter (Waveshare 7\" screen) and wind instrument (4\")", dMaprs: "AIS transponder over APRS LoRa (LilyGO T3, 433 MHz)",
             devNone: "No release of this device is in the installer yet.", otherDev: "The connected board is another device: ",
             uf2btn: "Download firmware (.uf2)", uf2help: "Raspberry Pi Pico 2 / Pico 2 W: plug it in while holding BOOTSEL, a USB drive (RP2350) shows up; copy the .uf2 file to it and the board restarts with the new firmware. Settings are kept.",
             nobrowser: "This browser cannot talk to the USB port (Web Serial). Use Chrome or Edge on a computer, or Chrome on Android with an OTG cable.",
@@ -153,8 +154,10 @@
     let lang = (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en";
     const $ = id => document.getElementById(id);
     let latest = null, detected = null, device = "tracker", loadFailed = false;
-    const BASE = { tracker: "", rotor: "rotor/", gateway: "gateway/", display: "display/", plotter: "plotter/" };
+    const BASE = { tracker: "", rotor: "rotor/", gateway: "gateway/", display: "display/", plotter: "plotter/", maprs: "" };
     const ALIAS = { nautica: "plotter", wind: "plotter" };        // grupo Nautica: ...#nautica, y el instrumento de viento (device=wind) va con el plotter
+    // El MAPRS es una placa del tracker (misma carpeta); en el grupo Nautica solo se muestra esa placa. En Tracker siguen todas.
+    const FILTER = { maprs: n => /MAPRS/i.test(n) };
     const base = () => BASE[device];
 
     // Contador anonimo (EA7JRS): GoatCounter (https://www.goatcounter.com), gratuito, sin cookies ni datos personales.
@@ -205,12 +208,14 @@
         first.value = ""; first.textContent = latest ? t("pick") : (loadFailed ? t("devNone") : t("loading"));
         sel.appendChild(first);
         if (latest) {
-            Object.keys(latest.boards).sort().forEach(name => {
+            const keepBoard = FILTER[device] || (() => true);
+            const names = Object.keys(latest.boards).filter(keepBoard).sort();
+            names.forEach(name => {
                 const o = document.createElement("option");
                 o.value = name; o.textContent = name;
                 sel.appendChild(o);
             });
-            sel.value = keep;
+            sel.value = names.includes(keep) ? keep : (names.length === 1 ? names[0] : "");
         }
     }
 
