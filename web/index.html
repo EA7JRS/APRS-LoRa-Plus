@@ -33,6 +33,9 @@
     .head { display:flex; align-items:center; gap:12px; margin-bottom:4px; }
     .head .logo { height:56px; width:56px; flex-shrink:0; border-radius:11px; object-fit:cover; }
     .head h1 { margin:0; }
+    .head .titles { display:flex; flex-direction:column; }
+    .head .ver { font-size:0.9rem; opacity:0.75; }
+    .head .ver a { color:inherit; }
     .dev { display:flex; gap:8px; flex-wrap:wrap; }
     .dev button { flex:1 1 140px; font: inherit; padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; text-align:left; }
     .dev button b { display:block; }
@@ -46,7 +49,7 @@
 <body>
 <main>
     <button class="btn" id="lang" type="button">English</button>
-    <div class="head"><img class="logo" src="https://avatars.githubusercontent.com/u/59848273?v=4" alt="EA7JRS" width="56" height="56"><h1>APRS LoRa+</h1></div>
+    <div class="head"><img class="logo" src="https://avatars.githubusercontent.com/u/59848273?v=4" alt="EA7JRS" width="56" height="56"><div class="titles"><h1>APRS LoRa+</h1><div class="ver" id="headVer"></div></div></div>
     <p class="sub" data-i="sub"></p>
 
     <div class="card" id="unsupported" hidden>
@@ -285,6 +288,11 @@
     $("board").addEventListener("change", showAvail);
     $("detect").addEventListener("click", detect);
     document.querySelectorAll("[data-dev]").forEach(b => b.addEventListener("click", () => { if (b.dataset.dev !== device) load(b.dataset.dev); }));
+
+    // Version del release actual bajo el titulo (del latest.json del tracker, que esta en la raiz; todos los repos van a la par)
+    fetch("latest.json?_t=" + Date.now()).then(r => r.ok ? r.json() : null).then(j => {
+        if (j && j.version) $("headVer").innerHTML = '<a href="https://github.com/EA7JRS/APRS-LoRa-Plus/releases/tag/v' + encodeURIComponent(j.version) + '" target="_blank" rel="noopener">v' + j.version.replace(/[<>"]/g, "") + "</a>";
+    }).catch(() => {});
 
     if (!("serial" in navigator)) { $("unsupported").hidden = false; $("detect").disabled = true; }
     let want = (location.hash || "").replace("#", "").toLowerCase();   // enlace directo: ...APRS-LoRa-Plus/#rotor
