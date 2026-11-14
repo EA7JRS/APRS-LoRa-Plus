@@ -44,7 +44,6 @@ ____________________________________________________________________*/
 #include <esp_idf_version.h>
 #include <logger.h>
 #include <WiFi.h>
-#include "mt_check.h"
 #include "smartbeacon_utils.h"
 #include "bluetooth_utils.h"
 #include "keyboard_utils.h"
@@ -478,5 +477,4 @@ void loop() {
 
     if (bluetoothActive && Config.bluetooth.useBLE) BLE_Control::loop();     // app APRS LoRa+: ordenes y eventos de control (EA7JRS)
     ALERTS::loop();                                                          // avisos oficiales: caducidad, SAME de la T-TWR (EA7JRS)
-    MT_Check::loop();                                                        // MAPRS: distintivo maritimo comprobado en MarineTraffic
 }

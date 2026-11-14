@@ -36,7 +36,6 @@
 #include "keypad_fh2.h"
 #include "fm_core.h"
 #include "net_wx.h"
-#include "mt_check.h"
 #include "mtcheck.h"
 #include "ais_vessel.h"
 
@@ -892,18 +891,6 @@ namespace WEB_Utils {
             request->send(r);
         });
         #endif
-        // Distintivo maritimo del MMSI en MarineTraffic (MAPRS): POST empieza la consulta, GET da el estado
-        server.on("/api/mtcheck", HTTP_GET, [](AsyncWebServerRequest *request) {
-            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", MT_Check::statusJson());
-            r->addHeader("Cache-Control", "no-store");
-            request->send(r);
-        });
-        server.on("/api/mtcheck", HTTP_POST, [](AsyncWebServerRequest *request) {
-            const bool ok = MT_Check::start();
-            AsyncWebServerResponse *r = request->beginResponse(ok ? 200 : 400, "application/json", MT_Check::statusJson());
-            r->addHeader("Cache-Control", "no-store");
-            request->send(r);
-        });
         // Tiempo de internet: lo baja el navegador de la WebUI (OpenWeatherMap / IQAir) y lo manda aqui (d = JSON de la orden "wxnet")
         server.on("/api/wxnet", HTTP_GET, [](AsyncWebServerRequest *request) {
             JsonDocument doc;

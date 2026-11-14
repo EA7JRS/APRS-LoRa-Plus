@@ -281,23 +281,13 @@ const AIS_VESSELS = [
     { id: 16, label: "Other ship",                     cls: "A",    ssid: 8, overlay: "\\", symbol: "s", group: "Commercial (AIS Class A)" }
 ];
 
-// Distintivo maritimo del MMSI: consulta de MarineTraffic que hace el transponder (/api/mtcheck)
-function mtShow(j) {
-    const e = document.getElementById("mtStatus");
-    if (!e || !j || !("ok" in j)) return;
-    let t = j.msg || "";
-    if (!j.busy) {
-        if (j.ok) t = (t && t.indexOf("Verified") < 0 ? t + " · " : "") + "Verified (" + j.src + ")";
-        else if (j.warn) t = (t ? t + " · " : "") + (j.sent ? "Sent unverified (warning)" : "Not verified: not sent (AIS carries the APRS callsign)");
-    }
-    e.textContent = t;
-    e.className = j.ok ? "text-success" : (j.warn ? "text-warning" : "text-muted");
-}
-function mtPoll() {
-    fetch("/api/mtcheck?_t=" + Date.now()).then(r => r.json()).then(j => { mtShow(j); if (j.busy) setTimeout(mtPoll, 2000); }).catch(() => {});
-}
-function mtCheck() {
-    fetch("/api/mtcheck", { method: "POST" }).then(r => r.json()).then(j => { mtShow(j); if (j.busy) setTimeout(mtPoll, 2000); }).catch(() => {});
+// Distintivo maritimo del MMSI: abre la ficha del barco en MarineTraffic (la comprobacion por API la hacen la app y el plotter,
+// que mandan "mcok"; el equipo no hace TLS). El MARS de la UIT se confirma a mano con la casilla de abajo.
+function mtOpen(index) {
+    const e = document.getElementById("beacons." + index + ".aisMmsi");
+    const mmsi = e ? e.value.replace(/[^0-9]/g, "") : "";
+    const url = mmsi ? "https://www.marinetraffic.com/en/ais/details/ships/mmsi:" + mmsi : "https://www.marinetraffic.com/";
+    window.open(url, "_blank", "noopener");
 }
 
 // APRS LoRa+ MAPRS transponder (/api/info "maprs"): solo los dos tipos de clase B del perfil (B "CS" y B "SO")
@@ -415,16 +405,10 @@ function renderAisBeacon(beacons, index) {
                     <div class="col-12 col-md-6"><small class="text-muted">Call sign of the ship station licence that goes with the MMSI; AIS sends it in the static data once it is verified. Empty = the APRS callsign.</small></div>
                 </div>
                 <div class="row g-2 mb-2 align-items-center">
-                    <div class="form-floating col-12 col-md-6">
-                        <input type="text" class="form-control form-control-sm" maxlength="40" autocomplete="off"
-                            name="beacons.${index}.aisMtKey" id="beacons.${index}.aisMtKey"
-                            value="${beacons.aisMtKey || ""}"
-                            oninput="this.value = this.value.replace(/[^0-9A-Fa-f]/g, '');">
-                        <label for="beacons.${index}.aisMtKey">MarineTraffic API key (40 hex)</label>
-                    </div>
-                    <div class="col-12 col-md-6 d-flex gap-2 flex-wrap">
-                        <button type="button" class="btn btn-sm btn-outline-primary maprs-only d-none" onclick="mtCheck()">Check in MarineTraffic</button>
+                    <div class="col-12 d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="mtOpen(${index})">Look up in MarineTraffic</button>
                         <a class="btn btn-sm btn-outline-secondary" href="https://www.itu.int/mmsapp/ShipStation/list" target="_blank" rel="noopener">Open ITU MARS</a>
+                        <small class="text-muted align-self-center">Check the registered call sign for your MMSI, then tick the box below, or verify it from the app / plotter.</small>
                     </div>
                 </div>
                 <div class="row g-2 mb-2">
@@ -438,7 +422,7 @@ function renderAisBeacon(beacons, index) {
                             <label class="form-check-label" for="beacons.${index}.aisCallUnverified">Send it even if not verified (with a warning)</label>
                         </div>
                     </div>
-                    <div class="col-12 col-md-6"><small id="mtStatus" class="text-muted">${beacons.aisCallOk == 1 ? "Verified in MarineTraffic" : (beacons.aisCallOk == 2 ? "Confirmed in the ITU MARS" : "Not verified: MarineTraffic (save first, then Check) or the ITU MARS by hand")}</small></div>
+                    <div class="col-12 col-md-6"><small id="mtStatus" class="text-muted">${beacons.aisCallOk == 1 ? "Verified in MarineTraffic (from the app or plotter)" : (beacons.aisCallOk == 2 ? "Confirmed in the ITU MARS" : "Not verified: confirm it in the ITU MARS, or verify from the app / plotter")}</small></div>
                 </div>
                 <div class="row g-2 mb-2">
                     <div class="form-floating col-4">
@@ -1937,7 +1921,6 @@ function boardPinInit() {
                 if (sub) sub.firstChild.textContent = "MAPRS transponder ";
                 document.title = "APRS LoRa+ MAPRS transponder";
                 aisClassBOnly();
-                mtPoll();
             }
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
