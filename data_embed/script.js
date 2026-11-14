@@ -281,6 +281,22 @@ const AIS_VESSELS = [
     { id: 16, label: "Other ship",                     cls: "A",    ssid: 8, overlay: "\\", symbol: "s", group: "Commercial (AIS Class A)" }
 ];
 
+// APRS LoRa+ MAPRS transponder (/api/info "maprs"): solo los dos tipos de clase B del perfil (B "CS" y B "SO")
+let AIS_CLASS_B_ONLY = false;
+function aisClassBOnly() {
+    AIS_CLASS_B_ONLY = true;
+    document.querySelectorAll('select[id$=".aisVesselType"]').forEach(sel => {
+        sel.querySelectorAll("option").forEach(o => {
+            const v = AIS_VESSELS.find(x => x.id == o.value);
+            if (v && v.cls === "A") o.remove();
+        });
+        sel.querySelectorAll("optgroup").forEach(g => { if (!g.children.length) g.remove(); });
+        if (!sel.value) sel.value = "0";
+        const m = sel.id.match(/^beacons\.(\d+)\./);
+        if (m) aisVesselChanged(Number(m[1]));
+    });
+}
+
 function aisVesselInfoText(vesselId) {
     const v = AIS_VESSELS.find(x => x.id == vesselId) || AIS_VESSELS[0];
     const clsText = v.cls === "A" ? "Class A" : (v.cls === "B-SO" ? 'Class B "SO"' : 'Class B "CS"');
@@ -309,6 +325,7 @@ function renderAisBeacon(beacons, index) {
     let options = "";
     let group = "";
     AIS_VESSELS.forEach(item => {
+        if (AIS_CLASS_B_ONLY && item.cls === "A") return;
         if (item.group !== group) {
             if (group !== "") options += "</optgroup>";
             options += `<optgroup label="${item.group}">`;
@@ -1850,6 +1867,7 @@ function boardPinInit() {
         .then(r => r.json())
         .then(i => {
             const name = i.board || "";
+            if (i.maprs) aisClassBOnly();
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x

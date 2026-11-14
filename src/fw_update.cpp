@@ -271,6 +271,9 @@ namespace FW_Update {
         doc["sketchSize"]      = (uint32_t)ESP.getSketchSize();
         doc["ota"]             = slotAvailable();
         doc["bcast"]           = BCAST::chipName();
+        #ifdef APRS_MAPRS_TRANSPONDER
+            doc["maprs"]       = true;              // transponder de clase B: la WebUI solo ofrece los dos tipos de clase B
+        #endif
         #ifdef HAS_SA868                                    // LilyGO T-TWR: radio FM SA868 (la WebUI muestra su seccion y oculta la de los modos del SX126x)
             doc["radio"]       = "sa868";
             JsonObject sa      = doc["sa868"].to<JsonObject>();
