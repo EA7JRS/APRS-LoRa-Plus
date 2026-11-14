@@ -88,12 +88,13 @@ jobs:
                   GH_TOKEN: ${{ secrets.FLASHER_TOKEN }}
                   TAG: ${{ inputs.tag }}
               run: |
-                  for dev in rotor gateway display plotter; do
+                  for dev in rotor gateway display plotter nmea2000; do
                       case "$dev" in
                           rotor) repo=EA7JRS/APRS-LoRa-Plus-Rotor ;;
                           gateway) repo=EA7JRS/APRS-LoRa-Plus-I-Gateway ;;
                           display) repo=EA7JRS/APRS-LoRa-Plus-Display ;;
                           plotter) repo=EA7JRS/APRS-LoRa-Plus-Plotter ;;
+                          nmea2000) repo=EA7JRS/APRS-LoRa-Plus-NMEA2000 ;;
                       esac
                       if [ -z "$GH_TOKEN" ]; then echo "::warning::Sin el secreto FLASHER_TOKEN: el instalador no incluye $dev"; continue; fi
                       rm -rf "/tmp/$dev"
