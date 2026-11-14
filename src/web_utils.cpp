@@ -36,6 +36,9 @@
 #include "keypad_fh2.h"
 #include "fm_core.h"
 #include "net_wx.h"
+#include "mt_check.h"
+#include "mtcheck.h"
+#include "ais_vessel.h"
 
 extern Configuration               Config;
 extern String                      versionNumber;
@@ -191,6 +194,16 @@ namespace WEB_Utils {
                 beacon.aisVesselType = (uint8_t) getParamIntSafe(prefix + "aisVesselType", beacon.aisVesselType);
                 beacon.aisName       = getParamStringSafe(prefix + "aisName", beacon.aisName);
                 beacon.aisCall       = getParamStringSafe(prefix + "aisCall", beacon.aisCall);
+                beacon.aisMtKey      = getParamStringSafe(prefix + "aisMtKey", beacon.aisMtKey);
+                beacon.aisCallUnverified = getParamStringSafe(prefix + "aisCallUnverified", "") == "1";
+                if (getParamStringSafe(prefix + "aisCallMars", "") == "1") beacon.aisCallOk = 2;   // confirmado a mano en el MARS de la UIT
+                else if (beacon.aisCallOk == 2) beacon.aisCallOk = 0;
+                if (beacon.aisCallOk == 2) {
+                    char pair[24], mc[8];
+                    AIS_Vessel::sanitizeCall(beacon.aisCall.c_str(), mc, sizeof(mc));
+                    plotter::mtcheck::pairKey((uint32_t) strtoul(getParamStringSafe(prefix + "aisMmsi", String(beacon.aisMmsi)).c_str(), nullptr, 10), mc, pair, sizeof(pair));
+                    beacon.aisCallPair = pair;
+                }
                 beacon.aisMmsi       = (uint32_t) strtoul(getParamStringSafe(prefix + "aisMmsi", String(beacon.aisMmsi)).c_str(), nullptr, 10);
                 beacon.aisLength     = (uint16_t) constrain(getParamIntSafe(prefix + "aisLength", beacon.aisLength), 0, 999);
                 beacon.aisBeam       = (uint16_t) constrain(getParamIntSafe(prefix + "aisBeam", beacon.aisBeam), 0, 126);
@@ -879,6 +892,18 @@ namespace WEB_Utils {
             request->send(r);
         });
         #endif
+        // Distintivo maritimo del MMSI en MarineTraffic (MAPRS): POST empieza la consulta, GET da el estado
+        server.on("/api/mtcheck", HTTP_GET, [](AsyncWebServerRequest *request) {
+            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", MT_Check::statusJson());
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
+        server.on("/api/mtcheck", HTTP_POST, [](AsyncWebServerRequest *request) {
+            const bool ok = MT_Check::start();
+            AsyncWebServerResponse *r = request->beginResponse(ok ? 200 : 400, "application/json", MT_Check::statusJson());
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
         // Tiempo de internet: lo baja el navegador de la WebUI (OpenWeatherMap / IQAir) y lo manda aqui (d = JSON de la orden "wxnet")
         server.on("/api/wxnet", HTTP_GET, [](AsyncWebServerRequest *request) {
             JsonDocument doc;

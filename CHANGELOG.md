@@ -6,6 +6,7 @@
 - **Balizas APRS LoRa AIS en la tabla AIS** de todos los trackers (página AIS, app, CPA y alarma), con MMSI, nombre, clase y dimensiones de la etiqueta (canal «L», fuente «APRS LoRa»); antes de la etiqueta, con el MMSI ficticio del indicativo.
 - **Etiqueta AIS legible** en el comentario (se lee en aprs.fi): `AIS B-CS: SEA BREEZE, MMSI 224123456, 12x4 m, draft 1.8 m, sailing;`. Se sigue leyendo la compacta anterior; la pantalla muestra solo el nombre.
 - **Distintivo marítimo del MMSI** en el perfil náutico AIS (WebUI *Beacons*, `aisCall`, máx. 7): va en los datos estáticos AIS (24B / 5, `!AIVDO`, tabla AIS de los trackers) y en la etiqueta (`, call EBXY`); vacío = el indicativo APRS.
+- **Distintivo marítimo comprobado** antes de emitirlo: MarineTraffic (MAPRS: *Check in MarineTraffic* con la clave de su API, por la WiFi; `/api/mtcheck`, `mt_check.cpp`), MARS de la UIT a mano o el plotter (`mcok`); *Send it even if not verified* lo emite con aviso. Núcleo `mtcheck` del plotter en `lib/aprs_formulas`.
 - **Orden y evento BLE `vessel`** (datos del barco del perfil náutico; `caps.vessel`, `caps.maprs`): el plotter APRS LoRa+ los mantiene iguales que los suyos.
 - **Bluetooth clásico, protocolo NMEA** (WebUI *Bluetooth > Protocol*): frases NMEA de la salida NMEA en lugar de tramas KISS / TNC2.
 - Pruebas en el PC: `tools/nmea/test_vdo.cpp` (41 comprobaciones).

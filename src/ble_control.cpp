@@ -32,6 +32,7 @@
 #include "ais_utils.h"
 #include "ais_vessel.h"
 #include "nmea_link.h"
+#include "mtcheck.h"
 #ifdef HAS_SA868
 #include "tx_unlock.h"
 #endif
@@ -1014,6 +1015,8 @@ namespace {
         j.unum("mmsi", b.aisMmsi);
         j.text("n", b.aisName.c_str());
         j.text("mc", b.aisCall.c_str());                            // distintivo maritimo del MMSI
+        j.num("mcok", Config.aisCallVerified(b) ? b.aisCallOk : 0);  // comprobado: 1 MarineTraffic, 2 MARS de la UIT
+        j.flag("mcu", b.aisCallUnverified);                         // se emite sin comprobar (con aviso)
         j.num("t", v.id);
         const char cls[2] = { v.aisClass, 0 };
         j.text("cls", cls);
@@ -1056,9 +1059,19 @@ namespace {
         if (!doc["len"].isNull())  b.aisLength = (uint16_t)constrain((int)(doc["len"] | 0), 0, 999);
         if (!doc["beam"].isNull()) b.aisBeam   = (uint16_t)constrain((int)(doc["beam"] | 0), 0, 126);
         if (!doc["dr"].isNull())   b.aisDraft  = constrain((float)(doc["dr"] | 0.0f), 0.0f, 25.5f);
+        if (!doc["mcok"].isNull()) {                                // comprobado por el plotter (MarineTraffic o MARS); 0 no quita lo que haya
+            const int ok = doc["mcok"] | 0;
+            if (ok == 1 || ok == 2) {
+                char mc[8], pair[24];
+                AIS_Vessel::sanitizeCall(b.aisCall.c_str(), mc, sizeof(mc));
+                plotter::mtcheck::pairKey(b.aisMmsi, mc, pair, sizeof(pair));
+                b.aisCallOk = (uint8_t) ok;
+                b.aisCallPair = pair;
+            }
+        }
         Config.enforceAisBeacon(b);                                 // SSID, simbolo, SmartBeacon y limites de la clase
         Beacon& cur = Config.beacons[index];
-        const bool changed = cur.callsign != b.callsign || cur.aisMmsi != b.aisMmsi || cur.aisName != b.aisName || cur.aisCall != b.aisCall || cur.aisVesselType != b.aisVesselType
+        const bool changed = cur.callsign != b.callsign || cur.aisMmsi != b.aisMmsi || cur.aisName != b.aisName || cur.aisCall != b.aisCall || cur.aisCallOk != b.aisCallOk || cur.aisVesselType != b.aisVesselType
                           || cur.aisLength != b.aisLength || cur.aisBeam != b.aisBeam || fabsf(cur.aisDraft - b.aisDraft) > 0.01f;
         if (changed) {
             cur = b;
@@ -2108,7 +2121,7 @@ namespace {
         else if (strcmp(cmd, "profile") == 0) setProfile(doc["i"] | -1, cmd, id);
         else if (strcmp(cmd, "lora") == 0)    setLora(doc["i"] | -1, cmd, id);
         else if (strcmp(cmd, "vessel") == 0) {                     // sin campos: consulta; con campos: cambia los datos del barco
-            if (doc["call"].isNull() && doc["mmsi"].isNull() && doc["n"].isNull() && doc["mc"].isNull() && doc["t"].isNull() && doc["len"].isNull()
+            if (doc["call"].isNull() && doc["mmsi"].isNull() && doc["n"].isNull() && doc["mc"].isNull() && doc["mcok"].isNull() && doc["t"].isNull() && doc["len"].isNull()
                 && doc["beam"].isNull() && doc["dr"].isNull()) sendVessel();
             else setVessel(doc, cmd, id);
         }

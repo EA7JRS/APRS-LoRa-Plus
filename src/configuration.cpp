@@ -31,6 +31,7 @@
 #include "display.h"
 #include "ais_vessel.h"
 #include "product.h"
+#include "mtcheck.h"
 #include "logger.h"
 
 #ifdef NMEA_UART_TX_PIN
@@ -244,6 +245,10 @@ namespace {
         FB(Beacon, aisVesselType,      0, 0),
         FS(Beacon, aisName,            0, ""),
         FS(Beacon, aisCall,            0, ""),
+        FB(Beacon, aisCallOk,          0, 0),
+        FS(Beacon, aisCallPair,        0, ""),
+        FB(Beacon, aisCallUnverified,  0, false),
+        FS(Beacon, aisMtKey,           0, ""),
         FB(Beacon, aisMmsi,            0, 0),
         FB(Beacon, aisLength,          0, 0),
         FB(Beacon, aisBeam,            0, 0),
@@ -1016,6 +1021,15 @@ bool Configuration::readFile() {
     }
 }
 
+bool Configuration::aisCallVerified(const Beacon& b) const {
+    return plotter::mtcheck::verified(b.aisCallOk, b.aisCallPair.c_str(), b.aisMmsi, b.aisCall.c_str());
+}
+
+String Configuration::aisCallToSend(const Beacon& b) const {
+    if (b.aisCall.isEmpty()) return "";
+    return (aisCallVerified(b) || b.aisCallUnverified) ? b.aisCall : String("");
+}
+
 bool Configuration::callsignMissing() const {
     #ifdef APRS_MAPRS_TRANSPONDER
         int index = aisBeaconIndex();                       // el transpondedor usa el perfil nautico AIS
@@ -1043,6 +1057,10 @@ void Configuration::enforceAisBeacon(Beacon& beacon) {
     char mcall[8];
     AIS_Vessel::sanitizeCall(beacon.aisCall.c_str(), mcall, sizeof(mcall));
     beacon.aisCall              = mcall;
+    if (beacon.aisCallOk && !plotter::mtcheck::verified(beacon.aisCallOk, beacon.aisCallPair.c_str(), beacon.aisMmsi, mcall)) {
+        beacon.aisCallOk = 0;                                           // otro MMSI u otro distintivo: hay que comprobarlo otra vez
+        beacon.aisCallPair = "";
+    }
     if (!AIS_Vessel::validMmsi(beacon.aisMmsi)) beacon.aisMmsi = 0;
     beacon.aisLength = AIS_Vessel::clampLength(vessel.aisClass, beacon.aisLength);   // clase B (recreo): 6 - 24 m
     if (beacon.aisBeam > 126)   beacon.aisBeam   = 126;

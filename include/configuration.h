@@ -96,6 +96,10 @@ public:
     uint8_t     aisVesselType   = 0;        // indice de la tabla de embarcaciones (clase AIS, SSID y simbolo salen de ahi)
     String      aisName;                    // nombre de la embarcacion (max. 20 caracteres)
     String      aisCall;                    // distintivo de llamada maritimo del MMSI (max. 7; vacio = el indicativo APRS)
+    uint8_t     aisCallOk       = 0;        // distintivo comprobado: 0 no, 1 MarineTraffic, 2 MARS de la UIT (mtcheck)
+    String      aisCallPair;                // par comprobado "224123456/EBXY"; si cambia el MMSI o el distintivo, deja de valer
+    bool        aisCallUnverified = false;  // emitir el distintivo sin comprobar (con aviso)
+    String      aisMtKey;                   // clave de la API de MarineTraffic (40 hex)
     uint32_t    aisMmsi         = 0;        // 9 digitos; 0 = no definido (no se envian datos estaticos)
     uint16_t    aisLength       = 0;        // eslora (m)
     uint16_t    aisBeam         = 0;        // manga (m)
@@ -583,6 +587,10 @@ public:
     int  aisLoraIndex() const;                          // -1 si no hay perfil LoRa AIS
     int  aisBeaconIndex() const;                        // -1 si no hay perfil nautico AIS
     bool callsignMissing() const;                       // indicativo sin poner (NOCALL): se abre la WebUI al arrancar
+    // Distintivo maritimo que se emite en los datos estaticos AIS: el comprobado (MarineTraffic / MARS) o, con
+    // aisCallUnverified, el escrito; si no, vacio (AIS lleva el indicativo APRS)
+    String aisCallToSend(const Beacon& b) const;
+    bool   aisCallVerified(const Beacon& b) const;
     bool writeFile();
     bool saveConfigText(const String& text);       // guardado seguro (copia temporal comprobada, libera sitio, nunca deja sin configuracion)
     Configuration();

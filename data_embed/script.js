@@ -281,12 +281,32 @@ const AIS_VESSELS = [
     { id: 16, label: "Other ship",                     cls: "A",    ssid: 8, overlay: "\\", symbol: "s", group: "Commercial (AIS Class A)" }
 ];
 
+// Distintivo maritimo del MMSI: consulta de MarineTraffic que hace el transponder (/api/mtcheck)
+function mtShow(j) {
+    const e = document.getElementById("mtStatus");
+    if (!e || !j || !("ok" in j)) return;
+    let t = j.msg || "";
+    if (!j.busy) {
+        if (j.ok) t = (t && t.indexOf("Verified") < 0 ? t + " · " : "") + "Verified (" + j.src + ")";
+        else if (j.warn) t = (t ? t + " · " : "") + (j.sent ? "Sent unverified (warning)" : "Not verified: not sent (AIS carries the APRS callsign)");
+    }
+    e.textContent = t;
+    e.className = j.ok ? "text-success" : (j.warn ? "text-warning" : "text-muted");
+}
+function mtPoll() {
+    fetch("/api/mtcheck?_t=" + Date.now()).then(r => r.json()).then(j => { mtShow(j); if (j.busy) setTimeout(mtPoll, 2000); }).catch(() => {});
+}
+function mtCheck() {
+    fetch("/api/mtcheck", { method: "POST" }).then(r => r.json()).then(j => { mtShow(j); if (j.busy) setTimeout(mtPoll, 2000); }).catch(() => {});
+}
+
 // APRS LoRa+ MAPRS transponder (/api/info "maprs"): solo los dos tipos de clase B del perfil (B "CS" y B "SO")
 let AIS_CLASS_B_ONLY = false;
 function aisClassBOnly() {
     AIS_CLASS_B_ONLY = true;
     document.querySelectorAll(".beacons.beacon-plain").forEach(e => e.classList.add("d-none"));   // los perfiles 1-3 no se usan
     document.querySelectorAll(".beacon-num").forEach(e => e.classList.add("d-none"));
+    document.querySelectorAll(".maprs-only").forEach(e => e.classList.remove("d-none"));
     const h = document.querySelector("#sec-beaconing h5");
     if (h && h.lastChild) h.lastChild.textContent = " Vessel (AIS nautical profile)";
     const hs = h && h.parentElement.querySelector("small");
@@ -392,7 +412,33 @@ function renderAisBeacon(beacons, index) {
                             oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');">
                         <label for="beacons.${index}.aisCall">Maritime call sign (max. 7)</label>
                     </div>
-                    <div class="col-12 col-md-6"><small class="text-muted">Call sign of the ship station licence that goes with the MMSI; AIS sends it in the static data. Empty = the APRS callsign.</small></div>
+                    <div class="col-12 col-md-6"><small class="text-muted">Call sign of the ship station licence that goes with the MMSI; AIS sends it in the static data once it is verified. Empty = the APRS callsign.</small></div>
+                </div>
+                <div class="row g-2 mb-2 align-items-center">
+                    <div class="form-floating col-12 col-md-6">
+                        <input type="text" class="form-control form-control-sm" maxlength="40" autocomplete="off"
+                            name="beacons.${index}.aisMtKey" id="beacons.${index}.aisMtKey"
+                            value="${beacons.aisMtKey || ""}"
+                            oninput="this.value = this.value.replace(/[^0-9A-Fa-f]/g, '');">
+                        <label for="beacons.${index}.aisMtKey">MarineTraffic API key (40 hex)</label>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary maprs-only d-none" onclick="mtCheck()">Check in MarineTraffic</button>
+                        <a class="btn btn-sm btn-outline-secondary" href="https://www.itu.int/mmsapp/ShipStation/list" target="_blank" rel="noopener">Open ITU MARS</a>
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-6">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" class="form-check-input" name="beacons.${index}.aisCallMars" id="beacons.${index}.aisCallMars" value="1" ${beacons.aisCallOk == 2 ? 'checked' : ''}>
+                            <label class="form-check-label" for="beacons.${index}.aisCallMars">Confirmed in the ITU MARS (MMSI and call sign match)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input type="checkbox" class="form-check-input" name="beacons.${index}.aisCallUnverified" id="beacons.${index}.aisCallUnverified" value="1" ${beacons.aisCallUnverified ? 'checked' : ''}>
+                            <label class="form-check-label" for="beacons.${index}.aisCallUnverified">Send it even if not verified (with a warning)</label>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6"><small id="mtStatus" class="text-muted">${beacons.aisCallOk == 1 ? "Verified in MarineTraffic" : (beacons.aisCallOk == 2 ? "Confirmed in the ITU MARS" : "Not verified: MarineTraffic (save first, then Check) or the ITU MARS by hand")}</small></div>
                 </div>
                 <div class="row g-2 mb-2">
                     <div class="form-floating col-4">
@@ -1891,6 +1937,7 @@ function boardPinInit() {
                 if (sub) sub.firstChild.textContent = "MAPRS transponder ";
                 document.title = "APRS LoRa+ MAPRS transponder";
                 aisClassBOnly();
+                mtPoll();
             }
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);

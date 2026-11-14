@@ -152,7 +152,7 @@ namespace {
         info.shipType  = vessel.shipType;
         strncpy(info.name, currentBeacon->aisName.c_str(), sizeof(info.name) - 1);
         info.name[sizeof(info.name) - 1] = 0;
-        AIS_Vessel::sanitizeCall(currentBeacon->aisCall.c_str(), info.call, sizeof(info.call));
+        AIS_Vessel::sanitizeCall(Config.aisCallToSend(*currentBeacon).c_str(), info.call, sizeof(info.call));   // solo comprobado (o permitido sin comprobar)
         engine.setOwnVessel(currentBeacon->callsign.c_str(), info);
     }
 
