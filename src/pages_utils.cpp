@@ -255,6 +255,9 @@ namespace {
     uint8_t         clockView           = 0;        // CLOCK: 0 = reloj, 1 = SUN (orto y ocaso), 2 = MOON (fase) (EA7JRS)
     uint8_t         wxView              = 0;        // TELEMETRY: 0 = sensores, 1 = ALERTS (avisos oficiales), 2 = SPACE WX (EA7JRS)
     uint8_t         alertTop            = 0;        // ALERTS: primera fila
+    uint8_t         alertSel            = 0;        // ALERTS: aviso marcado (LP lo abre)
+    bool            alertRead           = false;    // ALERTS: leyendo el aviso marcado entero
+    uint8_t         alertScroll         = 0;        // ALERTS: primera linea del texto a la vista
     uint32_t        msgWinUntil         = 0;        // ventana del mensaje recibido visible hasta este instante
     uint32_t        alertWinWakeMs      = 0;
     std::string     alertWinId;                     // aviso de la ventana que se ve
@@ -2127,7 +2130,9 @@ namespace {
     void drawWxSensors();
     void drawAlertsView();
     void drawSpaceView();
+    void drawAlertReader();
     void drawWx() {
+        if (wxView == 1 && alertRead) { drawAlertReader(); return; }
         if (wxView == 1) { drawAlertsView(); return; }
         if (wxView == 2) { if (ALERTS::hasSpace()) { drawSpaceView(); return; } wxView = 0; }
         drawWxSensors();
@@ -2434,7 +2439,7 @@ namespace {
             else line[0] = '\0';
             winLine(3, line, INK_MUTED);
         }
-        winButtons(ink, ALERTS::sounding() ? "1P mute  LP list" : "1P close  LP list", true);
+        winButtons(ink, ALERTS::sounding() ? "1P mute  LP read" : "1P close  LP read", true);
     }
 
     // Ventana del mensaje recibido: remitente en grande, sin leer, hora y el principio del texto en dos lineas
@@ -2500,11 +2505,16 @@ namespace {
         header("ALERTS", right);
         if (L.size() == 0) { row(0, "No alerts in force"); row(2, "From the app (internet)"); row(3, "and NOAA Weather Radio"); return; }
         const uint8_t ROWS = 6;
+        if (alertSel >= L.size()) alertSel = (uint8_t)(L.size() - 1);
+        if (alertSel < alertTop) alertTop = alertSel;
+        if (alertSel >= alertTop + ROWS) alertTop = (uint8_t)(alertSel - ROWS + 1);
         if (alertTop + ROWS > L.size()) alertTop = L.size() > ROWS ? (uint8_t)(L.size() - ROWS) : 0;
         rowLimit = COLS - 2;
         for (uint8_t i = 0; i < ROWS && alertTop + i < L.size(); i++) {
             const plotter::Alert& a = L[alertTop + i];
             const int y = ROW_Y0 + i * ROW_PITCH;
+            const bool sel = alertTop + i == alertSel;
+            if (sel) { pagesInk(INK_SEL); pagesFillRect(10, y - 1, PW - 10, 9, true); }
             pagesInk(levelInk(a.level));
             if (a.level > 0) pagesFillRect(0, y, 8, 8, true);
             else pagesDrawRect(0, y, 8, 8, true);
@@ -2513,11 +2523,93 @@ namespace {
             snprintf(line, sizeof(line), "%s %s", a.event.c_str(), a.area.c_str());
             line[COLS - 2] = '\0';
             if (i < MIRROR_ROWS) snprintf(mirrorRows[i], sizeof(mirrorRows[i]), "%s", line);
-            if (i == 0) pagesInk(INK_ACCENT);
-            text(11, y, line);
+            if (sel) pagesText(11, y, line, 1, true);
+            else text(11, y, line);
             pagesInk(INK_TEXT);
         }
         rowLimit = COLS;
+    }
+
+    // ALERTS > aviso entero (EA7JRS): tipo, zona, vigencia, texto e instrucciones, partido por palabras; 1P baja una
+    // pantalla (al final, el aviso siguiente), 2P vuelve a la lista
+    static void alertLines(const plotter::Alert& a, std::vector<std::string>& out, uint8_t& accentLines) {
+        const size_t W = (size_t)COLS;
+        auto wrap = [&](const std::string& s) {
+            size_t i = 0;
+            while (i < s.size()) {
+                while (i < s.size() && s[i] == ' ') i++;
+                if (i >= s.size()) break;
+                size_t n = s.size() - i;
+                if (n > W) {
+                    n = W;
+                    size_t k = n;
+                    while (k > 0 && s[i + k] != ' ') k--;
+                    if (k > W / 3) n = k;
+                }
+                out.push_back(s.substr(i, n));
+                i += n;
+            }
+        };
+        out.clear();
+        wrap(a.event);
+        accentLines = (uint8_t)out.size();
+        wrap(a.area);
+        char from[16], to[16], line[40];
+        fmtWhen(a.onset, from, sizeof(from));
+        fmtWhen(a.expires, to, sizeof(to));
+        if (from[0] && to[0]) { snprintf(line, sizeof(line), "From %s", from); out.push_back(line); snprintf(line, sizeof(line), "To   %s", to); out.push_back(line); }
+        else if (to[0]) { snprintf(line, sizeof(line), "Until %s", to); out.push_back(line); }
+        else if (from[0]) { snprintf(line, sizeof(line), "Since %s", from); out.push_back(line); }
+        wrap(a.text);
+        wrap(a.instruction);
+        if (a.hasPos()) { snprintf(line, sizeof(line), "%.3f %.3f", a.lat, a.lon); out.push_back(line); }
+        snprintf(line, sizeof(line), "Source %s", plotter::alertSrcName(a.src));
+        out.push_back(line);
+    }
+
+    void drawAlertReader() {
+        const plotter::AlertList& L = ALERTS::list();
+        if (L.size() == 0) { alertRead = false; drawAlertsView(); return; }
+        if (alertSel >= L.size()) alertSel = (uint8_t)(L.size() - 1);
+        const plotter::Alert& a = L[alertSel];
+        std::vector<std::string> lines;
+        uint8_t accent = 0;
+        alertLines(a, lines, accent);
+        const uint8_t ROWS = 6;
+        if (alertScroll >= lines.size()) alertScroll = 0;
+        char right[10];
+        snprintf(right, sizeof(right), "%u/%u", (unsigned)(alertSel + 1), (unsigned)L.size());
+        header(a.level >= 3 ? "RED ALERT" : a.level == 2 ? "ORANGE ALERT" : a.level == 1 ? "YELLOW ALERT" : "ALERT", right);
+        pagesInk(levelInk(a.level));
+        pagesFillRect(0, ROW_Y0 - 1, 2, ROWS * ROW_PITCH, true);      // franja del color del nivel
+        for (uint8_t i = 0; i < ROWS && alertScroll + i < lines.size(); i++) {
+            const uint8_t k = alertScroll + i;
+            pagesInk(k < accent ? levelInk(a.level) : INK_TEXT);
+            const std::string& t = lines[k];
+            if (i < MIRROR_ROWS) snprintf(mirrorRows[i], sizeof(mirrorRows[i]), "%s", t.c_str());
+            text(4, ROW_Y0 + i * ROW_PITCH, t.c_str());
+        }
+        pagesInk(INK_MUTED);
+        if (alertScroll + ROWS < lines.size()) text(PW - 6, ROW_Y0 + (ROWS - 1) * ROW_PITCH, "v");     // hay mas abajo
+        pagesInk(INK_TEXT);
+    }
+
+    static bool scrollAlertReader(int direction) {
+        const plotter::AlertList& L = ALERTS::list();
+        if (L.size() == 0) { alertRead = false; return false; }
+        std::vector<std::string> lines;
+        uint8_t accent = 0;
+        alertLines(L[alertSel < L.size() ? alertSel : 0], lines, accent);
+        const uint8_t STEP = 5;                                    // deja una linea de la pantalla anterior
+        if (direction > 0) {
+            if (alertScroll + 6 < lines.size()) { alertScroll += STEP; return true; }
+            if (alertSel + 1 < L.size()) { alertSel++; alertScroll = 0; return true; }
+            alertScroll = 0;                                       // ultimo aviso: vuelve al principio
+            return true;
+        }
+        if (alertScroll > 0) { alertScroll = alertScroll > STEP ? alertScroll - STEP : 0; return true; }
+        if (alertSel > 0) { alertSel--; alertScroll = 0; return true; }
+        return true;
     }
 
     // TELEMETRY > SPACE WX: escalas G / R / S, flujo, rayos X, campo y viento solar, y el Kp de 24 h en barras
@@ -2565,10 +2657,11 @@ namespace {
 
     static bool moveWxView(int direction) {
         if (page != PAGE_WX) return false;
-        if (wxView == 1 && direction != 0) {                     // ALERTS: pasa las filas si no caben
+        if (wxView == 1 && alertRead && direction != 0) return scrollAlertReader(direction);
+        if (wxView == 1 && direction != 0) {                     // ALERTS: el cursor baja y sube por la lista
             const plotter::AlertList& L = ALERTS::list();
-            if (direction > 0 && alertTop + 6 < L.size()) { alertTop++; return true; }
-            if (direction < 0 && alertTop > 0) { alertTop--; return true; }
+            if (direction > 0 && alertSel + 1 < L.size()) { alertSel++; return true; }
+            if (direction < 0 && alertSel > 0) { alertSel--; return true; }
         }
         uint8_t seq[3], n = 0;
         seq[n++] = 0;
@@ -2580,6 +2673,8 @@ namespace {
         if (to < 0 || to >= n) return false;
         wxView = seq[to];
         alertTop = 0;
+        alertSel = 0;
+        alertRead = false;
         return true;
     }
 
@@ -5991,6 +6086,10 @@ namespace PAGES_Utils {
             clockView = 0;
             return true;
         }
+        if (page == PAGE_WX && wxView == 1 && alertRead) {     // aviso abierto -> lista de avisos
+            alertRead = false;
+            return true;
+        }
         if (page == PAGE_WX && wxView != 0) {                  // ALERTS o SPACE WX -> TELEMETRY
             wxView = 0;
             return true;
@@ -6185,10 +6284,18 @@ namespace PAGES_Utils {
             else goToStation(st);
             return PAGES_CMD_NONE;
         }
-        if (alertWindowShown()) {                    // LP: cierra y abre la lista de avisos (TELEMETRY > ALERTS)
+        if (alertWindowShown()) {                    // LP: cierra la ventana y abre el aviso entero (TELEMETRY > ALERTS)
+            const std::string id = ALERTS::popup() ? ALERTS::popup()->id : std::string();
             ALERTS::mute();
             ALERTS::popupClose();
-            if (pageVisible(PAGE_WX)) { page = PAGE_WX; changedPage(); wxView = 1; }
+            if (pageVisible(PAGE_WX)) {
+                page = PAGE_WX; changedPage(); wxView = 1;
+                const plotter::AlertList& L = ALERTS::list();
+                alertSel = 0;
+                for (size_t i = 0; i < L.size(); i++) if (L[i].id == id) alertSel = (uint8_t)i;
+                alertScroll = 0;
+                alertRead = L.size() > 0;
+            }
             return PAGES_CMD_NONE;
         }
         if (messageWindowShown()) { next(); return PAGES_CMD_NONE; }
@@ -6197,6 +6304,11 @@ namespace PAGES_Utils {
                 uint8_t view[HeardList::CAPACITY];
                 uint8_t n = stationView(view);
                 if (n > 0) goToStation(heard.byRecent(view[listCursor]));
+                return PAGES_CMD_NONE;
+            }
+            if (page == PAGE_WX && wxView == 1 && !alertRead && ALERTS::list().size() > 0) {   // ALERTS: abre el aviso marcado
+                alertRead = true;
+                alertScroll = 0;
                 return PAGES_CMD_NONE;
             }
             if (page == PAGE_MSG && msgMode == MM_BROWSE) {      // explorando: abre el mensaje marcado
