@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Baliza LR-FHSS: «LRF error -12» en todas las placas.** La orden que arranca el modo recibía el ancho de banda en el sitio de la frecuencia (0 MHz, frecuencia no válida), así que la baliza no llegaba a emitir. Corregido (`LoRa_Utils::lrfhssSend`). Sin probar en la placa.
 - **APRS LoRa+ MAPRS transponder** (Manuel, 2026-11-13): transponder AIS de clase B por APRS LoRa en la **LilyGO T3 v1.6.1** (LoRa32 V2.1, 433 MHz), entorno `ttgo-lora32-v21_MAPRS`. Arranca con el perfil náutico AIS (los dos tipos de clase B: velero de recreo, B «CS», y lancha de recreo, B «SO»; la WebUI solo ofrece esos), CAD y BLE; punto de acceso y Bluetooth **APRSLoRa+MAPRS**; bienvenida «APRS LoRa+ MAPRS». Un solo perfil, el náutico AIS: la WebUI solo enseña ese y el botón y la orden `profile` no cambian a otro. Salida NMEA por BLE (servicio de control, PIN) o Bluetooth clásico (*Protocol: NMEA*). Manual, apartado 38.
 - **Barco propio como `!AIVDO`** en la salida NMEA (Supreme y MAPRS) con el perfil náutico AIS: posición cada 10 s con fix y datos estáticos cada 6 min y al cambiar (`NMEA_Core::Engine::setOwnVessel`, `NMEA0183::toVdo`). La baliza propia repetida por un digipeater ya no crea un blanco AIS.
 - **Balizas APRS LoRa AIS en la tabla AIS** de todos los trackers (página AIS, app, CPA y alarma), con MMSI, nombre, clase y dimensiones de la etiqueta (canal «L», fuente «APRS LoRa»); antes de la etiqueta, con el MMSI ficticio del indicativo.
