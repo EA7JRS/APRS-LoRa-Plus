@@ -2,7 +2,7 @@
 
 *LoRa APRS Tracker V5.2.11 — Manuel - EA7JRS*
 
-Modo de transmisión **propio, independiente del WSPR** y **desactivado por defecto**: no depende de la baliza WSPR ni se emite a la vez. Es una baliza de propagación por **LR-FHSS** (*Long Range – Frequency Hopping Spread Spectrum*) en una frecuencia propia de 70 cm. **Solo transmite**: la recepción y decodificación quedan para un firmware dedicado a placas con módulos capaces de recibirla (monitorización de propagación).
+Modo de transmisión **propio, independiente del WSPR** y **desactivado por defecto**: no depende de la baliza WSPR ni se emite a la vez. Es una baliza de propagación por **LR-FHSS** (*Long Range – Frequency Hopping Spread Spectrum*) en una frecuencia propia de 70 cm. **El tracker solo transmite**; la **app Android** la recibe (ver «Recepción»).
 
 > Esta guía resume lo consultado en las fuentes oficiales citadas al final. **No es asesoramiento legal.** Antes de activarla, comprueba las condiciones de tu autorización con la Jefatura Provincial de Inspección de Telecomunicaciones o con URE.
 
@@ -66,8 +66,17 @@ Se emite pero se avisa (`LRF: BW>125kHz!`) si el ancho supera **125 kHz**. Estos
 
 ## 5. Limitaciones
 
-- **Solo transmisión.** Los chips SX1261/SX1262 modulan LR-FHSS pero no lo demodulan; hoy solo lo demodulan pasarelas LoRaWAN con concentradores SX1302/SX1303, y no hay receptor aficionado en 70 cm. Para recibirlo se prevé un firmware dedicado a placas con módulos capaces de decodificarlo.
-- **Sin compilar ni probar en hardware** (5.2.11). Primera comprobación recomendada: un SDR con carga artificial, buscando los saltos de ≈ 0,1 s dentro de ≈ 39 kHz alrededor de la frecuencia elegida.
+- **El tracker solo transmite.** Los chips SX1261/SX1262 modulan LR-FHSS pero no lo demodulan (solo lo hacen las pasarelas LoRaWAN con SX1302/SX1303). La recepción la hace la app Android (ver abajo).
+- **Probado en la T-Beam Supreme (5.4.6):** hasta la 5.4.6 la baliza no salía («LRF error -12»: la orden de arranque recibía el ancho de banda en el sitio de la frecuencia). Con el arreglo, una grabación I/Q de la baliza real (SDRconnect con un RSPdx-R2) se decodifica entera en la app: `PB1 EA7JRS IM97MO22 10`.
+
+## 6. Recepción con la app Android
+
+Herramienta **Beacons heard (SDR)** de la app (tecla [F] BEACONS):
+
+- **Fuente:** un RTL-SDR enchufado al móvil (con el driver «RTL-SDR driver»), cualquier `rtl_tcp` de la red, o una **grabación I/Q** en WAV (SDRconnect, SDR++…; 8 a 32 bits o float, también RF64). SDRconnect no escribe la frecuencia central dentro del archivo, pero la pone en el nombre (`…_434017780HZ.wav`): la app la lee de ahí.
+- **Grabar con SDRconnect:** modo de grabación **IQ** (el demodulador elegido no importa), centrado en la frecuencia de la baliza o unos pocos kHz por encima (para apartar el pico central), con una banda que abarque los ≈ 39 kHz de la baliza: con 62,5 kS/s el centro no debe alejarse más de unos 10 kHz; con más ancho (125 kS/s o más) hay margen. Grabar mientras el tracker emite.
+- **Lo que hace:** busca la sincronía cada 244 Hz, lee la cabecera y cada fragmento en su salto, corrige errores con el código convolucional y comprueba los CRC. Funciona hasta unos 6 dB de Eb/N0.
+- **Resultado:** lista con indicativo, locator, potencia, distancia y rumbo; marca en el mapa con la línea de círculo máximo; ROTOR; y **spot al DX cluster** a mano o automático (apagado de serie; indicativo validado).
 - Es un modo distinto del WSPR: para emitir WSPR hay que arrancar en modo WSPR y para LR-FHSS, en modo LR-FHSS (cambio de modo = reinicio).
 
 ## Fuentes

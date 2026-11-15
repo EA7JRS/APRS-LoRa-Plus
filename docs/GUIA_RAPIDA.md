@@ -1,6 +1,6 @@
-# LoRa APRS Tracker V5.2.1 — Guía rápida
+# LoRa APRS Tracker V5.4.6 — Guía rápida
 
-**Placa:** T-Beam S3 Supreme (pantalla OLED 128×64) · **Versión:** 5.2.1 (base 4.0.1 + pantallas APRS + FSK + MORSE + WSPR) · **Autor de las pantallas:** EA7JRS
+**Placa:** T-Beam S3 Supreme (pantalla OLED 128×64) · **Versión:** 5.4.6 (base 4.0.1 + pantallas APRS + FSK + MORSE + WSPR + FT8 / FT4 / FST4W + DAPNET + SAT; lo nuevo desde la 5.2.1, en el manual de usuario) · **Autor de las pantallas:** EA7JRS
 
 ## 0. Al encender: elige modo
 

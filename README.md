@@ -31,7 +31,7 @@ El transponder AIS **MAPRS** (LilyGO T3, 433 MHz) es una variante del propio tra
 
 | Área | Qué aporta |
 |---|---|
-| **Modos de funcionamiento** | Selector al arrancar: *APRS LoRa*, *APRS FSK 9600* (G3RUH, AX.25), *MORSE / CW*, *WSPR beacon*, *FT8 beacon*, *FT4 beacon*, *FST4W beacon* y *DAPNET pager* (receptor POCSAG, solo recepción). *LR-FHSS* (experimental) se activa desde la WebUI; viene apagado. |
+| **Modos de funcionamiento** | Selector al arrancar: *APRS LoRa*, *APRS FSK 9600* (G3RUH, AX.25), *MORSE / CW*, *WSPR beacon*, *FT8 beacon*, *FT4 beacon*, *FST4W beacon* y *DAPNET pager* (receptor POCSAG, solo recepción). *LR-FHSS* (experimental; la recibe la app Android con un RTL-SDR o una grabación I/Q) se activa desde la WebUI; viene apagado. |
 | **Interfaz** | 11 pantallas APRS navegables con un botón (principal, última estación, mensajes, GPS, telemetría, brújula, altímetro, reloj, SOS…), pantalla de bienvenida APRS LoRa+, alarmas y baliza SOS. |
 | **Mensajería** | Lectura de mensajes recibidos y respuesta con mensajes rápidos predefinidos, sin teclado. |
 | **Calibración** | Corrección global del oscilador en ppm (tres decimales) para TX y RX, portadora de prueba CW para medir con un SDR y calibración WSPR por offset y por potencia. |
@@ -50,6 +50,8 @@ El transponder AIS **MAPRS** (LilyGO T3, 433 MHz) es una variante del propio tra
 | **Control por BLE con PIN** *(5.3.4, sin probar)* | Segundo servicio BLE para la app de Android (estado, sensores, GNSS, DAPNET, NMEA, modo y perfil, manipulador remoto, firmware por BLE) con emparejamiento por PIN. Ver `docs/BLE_CONTROL.md`. |
 | **CW por RF: S-meter y squelch** *(5.3.4, sin probar)* | La escucha CW muestra S-meter, dBm y SNR y tiene squelch ajustable desde el tracker y la WebUI; el zumbador suena con macros, manipulador y entrenador. |
 | **Instalar y actualizar** *(5.3.1, instalador web probado)* | Instalador web por USB que reconoce la placa y la versión instalada, actualización desde la WebUI (archivo) y desde la app Android (internet del móvil, por Bluetooth) en placas con dos copias de firmware. Ver el manual, apartado 30. |
+| **Pantallas, avisos oficiales y MAPRS** *(5.4.4–5.4.6, sin probar en todas las placas)* | Pantallas a color a todo el ancho (Heltec Wireless Tracker, T-Deck) y OLED más aprovechadas; CLOCK > SUN / MOON; avisos oficiales (AEMET, MeteoAlarm, NWS, tsunamis, terremotos, tiempo espacial) que manda la app, con ventana emergente; transponder AIS **MAPRS** (LilyGO T3, 433 MHz) con su WebUI propia; barco propio como `!AIVDO` y distintivo marítimo comprobado (MarineTraffic o MARS de la UIT). |
+| **Fórmulas comunes** | Sol con precisión de almanaque, salida y puesta exactas (menos de un segundo), luna, punto de rocío y Beaufort: las mismas fórmulas que el plotter, la app, el rotor y la pantalla (`lib/aprs_formulas`). |
 | **Identificación de equipos** | Lista oficial aprs-deviceid (tocalls y sufijos Mic-E). |
 
 Detalle completo en [`CHANGELOG.md`](CHANGELOG.md) y en las notas de cada versión ([`docs/releases/`](docs/releases)).
@@ -62,7 +64,10 @@ Detalle completo en [`CHANGELOG.md`](CHANGELOG.md) y en las notas de cada versi�
 | [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md) / [`docs/USER_MANUAL_EN.md`](docs/USER_MANUAL_EN.md) | Manual de usuario (ES / EN), también en PDF |
 | [`docs/MODOS.md`](docs/MODOS.md) | Modos de funcionamiento y selector de arranque |
 | [`docs/CW_MORSE.md`](docs/CW_MORSE.md), [`docs/FSK_G3RUH.md`](docs/FSK_G3RUH.md), [`docs/WSPR.md`](docs/WSPR.md), [`docs/WSPR_CALIBRACION.md`](docs/WSPR_CALIBRACION.md) | Modos CW, FSK y WSPR; calibración de frecuencia |
-| [`docs/LRFHSS_BALIZA.md`](docs/LRFHSS_BALIZA.md) | Baliza LR-FHSS (desactivada) |
+| [`docs/LRFHSS_BALIZA.md`](docs/LRFHSS_BALIZA.md) | Baliza LR-FHSS (apagada de serie; recepción con la app Android) |
+| [`docs/SAT_MODE.md`](docs/SAT_MODE.md), [`docs/AIS.md`](docs/AIS.md), [`docs/T_TWR.md`](docs/T_TWR.md), [`docs/BROADCAST_RADIO.md`](docs/BROADCAST_RADIO.md), [`docs/CAT_HAMLIB.md`](docs/CAT_HAMLIB.md) | Modo SAT, receptor AIS, LilyGO T-TWR Plus, radio comercial, CAT por WiFi |
+| [`docs/BLE_CONTROL.md`](docs/BLE_CONTROL.md), [`docs/APP_COVERAGE.md`](docs/APP_COVERAGE.md) | Protocolo de control por BLE y qué controla la app Android |
+| [`docs/HARDWARE_SUPREME_EXTRAS.md`](docs/HARDWARE_SUPREME_EXTRAS.md), [`docs/HELTEC_WIRELESS_TRACKER.md`](docs/HELTEC_WIRELESS_TRACKER.md), [`docs/WEB_INSTALLER.md`](docs/WEB_INSTALLER.md) | Accesorios de la Supreme y de la Heltec Wireless Tracker; instalador web |
 | [`docs/APRS_PANTALLAS_TRACKER.md`](docs/APRS_PANTALLAS_TRACKER.md) | Notas técnicas de las pantallas y estado de pruebas |
 | [`docs/BASE_README_CA2RXU.md`](docs/BASE_README_CA2RXU.md) | README original de la base (por atribución) |
 
