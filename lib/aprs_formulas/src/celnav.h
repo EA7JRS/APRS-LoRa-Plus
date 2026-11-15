@@ -30,6 +30,19 @@ double sunSemiDiameterArcmin(double jd);
 double equationOfTimeMin(double jd);             // tiempo verdadero - tiempo medio, en minutos
 void starShaDec(const NavStar& s, double jd, double& shaDeg, double& decDeg);   // lugar aparente de la fecha
 
+// Luna (Meeus, cap. 47, tablas completas; ~0,25' frente a las efemerides del JPL): AHG, declinacion y distancia
+// geocentricas. Paralaje horizontal y semidiametro con moonHpArcmin / moonSdArcmin (54' a 61' y 14,7' a 16,7').
+void moonGhaDec(double jd, double& ghaDeg, double& decDeg, double& distKm);
+double moonHpArcmin(double distKm);
+double moonSdArcmin(double distKm);
+
+// Planetas de navegacion (VSOP87 recortada, tiempo de luz, aberracion y nutacion; ~0,06' frente a PyEphem).
+enum class Planet : unsigned char { Venus, Mars, Jupiter, Saturn };
+const char* planetNameEs(Planet p);
+const char* planetNameEn(Planet p);
+void planetGhaDec(Planet p, double jd, double& ghaDeg, double& decDeg, double& distAu);
+double planetHpArcmin(double distAu);            // paralaje horizontal: 0,1' a 0,5' en Venus y Marte cercanos
+
 // Altura verdadera y azimut de un astro (AHG y declinacion) desde una posicion; lon + al este
 void bodyAltAz(double ghaDeg, double decDeg, double lat, double lon, double& altDeg, double& azDeg);
 
@@ -50,6 +63,10 @@ struct Sight {
     double lat = 0, lon = 0;         // punto determinante (por donde pasa la recta, perpendicular al azimut)
 };
 Sight reduceSight(double estLat, double estLon, double ghaDeg, double decDeg, double observedAltDeg);
+
+// Traslada una recta por lo navegado entre dos posiciones (la del barco al tomarla y la de ahora): mismo azimut, punto
+// determinante movido ese rumbo y distancia (loxodromica).
+Sight advanceSight(const Sight& s, double fromLat, double fromLon, double toLat, double toLon);
 
 // Situacion por dos o mas rectas (minimos cuadrados alrededor de la estima). false si son casi paralelas.
 bool fixFromSights(double estLat, double estLon, const Sight* sights, int n, double& lat, double& lon);

@@ -43,6 +43,26 @@ const Term kL2[] = {{52919, 0, 0}, {8720, 1.0721, 6283.0758}, {309, 0.867, 12566
                     {16, 3.68, 155.42}, {10, 0.76, 18849.23}, {9, 2.06, 77713.77}, {7, 0.83, 775.52}, {5, 4.66, 1577.34}};
 const Term kL3[] = {{289, 5.844, 6283.076}, {35, 0, 0}, {17, 5.49, 12566.15}};
 
+struct Series { const Term* t; int n; };
+#define SER(x) {x, int(sizeof(x) / sizeof(x[0]))}
+struct MoonLr { signed char d, m, mp, f; long l, r; };
+struct MoonB { signed char d, m, mp, f; long b; };
+#include "celnav_bodies.inc"
+#undef SER
+const Series kEarthL[] = {{kL0, int(sizeof(kL0) / sizeof(kL0[0]))}, {kL1, int(sizeof(kL1) / sizeof(kL1[0]))},
+                          {kL2, int(sizeof(kL2) / sizeof(kL2[0]))}, {kL3, int(sizeof(kL3) / sizeof(kL3[0]))}};
+
+// Suma de una coordenada VSOP87 (radianes o UA); tau en milenios julianos desde J2000
+template <int N> double vsop(const Series (&s)[N], double tau) {
+    double tot = 0, tp = 1;
+    for (int k = 0; k < N; k++, tp *= tau) {
+        double sum = 0;
+        for (int i = 0; i < s[k].n; i++) sum += s[k].t[i].a * std::cos(s[k].t[i].b + s[k].t[i].c * tau);
+        tot += sum * tp;
+    }
+    return tot * 1e-8;
+}
+
 template <int N> double series(const Term (&t)[N], double tau) {
     double s = 0;
     for (int i = 0; i < N; i++) s += t[i].a * std::cos(t[i].b + t[i].c * tau);
@@ -90,7 +110,95 @@ double gastRad(double jd) {
     return norm2pi(deg2rad(std::fmod(gmst, 360.0)) + dpsi * std::cos(eps));
 }
 
+void eclToEq(double lam, double bet, double eps, double& ra, double& dec) {
+    ra = norm2pi(std::atan2(std::sin(lam) * std::cos(eps) - std::tan(bet) * std::sin(eps), std::cos(lam)));
+    dec = std::asin(std::sin(bet) * std::cos(eps) + std::cos(bet) * std::sin(eps) * std::sin(lam));
+}
+
+void planetLbr(Planet p, double tau, double& L, double& B, double& R) {
+    switch (p) {
+        case Planet::Venus: L = vsop(kVenusL, tau); B = vsop(kVenusB, tau); R = vsop(kVenusR, tau); break;
+        case Planet::Mars: L = vsop(kMarsL, tau); B = vsop(kMarsB, tau); R = vsop(kMarsR, tau); break;
+        case Planet::Jupiter: L = vsop(kJupiterL, tau); B = vsop(kJupiterB, tau); R = vsop(kJupiterR, tau); break;
+        default: L = vsop(kSaturnL, tau); B = vsop(kSaturnB, tau); R = vsop(kSaturnR, tau); break;
+    }
+}
+
 }  // namespace
+
+void moonGhaDec(double jd, double& gha, double& decDeg, double& distKm) {
+    const double T = centuriesTT(jd), T2 = T * T, T3 = T2 * T, T4 = T3 * T;
+    const double Lp = 218.3164477 + 481267.88123421 * T - 0.0015786 * T2 + T3 / 538841.0 - T4 / 65194000.0;
+    const double D = 297.8501921 + 445267.1114034 * T - 0.0018819 * T2 + T3 / 545868.0 - T4 / 113065000.0;
+    const double M = 357.5291092 + 35999.0502909 * T - 0.0001536 * T2 + T3 / 24490000.0;
+    const double Mp = 134.9633964 + 477198.8675055 * T + 0.0087414 * T2 + T3 / 69699.0 - T4 / 14712000.0;
+    const double F = 93.2720950 + 483202.0175233 * T - 0.0036539 * T2 - T3 / 3526000.0 + T4 / 863310000.0;
+    const double A1 = 119.75 + 131.849 * T, A2 = 53.09 + 479264.290 * T, A3 = 313.45 + 481266.484 * T;
+    const double E = 1 - 0.002516 * T - 0.0000074 * T2;
+    double sl = 0, sr = 0, sb = 0;
+    for (const auto& t : kMoonLr) {
+        const double arg = deg2rad(t.d * D + t.m * M + t.mp * Mp + t.f * F);
+        const double e = t.m == 0 ? 1 : (t.m == 1 || t.m == -1 ? E : E * E);
+        sl += e * t.l * std::sin(arg);
+        sr += e * t.r * std::cos(arg);
+    }
+    for (const auto& t : kMoonB) {
+        const double arg = deg2rad(t.d * D + t.m * M + t.mp * Mp + t.f * F);
+        const double e = t.m == 0 ? 1 : (t.m == 1 || t.m == -1 ? E : E * E);
+        sb += e * t.b * std::sin(arg);
+    }
+    sl += 3958 * std::sin(deg2rad(A1)) + 1962 * std::sin(deg2rad(Lp - F)) + 318 * std::sin(deg2rad(A2));
+    sb += -2235 * std::sin(deg2rad(Lp)) + 382 * std::sin(deg2rad(A3)) + 175 * std::sin(deg2rad(A1 - F)) +
+          175 * std::sin(deg2rad(A1 + F)) + 127 * std::sin(deg2rad(Lp - Mp)) - 115 * std::sin(deg2rad(Lp + Mp));
+    double dpsi, deps, eps, ra, dec;
+    nutation(T, dpsi, deps, eps);
+    eclToEq(deg2rad(Lp + sl / 1e6) + dpsi, deg2rad(sb / 1e6), eps, ra, dec);
+    distKm = 385000.56 + sr / 1000.0;
+    gha = rad2deg(norm2pi(gastRad(jd) - ra));
+    decDeg = rad2deg(dec);
+}
+
+double moonHpArcmin(double distKm) { return rad2deg(std::asin(6378.14 / distKm)) * 60.0; }
+double moonSdArcmin(double distKm) { return 0.2725 * moonHpArcmin(distKm); }
+
+const char* planetNameEs(Planet p) {
+    static const char* n[] = {"Venus", "Marte", "Jupiter", "Saturno"};
+    return n[int(p) & 3];
+}
+const char* planetNameEn(Planet p) {
+    static const char* n[] = {"Venus", "Mars", "Jupiter", "Saturn"};
+    return n[int(p) & 3];
+}
+
+void planetGhaDec(Planet p, double jd, double& gha, double& decDeg, double& distAu) {
+    const double T = centuriesTT(jd), tau = T / 10.0;
+    const double L0 = vsop(kEarthL, tau), B0 = vsop(kEarthB, tau), R0 = vsop(kEarthR, tau);
+    const double ex = R0 * std::cos(B0) * std::cos(L0), ey = R0 * std::cos(B0) * std::sin(L0), ez = R0 * std::sin(B0);
+    double x = 0, y = 0, z = 0, lt = 0;
+    for (int i = 0; i < 3; i++) {                                   // tiempo de luz: el planeta, donde estaba
+        double L, B, R;
+        planetLbr(p, tau - lt / 365250.0, L, B, R);
+        x = R * std::cos(B) * std::cos(L) - ex;
+        y = R * std::cos(B) * std::sin(L) - ey;
+        z = R * std::sin(B) - ez;
+        distAu = std::sqrt(x * x + y * y + z * z);
+        lt = 0.0057755183 * distAu;
+    }
+    double lam = std::atan2(y, x), bet = std::atan2(z, std::hypot(x, y));
+    // Aberracion anual (Meeus 23.2) y paso al sistema FK5
+    const double th = L0 + kPi, e = 0.016708634 - 0.000042037 * T, per = deg2rad(102.93735 + 1.71946 * T), k = 20.49552 * kAs;
+    const double dl = (-k * std::cos(th - lam) + e * k * std::cos(per - lam)) / std::cos(bet);
+    const double db = -k * std::sin(bet) * (std::sin(th - lam) - e * std::sin(per - lam));
+    lam += dl - 0.09033 * kAs;
+    bet += db;
+    double dpsi, deps, eps, ra, dec;
+    nutation(T, dpsi, deps, eps);
+    eclToEq(lam + dpsi, bet, eps, ra, dec);
+    gha = rad2deg(norm2pi(gastRad(jd) - ra));
+    decDeg = rad2deg(dec);
+}
+
+double planetHpArcmin(double distAu) { return 8.794 / 60.0 / distAu; }
 
 int navStarCount() { return kStarCount; }
 const NavStar& navStar(int i) { return kStars[i < 0 ? 0 : (i >= kStarCount ? kStarCount - 1 : i)]; }
@@ -185,6 +293,14 @@ Sight reduceSight(double lat, double lon, double gha, double dec, double ho) {
     s.lat = p.lat;
     s.lon = p.lon;
     return s;
+}
+
+Sight advanceSight(const Sight& s, double fromLat, double fromLon, double toLat, double toLon) {
+    Sight r = s;
+    const double mid = deg2rad((fromLat + toLat) / 2.0);
+    r.lat = s.lat + (toLat - fromLat);
+    r.lon = s.lon + (toLon - fromLon) * std::cos(mid) / std::cos(deg2rad((s.lat + r.lat) / 2.0));
+    return r;
 }
 
 bool fixFromSights(double lat, double lon, const Sight* sg, int n, double& outLat, double& outLon) {

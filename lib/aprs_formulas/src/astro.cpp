@@ -83,72 +83,10 @@ const char* moonPhaseNameEn(int p) {
     return n[((p % 8) + 8) % 8];
 }
 
-namespace {
-struct LunarTerm { signed char d, m, mp, f; long l, r; };
-// Meeus, tabla 47.A (longitud en 1e-6 grados, distancia en metros), los 32 primeros terminos
-const LunarTerm kLr[] = {
-    {0, 0, 1, 0, 6288774, -20905355}, {2, 0, -1, 0, 1274027, -3699111}, {2, 0, 0, 0, 658314, -2955968},
-    {0, 0, 2, 0, 213618, -569925},    {0, 1, 0, 0, -185116, 48888},     {0, 0, 0, 2, -114332, -3149},
-    {2, 0, -2, 0, 58793, 246158},     {2, -1, -1, 0, 57066, -152138},   {2, 0, 1, 0, 53322, -170733},
-    {2, -1, 0, 0, 45758, -204586},    {0, 1, -1, 0, -40923, -129620},   {1, 0, 0, 0, -34720, 108743},
-    {0, 1, 1, 0, -30383, 104755},     {2, 0, 0, -2, 15327, 10321},      {0, 0, 1, 2, -12528, 0},
-    {0, 0, 1, -2, 10980, 79661},      {4, 0, -1, 0, 10675, -34782},     {0, 0, 3, 0, 10034, -23210},
-    {4, 0, -2, 0, 8548, -21636},      {2, 1, -1, 0, -7888, 24208},      {2, 1, 0, 0, -6766, 30824},
-    {1, 0, -1, 0, -5163, -8379},      {1, 1, 0, 0, 4987, -16675},       {2, -1, 1, 0, 4036, -12831},
-    {2, 0, 2, 0, 3994, -10445},       {4, 0, 0, 0, 3861, -11650},       {2, 0, -3, 0, 3665, 14403},
-    {0, 1, -2, 0, -2689, -7003},      {2, 0, -1, 2, -2602, 0},          {2, -1, -2, 0, 2390, 10056},
-    {1, 0, 1, 0, -2348, 6322},        {2, -2, 0, 0, 2236, -9884},
-};
-// Tabla 47.B (latitud en 1e-6 grados), los 20 primeros
-const LunarTerm kB[] = {
-    {0, 0, 0, 1, 5128122, 0}, {0, 0, 1, 1, 280602, 0},  {0, 0, 1, -1, 277693, 0}, {2, 0, 0, -1, 173237, 0},
-    {2, 0, -1, 1, 55413, 0},  {2, 0, -1, -1, 46271, 0}, {2, 0, 0, 1, 32573, 0},   {0, 0, 2, 1, 17198, 0},
-    {2, 0, 1, -1, 9266, 0},   {0, 0, 2, -1, 8822, 0},   {2, -1, 0, -1, 8216, 0},  {2, 0, -2, -1, 4324, 0},
-    {2, 0, 1, 1, 4200, 0},    {2, 1, 0, -1, -3359, 0},  {2, -1, -1, 1, 2463, 0},  {2, -1, 0, 1, 2211, 0},
-    {2, -1, -1, -1, 2065, 0}, {0, 1, -1, -1, -1870, 0}, {4, 0, -1, -1, 1828, 0},  {0, 1, 0, 1, -1794, 0},
-};
-
-double nrm(double a) { a = std::fmod(a, 360.0); return a < 0 ? a + 360 : a; }
-}  // namespace
-
 void moonPosition(int y, int mo, int d, double utc, double lat, double lon, double& alt, double& az, double& dist) {
-    const double jd = julianDay(y, mo, d, utc) + 69.0 / 86400.0;    // TT ~ UTC + 69 s
-    const double T = (jd - 2451545.0) / 36525.0;
-    const double Lp = nrm(218.3164477 + 481267.88123421 * T), D = nrm(297.8501921 + 445267.1114034 * T),
-                 M = nrm(357.5291092 + 35999.0502909 * T), Mp = nrm(134.9633964 + 477198.8675055 * T),
-                 F = nrm(93.2720950 + 483202.0175233 * T), E = 1 - 0.002516 * T - 0.0000074 * T * T;
-    const double A1 = nrm(119.75 + 131.849 * T), A2 = nrm(53.09 + 479264.290 * T), A3 = nrm(313.45 + 481266.484 * T);
-    double sl = 0, sr = 0, sb = 0;
-    for (const auto& t : kLr) {
-        double arg = deg2rad(t.d * D + t.m * M + t.mp * Mp + t.f * F);
-        double e = t.m == 0 ? 1 : (t.m == 1 || t.m == -1 ? E : E * E);
-        sl += e * t.l * std::sin(arg);
-        sr += e * t.r * std::cos(arg);
-    }
-    for (const auto& t : kB) {
-        double arg = deg2rad(t.d * D + t.m * M + t.mp * Mp + t.f * F);
-        double e = t.m == 0 ? 1 : (t.m == 1 || t.m == -1 ? E : E * E);
-        sb += e * t.l * std::sin(arg);
-    }
-    sl += 3958 * std::sin(deg2rad(A1)) + 1962 * std::sin(deg2rad(Lp - F)) + 318 * std::sin(deg2rad(A2));
-    sb += -2235 * std::sin(deg2rad(Lp)) + 382 * std::sin(deg2rad(A3)) + 175 * std::sin(deg2rad(A1 - F)) +
-          175 * std::sin(deg2rad(A1 + F)) + 127 * std::sin(deg2rad(Lp - Mp)) - 115 * std::sin(deg2rad(Lp + Mp));
-    // Nutacion en longitud (terminos principales) y oblicuidad
-    const double Om = nrm(125.04452 - 1934.136261 * T), Ls = nrm(280.4665 + 36000.7698 * T);
-    const double dpsi = -17.20 * std::sin(deg2rad(Om)) - 1.32 * std::sin(deg2rad(2 * Ls)) - 0.23 * std::sin(deg2rad(2 * Lp)) +
-                        0.21 * std::sin(deg2rad(2 * Om));
-    const double deps = 9.20 * std::cos(deg2rad(Om)) + 0.57 * std::cos(deg2rad(2 * Ls)) + 0.10 * std::cos(deg2rad(2 * Lp)) -
-                        0.09 * std::cos(deg2rad(2 * Om));
-    const double lam = deg2rad(Lp + sl / 1e6 + dpsi / 3600.0), bet = deg2rad(sb / 1e6);
-    dist = 385000.56 + sr / 1000.0;
-    const double eps = deg2rad(23.4392911 - 0.0130042 * T + deps / 3600.0);
-    const double ra = std::atan2(std::sin(lam) * std::cos(eps) - std::tan(bet) * std::sin(eps), std::cos(lam));
-    const double dec = std::asin(std::sin(bet) * std::cos(eps) + std::cos(bet) * std::sin(eps) * std::sin(lam));
-    // Tiempo sidereo aparente de Greenwich (con UT ~ UTC)
-    const double jdu = jd - 69.0 / 86400.0, Tu = (jdu - 2451545.0) / 36525.0;
-    const double gmst = nrm(280.46061837 + 360.98564736629 * (jdu - 2451545.0) + 0.000387933 * Tu * Tu +
-                            dpsi / 3600.0 * std::cos(eps));
-    const double H = deg2rad(gmst + lon) - ra, la = deg2rad(lat);
+    double gha, decDeg;
+    moonGhaDec(julianDay(y, mo, d, utc), gha, decDeg, dist);          // Meeus 47 completo, en celnav
+    const double H = deg2rad(gha + lon), la = deg2rad(lat), dec = deg2rad(decDeg);
     // Paralaje: coordenadas topocentricas (Meeus, cap. 40)
     const double sinPi = 6378.14 / dist;
     const double u = std::atan(0.99664719 * std::tan(la));
