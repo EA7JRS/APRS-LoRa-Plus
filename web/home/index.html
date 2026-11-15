@@ -178,6 +178,7 @@
     .shots figcaption { color: var(--muted); font-size: .88rem; margin-top: 6px; }
     #emList { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
     .shots.hd img { image-rendering: auto; cursor: zoom-in; }
+    .shots.fit img { aspect-ratio: 1024 / 600; object-fit: contain; }
     .shots a:hover img { border-color: var(--cyan); }
     .shots.sq { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
     .shotnote { color: var(--muted); font-size: .85rem; margin-top: 8px; }
@@ -195,9 +196,9 @@
             <a href="#cw">CW</a>
             <a href="#emergencias">SOS</a>
             <a href="#plotter">Plotter</a>
+            <a href="#rotorbox">Rotor</a>
+            <a href="#pantallas">Display</a>
             <a href="#ecosistema" data-i="nEco"></a>
-            <a href="#funciones" data-i="nFeat"></a>
-            <a href="#placas" data-i="nBoards"></a>
             <a href="#instalar" data-i="nInstall"></a>
             <a href="#faq" data-i="nFaq"></a>
             <a href="#docs" data-i="nDocs"></a>
@@ -408,7 +409,7 @@
     </div>
 </section>
 
-<section id="plotter" class="alt">
+<section id="plotter">
     <div class="wrap">
         <div class="kicker" data-i="ncK"></div>
         <h2 data-i="ncT"></h2>
@@ -424,6 +425,34 @@
         </div>
         <div class="shots hd sq"><figure><a href="img/nav/w_rosa.png" target="_blank" rel="noopener"><img src="img/nav/w_rosa.png" width="480" height="480" loading="lazy" data-alt="nc_w_rosa"></a><figcaption data-i="nc_w_rosa"></figcaption></figure><figure><a href="img/nav/w_viento.png" target="_blank" rel="noopener"><img src="img/nav/w_viento.png" width="480" height="480" loading="lazy" data-alt="nc_w_viento"></a><figcaption data-i="nc_w_viento"></figcaption></figure><figure><a href="img/nav/w_historial.png" target="_blank" rel="noopener"><img src="img/nav/w_historial.png" width="480" height="480" loading="lazy" data-alt="nc_w_historial"></a><figcaption data-i="nc_w_historial"></figcaption></figure><figure><a href="img/nav/w_noche.png" target="_blank" rel="noopener"><img src="img/nav/w_noche.png" width="480" height="480" loading="lazy" data-alt="nc_w_noche"></a><figcaption data-i="nc_w_noche"></figcaption></figure></div>
         <p class="shotnote" data-i="ncNote"></p>
+    </div>
+</section>
+
+<section id="rotorbox" class="alt">
+    <div class="wrap">
+        <div class="kicker" data-i="rbK"></div>
+        <h2 data-i="rbT"></h2>
+        <p class="lead" data-h="rbL"></p>
+        <div class="two">
+            <div><h3 data-i="rbUseT"></h3><ul><li data-h="ru1"></li><li data-h="ru2"></li><li data-h="ru3"></li><li data-h="ru4"></li><li data-h="ru5"></li></ul></div>
+            <div><h3 data-i="rbHwT"></h3><ul><li data-h="rh1"></li><li data-h="rh2"></li><li data-h="rh3"></li><li data-h="rh4"></li><li data-h="rh5"></li></ul></div>
+        </div>
+        <div class="shots hd fit"><figure><a href="img/rot/aiming.png" target="_blank" rel="noopener"><img src="img/rot/aiming.png" width="1024" height="600" loading="lazy" data-alt="rc_aiming"></a><figcaption data-i="rc_aiming"></figcaption></figure><figure><a href="img/rot/sky.png" target="_blank" rel="noopener"><img src="img/rot/sky.png" width="1024" height="600" loading="lazy" data-alt="rc_sky"></a><figcaption data-i="rc_sky"></figcaption></figure><figure><a href="img/rot/cat.png" target="_blank" rel="noopener"><img src="img/rot/cat.png" width="1024" height="600" loading="lazy" data-alt="rc_cat"></a><figcaption data-i="rc_cat"></figcaption></figure><figure><a href="img/rot/wind.png" target="_blank" rel="noopener"><img src="img/rot/wind.png" width="1024" height="600" loading="lazy" data-alt="rc_wind"></a><figcaption data-i="rc_wind"></figcaption></figure><figure><a href="img/rot/amoled.png" target="_blank" rel="noopener"><img src="img/rot/amoled.png" width="600" height="450" loading="lazy" data-alt="rc_amoled"></a><figcaption data-i="rc_amoled"></figcaption></figure><figure><a href="img/rot/c5.png" target="_blank" rel="noopener"><img src="img/rot/c5.png" width="320" height="480" loading="lazy" data-alt="rc_c5"></a><figcaption data-i="rc_c5"></figcaption></figure></div>
+        <p class="shotnote" data-i="rbNote"></p>
+    </div>
+</section>
+
+<section id="pantallas">
+    <div class="wrap">
+        <div class="kicker">APRS LoRa+ Display</div>
+        <h2 data-i="dsT"></h2>
+        <p class="lead" data-h="dsL"></p>
+        <div class="two">
+            <div><h3 data-i="dsV2T"></h3><ul><li data-h="dv1"></li><li data-h="dv2"></li><li data-h="dv3"></li><li data-h="dv4"></li><li data-h="dv5"></li></ul></div>
+            <div><h3 data-i="dsBoardsT"></h3><ul><li data-h="db1"></li><li data-h="db2"></li><li data-h="db3"></li><li data-h="db4"></li></ul></div>
+        </div>
+        <div class="shots hd"><figure><a href="img/disp/radio.png" target="_blank" rel="noopener"><img src="img/disp/radio.png" width="1024" height="600" loading="lazy" data-alt="dc_radio"></a><figcaption data-i="dc_radio"></figcaption></figure><figure><a href="img/disp/slist.png" target="_blank" rel="noopener"><img src="img/disp/slist.png" width="1024" height="600" loading="lazy" data-alt="dc_slist"></a><figcaption data-i="dc_slist"></figcaption></figure><figure><a href="img/disp/station_wx.png" target="_blank" rel="noopener"><img src="img/disp/station_wx.png" width="1024" height="600" loading="lazy" data-alt="dc_station_wx"></a><figcaption data-i="dc_station_wx"></figcaption></figure><figure><a href="img/disp/thread.png" target="_blank" rel="noopener"><img src="img/disp/thread.png" width="1024" height="600" loading="lazy" data-alt="dc_thread"></a><figcaption data-i="dc_thread"></figcaption></figure><figure><a href="img/disp/dx.png" target="_blank" rel="noopener"><img src="img/disp/dx.png" width="1024" height="600" loading="lazy" data-alt="dc_dx"></a><figcaption data-i="dc_dx"></figcaption></figure><figure><a href="img/disp/rotor.png" target="_blank" rel="noopener"><img src="img/disp/rotor.png" width="1024" height="600" loading="lazy" data-alt="dc_rotor"></a><figcaption data-i="dc_rotor"></figcaption></figure></div>
+        <p class="shotnote" data-i="dsNote"></p>
     </div>
 </section>
 
@@ -814,6 +843,39 @@ const T = {
         nc_piloto: "Piloto: rumbo a gobernar y datos de ruta", nc_alerta: "Ventana de riesgo de colisión",
         nc_w_rosa: "Rosa de viento con datos en columna", nc_w_viento: "Página de viento", nc_w_historial: "Historial de 30 minutos", nc_w_noche: "Modo noche",
         ncNote: "Capturas de la interfaz con el simulador de datos. Plotter e instrumento están en desarrollo y aún sin probar en la placa.",
+        rbK: "APRS LoRa+ Rotor", rbT: "Control de rotores",
+        rbL: "Una caja que mueve el rotor de la antena en acimut y elevación y que se maneja desde el tracker, la app, la pantalla Display o cualquier programa con <b>Hamlib</b> (GPredict, Look4Sat…). Puede llevar pantalla táctil propia y además controla la emisora por CAT.",
+        rbUseT: "Para qué sirve",
+        ru1: "<b>Satélites</b>: sigue el paso que calcula el tracker en modo SAT, o el de GPredict / Look4Sat por <span class=\"mono\">rotctld</span>, y corrige el <b>Doppler</b> de la emisora con modo, split y CTCSS del transmisor.",
+        ru2: "<b>APRS</b>: apunta a la última estación oída con posición, a una estación concreta (con estimación si se está moviendo) o a la <b>baliza CW</b> que da su locator.",
+        ru3: "<b>Sol y luna</b> (EME, radioastronomía, pruebas de ruido) y balizas IBP desde la app.",
+        ru4: "<b>CAT</b>: Icom CI-V, Yaesu, Kenwood / Elecraft, SDRconnect (SDRplay) y rigctl (SDR++, gqrx); sirve <span class=\"mono\">rigctld</span> a otros programas. PTT solo manteniendo pulsado y con tiempo máximo.",
+        ru5: "<b>Protección por viento</b>: aparca la antena con rachas fuertes, con el tiempo de internet, un anemómetro propio o los datos del barco.",
+        rbHwT: "Placas y conexiones",
+        rh1: "<b>ESP32 y ESP32-S3</b>, <b>Raspberry Pi Pico 2 / 2 W</b> y <b>Raspberry Pi</b> (Zero 2 W a 5, con el <span class=\"mono\">rotctld</span> real de Hamlib: cualquier rotor que Hamlib conozca).",
+        rh2: "Con pantalla táctil: <b>Waveshare ESP32-C5-Touch-LCD-3.5</b>, <b>ESP32-S3-Touch-AMOLED-2.41</b> y <b>ESP32-S3-Touch-LCD-7B</b>.",
+        rh3: "<b>Control directo</b> con relés o puente H y potenciómetros (Yaesu G-5500 por su conector DIN), o <b>pasarela serie</b> a controladores GS-232A/B, Rot2Prog, EasyComm II y bus RS485.",
+        rh4: "Enlaces: <span class=\"mono\">rotctld</span> por WiFi (4533), Bluetooth propio para la app, Bluetooth SPP GS-232 para el tracker y <b>mensajes APRS por LoRa</b> con lista de indicativos y código TOTP.",
+        rh5: "WebUI con la misma esfera, actualización OTA, mDNS y hora por GPS o NTP.",
+        rc_aiming: "Apuntando: mantener la esfera y soltar en el rumbo", rc_sky: "Siguiendo la luna", rc_cat: "Radio (CAT) siguiendo la ISS con Doppler",
+        rc_wind: "Aparcado por viento", rc_amoled: "CAT en la AMOLED de 2,41″", rc_c5: "Mando en la C5 de 3,5″ en vertical",
+        rbNote: "Capturas de la pantalla de la caja dibujadas en el PC con el mismo código del firmware y datos de ejemplo. Sin probar todavía en todas las placas.",
+        dsT: "Pantallas táctiles para el tracker",
+        dsL: "Una pantalla en la mesa o en el coche que se enlaza con el tracker por Bluetooth (con el mismo PIN que la app) y lo maneja entero: no solo muestra, también controla. Con WiFi añade DX cluster, mapas, tiempo de internet, avisos oficiales y la caja del rotor.",
+        dsV2T: "Interfaz tipo emisora (7″)",
+        dv1: "Pantalla <b>RADIO</b>: banda A con el tracker (frecuencia, LED TX / RX / MSG / EMG, S-meter IARU y última estación) y banda B con la emisora por CAT.",
+        dv2: "Teclas táctiles con menú <b>[F]</b> de tres páginas, como en una emisora, y las cinco teclas de abajo a tu gusto.",
+        dv3: "<b>S.LIST</b> con símbolos APRS, distancia y rumbo; ficha con brújula, meteorología, GO TO, mensaje y rotor; <b>mensajes</b> en conversación con respuestas rápidas.",
+        dv4: "<b>Mapa</b> con teselas guardadas en la microSD, estaciones meteorológicas con tendencia, <b>DX cluster</b> con filtros, SAT, AIS y avisos.",
+        dv5: "<b>Caja del rotor</b> por WiFi o Bluetooth: esfera, ir a, seguir y radio (CAT). Configuración y firmware del tracker desde la pantalla.",
+        dsBoardsT: "Placas",
+        db1: "<b>Waveshare ESP32-S3-Touch-LCD-7B</b> (1024 × 600) y <b>LCD-7</b> (800 × 480): interfaz tipo emisora o la de pestañas.",
+        db2: "<b>3,5″ / 3,5-C</b>, <b>2,8B</b> y <b>1,69″</b>: interfaz de pestañas adaptada al tamaño.",
+        db3: "En la 7B también funciona como <b>reloj OpenHamClock</b> (propagación, mapa y CAT por rigctld).",
+        db4: "Dos paletas (la de la app y la del rotor), instalador web y la misma versión que el resto del ecosistema.",
+        dc_radio: "RADIO: bandas A (tracker) y B (CAT)", dc_slist: "S.LIST: estaciones oídas", dc_station_wx: "Ficha de una estación meteorológica",
+        dc_thread: "Conversación con respuestas rápidas", dc_dx: "DX cluster con filtros", dc_rotor: "Caja del rotor desde la pantalla",
+        dsNote: "Capturas de la interfaz de la 7B dibujadas en el PC con LVGL y datos de ejemplo. Las pantallas aún no se han probado en todas las placas.",
         nFaq: "Preguntas",
         basics: "Lo básico", aprsT: "¿Qué es APRS?",
         aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) es un sistema de radioaficionados para compartir en tiempo real información táctica: posiciones, mensajes cortos, estado de las estaciones, meteorología, objetos y avisos. Lo creó <b>Bob Bruninga, WB4APR</b>, a principios de los años 90.",
@@ -949,6 +1011,39 @@ const T = {
         nc_piloto: "Autopilot: course to steer and route data", nc_alerta: "Collision-risk window",
         nc_w_rosa: "Wind rose with data in a column", nc_w_viento: "Wind page", nc_w_historial: "30-minute history", nc_w_noche: "Night mode",
         ncNote: "Interface screenshots with the data simulator. The plotter and the instrument are in development and not yet tested on the board.",
+        rbK: "APRS LoRa+ Rotor", rbT: "Rotator control",
+        rbL: "A box that turns the antenna rotator in azimuth and elevation, driven from the tracker, the app, the Display screen or any <b>Hamlib</b> program (GPredict, Look4Sat…). It can have its own touch screen and also controls the radio over CAT.",
+        rbUseT: "What it is for",
+        ru1: "<b>Satellites</b>: follows the pass the tracker computes in SAT mode, or GPredict / Look4Sat via <span class=\"mono\">rotctld</span>, and corrects the radio's <b>Doppler</b> with the transmitter's mode, split and CTCSS.",
+        ru2: "<b>APRS</b>: points at the last station heard with a position, at a chosen station (estimated if it's moving) or at a <b>CW beacon</b> that sends its locator.",
+        ru3: "<b>Sun and moon</b> (EME, radio astronomy, noise tests) and IBP beacons from the app.",
+        ru4: "<b>CAT</b>: Icom CI-V, Yaesu, Kenwood / Elecraft, SDRconnect (SDRplay) and rigctl (SDR++, gqrx); serves <span class=\"mono\">rigctld</span> to other programs. PTT only while held and with a time limit.",
+        ru5: "<b>Wind protection</b>: parks the antenna in strong gusts, using internet weather, its own anemometer or the boat's data.",
+        rbHwT: "Boards and links",
+        rh1: "<b>ESP32 and ESP32-S3</b>, <b>Raspberry Pi Pico 2 / 2 W</b> and <b>Raspberry Pi</b> (Zero 2 W to 5, with Hamlib's real <span class=\"mono\">rotctld</span>: any rotator Hamlib knows).",
+        rh2: "With a touch screen: <b>Waveshare ESP32-C5-Touch-LCD-3.5</b>, <b>ESP32-S3-Touch-AMOLED-2.41</b> and <b>ESP32-S3-Touch-LCD-7B</b>.",
+        rh3: "<b>Direct control</b> with relays or an H-bridge and potentiometers (Yaesu G-5500 through its DIN socket), or a <b>serial gateway</b> to GS-232A/B, Rot2Prog, EasyComm II controllers and an RS485 bus.",
+        rh4: "Links: <span class=\"mono\">rotctld</span> over WiFi (4533), its own Bluetooth for the app, Bluetooth SPP GS-232 for the tracker and <b>APRS messages over LoRa</b> with a callsign list and TOTP code.",
+        rh5: "WebUI with the same dial, OTA updates, mDNS and GPS or NTP time.",
+        rc_aiming: "Aiming: hold the dial and let go on the bearing", rc_sky: "Tracking the moon", rc_cat: "Radio (CAT) tracking the ISS with Doppler",
+        rc_wind: "Parked because of wind", rc_amoled: "CAT on the 2.41″ AMOLED", rc_c5: "Controls on the 3.5″ C5 in portrait",
+        rbNote: "Screenshots of the box's screen drawn on a PC with the same firmware code and sample data. Not yet tested on every board.",
+        dsT: "Touch screens for the tracker",
+        dsL: "A screen on the desk or in the car that links to the tracker over Bluetooth (with the same PIN as the app) and runs all of it: it doesn't just show, it controls. With WiFi it adds a DX cluster, maps, internet weather, official alerts and the rotator box.",
+        dsV2T: "Radio-style interface (7″)",
+        dv1: "<b>RADIO</b> screen: band A with the tracker (frequency, TX / RX / MSG / EMG LEDs, IARU S-meter and last station) and band B with the radio over CAT.",
+        dv2: "Touch keys with a three-page <b>[F]</b> menu, like on a radio, and the five bottom keys as you like.",
+        dv3: "<b>S.LIST</b> with APRS symbols, distance and bearing; a station card with compass, weather, GO TO, message and rotator; <b>messages</b> as conversations with quick replies.",
+        dv4: "<b>Map</b> with tiles stored on the microSD card, weather stations with trend, a filtered <b>DX cluster</b>, SAT, AIS and alerts.",
+        dv5: "<b>Rotator box</b> over WiFi or Bluetooth: dial, go to, follow and radio (CAT). Tracker configuration and firmware from the screen.",
+        dsBoardsT: "Boards",
+        db1: "<b>Waveshare ESP32-S3-Touch-LCD-7B</b> (1024 × 600) and <b>LCD-7</b> (800 × 480): radio-style or tabbed interface.",
+        db2: "<b>3.5″ / 3.5-C</b>, <b>2.8B</b> and <b>1.69″</b>: tabbed interface sized to fit.",
+        db3: "The 7B also works as an <b>OpenHamClock clock</b> (propagation, map and CAT through rigctld).",
+        db4: "Two palettes (the app's and the rotator's), web installer and the same version as the rest of the ecosystem.",
+        dc_radio: "RADIO: bands A (tracker) and B (CAT)", dc_slist: "S.LIST: stations heard", dc_station_wx: "A weather station's card",
+        dc_thread: "Conversation with quick replies", dc_dx: "DX cluster with filters", dc_rotor: "Rotator box from the screen",
+        dsNote: "Screenshots of the 7B interface drawn on a PC with LVGL and sample data. The screens are not yet tested on every board.",
         nFaq: "FAQ",
         basics: "The basics", aprsT: "What is APRS?",
         aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) is an amateur radio system for sharing tactical information in real time: positions, short messages, station status, weather, objects and alerts. It was created by <b>Bob Bruninga, WB4APR</b>, in the early 1990s.",
@@ -1063,7 +1158,7 @@ fetch("latest.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).th
 // Enlaces antiguos al instalador (ea7jrs.github.io/APRS-LoRa-Plus/#nautica...) siguen llevando al instalador
 (function () {
     const h = (location.hash || "").slice(1).toLowerCase();
-    if (h && !["lora", "balizas", "cw", "emergencias", "plotter", "ecosistema", "funciones", "placas", "instalar", "faq", "docs"].includes(h)) location.replace("install/" + location.hash);
+    if (h && !["lora", "balizas", "cw", "emergencias", "plotter", "rotorbox", "pantallas", "ecosistema", "funciones", "placas", "instalar", "faq", "docs"].includes(h)) location.replace("install/" + location.hash);
 })();
 </script>
 </body>
