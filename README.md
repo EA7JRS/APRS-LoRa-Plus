@@ -22,6 +22,7 @@ Este repositorio es el tracker y el centro del ecosistema (hospeda el [instalado
 | [APRS-LoRa-Plus-I-Gateway](https://github.com/EA7JRS/APRS-LoRa-Plus-I-Gateway) | iGate / pasarela APRS LoRa+ |
 | [APRS-LoRa-Plus-Plotter](https://github.com/EA7JRS/APRS-LoRa-Plus-Plotter) | Plotter náutico (Waveshare 7″) e instrumento de viento (4″) |
 | [APRS-LoRa-Plus-NMEA2000](https://github.com/EA7JRS/APRS-LoRa-Plus-NMEA2000) | Pasarela de las estaciones APRS al bus NMEA 2000 del barco (XIAO ESP32-S3) |
+| [APRS-LoRa-Plus-OBD2](https://github.com/EA7JRS/APRS-LoRa-Plus-OBD2) | Pasarela OBD-II → NMEA 2000: datos de motor del coche como indicadores en el plotter APRS LoRa+ y Garmin (XIAO ESP32-S3) |
 | [**SAT-APRS+**](https://github.com/EA7JRS/sat-aprs) | Estación de alertas de emergencia por APRS en PC Debian (NUC): fuentes oficiales y de RF → APRS, consola web y salida NMEA 2000 |
 
 El transponder AIS **MAPRS** (LilyGO T3, 433 MHz) es una variante del propio tracker; se instala desde el grupo «Náutica» del instalador web.
