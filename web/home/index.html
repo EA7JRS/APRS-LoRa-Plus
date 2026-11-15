@@ -182,6 +182,26 @@
     .shots a:hover img { border-color: var(--cyan); }
     .shots.sq { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
     .shotnote { color: var(--muted); font-size: .85rem; margin-top: 8px; }
+
+    /* escaparate de la Display 7B v2 */
+    .showcase { margin: 6px 0 34px; }
+    .sc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .sc-head h3 { margin: 0; font-size: 1.3rem; }
+    .frame { position: relative; background: #07090C; border: 1px solid #2B3A4A; border-radius: 24px; padding: 18px 18px 38px; box-shadow: 0 24px 60px rgba(0,0,0,.35), 0 0 0 6px rgba(40,181,225,.06); max-width: 1000px; margin: 0 auto; }
+    .frame img { width: 100%; height: auto; display: block; border-radius: 6px; aspect-ratio: 1024 / 600; background: #131A22; }
+    .bezel { white-space: nowrap; overflow: hidden; position: absolute; left: 0; right: 0; bottom: 11px; text-align: center; color: #5E6E7E; font: 500 .78rem Barlow, sans-serif; letter-spacing: .06em; }
+    .scnav { position: absolute; top: calc(50% - 30px); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: rgba(10,14,19,.65); color: #fff; font-size: 1.8rem; line-height: 1; cursor: pointer; display: grid; place-items: center; padding-bottom: 4px; }
+    .scnav:hover { border-color: var(--cyan); color: var(--cyan); }
+    .scnav.prev { left: -14px; } .scnav.next { right: -14px; }
+    .sc-cap { text-align: center; color: var(--sub); max-width: 820px; margin: 16px auto 12px; min-height: 3em; }
+    .sc-cap b { color: var(--text); }
+    .sc-n { color: var(--muted); font-size: .85rem; margin-left: 6px; }
+    .thumbs { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px; scroll-snap-type: x proximity; }
+    .thumbs button { flex: 0 0 auto; width: 132px; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; scroll-snap-align: center; opacity: .7; }
+    .thumbs button img { width: 100%; height: auto; display: block; border-radius: 6px; aspect-ratio: 1024 / 600; }
+    .thumbs button.on { border-color: var(--green); opacity: 1; }
+    .thumbs button:hover { opacity: 1; }
+    @media (max-width: 760px) { .frame { padding: 8px 8px 28px; border-radius: 16px; } .scnav { width: 36px; height: 36px; font-size: 1.4rem; } .scnav.prev { left: 4px; } .scnav.next { right: 4px; } .bezel { font-size: .65rem; bottom: 7px; } .thumbs button { width: 104px; } }
     [hidden] { display: none !important; }
 </style>
 </head>
@@ -447,11 +467,21 @@
         <div class="kicker">APRS LoRa+ Display</div>
         <h2 data-i="dsT"></h2>
         <p class="lead" data-h="dsL"></p>
+        <div class="showcase">
+            <div class="sc-head"><span class="pill ok" data-i="scPill"></span><h3 data-i="scT"></h3></div>
+            <div class="frame">
+                <img id="scMain" src="img/disp/radio.png" width="1024" height="600" alt="">
+                <button class="scnav prev" type="button" aria-label="&lt;" id="scPrev">‹</button>
+                <button class="scnav next" type="button" aria-label="&gt;" id="scNext">›</button>
+                <div class="bezel">Waveshare ESP32-S3-Touch-LCD-7B · 1024 × 600</div>
+            </div>
+            <p class="sc-cap"><b id="scTitle"></b> <span id="scText"></span> <span class="sc-n" id="scN"></span></p>
+            <div class="thumbs" id="scThumbs"></div>
+        </div>
         <div class="two">
             <div><h3 data-i="dsV2T"></h3><ul><li data-h="dv1"></li><li data-h="dv2"></li><li data-h="dv3"></li><li data-h="dv4"></li><li data-h="dv5"></li></ul></div>
             <div><h3 data-i="dsBoardsT"></h3><ul><li data-h="db1"></li><li data-h="db2"></li><li data-h="db3"></li><li data-h="db4"></li></ul></div>
         </div>
-        <div class="shots hd"><figure><a href="img/disp/radio.png" target="_blank" rel="noopener"><img src="img/disp/radio.png" width="1024" height="600" loading="lazy" data-alt="dc_radio"></a><figcaption data-i="dc_radio"></figcaption></figure><figure><a href="img/disp/slist.png" target="_blank" rel="noopener"><img src="img/disp/slist.png" width="1024" height="600" loading="lazy" data-alt="dc_slist"></a><figcaption data-i="dc_slist"></figcaption></figure><figure><a href="img/disp/station_wx.png" target="_blank" rel="noopener"><img src="img/disp/station_wx.png" width="1024" height="600" loading="lazy" data-alt="dc_station_wx"></a><figcaption data-i="dc_station_wx"></figcaption></figure><figure><a href="img/disp/thread.png" target="_blank" rel="noopener"><img src="img/disp/thread.png" width="1024" height="600" loading="lazy" data-alt="dc_thread"></a><figcaption data-i="dc_thread"></figcaption></figure><figure><a href="img/disp/dx.png" target="_blank" rel="noopener"><img src="img/disp/dx.png" width="1024" height="600" loading="lazy" data-alt="dc_dx"></a><figcaption data-i="dc_dx"></figcaption></figure><figure><a href="img/disp/rotor.png" target="_blank" rel="noopener"><img src="img/disp/rotor.png" width="1024" height="600" loading="lazy" data-alt="dc_rotor"></a><figcaption data-i="dc_rotor"></figcaption></figure></div>
         <p class="shotnote" data-i="dsNote"></p>
     </div>
 </section>
@@ -737,6 +767,42 @@ const SHOTS = {
            ["wx", "Aviso naranja de AEMET para tu zona", "AEMET orange warning for your area"],
            ["wxlist", "Avisos en vigor, el más grave primero", "Active warnings, most severe first"]],
 };
+// Escaparate de la Display 7B v2: [archivo, titulo ES, titulo EN, texto ES, texto EN]
+const SC = [
+    ["radio", "RADIO", "RADIO", "Banda A con el tracker (frecuencia, LED TX / RX / MSG / EMG, S-meter IARU y última estación) y banda B con la emisora por CAT; baliza, digipetidor y rotor de un vistazo.", "Band A with the tracker (frequency, TX / RX / MSG / EMG LEDs, IARU S-meter and last station) and band B with the radio over CAT; beacon, digipeater and rotator at a glance."],
+    ["fmenu", "Menú [F]", "[F] menu", "Tres páginas de teclas (APRS, RADIO, SYSTEM), como en una emisora. Mantén pulsada una para ponerla en las cinco de abajo.", "Three pages of keys (APRS, RADIO, SYSTEM), like on a radio. Hold one to put it on the five keys below."],
+    ["sidemenu", "Menú lateral", "Side menu", "Todas las pantallas, con contadores, y los equipos enlazados.", "Every screen, with counters, and the linked devices."],
+    ["slist", "S.LIST", "S.LIST", "Estaciones oídas con símbolo APRS, señal, antigüedad, distancia y rumbo; filtros por tipo y orden.", "Stations heard with APRS symbol, signal, age, distance and bearing; filters by kind and sort order."],
+    ["station_wx", "Ficha de estación", "Station card", "Brújula hacia la estación, datos de la trama y meteorología con rocío, Beaufort y lluvia; mensaje, rotor y seguir.", "Compass towards the station, frame data and weather with dew point, Beaufort and rain; message, rotator and follow."],
+    ["msgs", "Mensajes", "Messages", "Conversaciones con contador de no leídos; escribir a cualquier indicativo.", "Conversations with unread counters; write to any callsign."],
+    ["thread", "Conversación", "Conversation", "Recibidos y enviados con su estado, y respuestas rápidas.", "Received and sent with their status, and quick replies."],
+    ["disp", "DISP · brújula", "DISP · compass", "Rumbo y distancia a una estación, a tu posición, a un satélite o al rotor; velocidad, rumbo, temperatura y QNH.", "Bearing and distance to a station, your position, a satellite or the rotator; speed, course, temperature and QNH."],
+    ["disp_gps", "DISP · GPS", "DISP · GPS", "Cielo con los satélites por sistema, barras de señal, DOP y error estimado.", "Sky plot with satellites by system, signal bars, DOP and estimated error."],
+    ["disp_clock", "DISP · reloj", "DISP · clock", "Hora UTC, locator, sol, crepúsculo y luna.", "UTC time, locator, sun, twilight and moon."],
+    ["sat", "Satélites", "Satellites", "Paso en curso en la esfera, AOS / LOS, lista por bandas y favoritos, receptor, transmisión y rotor.", "Current pass on the dial, AOS / LOS, list by band and favourites, receiver, transmit and rotator."],
+    ["ais", "AIS", "AIS", "Barcos con CPA / TCPA, el peligroso en rojo, y GO TO desde el tracker.", "Ships with CPA / TCPA, the dangerous one in red, and GO TO from the tracker."],
+    ["dx", "DX cluster", "DX cluster", "Spots con filtros de origen, modo y banda, y consola del nodo.", "Spots with source, mode and band filters, and the node console."],
+    ["rotor", "Caja del rotor", "Rotator box", "Esfera, ir a, acimuts rápidos, mover manteniendo, park y viento; seguir y radio (CAT).", "Dial, go to, quick azimuths, hold to move, park and wind; follow and radio (CAT)."],
+    ["wxwarn", "Avisos meteorológicos", "Weather warnings", "AEMET o MeteoAlarm para tu zona, y el nivel desde el que salta la ventana.", "AEMET or MeteoAlarm for your area, and the level that pops up the window."],
+    ["wxpopup", "Aviso emergente", "Warning pop-up", "La ventana sale sobre cualquier pantalla cuando entra un aviso para tu zona.", "The window appears over any screen when a warning for your area comes in."],
+    ["tracker", "Tracker", "Tracker", "Estado, baliza ahora, digipetidor, perfiles de baliza y LoRa, y cambio de modo.", "Status, beacon now, digipeater, beacon and LoRa profiles, and mode change."],
+    ["radio_light", "Tema claro · RADIO", "Light theme · RADIO", "Las mismas pantallas con la paleta clara de la app, para el sol.", "The same screens with the app's light palette, for sunlight."],
+    ["slist_light", "Tema claro · S.LIST", "Light theme · S.LIST", "", ""],
+    ["station_wx_light", "Tema claro · ficha", "Light theme · card", "", ""],
+];
+let scI = 0;
+function scShow(i, scroll) {
+    const es = lang === "es";
+    scI = (i + SC.length) % SC.length;
+    const [f, te, tn, xe, xn] = SC[scI];
+    const img = document.getElementById("scMain");
+    img.src = "img/disp/" + f + ".png"; img.alt = es ? te : tn;
+    document.getElementById("scTitle").textContent = es ? te : tn;
+    document.getElementById("scText").textContent = es ? xe : xn;
+    document.getElementById("scN").textContent = (scI + 1) + " / " + SC.length;
+    document.querySelectorAll("#scThumbs button").forEach((b, k) => b.classList.toggle("on", k === scI));
+    if (scroll) { const b = document.querySelectorAll("#scThumbs button")[scI]; if (b) b.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); }
+}
 // [pregunta ES, pregunta EN, respuesta ES, respuesta EN]
 const FAQ = [
     ["¿Necesito licencia?", "Do I need a licence?",
@@ -875,7 +941,8 @@ const T = {
         db4: "Dos paletas (la de la app y la del rotor), instalador web y la misma versión que el resto del ecosistema.",
         dc_radio: "RADIO: bandas A (tracker) y B (CAT)", dc_slist: "S.LIST: estaciones oídas", dc_station_wx: "Ficha de una estación meteorológica",
         dc_thread: "Conversación con respuestas rápidas", dc_dx: "DX cluster con filtros", dc_rotor: "Caja del rotor desde la pantalla",
-        dsNote: "Capturas de la interfaz de la 7B dibujadas en el PC con LVGL y datos de ejemplo. Las pantallas aún no se han probado en todas las placas.",
+        dsNote: "Capturas de la interfaz de la 7B v2 dibujadas en el PC con LVGL 9.6 y el mismo código del firmware, con datos de ejemplo. Aún sin probar en la placa.",
+        scPill: "La joya", scT: "Display 7B v2: la interfaz de la app en 7 pulgadas",
         nFaq: "Preguntas",
         basics: "Lo básico", aprsT: "¿Qué es APRS?",
         aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) es un sistema de radioaficionados para compartir en tiempo real información táctica: posiciones, mensajes cortos, estado de las estaciones, meteorología, objetos y avisos. Lo creó <b>Bob Bruninga, WB4APR</b>, a principios de los años 90.",
@@ -1043,7 +1110,8 @@ const T = {
         db4: "Two palettes (the app's and the rotator's), web installer and the same version as the rest of the ecosystem.",
         dc_radio: "RADIO: bands A (tracker) and B (CAT)", dc_slist: "S.LIST: stations heard", dc_station_wx: "A weather station's card",
         dc_thread: "Conversation with quick replies", dc_dx: "DX cluster with filters", dc_rotor: "Rotator box from the screen",
-        dsNote: "Screenshots of the 7B interface drawn on a PC with LVGL and sample data. The screens are not yet tested on every board.",
+        dsNote: "Screenshots of the 7B v2 interface drawn on a PC with LVGL 9.6 and the same firmware code, with sample data. Not yet tested on the board.",
+        scPill: "The jewel", scT: "Display 7B v2: the app's interface on 7 inches",
         nFaq: "FAQ",
         basics: "The basics", aprsT: "What is APRS?",
         aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) is an amateur radio system for sharing tactical information in real time: positions, short messages, station status, weather, objects and alerts. It was created by <b>Bob Bruninga, WB4APR</b>, in the early 1990s.",
@@ -1121,6 +1189,8 @@ function render() {
         <div class="card emg ${c}"><div class="k">${es ? ke : kn}</div><h3>${es ? te : tn}</h3><ul>${(es ? pe : pn).map(x => `<li>${x}</li>`).join("")}</ul></div>`).join("");
     document.querySelectorAll("[data-shots]").forEach(el => { el.innerHTML = SHOTS[el.dataset.shots].map(([f, ce, cn]) =>
         `<figure><img src="img/ex/${f}.png" width="480" height="240" loading="lazy" alt="${es ? ce : cn}"><figcaption>${es ? ce : cn}</figcaption></figure>`).join(""); });
+    document.getElementById("scThumbs").innerHTML = SC.map(([f, te, tn], k) => `<button type="button" data-k="${k}" title="${es ? te : tn}"><img src="img/disp/${f}.png" width="1024" height="600" loading="lazy" alt="${es ? te : tn}"></button>`).join("");
+    scShow(scI, false);
     document.getElementById("faqList").innerHTML = FAQ.map(([qe, qn, ae, an]) => `<details><summary>${es ? qe : qn}</summary><p>${es ? ae : an}</p></details>`).join("");
     document.querySelectorAll("img[data-alt]").forEach(el => { el.alt = t[el.dataset.alt] ?? ""; });
     document.getElementById("lang").textContent = t.other;
@@ -1143,6 +1213,17 @@ document.getElementById("themeBtn").addEventListener("click", () => {      // Au
     try { if (next === "auto") localStorage.removeItem("alp_theme"); else localStorage.setItem("alp_theme", next); } catch (e) {}
     render();
 });
+document.getElementById("scThumbs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) scShow(+b.dataset.k, true); });
+document.getElementById("scPrev").addEventListener("click", () => scShow(scI - 1, true));
+document.getElementById("scNext").addEventListener("click", () => scShow(scI + 1, true));
+document.addEventListener("keydown", e => {
+    const r = document.querySelector(".showcase").getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) return;
+    if (e.key === "ArrowLeft") scShow(scI - 1, true); else if (e.key === "ArrowRight") scShow(scI + 1, true);
+});
+(() => { let x0 = null; const fr = document.querySelector(".frame");
+    fr.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
+    fr.addEventListener("touchend", e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 40) scShow(scI + (dx < 0 ? 1 : -1), true); }); })();
 document.getElementById("lang").addEventListener("click", () => {
     lang = lang === "es" ? "en" : "es";
     try { localStorage.setItem("alp_lang", lang); } catch (e) {}
