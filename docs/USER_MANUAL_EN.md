@@ -647,7 +647,7 @@ Coverage study of every mode: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: planned for 
 
 ## 30. Installing and updating the firmware (5.3.1)
 
-**Over USB (all boards).** Open the project page (`https://ea7jrs.github.io/APRS-LoRa-Plus/`) in Chrome or Edge, connect the board, press *Detect board* (reads board and installed version) and then *Install*. Your configuration is kept. If the board does not show up, hold BOOT while plugging it in.
+**Over USB (all boards).** Open the web installer (`https://ea7jrs.github.io/APRS-LoRa-Plus/install/`) in Chrome or Edge, connect the board, press *Detect board* (reads board and installed version) and then *Install*. Your configuration is kept. If the board does not show up, hold BOOT while plugging it in.
 
 **From the WebUI (only boards with two firmware copies: T-Beam S3 Supreme and T-Beam 1W).** Administration > *Firmware update*: it shows board, version and whether web update is supported.
 - *File*: pick the `.bin` for your board and press *Upload and install*. A file for another board is rejected.

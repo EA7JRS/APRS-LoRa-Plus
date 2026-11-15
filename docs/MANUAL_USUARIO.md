@@ -641,7 +641,7 @@ Estudio de cobertura de todos los modos: `ESTUDIO_COBERTURA.pdf`. D-Star/DPRS: p
 
 ## 30. Instalar y actualizar el firmware (5.3.1)
 
-**Por USB (todas las placas).** Abre la página del proyecto (`https://ea7jrs.github.io/APRS-LoRa-Plus/`) en Chrome o Edge, conecta la placa, pulsa *Detectar placa* (lee placa y versión instalada) y después *Instalar*. La configuración se conserva. Si la placa no aparece, mantén BOOT al conectarla.
+**Por USB (todas las placas).** Abre el instalador web (`https://ea7jrs.github.io/APRS-LoRa-Plus/install/`) en Chrome o Edge, conecta la placa, pulsa *Detectar placa* (lee placa y versión instalada) y después *Instalar*. La configuración se conserva. Si la placa no aparece, mantén BOOT al conectarla.
 
 **Desde la WebUI (solo placas con dos copias de firmware: T-Beam S3 Supreme y T-Beam 1W).** Administración > *Firmware update*: arriba verás placa, versión y si admite actualización web.
 - *Archivo*: elige el `.bin` de tu placa y pulsa *Upload and install*. Si es de otra placa, se rechaza.

@@ -2,7 +2,7 @@
 
 *Copyright (c) 2026 Manuel - EA7JRS.*
 
-Dirección: **https://ea7jrs.github.io/APRS-LoRa-Plus/** (enlaces directos: `#rotor`, `#gateway`, `#display`, `#nautica`). Chrome o Edge, placa por USB (ESP Web Tools). Se elige el dispositivo, se detecta la placa (o se elige a mano) y se instala; la configuración guardada en la placa se conserva.
+Dirección: **https://ea7jrs.github.io/APRS-LoRa-Plus/install/** (enlaces directos: `#rotor`, `#gateway`, `#display`, `#nautica`; la raíz es la página del proyecto y reenvía a `install/` los enlaces antiguos con `#`). Chrome o Edge, placa por USB (ESP Web Tools). Se elige el dispositivo, se detecta la placa (o se elige a mano) y se instala; la configuración guardada en la placa se conserva.
 
 ## Misma versión en todo el proyecto
 
