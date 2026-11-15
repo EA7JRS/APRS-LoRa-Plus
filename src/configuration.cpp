@@ -1002,7 +1002,7 @@ bool Configuration::readFile() {
         cadFskRssi                      = constrain((int)(data["other"]["cadFskRssi"] | -95), -120, -60);
         email                           = data["other"]["email"] | "";
 
-        if (bluetooth.deviceName == "LoRaTracker") {                // nombre de serie anterior (5.4.0 y antes): pasa al nuevo
+        if (bluetooth.deviceName == "LoRaTracker" || bluetooth.deviceName == "APRSLoRa+MAPRS") {   // nombres de serie anteriores: pasan al nuevo
             bluetooth.deviceName = PRODUCT_BT_NAME;
             needsRewrite = true;
         }

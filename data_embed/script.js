@@ -309,7 +309,7 @@ function maprsUi() {
     const label = (id, text) => { const l = document.querySelector('.side-link[data-target="' + id + '"] .label'); if (l) l.textContent = text; };
     const hide = el => { if (el) el.classList.add("d-none"); };
     label("sec-beaconing", "My vessel");
-    label("sec-lora", "Transmission");
+    label("sec-lora", "MAPRS radio");
     label("sec-hardware", "Display");
     ["sec-station", "sec-telemetry"].forEach(id => {
         hide(document.querySelector('.side-link[data-target="' + id + '"]'));

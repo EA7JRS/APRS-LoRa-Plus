@@ -24,8 +24,8 @@
 #ifdef APRS_MAPRS_TRANSPONDER
     #define PRODUCT_NAME        "APRS LoRa+ MAPRS transponder"
     #define PRODUCT_SHORT       "MAPRS"                 // debajo de «APRS LoRa+» en la bienvenida
-    #define PRODUCT_AP_SSID     "APRSLoRa+MAPRS"        // punto de acceso de la WebUI
-    #define PRODUCT_BT_NAME     "APRSLoRa+MAPRS"        // nombre Bluetooth de serie
+    #define PRODUCT_AP_SSID     "MAPRSLoRa+"            // punto de acceso de la WebUI (Manuel, 2026-11-15)
+    #define PRODUCT_BT_NAME     "MAPRSLoRa+"            // nombre Bluetooth de serie
 #else
     #define PRODUCT_NAME        "APRS LoRa+ tracker"
     #define PRODUCT_SHORT       ""
