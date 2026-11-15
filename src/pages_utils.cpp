@@ -1723,7 +1723,8 @@ namespace {
         }
 
         // cielo a la derecha: anillos de 0 y 45 grados de elevacion, norte arriba; relleno = usado en el fix
-        const int r = 22 + PAGES_EXTRA * 3 / 8, cx = PW - 2 - r, cy = 37 + PAGES_EXTRA / 4;   // 28 px en las TFT (antes 22)
+        // 28 px en las TFT (antes 22); en las OLED 26 (antes 22): de la cabecera al borde de abajo (la barra solo sale un momento)
+        const int r = PAGES_EXTRA ? 22 + PAGES_EXTRA * 3 / 8 : 26, cx = PW - 2 - r, cy = 37 + PAGES_EXTRA / 4;
         pagesInk(INK_MUTED);
         pagesDrawCircle(cx, cy, r, true);
         pagesDrawCircle(cx, cy, r / 2, true);
@@ -2959,11 +2960,24 @@ namespace {
         snprintf(right, sizeof(right), "%d%%", (int)lround(mi.lit * 100));
         header("MOON", right);
         const bool big = XR >= 16;
-        const int r = PAGES_EXTRA ? 27 : (big ? 24 : 17);           // TFT: casi todo el alto libre (EA7JRS)
-        const int cx = PW - 2 - r, cy = 37 + (PAGES_EXTRA ? 3 : 0);
-        rowLimit = min(COLS, (cx - r - 2) / 6);
-        row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
+        int r = PAGES_EXTRA ? 27 : (big ? 24 : 17);                 // TFT: casi todo el alto libre (EA7JRS)
+        int cx = PW - 2 - r, cy = 37 + (PAGES_EXTRA ? 3 : 0);
+        if (!big && !PAGES_EXTRA) {
+            // OLED de 128 px (EA7JRS): la fase ocupa la fila 0 entera; las filas 1 a 5 caben en 11 columnas (el % iluminado ya va
+            // en la cabecera) y el disco, de 22 px (antes 17), va centrado en el hueco de su derecha, de la fila 1 al borde de abajo
+            const int left = 11 * 6 + 2, top = ROW_Y0 + ROW_PITCH - 1, bottom = PAGES_H - 1;
+            r = min((PW - left) / 2 - 1, (bottom - top) / 2);
+            cx = left + (PW - left) / 2;
+            cy = (top + bottom + 1) / 2;
+            rowLimit = COLS;
+            row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
+            rowLimit = 11;
+        } else {
+            rowLimit = min(COLS, (cx - r - 2) / 6);
+            row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
+        }
         if (big) row(1, "Lit %d%% Age %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
+        else if (!PAGES_EXTRA) row(1, "Age %.1fd", mi.ageDays);
         else     row(1, "Lit %d%% %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
         char a[6] = "--:--";
         if (mi.hasRise) fmtLocalMin(mi.riseMin, off, a, sizeof(a));
@@ -3054,8 +3068,10 @@ namespace {
         text(4, Y_UTC, buffer);
         textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
         // hueco del dibujo: a la derecha de las tres lineas, desde la fecha hasta la barra; el disco centrado en el
+        const int gapRight = textRight;                          // la linea del sol / luna va debajo del hueco en las OLED
         auto skyIcon = [&](int& cx, int& cy, int& r) {
-            const int left = textRight + 2, top = Y_DATE, bottom = 53 + PAGES_EXTRA;
+            const int top = Y_DATE, bottom = 53 + PAGES_EXTRA;
+            const int left = (Y_SKY < bottom ? textRight : gapRight) + 2;
             r = min((PW - left) / 2 - 1, (bottom - top) / 2);
             if (r > 12) r = 12;
             cx = left + (PW - left) / 2;
@@ -3073,7 +3089,7 @@ namespace {
             snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(mi.lit * 100), mi.waxing ? '+' : '-', a, b);   // + creciente, - menguante
             text(4, Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            if (XR >= 16) { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
+            { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
         } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
@@ -3090,7 +3106,7 @@ namespace {
             }
             text(4, Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            if (XR >= 16) { int cx, cy, r; skyIcon(cx, cy, r); r -= 4; if (r >= 3) drawSunIcon(cx, cy, r); }   // el disco, sin los rayos
+            { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 4 : 2; if (r >= 3) drawSunIcon(cx, cy, r); }   // el disco, sin los rayos
         }
     }
 
@@ -3421,38 +3437,21 @@ namespace {
         }
         const float pct = BATTERY_Utils::percent();
         const float volts = BATTERY_Utils::cellVoltage() * BATTERY_CELLS;
-        #ifdef HAS_TFT
-            // TFT (EA7JRS): el porcentaje ya va en la cabecera; la pila arriba y mas alta, la tension con el estado debajo, y el
-            // relleno del color del nivel: verde desde el 50 %, amarillo del 30 al 50, naranja del 15 al 30 y rojo por debajo
-            const int bx = 2, by = 12, bw = PW - 10, bh = 24;
-        #else
-            #ifdef HAS_AXP2101
-                String pmuPct = POWER_Utils::getBatteryInfoCurrent();     // la AXP2101 da su propio porcentaje (por ese nombre)
-                pmuPct.trim();
-                row(0, "%s%%  %.2f V", pmuPct.c_str(), volts);
-            #else
-                row(0, "%.0f%%  %.2f V", pct, volts);
-            #endif
-            const int bx = 2, by = 21, bw = PW - 10, bh = 13;
-        #endif
+        // Todas las pantallas (EA7JRS; antes solo las TFT): el porcentaje ya va en la cabecera; la pila arriba y alta, la tension
+        // con el estado debajo, y el relleno del nivel: en color verde desde el 50 %, amarillo del 30 al 50, naranja del 15 al
+        // 30 y rojo por debajo
+        const int bx = 2, by = 12, bw = PW - 10, bh = 24;
         // pila: contorno, borne y relleno por la carga
         const float p = pct < 0 ? 0 : (pct > 100 ? 100 : pct);
         pagesInk(INK_FRAME);
         pagesDrawRect(bx, by, bw, bh, true);
         pagesFillRect(bx + bw, by + bh / 4, 3, bh - 2 * (bh / 4), true);
         const int fill = (int)lroundf((bw - 4) * p / 100.0f);
-        #ifdef HAS_TFT
-            pagesInk(p < 15 ? INK_BAD : p < 30 ? INK_LV2 : p < 50 ? INK_LV1 : INK_GOOD);
-            if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
-            pagesInk(INK_TEXT);
-            rowDy = PAGES_EXTRA && ROW_PITCH == 9 ? 4 : 0;        // con filas de 10 px ya quedan bien
-            row(3, "%.2f V  %s", volts, BatteryModel::stateName((BatteryModel::State)st));
-        #else
-            pagesInk(p < 15 ? INK_BAD : (p < 40 ? INK_WARN : INK_GOOD));
-            if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
-            pagesInk(INK_TEXT);
-            row(3, "%s", BatteryModel::stateName((BatteryModel::State)st));
-        #endif
+        pagesInk(p < 15 ? INK_BAD : p < 30 ? INK_LV2 : p < 50 ? INK_LV1 : INK_GOOD);
+        if (fill > 0) pagesFillRect(bx + 2, by + 2, fill, bh - 4, true);
+        pagesInk(INK_TEXT);
+        rowDy = PAGES_EXTRA && ROW_PITCH == 9 ? 4 : 0;            // con filas de 10 px ya quedan bien
+        row(3, "%.2f V  %s", volts, BatteryModel::stateName((BatteryModel::State)st));
 
         float vph = 0, pph = 0;
         const bool have = BATTERY_Utils::trend(vph, pph);
