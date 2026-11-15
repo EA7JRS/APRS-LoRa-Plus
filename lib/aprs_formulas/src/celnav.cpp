@@ -200,7 +200,8 @@ void planetGhaDec(Planet p, double jd, double& gha, double& decDeg, double& dist
 
 double planetHpArcmin(double distAu) { return 8.794 / 60.0 / distAu; }
 
-int navStarCount() { return kStarCount; }
+int navStarCount() { return kStarCount < 58 ? kStarCount : 58; }
+int starCount() { return kStarCount; }
 const NavStar& navStar(int i) { return kStars[i < 0 ? 0 : (i >= kStarCount ? kStarCount - 1 : i)]; }
 
 int navStarFind(const char* name) {

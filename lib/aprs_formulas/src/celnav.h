@@ -20,7 +20,8 @@ struct NavStar {
 };
 
 int navStarCount();                              // 58: las 57 de navegacion por orden alfabetico y la Polar
-const NavStar& navStar(int i);
+int starCount();                                 // todas: las 58 y, detras, otras 99 brillantes de los almanaques (catalogo HYG / Hipparcos)
+const NavStar& navStar(int i);                   // 0 .. starCount() - 1
 int navStarFind(const char* name);               // sin distinguir mayusculas; -1 si no esta
 
 // jd: dia juliano en UTC (julianDay de astro.h). Angulos en grados: AHG y AHS de 0 a 360 hacia el oeste, dec + al norte.
