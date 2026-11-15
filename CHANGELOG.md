@@ -1,6 +1,7 @@
 # Changelog
 
 ## Sin publicar
+- **Sol con precisión de almanaque** (0,1′) en las fórmulas comunes (`lib/aprs_formulas`, núcleo `celnav` del plotter: VSOP87 recortada, nutación y aberración); lo usan el seguimiento del Sol con el rotor y las páginas SUN / CLOCK. Antes, 0,2′–0,4′.
 - **Pantallas TFT, COMPASS:** las líneas del destino (rumbo, distancia, ETA) y el punto cardinal se reparten hasta la barra, al ritmo de la rosa más grande.
 - **Pantallas TFT: filas de texto cada 10 px** (antes 9) en las páginas hechas por filas (MAIN, LAST APRS, STATIONS, MESSAGES, GNSS, TELEMETRY, ALERTS, GROUP, LORA, SATELLITE…): las líneas se leen mejor y ocupan todo el alto; SYSTEM reparte sus medidores, y el texto de un mensaje abierto va algo más separado. **STATIONS** enseña además el rumbo en grados hacia cada estación, entre la distancia y el tiempo. Las OLED no cambian.
 - **Pantallas TFT, ALTIMETER y GROUP > RADAR:** la gráfica del perfil de altura pasa de 17 a 24 px de alto y el radar de los compañeros de 18 a 26 px de radio. Las OLED no cambian.
