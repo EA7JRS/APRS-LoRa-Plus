@@ -214,9 +214,11 @@ namespace WEB_Utils {
                 beacon.aisCall       = getParamStringSafe(prefix + "aisCall", beacon.aisCall);
                 beacon.aisMtKey      = getParamStringSafe(prefix + "aisMtKey", beacon.aisMtKey);
                 beacon.aisCallUnverified = getParamStringSafe(prefix + "aisCallUnverified", "") == "1";
-                if (getParamStringSafe(prefix + "aisCallMars", "") == "1") beacon.aisCallOk = 2;   // confirmado a mano en el MARS de la UIT
-                else if (beacon.aisCallOk == 2) beacon.aisCallOk = 0;
-                if (beacon.aisCallOk == 2) {
+                // confirmado a mano en la ficha publica de MarineTraffic (1) o en el MARS de la UIT (2); sin marcar, se quita
+                if (getParamStringSafe(prefix + "aisCallMt", "") == "1") beacon.aisCallOk = 1;
+                else if (getParamStringSafe(prefix + "aisCallMars", "") == "1") beacon.aisCallOk = 2;
+                else beacon.aisCallOk = 0;
+                if (beacon.aisCallOk) {
                     char pair[24], mc[8];
                     AIS_Vessel::sanitizeCall(beacon.aisCall.c_str(), mc, sizeof(mc));
                     plotter::mtcheck::pairKey((uint32_t) strtoul(getParamStringSafe(prefix + "aisMmsi", String(beacon.aisMmsi)).c_str(), nullptr, 10), mc, pair, sizeof(pair));

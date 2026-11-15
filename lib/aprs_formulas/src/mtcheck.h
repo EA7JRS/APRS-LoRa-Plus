@@ -6,7 +6,8 @@
 // Comprobacion del distintivo de llamada maritimo del MMSI (Manuel, 2026-11-14: «validado con MarineTraffic»; en el plotter
 // y en el transponder APRS LoRa+ MAPRS). MarineTraffic: busqueda por MMSI de su API (shipsearch, con la clave de pago del
 // usuario; solo conoce barcos que ha recibido por AIS de verdad). Si no esta, el registro oficial es el MARS de la UIT
-// (gratuito, sin API): se consulta a mano y se confirma. El distintivo vale para el par MMSI + distintivo comprobado: si
+// (gratuito, sin API): se consulta a mano y se confirma. Sin clave, la ficha publica de MarineTraffic tambien se
+// mira a mano (webUrl). El distintivo vale para el par MMSI + distintivo comprobado: si
 // cambia cualquiera de los dos, deja de estar validado. Copiado al tracker con tools/sync_formulas.sh.
 #ifndef PLOTTER_MTCHECK_H_
 #define PLOTTER_MTCHECK_H_
@@ -25,6 +26,11 @@ enum Result { MATCH, MISMATCH, NOT_FOUND, BAD_KEY, LIMIT, FAILED };
 
 bool        validKey(const char* key);          // 40 caracteres hexadecimales
 std::string searchUrl(const char* key, uint32_t mmsi);
+// Ficha publica del barco en la web de MarineTraffic (Manuel, 2026-11-15), para comprobarlo a mano sin clave: por su shipid
+// (el numero de MarineTraffic) si se conoce, si no por el MMSI. Sus condiciones prohiben leer la web de forma automatica:
+// la abre la persona y confirma. shipIdFrom saca el shipid de un enlace pegado ("...ships/shipid:123456/...") o de un numero
+std::string webUrl(uint32_t mmsi, uint32_t shipId);
+uint32_t    shipIdFrom(const char* text);
 // Respuesta de shipsearch (protocol=jsono). mtCall: el distintivo que tiene MarineTraffic (si lo hay)
 Result      parse(int httpCode, const std::string& body, const char* call, char* mtCall, size_t size);
 const char* resultEs(Result r);

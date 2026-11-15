@@ -36,6 +36,28 @@ std::string searchUrl(const char* key, uint32_t mmsi) {
     return b;
 }
 
+std::string webUrl(uint32_t mmsi, uint32_t shipId) {
+    char b[96];
+    if (shipId) snprintf(b, sizeof(b), "https://www.marinetraffic.com/es/ais/details/ships/shipid:%lu", (unsigned long)shipId);
+    else snprintf(b, sizeof(b), "https://www.marinetraffic.com/es/ais/details/ships/mmsi:%09lu", (unsigned long)mmsi);
+    return b;
+}
+
+uint32_t shipIdFrom(const char* t) {
+    if (!t) return 0;
+    const char* p = strstr(t, "shipid:");
+    if (p) p += 7;
+    else {
+        for (const char* q = t; *q; q++) if (!isdigit((unsigned char)*q) && !isspace((unsigned char)*q)) return 0;   // solo un numero
+        p = t;
+    }
+    while (*p == ' ') p++;
+    unsigned long n = 0;
+    int digits = 0;
+    for (; isdigit((unsigned char)*p) && digits < 10; p++, digits++) n = n * 10 + (unsigned long)(*p - '0');
+    return digits && n <= 0xFFFFFFFFUL ? (uint32_t)n : 0;
+}
+
 static bool hasWord(const std::string& s, const char* w) {
     std::string u(s);
     for (char& c : u) c = (char)toupper((unsigned char)c);

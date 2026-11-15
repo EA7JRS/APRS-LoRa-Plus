@@ -286,7 +286,8 @@ const AIS_VESSELS = [
 function mtOpen(index) {
     const e = document.getElementById("beacons." + index + ".aisMmsi");
     const mmsi = e ? e.value.replace(/[^0-9]/g, "") : "";
-    const url = mmsi ? "https://www.marinetraffic.com/en/ais/details/ships/mmsi:" + mmsi : "https://www.marinetraffic.com/";
+    // ficha publica (como plotter::mtcheck::webUrl); sus condiciones prohiben leerla de forma automatica: se mira y se confirma
+    const url = mmsi ? "https://www.marinetraffic.com/es/ais/details/ships/mmsi:" + mmsi : "https://www.marinetraffic.com/";
     window.open(url, "_blank", "noopener");
 }
 
@@ -461,13 +462,19 @@ function renderAisBeacon(beacons, index) {
                     <div class="col-12 d-flex gap-2 flex-wrap">
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="mtOpen(${index})">Look up in MarineTraffic</button>
                         <a class="btn btn-sm btn-outline-secondary" href="https://www.itu.int/mmsapp/ShipStation/list" target="_blank" rel="noopener">Open ITU MARS</a>
-                        <small class="text-muted align-self-center">Check the registered call sign for your MMSI, then tick the box below, or verify it from the app / plotter.</small>
+                        <small class="text-muted align-self-center">Check the call sign registered for your MMSI on its page, then tick the box below, or verify it from the app / plotter.</small>
                     </div>
                 </div>
                 <div class="row g-2 mb-2">
                     <div class="col-12 col-md-6">
                         <div class="form-check form-switch">
-                            <input type="checkbox" class="form-check-input" name="beacons.${index}.aisCallMars" id="beacons.${index}.aisCallMars" value="1" ${beacons.aisCallOk == 2 ? 'checked' : ''}>
+                            <input type="checkbox" class="form-check-input" name="beacons.${index}.aisCallMt" id="beacons.${index}.aisCallMt" value="1" ${beacons.aisCallOk == 1 ? 'checked' : ''}
+                                onchange="if (this.checked) document.getElementById('beacons.${index}.aisCallMars').checked = false;">
+                            <label class="form-check-label" for="beacons.${index}.aisCallMt">Confirmed in MarineTraffic (MMSI and call sign match)</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input type="checkbox" class="form-check-input" name="beacons.${index}.aisCallMars" id="beacons.${index}.aisCallMars" value="1" ${beacons.aisCallOk == 2 ? 'checked' : ''}
+                                onchange="if (this.checked) document.getElementById('beacons.${index}.aisCallMt').checked = false;">
                             <label class="form-check-label" for="beacons.${index}.aisCallMars">Confirmed in the ITU MARS (MMSI and call sign match)</label>
                         </div>
                         <div class="form-check form-switch">
@@ -475,7 +482,7 @@ function renderAisBeacon(beacons, index) {
                             <label class="form-check-label" for="beacons.${index}.aisCallUnverified">Send it even if not verified (with a warning)</label>
                         </div>
                     </div>
-                    <div class="col-12 col-md-6"><small id="mtStatus" class="text-muted">${beacons.aisCallOk == 1 ? "Verified in MarineTraffic (from the app or plotter)" : (beacons.aisCallOk == 2 ? "Confirmed in the ITU MARS" : "Not verified: confirm it in the ITU MARS, or verify from the app / plotter")}</small></div>
+                    <div class="col-12 col-md-6"><small id="mtStatus" class="text-muted">${beacons.aisCallOk == 1 ? "Verified in MarineTraffic" : (beacons.aisCallOk == 2 ? "Confirmed in the ITU MARS" : "Not verified: confirm it in MarineTraffic or the ITU MARS")}</small></div>
                 </div>
                 <div class="row g-2 mb-2">
                     <div class="form-floating col-4">
