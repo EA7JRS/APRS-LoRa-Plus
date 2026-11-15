@@ -120,12 +120,17 @@
     .docs a span { color: var(--muted); }
     .docs a:hover { color: var(--cyan); text-decoration: none; }
 
-    .author { display: grid; gap: 22px; grid-template-columns: 1fr auto; align-items: center; }
-    @media (max-width: 760px) { .author { grid-template-columns: 1fr; } }
+    .author { display: grid; gap: 22px 32px; grid-template-columns: auto 1fr auto; align-items: center; }
+    .author .logo { width: 150px; height: auto; border-radius: 16px; display: block; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+    @media (max-width: 760px) { .author { grid-template-columns: 1fr; } .author .logo { width: 130px; } }
     .socials { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .yt { background: #E62117; border-color: #E62117; color: #fff; }
+    .yt:hover { filter: brightness(1.08); border-color: #E62117; }
     .donate { background: #0070e0; border-color: #0070e0; color: #fff; }
 
     footer { border-top: 1px solid var(--line); padding: 26px 0 40px; color: var(--muted); font-size: .92rem; }
+    footer .fbrand { display: inline-flex; align-items: center; gap: 8px; }
+    footer .fbrand img { border-radius: 5px; }
     footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
 
     /* explicacion LoRa APRS */
@@ -206,6 +211,7 @@
                 <a class="btn primary" href="install/" data-i="ctaInstall"></a>
                 <a class="btn" href="https://github.com/EA7JRS/APRS-LoRa-Plus" data-i="ctaCode"></a>
                 <a class="btn" href="#ecosistema" data-i="ctaEco"></a>
+                <a class="btn yt" href="https://www.youtube.com/@EA7JRS" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12 31 31 0 0 0 1 16.8a3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1c.4-1.6.5-4.8.5-4.8s0-3.2-.5-4.8zM9.7 15.1V8.9L15.3 12l-5.6 3.1z"/></svg><span data-i="ytHero"></span></a>
             </div>
             <div class="ver" id="ver" hidden><span data-i="verLabel"></span> <span class="mono" id="verNum"></span></div>
         </div>
@@ -468,6 +474,7 @@
 
 <section class="alt">
     <div class="wrap author">
+        <img class="logo" src="img/logo.jpg" width="360" height="490" alt="APRS LoRa+">
         <div>
             <h2>EA7JRS</h2>
             <p class="lead" style="margin-bottom:0" data-i="authorP"></p>
@@ -475,7 +482,7 @@
                 <a class="btn" href="https://github.com/EA7JRS">GitHub</a>
                 <a class="btn" href="https://www.qrz.com/db/EA7JRS">QRZ.com</a>
                 <a class="btn" href="https://app.worldradioleague.com/profile/EA7JRS">World Radio League</a>
-                <a class="btn" href="https://www.youtube.com/@EA7JRS">YouTube</a>
+                <a class="btn yt" href="https://www.youtube.com/@EA7JRS" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12 31 31 0 0 0 1 16.8a3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1c.4-1.6.5-4.8.5-4.8s0-3.2-.5-4.8zM9.7 15.1V8.9L15.3 12l-5.6 3.1z"/></svg><span data-i="ytBtn"></span></a>
             </div>
         </div>
         <div><a class="btn donate" href="https://paypal.me/ea7jrs" data-i="donate"></a></div>
@@ -484,9 +491,9 @@
 
 <footer>
     <div class="wrap">
-        <span>APRS LoRa+ · © 2026 Manuel - EA7JRS · GPL-3.0</span>
+        <span class="fbrand"><img src="img/icon.png" width="22" height="22" alt="">APRS LoRa+ · © 2026 Manuel - EA7JRS · GPL-3.0</span>
         <span data-i="base"></span>
-        <span><a href="privacy.html" data-i="privacy"></a></span>
+        <span><a href="https://www.youtube.com/@EA7JRS" target="_blank" rel="noopener">YouTube @EA7JRS</a> · <a href="privacy.html" data-i="privacy"></a></span>
     </div>
 </footer>
 
@@ -801,7 +808,7 @@ const T = {
         faqT: "Preguntas frecuentes", faqL: "Lo que se suele preguntar al empezar con LoRa APRS y con este proyecto.",
         nEco: "Ecosistema", nFeat: "Funciones", nBoards: "Placas", nInstall: "Instalar", nDocs: "Documentación",
         claim: "Firmware APRS para placas ESP32 con LoRa o FM, y un ecosistema de equipos que trabajan juntos: app Android, pantallas, rotor, plotter náutico y pasarelas. Para radioaficionados con licencia.",
-        ctaInstall: "Instalar en tu placa", ctaCode: "Código en GitHub", ctaEco: "Ver el ecosistema", verLabel: "Última versión:",
+        ctaInstall: "Instalar en tu placa", ctaCode: "Código en GitHub", ctaEco: "Ver el ecosistema", ytHero: "Vídeos", ytBtn: "Canal de YouTube", verLabel: "Última versión:",
         ecoT: "Ecosistema", ecoL: "Todos los equipos usan la misma versión y se instalan desde el mismo instalador web. La app Android puede controlarlos y mostrar todos sus datos.",
         st_ok: "Disponible", st_dev: "En desarrollo", st_soon: "Próximamente", code: "Código", inInstaller: "En el instalador web",
         featT: "Funciones del tracker", featL: "Una ampliación del firmware CA2RXU LoRa APRS Tracker con nuevos modos de radio, interfaz, mensajería y conexión con el resto del ecosistema.",
@@ -912,7 +919,7 @@ const T = {
         faqT: "Frequently asked questions", faqL: "What people usually ask when starting with LoRa APRS and with this project.",
         nEco: "Ecosystem", nFeat: "Features", nBoards: "Boards", nInstall: "Install", nDocs: "Docs",
         claim: "APRS firmware for ESP32 boards with LoRa or FM, and an ecosystem of devices that work together: Android app, screens, rotator, marine plotter and gateways. For licensed radio amateurs.",
-        ctaInstall: "Install on your board", ctaCode: "Code on GitHub", ctaEco: "See the ecosystem", verLabel: "Latest version:",
+        ctaInstall: "Install on your board", ctaCode: "Code on GitHub", ctaEco: "See the ecosystem", ytHero: "Videos", ytBtn: "YouTube channel", verLabel: "Latest version:",
         ecoT: "Ecosystem", ecoL: "All devices share the same version and install from the same web installer. The Android app can control them and show all their data.",
         st_ok: "Available", st_dev: "In development", st_soon: "Coming soon", code: "Code", inInstaller: "In the web installer",
         featT: "Tracker features", featL: "An extension of the CA2RXU LoRa APRS Tracker firmware with new radio modes, interface, messaging and links to the rest of the ecosystem.",
