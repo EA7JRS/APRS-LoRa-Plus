@@ -995,6 +995,9 @@ bool Configuration::readFile() {
         sendAltitude                    = data["other"]["sendAltitude"] | true;
         disableGPS                      = data["other"]["disableGPS"] | false;
         cadActive                       = data["other"]["cadActive"] | true;
+        #ifdef APRS_MAPRS_TRANSPONDER
+            cadActive                   = true;                 // transpondedor: siempre escucha antes de emitir
+        #endif
         cadWaitSec                      = constrain((int)(data["other"]["cadWaitSec"] | 10), 1, 60);
         cadFskRssi                      = constrain((int)(data["other"]["cadFskRssi"] | -95), -120, -60);
         email                           = data["other"]["email"] | "";

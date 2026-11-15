@@ -247,6 +247,9 @@ namespace WEB_Utils {
         Config.sendAltitude                     = request->hasParam("sendAltitude", true);
         Config.disableGPS                       = request->hasParam("disableGPS", true);
         Config.cadActive                        = request->hasParam("cadActive", true);
+        #ifdef APRS_MAPRS_TRANSPONDER
+            Config.cadActive                    = true;
+        #endif
         Config.cadWaitSec                       = constrain(getParamIntSafe("cadWaitSec", Config.cadWaitSec), 1, 60);
         Config.cadFskRssi                       = constrain(getParamIntSafe("cadFskRssi", Config.cadFskRssi), -120, -60);
         Config.simplifiedTrackerMode            = request->hasParam("simplifiedTrackerMode", true);

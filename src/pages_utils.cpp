@@ -5808,6 +5808,11 @@ namespace PAGES_Utils {
 
     // Seleccion del modo tras el mensaje de bienvenida: pulsacion corta = siguiente, larga = aceptar, 8 s sin pulsar = el ultimo modo usado
     uint8_t selectMode() {
+        #ifdef APRS_MAPRS_TRANSPONDER                                                     // transpondedor: modo fijo, sin menu (Manuel, 2026-11-15)
+            BLE_Control::takeBootMode();
+            Config.operatingMode = MODE_APRS_LORA;
+            return Config.operatingMode;
+        #endif
         const int remoteMode = BLE_Control::takeBootMode();                                // modo pedido desde la app por BLE: sin menu (EA7JRS)
         if (remoteMode >= 0) {
             Config.operatingMode = remoteMode;

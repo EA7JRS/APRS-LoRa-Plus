@@ -292,15 +292,67 @@ function mtOpen(index) {
 
 // APRS LoRa+ MAPRS transponder (/api/info "maprs"): solo los dos tipos de clase B del perfil (B "CS" y B "SO")
 let AIS_CLASS_B_ONLY = false;
+// APRS LoRa+ MAPRS: WebUI propia de un transpondedor (Manuel, 2026-11-15): «My vessel», «Transmission» fija (solo la
+// potencia), GPS, conexiones, pantalla y administracion. Lo demas se oculta (sus valores se siguen enviando sin cambios).
+function maprsAisLoraIndex() {
+    const l = (currentSettings && currentSettings.lora) || [];
+    return l.findIndex(x => x.ais);
+}
+function maprsPowerChanged(v) {
+    const e = document.getElementById("lora." + maprsAisLoraIndex() + ".power");
+    if (e) e.value = v;
+}
+function maprsUi() {
+    const sub = document.getElementById("brandSub");
+    if (sub) sub.firstChild.textContent = "MAPRS ";
+    document.title = "APRS LoRa+ MAPRS";
+    const label = (id, text) => { const l = document.querySelector('.side-link[data-target="' + id + '"] .label'); if (l) l.textContent = text; };
+    const hide = el => { if (el) el.classList.add("d-none"); };
+    label("sec-beaconing", "My vessel");
+    label("sec-lora", "Transmission");
+    label("sec-hardware", "Display");
+    ["sec-station", "sec-telemetry"].forEach(id => {
+        hide(document.querySelector('.side-link[data-target="' + id + '"]'));
+        hide(document.getElementById(id));
+    });
+    const bsec = document.getElementById("sec-beaconing");
+    if (bsec) bsec.querySelectorAll(":scope > .row").forEach((r, i) => { if (i > 0) hide(r); });    // «Beaconing» (ruta y tiempos)
+    const lsec = document.getElementById("sec-lora");
+    if (lsec) lsec.querySelectorAll(":scope > .row").forEach(r => { if (r.id !== "grp-maprs-tx") hide(r); });
+    const hsec = document.getElementById("sec-hardware");
+    if (hsec) hsec.querySelectorAll(":scope > .row").forEach(r => {
+        const h = r.querySelector("h5");
+        if (!h || h.textContent.trim() !== "Display") hide(r);
+    });
+    document.querySelectorAll('[id$=".profileLabel"]').forEach(e => hide(e.closest(".form-floating")));
+    ["display.theme", "display.splash", "display.rgbLed", "display.alertBuzz"].forEach(id => {      // OLED monocromo, sin LED RGB ni zumbador
+        const e = document.getElementById(id); if (e) hide(e.closest(".col-6"));
+    });
+    const cad = document.getElementById("cadActive");
+    if (cad) cad.checked = true;
+    const i = maprsAisLoraIndex();
+    const lt = i >= 0 ? currentSettings.lora[i] : null;
+    if (lt) {
+        document.getElementById("maprsTxFreq").textContent = (lt.frequency / 1e6).toFixed(3) + " MHz";
+        document.getElementById("maprsTxPower").value = lt.power;
+    }
+    const b = (currentSettings && currentSettings.beacons || []).find(x => x.aisProfile);
+    const v = b && AIS_VESSELS.find(x => x.id == b.aisVesselType);
+    document.getElementById("maprsTxRate").textContent = v && v.cls === "B-SO"
+        ? 'SmartBeacon AIS class B "SO" (motor yacht)' : 'SmartBeacon AIS class B "CS" (sailing yacht)';
+    const active = document.querySelector(".side-link.active");
+    if (active && active.classList.contains("d-none")) document.querySelector('.side-link[data-target="sec-beaconing"]').click();
+}
+
 function aisClassBOnly() {
     AIS_CLASS_B_ONLY = true;
     document.querySelectorAll(".beacons.beacon-plain").forEach(e => e.classList.add("d-none"));   // los perfiles 1-3 no se usan
     document.querySelectorAll(".beacon-num").forEach(e => e.classList.add("d-none"));
     document.querySelectorAll(".maprs-only").forEach(e => e.classList.remove("d-none"));
     const h = document.querySelector("#sec-beaconing h5");
-    if (h && h.lastChild) h.lastChild.textContent = " Vessel (AIS nautical profile)";
+    if (h && h.lastChild) h.lastChild.textContent = " My vessel";
     const hs = h && h.parentElement.querySelector("small");
-    if (hs) hs.textContent = "The only profile of the transponder: vessel identity sent in its APRS LoRa AIS beacons.";
+    if (hs) hs.textContent = "Identity sent in the AIS beacons. The APRS LoRa+ plotter (Settings > Vessel) sets the same data when it links.";
     document.querySelectorAll('select[id$=".aisVesselType"]').forEach(sel => {
         sel.querySelectorAll("option").forEach(o => {
             const v = AIS_VESSELS.find(x => x.id == o.value);
@@ -311,6 +363,7 @@ function aisClassBOnly() {
         const m = sel.id.match(/^beacons\.(\d+)\./);
         if (m) aisVesselChanged(Number(m[1]));
     });
+    if (currentSettings) maprsUi();
 }
 
 function aisVesselInfoText(vesselId) {
@@ -1918,8 +1971,8 @@ function boardPinInit() {
             const name = i.board || "";
             if (i.maprs) {                              // APRS LoRa+ MAPRS transponder: nombre en la cabecera y solo clase B
                 const sub = document.getElementById("brandSub");
-                if (sub) sub.firstChild.textContent = "MAPRS transponder ";
-                document.title = "APRS LoRa+ MAPRS transponder";
+                if (sub) sub.firstChild.textContent = "MAPRS ";
+                document.title = "APRS LoRa+ MAPRS";
                 aisClassBOnly();
             }
             if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
@@ -1985,6 +2038,14 @@ function boardPinInit() {
         .catch(() => {});
 }
 window.addEventListener("load", () => setTimeout(boardPinInit, 300));
+document.addEventListener("DOMContentLoaded", () => {                  // MAPRS: la cabecera sin esperar a la carga completa
+    fetch("/api/info?_t=" + Date.now()).then(r => r.json()).then(i => {
+        if (!i.maprs) return;
+        const sub = document.getElementById("brandSub");
+        if (sub) sub.firstChild.textContent = "MAPRS ";
+        document.title = "APRS LoRa+ MAPRS";
+    }).catch(() => {});
+});
 
 
 // ---- Archivo de satelites por WiFi (EA7JRS): el navegador lo baja de internet, lo filtra por grupos y lo sube al tracker ----

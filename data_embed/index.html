@@ -625,6 +625,25 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                         </div>
 </section>
 <section class="panel-section" id="sec-lora">
+                        <div class="row my-5 d-flex align-items-top maprs-only d-none" id="grp-maprs-tx">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>Transmission</h5>
+                                <small>Fixed for the transponder: APRS LoRa with the AIS nautical profile, listening before it transmits. Only the power can be changed.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <table class="table table-sm mb-2"><tbody>
+                                    <tr><td class="text-muted">Mode</td><td>APRS LoRa &middot; AIS nautical profile <span class="badge text-bg-secondary">fixed</span></td></tr>
+                                    <tr><td class="text-muted">Frequency</td><td><span id="maprsTxFreq">433.775 MHz</span> &middot; SF9 &middot; CR 4/5 <span class="badge text-bg-secondary">fixed</span></td></tr>
+                                    <tr><td class="text-muted">Listen before talk (CAD)</td><td>On <span class="badge text-bg-secondary">fixed</span></td></tr>
+                                    <tr><td class="text-muted">Beacon rate</td><td id="maprsTxRate">SmartBeacon AIS class B</td></tr>
+                                </tbody></table>
+                                <div class="form-floating" style="max-width:200px">
+                                    <input type="number" class="form-control form-control-sm" id="maprsTxPower" min="2" max="20" value="17"
+                                        oninput="maprsPowerChanged(this.value)">
+                                    <label for="maprsTxPower">Power (dBm, SX1278: max. 20)</label>
+                                </div>
+                            </div>
+                        </div>
                         <div class="row my-5 d-flex align-items-top" id="grp-iaru">
                             <div class="col-lg-3 col-sm-12">
                                 <h5>IARU region (auto)</h5>

@@ -1,5 +1,8 @@
 # Changelog
 
+## Sin publicar
+- **MAPRS: WebUI de transponder** (Manuel, 2026-11-15): cabecera «MAPRS» (antes podía quedarse en «Tracker»), *My vessel* en lugar de Station / Beaconing, *Transmission* fija (modo APRS LoRa con el perfil náutico AIS, frecuencia, CAD; solo la potencia), *Connectivity*, *Display* (solo lo que vale para la OLED) y *Administration*; fuera Telemetry, Battery, Notifications y PTT. En el firmware del MAPRS, sin menú de modos al arrancar y CAD siempre encendido.
+
 ## 5.4.6 — 2026-11-15
 _La 5.4.5 no tuvo entrada propia: lo que ya llevaba está también en esta lista._
 
