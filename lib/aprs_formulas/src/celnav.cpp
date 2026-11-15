@@ -320,4 +320,53 @@ bool fixFromSights(double lat, double lon, const Sight* sg, int n, double& outLa
     return true;
 }
 
+int visibleBodies(double jd, double lat, double lon, double minAlt, double maxAlt, SkyItem* out, int max) {
+    int n = 0;
+    auto add = [&](int kind, int index, double gha, double dec, float mag) {
+        if (n >= max) return;
+        double alt, az;
+        bodyAltAz(gha, dec, lat, lon, alt, az);
+        if (alt < minAlt || alt > maxAlt) return;
+        out[n++] = SkyItem{(unsigned char)kind, (short)index, (float)alt, (float)az, mag};
+    };
+    double gha, dec, d;
+    sunGhaDec(jd, gha, dec);
+    add(0, 0, gha, dec, -26.7f);
+    moonGhaDec(jd, gha, dec, d);
+    add(1, 0, gha, dec, -10.0f);
+    static const float pmag[4] = {-4.2f, 0.5f, -2.3f, 0.7f};
+    for (int p = 0; p < 4; p++) {
+        planetGhaDec(Planet(p), jd, gha, dec, d);
+        add(2, p, gha, dec, pmag[p]);
+    }
+    const double aries = ariesGha(jd);
+    for (int i = 0; i < kStarCount; i++) {
+        double sha;
+        starShaDec(kStars[i], jd, sha, dec);
+        add(3, i, std::fmod(aries + sha, 360.0), dec, kStars[i].mag);
+    }
+    for (int i = 1; i < n; i++)                                   // por azimut (insercion: pocas decenas)
+        for (int j = i; j > 0 && out[j].az < out[j - 1].az; j--) { SkyItem t = out[j]; out[j] = out[j - 1]; out[j - 1] = t; }
+    return n;
+}
+
+bool bestStarTriple(const SkyItem* it, int n, int idx[3]) {
+    auto sep = [](float a, float b) { float d = std::fabs(a - b); return d > 180 ? 360 - d : d; };
+    double best = -1;
+    for (int a = 0; a < n; a++) {
+        if (it[a].kind != 3 || it[a].alt < 15 || it[a].alt > 75) continue;
+        for (int b = a + 1; b < n; b++) {
+            if (it[b].kind != 3 || it[b].alt < 15 || it[b].alt > 75) continue;
+            for (int c = b + 1; c < n; c++) {
+                if (it[c].kind != 3 || it[c].alt < 15 || it[c].alt > 75) continue;
+                float m = std::fmin(sep(it[a].az, it[b].az), std::fmin(sep(it[a].az, it[c].az), sep(it[b].az, it[c].az)));
+                // reparto en pasos de 10 grados; dentro del mismo paso, mas brillo (magnitud menor) gana
+                const double score = std::floor(m / 10.0) * 100.0 - (it[a].mag + it[b].mag + it[c].mag);
+                if (score > best) { best = score; idx[0] = a; idx[1] = b; idx[2] = c; }
+            }
+        }
+    }
+    return best >= 0;
+}
+
 }  // namespace plotter

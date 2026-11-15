@@ -72,4 +72,16 @@ Sight advanceSight(const Sight& s, double fromLat, double fromLon, double toLat,
 // Situacion por dos o mas rectas (minimos cuadrados alrededor de la estima). false si son casi paralelas.
 bool fixFromSights(double estLat, double estLon, const Sight* sights, int n, double& lat, double& lon);
 
+// Astros que se pueden observar ahora: Sol, Luna, los cuatro planetas y las estrellas entre minAlt y maxAlt (altura
+// verdadera, grados), ordenados por azimut. kind: 0 Sol, 1 Luna, 2 planeta (index = Planet), 3 estrella (index de navStar).
+struct SkyItem {
+    unsigned char kind;
+    short index;
+    float alt, az, mag;            // mag: la del catalogo en estrellas; aproximada en el resto
+};
+int visibleBodies(double jd, double lat, double lon, double minAlt, double maxAlt, SkyItem* out, int max);
+// Tres estrellas para una buena situacion: las que mejor reparten el horizonte (mayor separacion minima de azimut,
+// lo ideal 120 grados), y entre parecidas las mas brillantes. Solo estrellas de 15 a 75 grados. false si no hay tres.
+bool bestStarTriple(const SkyItem* items, int n, int idx[3]);
+
 }  // namespace plotter
