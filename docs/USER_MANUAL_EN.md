@@ -111,7 +111,7 @@ When a message arrives you hear the message beep (if enabled) and the LED blinks
 
 Shows the last station received (you can browse back to earlier ones). It has **two views** (option *Next view*):
 
-- **View 1:** callsign, age, type (MOBILE, FIXED, OBJECT, WX, DIGI, IGATE…), equipment (from the tocall or Mic-E suffix, per the official aprs-deviceid list by Hessu OH7LZB, CC BY-SA 2.0: e.g. *Yaesu FT5D*), distance and bearing from you, and in the bottom-right corner the **APRS icon** of the station symbol (primary and secondary tables, with the overlay letter or digit in the centre; if the station has sent no symbol a mini compass towards it is drawn), speed/heading/altitude if mobile, S-meter (`S 8`, `S 9+10`), packet count and status (for Mic-E: *In Service*, *Emergency!*…).
+- **View 1:** callsign, age, type (MOBILE, FIXED, OBJECT, WX, DIGI, IGATE…), equipment (from the tocall or Mic-E suffix, per the official aprs-deviceid list by Hessu OH7LZB, CC BY-SA 2.0: e.g. *Yaesu FT5D*), distance and bearing from you, and to the right of rows 3 to 6 the **APRS icon** of the station symbol (28 px on OLEDs, 40 px in colour on TFT screens) (primary and secondary tables, with the overlay letter or digit in the centre; if the station has sent no symbol a mini compass towards it is drawn), speed/heading/altitude if mobile, S-meter (`S 8`, `S 9+10`), packet count and status (for Mic-E: *In Service*, *Emergency!*…).
 - **View 2:** callsign, locator, coordinates, full comment (wrapped) and the path (`via WIDE1-1*`). For weather stations it shows T, RH, pressure, wind and rain.
 
 **Submenu:** *Next view*, *Older station*, *Newer station*, **GO TO** (§7), *Back*.
@@ -122,7 +122,9 @@ Shows the last station received (you can browse back to earlier ones). It has **
 
 ![STATIONS](img/stations.png)
 
-List of up to **20 stations** with a type letter, callsign, distance and age. Letters: **M** mobile, **F** fixed, **O** object, **W** weather, **D** digipeater, **I** iGate, **m** messages only, **s** status, **t** telemetry. The header shows the active filter and the number of stations; the bottom shows the sort order.
+List of up to **20 stations** with a type letter, callsign, distance and age. **Bearing in degrees** to each station (5.4.6): on colour screens it has its own column, between distance and age; on 128 px OLEDs it doesn't fit, so the last column alternates every 3 s between age and bearing, and the bottom row says which one is shown (*AGE* or *BRG*). Without your own or the station's position the bearing shows `---`.
+
+![STATIONS: age and bearing alternating (OLED)](img/stations_brg.png) Letters: **M** mobile, **F** fixed, **O** object, **W** weather, **D** digipeater, **I** iGate, **m** messages only, **s** status, **t** telemetry. The header shows the active filter and the number of stations; the bottom shows the sort order.
 
 **Submenu:**
 - **Browse** — cursor over the list (1P moves down, **LP = GO TO** the highlighted station, 2P exits).
@@ -278,7 +280,8 @@ The header shows the **region/profile** (EU/WORLD, POLAND, UK, US, CUSTOM or **A
 
 Gauges for **Heap**, **PSRAM** and **Flash** (percentage of the firmware partition used), battery and **uptime** (`Bat 4.05V  Up 3h36m`; if the board has no PSRAM enabled, the PSRAM row shows `n/a` instead of a percentage; `USB` if there is no battery) and **Bluetooth and WiFi** status (`BT:on  WiFi:CON`; for BT, `CON` = phone connected; for WiFi, `CON` = joined to your network with KISS over WiFi on, `..` = joining, `AP` = configuration access point).
 
-- **1P** (with Bluetooth or WiFi on) toggles to the **LINK view**, which is not a separate page: it shows Bluetooth (type, KISS/TNC2 protocol, name and whether a phone is connected) and WiFi (network, **IP**, KISS ports, connected clients and signal). Another press goes to the next page; **2P** returns to SYSTEM.
+- **1P** goes to the **BATTERY view** on boards with a battery: the percentage in the header, the large battery filled by level (in colour on TFT screens), the voltage with the state, the time left or the trend, the charger and the automatic saving.
+- **1P** (with Bluetooth or WiFi on; after BATTERY if present) toggles to the **LINK view**, which is not a separate page: it shows Bluetooth (type, KISS/TNC2 protocol, name and whether a phone is connected) and WiFi (network, **IP**, KISS ports, connected clients and signal). Another press goes to the next page; **2P** returns to SYSTEM.
 - **LP** opens the submenu: **Bluetooth: ON/OFF** and **BT data: KISS/TNC2** (saved, and the board restarts) **WiFi KISS: ON/OFF** and **WiFi CAT: ON/OFF** (applied immediately; the WiFi network is entered in the WebUI).
 
 ---

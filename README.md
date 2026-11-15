@@ -12,7 +12,7 @@ Mantiene todo lo de la base (APRS LoRa, GPS, mensajes, telemetría, Bluetooth/KI
 
 ## Ecosistema APRS LoRa+
 
-Este repositorio es el tracker y el centro del ecosistema (hospeda el [instalador web](https://ea7jrs.github.io/APRS-LoRa-Plus/install/)). Proyectos relacionados:
+Este repositorio es el tracker y el centro del ecosistema: hospeda la [página del proyecto](https://ea7jrs.github.io/APRS-LoRa-Plus/) (qué es LoRa APRS, modos de baliza, CW, emergencias, plotter, rotor y Display, en español e inglés) y el [instalador web](https://ea7jrs.github.io/APRS-LoRa-Plus/install/). Proyectos relacionados:
 
 | Proyecto | Qué es |
 |---|---|

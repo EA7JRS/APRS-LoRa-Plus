@@ -34,7 +34,7 @@ In the classic menu, 2P returns to the screens. The icon bar at the bottom appea
 | **MAIN** | Callsign, countdown to next beacon, UTC time, position, locator, last Rx, unread messages | Send beacon · Beacon mode · Next profile · Send SOS · Display off · Config menu · Change mode |
 | **MESSAGES** | Received and sent messages with status (acknowledged, unacknowledged or NO ACK) | Read / reply · Browse list · Mark all read · Delete all · (in a message) Reply · Quick reply · Delete |
 | **LAST APRS** | Last station heard: APRS icon, type, distance, bearing, S-meter (`S 8`, `S 9+10`), comment | Next view · Older · Newer · **GO TO** |
-| **STATIONS** | List of up to 20 stations with distance and age | Browse · Sort · Filter · Clear list |
+| **STATIONS** | List of up to 20 stations with distance, bearing in degrees and age (on OLEDs bearing and age alternate every 3 s) | Browse · Sort · Filter · Clear list |
 | **GPS** | Coordinates (DD, 6 decimals), locator, altitude, satellites, HDOP, heading | GPS on/off · Coords · Units · SBAS · Constellations |
 | **COMPASS** | Compass rose and arrow to a station (GO TO) | Target · Next station · Heading · North · Declination · Reset align |
 | **ALTIMETER** | Altitude, vertical speed (0 when stopped), QNH and altitude profile | Span · Reset profile · QNH |

@@ -34,7 +34,7 @@ Dentro del menú clásico, 2P vuelve a las pantallas. La barra de iconos de abaj
 | **MAIN** | Indicativo, cuenta atrás de la próxima baliza, hora UTC, posición, locator, último Rx, mensajes sin leer | Send beacon · Beacon mode · Next profile · Send SOS · Display off · Config menu |
 | **MESSAGES** | Mensajes recibidos y enviados con su estado (confirmado, sin confirmar o NO ACK) | Read / reply · Browse list · Mark all read · Delete all · (en un mensaje) Reply · Quick reply · Delete |
 | **LAST APRS** | Última estación oída: icono APRS, tipo, distancia, rumbo, S-meter (`S 8`, `S 9+10`), comentario | Next view · Older · Newer · **GO TO** |
-| **STATIONS** | Lista de hasta 20 estaciones con distancia y antigüedad | Browse · Sort · Filter · Clear list |
+| **STATIONS** | Lista de hasta 20 estaciones con distancia, rumbo en grados y antigüedad (en las OLED, rumbo y antigüedad se alternan cada 3 s) | Browse · Sort · Filter · Clear list |
 | **GPS** | Coordenadas (DD con 6 decimales), locator, altitud, satélites, HDOP, rumbo | GPS on/off · Coords · Units · SBAS · Constellations |
 | **COMPASS** | Rosa de los vientos y flecha hacia una estación (GO TO) | Target · Next station · Heading · North · Declination · Reset align |
 | **ALTIMETER** | Altitud, velocidad vertical (0 si estás parado), QNH y perfil de altitud | Span · Reset profile · QNH |

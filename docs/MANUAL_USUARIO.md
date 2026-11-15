@@ -110,7 +110,7 @@ Cuando llega un mensaje se oye el pitido de mensaje (si está activado) y el LED
 
 Muestra la última estación recibida (se puede navegar hacia las anteriores). Tiene **dos vistas** (opción *Next view*):
 
-- **Vista 1:** indicativo, antigüedad, tipo (MOBILE, FIXED, OBJECT, WX, DIGI, IGATE…), equipo (por el tocall o el sufijo Mic-E, según la lista oficial aprs-deviceid de Hessu OH7LZB, CC BY-SA 2.0: p. ej. *Yaesu FT5D*), distancia y rumbo desde ti, y en la esquina inferior derecha el **icono APRS** del símbolo de la estación (tablas primaria y secundaria, con la letra o el dígito de superposición en el centro; si la estación no ha enviado símbolo se dibuja una mini brújula hacia ella), velocidad/rumbo/altitud si es móvil, S-meter (`S 8`, `S 9+10`), nº de paquetes y estado (en Mic-E: *In Service*, *Emergency!*…).
+- **Vista 1:** indicativo, antigüedad, tipo (MOBILE, FIXED, OBJECT, WX, DIGI, IGATE…), equipo (por el tocall o el sufijo Mic-E, según la lista oficial aprs-deviceid de Hessu OH7LZB, CC BY-SA 2.0: p. ej. *Yaesu FT5D*), distancia y rumbo desde ti, y a la derecha de las filas 3 a 6 el **icono APRS** del símbolo de la estación (28 px en las OLED, 40 px a color en las pantallas TFT) (tablas primaria y secundaria, con la letra o el dígito de superposición en el centro; si la estación no ha enviado símbolo se dibuja una mini brújula hacia ella), velocidad/rumbo/altitud si es móvil, S-meter (`S 8`, `S 9+10`), nº de paquetes y estado (en Mic-E: *In Service*, *Emergency!*…).
 - **Vista 2:** indicativo, locator, coordenadas, comentario completo (con salto de línea) y el camino (`via WIDE1-1*`). Para estaciones meteorológicas muestra T, Hr, presión, viento y lluvia.
 
 **Submenú:** *Next view*, *Older station*, *Newer station*, **GO TO** (§7), *Back*.
@@ -121,7 +121,9 @@ Muestra la última estación recibida (se puede navegar hacia las anteriores). T
 
 ![STATIONS](img/stations.png)
 
-Lista de hasta **20 estaciones** con una letra de tipo, indicativo, distancia y antigüedad. Letras: **M** móvil, **F** fija, **O** objeto, **W** meteorológica, **D** digipeater, **I** iGate, **m** solo mensajes, **s** estado, **t** telemetría. La cabecera indica el filtro activo y el número de estaciones; abajo el orden.
+Lista de hasta **20 estaciones** con una letra de tipo, indicativo, distancia y antigüedad. **Rumbo en grados** hacia cada estación (5.4.6): en las pantallas a color va en su propia columna, entre la distancia y la antigüedad; en las OLED de 128 px no cabe, así que la última columna alterna cada 3 s entre antigüedad y rumbo, y la fila de abajo indica cuál se ve (*AGE* o *BRG*). Sin posición propia o de la estación, el rumbo sale como `---`.
+
+![STATIONS: antigüedad y rumbo alternos (OLED)](img/stations_brg.png) Letras: **M** móvil, **F** fija, **O** objeto, **W** meteorológica, **D** digipeater, **I** iGate, **m** solo mensajes, **s** estado, **t** telemetría. La cabecera indica el filtro activo y el número de estaciones; abajo el orden.
 
 **Submenú:**
 - **Browse** — cursor sobre la lista (1P baja, **LP = GO TO** a la estación marcada, 2P sale).
@@ -277,7 +279,8 @@ La cabecera muestra la **región/perfil** (EU/WORLD, POLAND, UK, US, CUSTOM o **
 
 Medidores de **Heap**, **PSRAM** y **Flash** (porcentaje de uso del firmware en su partición), batería y **tiempo encendido** (`Bat 4.05V  Up 3h36m`; si la placa no tiene PSRAM activada, la fila PSRAM muestra `n/a` en lugar del porcentaje; `USB` si no hay batería) y el estado de **Bluetooth y WiFi** (`BT:on  WiFi:CON`; en BT, `CON` = móvil conectado; en WiFi, `CON` = unido a tu red con el KISS por WiFi activo, `..` = uniéndose, `AP` = punto de acceso de configuración).
 
-- **1P** (con Bluetooth o WiFi activos) alterna a la **vista LINK**, que no es una página aparte: muestra el Bluetooth (tipo, protocolo KISS/TNC2, nombre y si hay móvil conectado) y la WiFi (red, **IP**, puertos KISS, clientes conectados y señal). Otra pulsación sigue a la página siguiente; **2P** vuelve a SYSTEM.
+- **1P** pasa a la **vista BATTERY** en las placas con batería: el porcentaje en la cabecera, la pila grande con el relleno por nivel (en color en las pantallas TFT), la tensión con el estado, el tiempo que queda o la tendencia, el cargador y el ahorro automático.
+- **1P** (con Bluetooth o WiFi activos; después de BATTERY si la hay) alterna a la **vista LINK**, que no es una página aparte: muestra el Bluetooth (tipo, protocolo KISS/TNC2, nombre y si hay móvil conectado) y la WiFi (red, **IP**, puertos KISS, clientes conectados y señal). Otra pulsación sigue a la página siguiente; **2P** vuelve a SYSTEM.
 - **LP** abre el submenú: **Bluetooth: ON/OFF** y **BT data: KISS/TNC2** (se guardan y la placa se reinicia) **WiFi KISS: ON/OFF** y **WiFi CAT: ON/OFF** (se aplican al momento; la red WiFi se escribe en la WebUI).
 
 ---
