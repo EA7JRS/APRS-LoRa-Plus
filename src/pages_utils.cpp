@@ -1205,7 +1205,7 @@ namespace {
     #ifdef HAS_TFT
         const int APRS_ICON_PX = 40;
     #else
-        const int APRS_ICON_PX = 24;
+        const int APRS_ICON_PX = APRS_ICON_SIZE;                // OLED: 28 px desde la 5.4.7 (antes 24)
     #endif
     bool drawAprsIcon(int x, int y, char symbol, char table) {
         if (symbol < APRS_ICON_FIRST || symbol >= APRS_ICON_FIRST + APRS_ICON_COUNT) return false;
@@ -1226,22 +1226,26 @@ namespace {
                 return true;
             }
         #endif
+        // filas de APRS_ICON_BPR bytes, alineadas a la izquierda (MSB = pixel 0); tramos seguidos de una vez
         const uint8_t* bits = (table == '/' ? APRS_ICONS_PRIMARY : APRS_ICONS_SECONDARY)[symbol - APRS_ICON_FIRST];
+        const int topBit = APRS_ICON_BPR * 8 - 1;
         for (int row = 0; row < APRS_ICON_SIZE; row++) {
-            uint32_t v = ((uint32_t)bits[row * 3] << 16) | ((uint32_t)bits[row * 3 + 1] << 8) | bits[row * 3 + 2];
+            uint32_t v = 0;
+            for (int k = 0; k < APRS_ICON_BPR; k++) v = (v << 8) | bits[row * APRS_ICON_BPR + k];
             int col = 0;
             while (col < APRS_ICON_SIZE) {
-                if (!((v >> (23 - col)) & 1)) { col++; continue; }
+                if (!((v >> (topBit - col)) & 1)) { col++; continue; }
                 int run = 1;
-                while (col + run < APRS_ICON_SIZE && ((v >> (23 - col - run)) & 1)) run++;
+                while (col + run < APRS_ICON_SIZE && ((v >> (topBit - col - run)) & 1)) run++;
                 pagesFillRect(x + col, y + row, run, 1, true);
                 col += run;
             }
         }
-        if (table != '/' && table != '\\') {
+        if (table != '/' && table != '\\') {                     // superposicion: la letra o el digito en el centro
             char o[2] = { table, '\0' };
-            pagesFillRect(x + 8, y + 7, 8, 10, false);
-            pagesText(x + 9, y + 8, o, 1, false);
+            const int c = APRS_ICON_SIZE / 2;
+            pagesFillRect(x + c - 4, y + c - 5, 8, 10, false);
+            pagesText(x + c - 3, y + c - 4, o, 1, false);
         }
         return true;
     }
@@ -1280,28 +1284,28 @@ namespace {
         }
 
         const bool showIcon = lastView == 0 && s->symbol >= APRS_ICON_FIRST && s->symbol < APRS_ICON_FIRST + APRS_ICON_COUNT;
-        // Hueco del icono: a la derecha de las filas 2 a 5 (en las TFT de 160 px, 58 x 41 px: icono de 40 centrado; en las OLED de
-        // 128 px, la esquina de 24) (EA7JRS)
+        // Hueco del icono: a la derecha de las filas 2 a 5, centrado (EA7JRS). TFT de 160 px: 58 x 41 px hasta la barra, icono de
+        // 40; OLED de 128 px: 32 x 35 px hasta el borde, icono de 28, y las filas en 16 columnas (las de distancia y velocidad caben)
         #ifdef HAS_TFT
-            const int ICON_LIMIT = COLS - 9, ICON_FROM_ROW = 2;
-            const int ICON_X = ICON_LIMIT * 6 + (PW - ICON_LIMIT * 6 - APRS_ICON_PX) / 2;
-            const int ICON_TOP = ROW_Y0 + 2 * ROW_PITCH, ICON_BOTTOM = 54 + PAGES_EXTRA;      // de la fila 2 a la barra
-            const int ICON_Y = min(ICON_TOP + (ICON_BOTTOM - ICON_TOP - APRS_ICON_PX) / 2, ICON_BOTTOM - 1 - APRS_ICON_PX);
+            const int ICON_LIMIT = COLS - 9, ICON_BOTTOM = 54 + PAGES_EXTRA;
         #else
-            const int ICON_LIMIT = COLS - 4, ICON_FROM_ROW = 3;
-            const int ICON_X = 104 + XR, ICON_Y = 40;
+            const int ICON_LIMIT = COLS - 5, ICON_BOTTOM = PAGES_H;
         #endif
+        const int ICON_FROM_ROW = 2;
+        const int ICON_X = ICON_LIMIT * 6 + (PW - ICON_LIMIT * 6 - APRS_ICON_PX) / 2;
+        const int ICON_TOP = ROW_Y0 + 2 * ROW_PITCH;
+        const int ICON_Y = min(ICON_TOP + (ICON_BOTTOM - ICON_TOP - APRS_ICON_PX) / 2, ICON_BOTTOM - 1 - APRS_ICON_PX);
         if (lastView == 0) {
             if (s->kind == KIND_OBJECT && s->comment[0]) row(1, "OBJ %.17s", s->comment);
             else row(1, "%-7s %.13s", kindName(s->kind), s->device);
-            if (showIcon && ICON_FROM_ROW == 2) rowLimit = ICON_LIMIT;  // filas 2 a 5 (TFT) o 3 a 5 (OLED): dejan libre el hueco del icono
+            if (showIcon && ICON_FROM_ROW == 2) rowLimit = ICON_LIMIT;  // filas 2 a 5: dejan libre el hueco del icono
             if (!s->hasPosition) {
                 row(2, "No position");
                 if (showIcon) rowLimit = ICON_LIMIT;
                 row(3, "Last: %s", packetTypeName(s->type));
             } else {
                 if (haveBearing) row(2, "D %s %s %03d", distance, cardinal16(bearing), (int)lround(bearing) % 360);
-                else row(2, "D --- (no own GPS)");
+                else row(2, "D --- no own GPS");
                 if (showIcon) rowLimit = ICON_LIMIT;
                 char speedText[12], altText[12];
                 formatSpeedUnits(s->speed, unitSystem, speedText, sizeof(speedText));
@@ -1390,6 +1394,8 @@ namespace {
         }
         double myLat, myLon;
         bool haveMe = ownPosition(myLat, myLon);
+        // OLED de 128 px: no cabe una columna mas; la ultima alterna cada 3 s entre antiguedad y rumbo en grados (EA7JRS)
+        const bool showBrg = XR < 16 && haveMe && (millis() / 3000) % 2 == 1;
         static uint8_t top = 0;
         if (!listBrowse) top = 0;
         else if (listCursor < top) top = listCursor;
@@ -1419,14 +1425,15 @@ namespace {
             #endif
             if (!iconDrawn) {
                 if (XR >= 16) snprintf(line, sizeof(line), "%c %-9.9s%6s %3s%4s", kindLetter(s->kind), s->call, distance, course, age);
-                else          snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, age);
+                else          snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, showBrg ? course : age);   // OLED: rumbo y antiguedad alternos (EA7JRS)
                 pagesText(0, y, line, 1, selected);
             }
             pagesInk(INK_TEXT);
         }
         char line[28];
         if (listBrowse) snprintf(line, sizeof(line), "1P dn LP goto 2P exit");
-        else snprintf(line, sizeof(line), "%u heard  %s", (unsigned)heard.count(), listSort == SORT_NEAREST ? "nearest" : listSort == SORT_NAME ? "by name" : "recent");
+        else snprintf(line, sizeof(line), "%u heard  %s%s", (unsigned)heard.count(), listSort == SORT_NEAREST ? "nearest" : listSort == SORT_NAME ? "by name" : "recent",
+                      XR < 16 && haveMe ? (showBrg ? " BRG" : " AGE") : "");
         text(2, ROW_HINT_Y, line);
     }
 
@@ -2884,8 +2891,9 @@ namespace {
 
         const bool big = XR >= 16;                                   // 160 px: arco mayor
         // TFT (EA7JRS): con el sitio que sobra encima de la barra, arco de 28 px, horizonte mas abajo y sol mayor
-        const int R = PAGES_EXTRA ? 28 : (big ? 21 : 15);
-        const int cx = PW - (PAGES_EXTRA ? 4 : (big ? 8 : 2)) - R, hy = PAGES_EXTRA ? 54 : 46;
+        // OLED de 128 px (EA7JRS): arco de 17 px (antes 15) pegado al borde y horizonte mas abajo; las filas siguen en 15 columnas
+        const int R = PAGES_EXTRA ? 28 : (big ? 21 : 17);
+        const int cx = PW - (PAGES_EXTRA ? 4 : (big ? 8 : 1)) - R, hy = PAGES_EXTRA ? 54 : (big ? 46 : 50);
         rowLimit = min(COLS, (cx - R - 2) / 6);
         int dayLen = 0;
         if (hasRise) {
@@ -2941,7 +2949,7 @@ namespace {
         frac = constrain(frac, 0.0f, 1.0f);
         const float ang = frac * (float)PI;
         if (up) {
-            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), PAGES_EXTRA ? 6 : 4);
+            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), PAGES_EXTRA ? 6 : (big ? 4 : 5));
         } else {
             pagesInk(INK_NIGHT);
             pagesDrawCircle(cx + (int)lroundf(R * cosf(ang)), hy + (int)lroundf(R * 0.25f * sinf(ang)), PAGES_EXTRA ? 4 : 3, true);

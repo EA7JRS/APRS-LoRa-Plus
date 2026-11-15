@@ -439,7 +439,8 @@ void loop() {
         #ifdef HAS_APRS_PAGES
             if (PAGES_Utils::wantsFastRefresh()) refreshPeriod = 200;      // brujula: ~5 Hz
         #endif
-        if (millis() - refreshDisplayTime >= refreshPeriod || gps_time_update) {
+        // la hora del GPS llega en varias frases por segundo: redibuja con ella, pero como mucho cada 250 ms (EA7JRS)
+        if (millis() - refreshDisplayTime >= refreshPeriod || (gps_time_update && millis() - refreshDisplayTime >= 250)) {
             GPS_Utils::checkStartUpFrames();
             MENU_Utils::showOnScreen();
             refreshDisplayTime = millis();

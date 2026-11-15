@@ -79,6 +79,12 @@
             Adafruit_SH1106G display(128, 64, &Wire, OLED_RST);
         #endif
     #endif
+
+    // Pantallas OLED (Manuel - EA7JRS): copia de la ultima imagen enviada. Si la pagina sale igual no se vuelve a mandar por I2C
+    // (unos 25 ms del bus que comparten la PMU y los sensores); cualquier otro dibujo directo en la pantalla la invalida.
+    [[maybe_unused]] static uint8_t oledLastFrame[128 * 64 / 8];
+    [[maybe_unused]] static bool    oledFrameKnown   = false;
+    [[maybe_unused]] static uint8_t oledLastContrast = 0;
 #endif
 
 #define SYMBOL_HEIGHT 14
@@ -295,7 +301,7 @@ void displaySetup() {
             #else
                 display.setContrast(screenBrightness);
             #endif
-            display.display();
+            display.display(); oledFrameKnown = false;
         #endif
     #endif
 }
@@ -310,6 +316,7 @@ void displayToggle(bool toggle) {
             #else
                 display.oled_command(SH110X_DISPLAYON);
             #endif
+            oledFrameKnown = false;
         #endif
     } else {
         #ifdef HAS_TFT
@@ -404,7 +411,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
         #else
             display.setContrast(screenBrightness);
         #endif
-        display.display();
+        display.display(); oledFrameKnown = false;
     #endif
     #ifndef HELTEC_WSL_V3_TNC
         delay(wait);
@@ -478,7 +485,7 @@ void displayPopup(const String& title, const String& line1, const String& line2,
             #else
                 display.setContrast(screenBrightness);
             #endif
-            display.display();
+            display.display(); oledFrameKnown = false;
         #endif
         delay(wait);
     #else
@@ -636,7 +643,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
                 drawSymbol(symbol, true);
             }
         }
-        display.display();
+        display.display(); oledFrameKnown = false;
     #endif
     #ifndef HELTEC_WSL_V3_TNC
         delay(wait);
@@ -793,6 +800,9 @@ void displayShow(const String& header, const String& line1, const String& line2,
     }
 
     void pagesFlush() {
+        uint8_t* frame = display.getBuffer();
+        if (frame && oledFrameKnown && oledLastContrast == (uint8_t)screenBrightness && memcmp(frame, oledLastFrame, sizeof(oledLastFrame)) == 0)
+            return;                                         // misma imagen y mismo brillo: nada que mandar (EA7JRS)
         #ifdef ssd1306
             display.ssd1306_command(SSD1306_SETCONTRAST);
             display.ssd1306_command(screenBrightness);
@@ -800,6 +810,11 @@ void displayShow(const String& header, const String& line1, const String& line2,
             display.setContrast(screenBrightness);
         #endif
         display.display();
+        if (frame) {
+            memcpy(oledLastFrame, frame, sizeof(oledLastFrame));
+            oledFrameKnown = true;
+            oledLastContrast = (uint8_t)screenBrightness;
+        }
     }
 
     void pagesFillRect(int x, int y, int w, int h, bool on) {
