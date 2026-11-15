@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pages_core.h"
+#include "astro.h"            // lib/aprs_formulas (formulas del plotter): orto y ocaso
+#include "wxcalc.h"           // punto de rocio
 
 namespace PAGES_Core {
 
@@ -75,9 +77,7 @@ namespace PAGES_Core {
     float dewPointC(float tempC, float humidityPct) {
         if (humidityPct < 1.0f) humidityPct = 1.0f;
         if (humidityPct > 100.0f) humidityPct = 100.0f;
-        const float a = 17.62f, b = 243.12f;
-        float gamma = logf(humidityPct / 100.0f) + (a * tempC) / (b + tempC);
-        return (b * gamma) / (a - gamma);
+        return (float)plotter::dewPointC(tempC, humidityPct);                           // lib/aprs_formulas: Magnus (Alduchov y Eskridge)
     }
 
     // ---------- Estaciones ----------
@@ -1125,19 +1125,11 @@ namespace PAGES_Core {
     }
 
     int sunTimes(double latDeg, double lonDeg, int year, int month, int day, double& sunriseMin, double& sunsetMin) {
-        int64_t dayOfYear = daysFromCivil(year, month, day) - daysFromCivil(year, 1, 1) + 1;
-        double gamma = 2.0 * kPi / 365.0 * (double)(dayOfYear - 1);                     // al mediodia
-        double eqtime = 229.18 * (0.000075 + 0.001868 * cos(gamma) - 0.032077 * sin(gamma) - 0.014615 * cos(2 * gamma) - 0.040849 * sin(2 * gamma));
-        double decl = 0.006918 - 0.399912 * cos(gamma) + 0.070257 * sin(gamma) - 0.006758 * cos(2 * gamma) + 0.000907 * sin(2 * gamma)
-                      - 0.002697 * cos(3 * gamma) + 0.00148 * sin(3 * gamma);
-        double lat = latDeg * kDegToRad;
-        double cosHa = (cos(90.833 * kDegToRad) / (cos(lat) * cos(decl))) - tan(lat) * tan(decl);
-        if (cosHa > 1.0) return -1;                                                     // el sol no sale
-        if (cosHa < -1.0) return 1;                                                     // el sol no se pone
-        double ha = acos(cosHa) * kRadToDeg;
-        sunriseMin = 720.0 - 4.0 * (lonDeg + ha) - eqtime;
-        sunsetMin  = 720.0 - 4.0 * (lonDeg - ha) - eqtime;
-        return 0;
+        // lib/aprs_formulas (plotter): iterado con el lugar preciso del sol, < 0,01 min (la serie al mediodia daba 2-3 min)
+        if (plotter::sunTimes(year, month, day, latDeg, lonDeg, -0.833, sunriseMin, sunsetMin)) return 0;
+        double alt, az;                                                                 // no sale ni se pone: dia o noche polar
+        plotter::sunPosition(year, month, day, plotter::solarNoonUtcMin(year, month, day, lonDeg) / 60.0, latDeg, lonDeg, alt, az);
+        return alt > -0.833 ? 1 : -1;
     }
 
 }

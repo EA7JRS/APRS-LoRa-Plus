@@ -57,7 +57,7 @@ namespace {
     bool netFresh(uint32_t nowMs) { return haveNet && nowMs - netQnhTime <= NET_QNH_MAX_AGE_MS; }
 
     float saturationPressure(float tempC) {
-        return 6.112f * expf(17.62f * tempC / (243.12f + tempC));
+        return 6.1094f * expf(17.625f * tempC / (243.04f + tempC));         // Magnus, mismas constantes que el punto de rocio
     }
 
 }

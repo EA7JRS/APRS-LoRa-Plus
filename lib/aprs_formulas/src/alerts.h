@@ -16,6 +16,7 @@
 #define PLOTTER_ALERTS_H_
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -98,6 +99,28 @@ bool capParse(const std::string& xml, std::vector<Alert>& out, std::vector<std::
 // Poligono CAP ("lat,lon lat,lon ...") y punto dentro de un poligono
 std::vector<LatLon> capPolygon(const std::string& text);
 bool pointInPolygon(LatLon p, const std::vector<LatLon>& poly);
+
+// Archivo .tar que llega a trozos (ustar / pax): cada fichero normal de hasta "maxFile" bytes, entero, a "onFile"
+// (los mayores se saltan); las cabeceras pax y los directorios no cuentan.
+class TarStream {
+public:
+    explicit TarStream(size_t maxFile = 262144) : max_(maxFile) {}
+    void feed(const uint8_t* data, size_t n, const std::function<void(const std::string& name, const std::string& body)>& onFile);
+    bool ended() const { return end_; }
+    size_t files() const { return files_; }
+private:
+    uint8_t hdr_[512];
+    size_t hn_ = 0, left_ = 0, pad_ = 0, max_, files_ = 0;
+    bool keep_ = false, end_ = false;
+    std::string name_, body_;
+};
+
+// AEMET: el .tar.gz con todos los CAP en vigor (enlace del primer <item> del RSS, aemetRssBundle). Los avisos de
+// nivel amarillo o mas, en vigor en "now" (0 = sin hora) y cuyo poligono tiene dentro "pos". Devuelve 0 si el archivo
+// se pudo leer (con o sin avisos) o el error de gz::gunzip (< 0); "caps" = CAP leidos.
+int aemetCapBundle(const uint8_t* tgz, size_t n, LatLon pos, int64_t now, std::vector<Alert>& out, size_t* caps = nullptr);
+// Enlace del .tar.gz en un <item> del RSS de AEMET ("" si ese item no lo es)
+std::string aemetRssBundle(const std::string& item);
 
 // NWS: respuesta GeoJSON de https://api.weather.gov/alerts/active?point=<lat>,<lon> (pide User-Agent con contacto)
 constexpr const char* kNwsActive = "https://api.weather.gov/alerts/active?point=";

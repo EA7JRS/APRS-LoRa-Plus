@@ -5,6 +5,8 @@
  */
 #include "alerts.h"
 
+#include "gunzip.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -458,6 +460,83 @@ bool pointInPolygon(LatLon pt, const std::vector<LatLon>& poly) {
             (pt.lon < (b.lon - a.lon) * (pt.lat - a.lat) / (b.lat - a.lat) + a.lon)) in = !in;
     }
     return in;
+}
+
+// ---------------------------------------------------------------- .tar a trozos y el paquete de CAP de AEMET
+static size_t tarOctal(const uint8_t* f, size_t n) {
+    size_t v = 0;
+    for (size_t i = 0; i < n && f[i]; i++) {
+        if (f[i] == ' ') continue;
+        if (f[i] < '0' || f[i] > '7') break;
+        v = v * 8 + (f[i] - '0');
+    }
+    return v;
+}
+
+void TarStream::feed(const uint8_t* d, size_t n, const std::function<void(const std::string&, const std::string&)>& onFile) {
+    while (n && !end_) {
+        if (left_) {                                            // datos del fichero en curso
+            const size_t k = n < left_ ? n : left_;
+            if (keep_) body_.append((const char*)d, k);
+            d += k; n -= k; left_ -= k;
+            if (!left_) {
+                if (keep_) { files_++; onFile(name_, body_); }
+                body_.clear();
+                keep_ = false;
+            }
+            continue;
+        }
+        if (pad_) {                                             // relleno hasta el bloque de 512
+            const size_t k = n < pad_ ? n : pad_;
+            d += k; n -= k; pad_ -= k;
+            continue;
+        }
+        const size_t k = n < 512 - hn_ ? n : 512 - hn_;         // cabecera
+        std::memcpy(hdr_ + hn_, d, k);
+        hn_ += k; d += k; n -= k;
+        if (hn_ < 512) break;
+        hn_ = 0;
+        if (!hdr_[0]) { end_ = true; break; }                   // bloque vacio: fin del archivo
+        const size_t size = tarOctal(hdr_ + 124, 12);
+        const char type = (char)hdr_[156];
+        name_.assign((const char*)hdr_, strnlen((const char*)hdr_, 100));
+        keep_ = (type == '0' || type == 0) && size <= max_;
+        if (keep_) body_.reserve(size);
+        left_ = size;
+        pad_ = (512 - size % 512) % 512;
+        if (!size && keep_) { files_++; onFile(name_, body_); keep_ = false; }
+    }
+}
+
+std::string aemetRssBundle(const std::string& item) {
+    const std::string link = xmlText(item, "link");
+    return link.size() > 7 && link.compare(link.size() - 7, 7, ".tar.gz") == 0 ? link : std::string();
+}
+
+int aemetCapBundle(const uint8_t* tgz, size_t n, LatLon pos, int64_t now, std::vector<Alert>& out, size_t* caps) {
+    TarStream tar;
+    size_t read = 0;
+    auto onFile = [&](const std::string& name, const std::string& body) {
+        if (name.size() < 4 || name.compare(name.size() - 4, 4, ".xml") != 0) return;
+        for (const char* lang : {"en", "es"}) {                 // el <info> en ingles; si no trae poligono, el espanol
+            std::vector<Alert> v;
+            std::vector<std::vector<LatLon>> polys;
+            if (!capParse(body, v, &polys, lang)) return;
+            if (!strcmp(lang, "en")) read++;
+            bool anyPoly = false;
+            for (const auto& pg : polys) anyPoly |= pg.size() > 2;
+            if (!anyPoly) continue;
+            for (size_t i = 0; i < v.size() && i < polys.size(); i++) {
+                Alert& a = v[i];
+                a.src = AlertSrc::Aemet;
+                if (a.level >= 1 && (!now || a.activeAt(now)) && polys[i].size() > 2 && pointInPolygon(pos, polys[i])) out.push_back(a);
+            }
+            return;
+        }
+    };
+    const int rc = gz::gunzip(tgz, n, [&](const uint8_t* d, size_t k) { tar.feed(d, k, onFile); });
+    if (caps) *caps = read;
+    return rc;
 }
 
 bool capParse(const std::string& xml, std::vector<Alert>& out, std::vector<std::vector<LatLon>>* polygons, const char* lang) {

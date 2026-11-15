@@ -27,22 +27,49 @@ static void solar(int y, int m, int d, double utcHours, double& eqMin, double& d
           0.002697 * std::cos(3 * g) + 0.00148 * std::sin(3 * g);
 }
 
+// Hora (min desde las 0 UTC de ese dia) en la que el angulo horario local del sol vale lhaDeg; con dec la declinacion de ese
+// momento. Parte de la serie de NOAA y corrige con el lugar preciso del sol (celnav) hasta que el error baja de 0,01 s
+static double sunAtLha(int y, int m, int d, double lon, double startMin, double lhaDeg, double* decOut) {
+    const double jd0 = julianDay(y, m, d, 0);
+    double t = startMin, gha = 0, dec = 0;
+    for (int i = 0; i < 6; i++) {
+        sunGhaDec(jd0 + t / 1440.0, gha, dec);
+        double dt = norm180(lhaDeg - (gha + lon)) / 0.25;     // el sol avanza 0,25 grados de angulo horario por minuto
+        t += dt;
+        if (std::fabs(dt) < 1e-4) break;
+    }
+    if (decOut) *decOut = dec;
+    return t;
+}
+
 double solarNoonUtcMin(int y, int m, int d, double lon) {
     double eq, dec;
     solar(y, m, d, 12, eq, dec);
-    return 720 - 4 * lon - eq;
+    return sunAtLha(y, m, d, lon, 720 - 4 * lon - eq, 0, nullptr);
+}
+
+// Orto u ocaso (sign -1 / +1) a la altura alt: el angulo horario se recalcula con la declinacion del propio momento, no con la
+// del mediodia (antes, 2 a 3 min de error en Espana y 11 min a 66 grados de latitud)
+static bool sunEvent(int y, int m, int d, double lat, double lon, double alt, double noon, double decNoon, int sign, double& out) {
+    const double la = deg2rad(lat), jd0 = julianDay(y, m, d, 0);
+    double dec = decNoon, t = noon, gha;
+    for (int i = 0; i < 6; i++) {
+        double c = (std::sin(deg2rad(alt)) - std::sin(la) * std::sin(deg2rad(dec))) / (std::cos(la) * std::cos(deg2rad(dec)));
+        if (c < -1 || c > 1) return false;
+        double ha = rad2deg(std::acos(c));
+        double prev = t;
+        t = sunAtLha(y, m, d, lon, t, sign * ha, nullptr);
+        sunGhaDec(jd0 + t / 1440.0, gha, dec);
+        if (std::fabs(t - prev) < 1e-4) break;
+    }
+    out = t;
+    return true;
 }
 
 bool sunTimes(int y, int m, int d, double lat, double lon, double alt, double& rise, double& set) {
-    double eq, dec;
-    solar(y, m, d, 12, eq, dec);
-    double la = deg2rad(lat);
-    double c = (std::sin(deg2rad(alt)) - std::sin(la) * std::sin(dec)) / (std::cos(la) * std::cos(dec));
-    if (c < -1 || c > 1) return false;
-    double ha = rad2deg(std::acos(c)), noon = 720 - 4 * lon - eq;
-    rise = noon - 4 * ha;
-    set = noon + 4 * ha;
-    return true;
+    double noon = solarNoonUtcMin(y, m, d, lon), gha, dec;
+    sunGhaDec(julianDay(y, m, d, 0) + noon / 1440.0, gha, dec);
+    return sunEvent(y, m, d, lat, lon, alt, noon, dec, -1, rise) && sunEvent(y, m, d, lat, lon, alt, noon, dec, +1, set);
 }
 
 void sunPosition(int y, int m, int d, double utc, double lat, double lon, double& alt, double& az) {

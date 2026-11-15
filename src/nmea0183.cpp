@@ -289,8 +289,9 @@ namespace NMEA0183 {
         if (e.hasTemperature) snprintf(air, sizeof(air), "%.1f", e.temperatureC);
         if (e.hasHumidity) snprintf(humidity, sizeof(humidity), "%.1f", e.humidityPct);
         if (e.hasHumidity && e.hasTemperature && e.humidityPct > 0.0) {         // punto de rocio (Magnus)
-            double gamma = log(e.humidityPct / 100.0) + (17.62 * e.temperatureC) / (243.12 + e.temperatureC);
-            snprintf(dew, sizeof(dew), "%.1f", (243.12 * gamma) / (17.62 - gamma));
+            // mismas constantes que plotter::dewPointC (lib/aprs_formulas); aqui sin la biblioteca para la prueba del PC
+            double gamma = log(e.humidityPct / 100.0) + (17.625 * e.temperatureC) / (243.04 + e.temperatureC);
+            snprintf(dew, sizeof(dew), "%.1f", (243.04 * gamma) / (17.625 - gamma));
         }
         snprintf(body, sizeof(body), "WIMDA,%s,I,%s,B,%s,C,,C,%s,,%s,C,,T,,M,,N,,M", inches, bars, air, humidity, dew);
         return finish('$', body, buffer, size);
