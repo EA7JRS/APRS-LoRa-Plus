@@ -1,7 +1,7 @@
 # Changelog
 
 ## Sin publicar
-- **Pantallas OLED de 128×64 (T-Beam Supreme y demás), como las TFT:** BATTERY con el porcentaje solo en la cabecera, la pila arriba y casi el doble de alta y la tensión con el estado debajo; MOON con el disco de 22 px (antes 17) centrado en el hueco bajo el nombre de la fase (la edad en su fila; el % iluminado, en la cabecera); CLOCK con la luna o el sol a la derecha de la fecha y la hora UTC (antes solo en las de 160 px); cielo de GNSS de 26 px de radio (antes 22), hasta el borde de abajo. Sin probar en la placa.
+- **Pantallas OLED de 128×64 (T-Beam Supreme y demás), como las TFT:** BATTERY con el porcentaje solo en la cabecera, la pila arriba y casi el doble de alta y la tensión con el estado debajo; MOON con el disco del mismo tamaño y en el mismo sitio que la rosa de COMPASS (22 px, antes 17 pegado al borde; la edad en su fila, el % iluminado en la cabecera); CLOCK con la luna o el sol a la derecha de la fecha y la hora UTC (antes solo en las de 160 px); cielo de GNSS también en el sitio de la rosa de COMPASS. Sin probar en la placa.
 - **MAPRS: WebUI de transponder** (Manuel, 2026-11-15): cabecera «MAPRS» (antes podía quedarse en «Tracker»), *My vessel* en lugar de Station / Beaconing, *MAPRS radio* fija (modo APRS LoRa con el perfil náutico AIS, frecuencia, CAD; solo la potencia), *Connectivity*, *Display* (solo lo que vale para la OLED) y *Administration*; fuera Telemetry, Battery, Notifications y PTT. En el firmware del MAPRS, sin menú de modos al arrancar y CAD siempre encendido. Punto de acceso y Bluetooth pasan a llamarse **MAPRSLoRa+** (un nombre de Bluetooth guardado «APRSLoRa+MAPRS» se cambia solo).
 
 ## 5.4.6 — 2026-11-15

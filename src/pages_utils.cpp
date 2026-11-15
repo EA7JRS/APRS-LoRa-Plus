@@ -1723,8 +1723,8 @@ namespace {
         }
 
         // cielo a la derecha: anillos de 0 y 45 grados de elevacion, norte arriba; relleno = usado en el fix
-        // 28 px en las TFT (antes 22); en las OLED 26 (antes 22): de la cabecera al borde de abajo (la barra solo sale un momento)
-        const int r = PAGES_EXTRA ? 22 + PAGES_EXTRA * 3 / 8 : 26, cx = PW - 2 - r, cy = 37 + PAGES_EXTRA / 4;
+        // mismo tamano y sitio que la rosa de COMPASS (EA7JRS): 22 px en x 100 en las OLED, 28 px en las TFT
+        const int r = 22 + PAGES_EXTRA * 3 / 8, cx = PAGES_EXTRA ? PW - 4 - r : 100 + XR, cy = 37 + PAGES_EXTRA / 4;
         pagesInk(INK_MUTED);
         pagesDrawCircle(cx, cy, r, true);
         pagesDrawCircle(cx, cy, r / 2, true);
@@ -2963,15 +2963,13 @@ namespace {
         int r = PAGES_EXTRA ? 27 : (big ? 24 : 17);                 // TFT: casi todo el alto libre (EA7JRS)
         int cx = PW - 2 - r, cy = 37 + (PAGES_EXTRA ? 3 : 0);
         if (!big && !PAGES_EXTRA) {
-            // OLED de 128 px (EA7JRS): la fase ocupa la fila 0 entera; las filas 1 a 5 caben en 11 columnas (el % iluminado ya va
-            // en la cabecera) y el disco, de 22 px (antes 17), va centrado en el hueco de su derecha, de la fila 1 al borde de abajo
-            const int left = 11 * 6 + 2, top = ROW_Y0 + ROW_PITCH - 1, bottom = PAGES_H - 1;
-            r = min((PW - left) / 2 - 1, (bottom - top) / 2);
-            cx = left + (PW - left) / 2;
-            cy = (top + bottom + 1) / 2;
+            // OLED de 128 px (EA7JRS): el disco del mismo tamano y en el mismo sitio que la rosa de COMPASS (22 px, x 100, y 37;
+            // antes 17 px pegado al borde); la fase ocupa la fila 0 entera y las demas filas caben a su izquierda (el % iluminado
+            // ya va en la cabecera)
+            r = 22; cx = 100 + XR; cy = 37;
             rowLimit = COLS;
             row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
-            rowLimit = 11;
+            rowLimit = min(COLS, (cx - r - 2) / 6);
         } else {
             rowLimit = min(COLS, (cx - r - 2) / 6);
             row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
