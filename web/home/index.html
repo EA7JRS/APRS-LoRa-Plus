@@ -177,6 +177,9 @@
     .shots img { width: 100%; height: auto; display: block; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); background: #131A22; }
     .shots figcaption { color: var(--muted); font-size: .88rem; margin-top: 6px; }
     #emList { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .shots.hd img { image-rendering: auto; cursor: zoom-in; }
+    .shots a:hover img { border-color: var(--cyan); }
+    .shots.sq { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
     .shotnote { color: var(--muted); font-size: .85rem; margin-top: 8px; }
     [hidden] { display: none !important; }
 </style>
@@ -191,6 +194,7 @@
             <a href="#balizas" data-i="nBcn"></a>
             <a href="#cw">CW</a>
             <a href="#emergencias">SOS</a>
+            <a href="#plotter">Plotter</a>
             <a href="#ecosistema" data-i="nEco"></a>
             <a href="#funciones" data-i="nFeat"></a>
             <a href="#placas" data-i="nBoards"></a>
@@ -404,7 +408,26 @@
     </div>
 </section>
 
-<section id="ecosistema">
+<section id="plotter" class="alt">
+    <div class="wrap">
+        <div class="kicker" data-i="ncK"></div>
+        <h2 data-i="ncT"></h2>
+        <p class="lead" data-h="ncL"></p>
+        <div class="two">
+            <div><h3 data-i="ncPlT"></h3><ul><li data-h="np1"></li><li data-h="np2"></li><li data-h="np3"></li><li data-h="np4"></li><li data-h="np5"></li></ul></div>
+            <div><h3 data-i="ncDataT"></h3><ul><li data-h="nd1"></li><li data-h="nd2"></li><li data-h="nd3"></li><li data-h="nd4"></li></ul></div>
+        </div>
+        <div class="shots hd"><figure><a href="img/nav/carta.png" target="_blank" rel="noopener"><img src="img/nav/carta.png" width="1024" height="600" loading="lazy" data-alt="nc_carta"></a><figcaption data-i="nc_carta"></figcaption></figure><figure><a href="img/nav/radar.png" target="_blank" rel="noopener"><img src="img/nav/radar.png" width="1024" height="600" loading="lazy" data-alt="nc_radar"></a><figcaption data-i="nc_radar"></figcaption></figure><figure><a href="img/nav/instrumentos.png" target="_blank" rel="noopener"><img src="img/nav/instrumentos.png" width="1024" height="600" loading="lazy" data-alt="nc_instrumentos"></a><figcaption data-i="nc_instrumentos"></figcaption></figure><figure><a href="img/nav/viento.png" target="_blank" rel="noopener"><img src="img/nav/viento.png" width="1024" height="600" loading="lazy" data-alt="nc_viento"></a><figcaption data-i="nc_viento"></figcaption></figure><figure><a href="img/nav/piloto.png" target="_blank" rel="noopener"><img src="img/nav/piloto.png" width="1024" height="600" loading="lazy" data-alt="nc_piloto"></a><figcaption data-i="nc_piloto"></figcaption></figure><figure><a href="img/nav/alerta.png" target="_blank" rel="noopener"><img src="img/nav/alerta.png" width="1024" height="600" loading="lazy" data-alt="nc_alerta"></a><figcaption data-i="nc_alerta"></figcaption></figure></div>
+        <div class="two" style="margin-top:40px">
+            <div><h3 data-i="ncWT"></h3><p data-h="ncWP"></p></div>
+            <div><ul style="margin-top:8px"><li data-h="nw1"></li><li data-h="nw2"></li><li data-h="nw3"></li><li data-h="nw4"></li></ul></div>
+        </div>
+        <div class="shots hd sq"><figure><a href="img/nav/w_rosa.png" target="_blank" rel="noopener"><img src="img/nav/w_rosa.png" width="480" height="480" loading="lazy" data-alt="nc_w_rosa"></a><figcaption data-i="nc_w_rosa"></figcaption></figure><figure><a href="img/nav/w_viento.png" target="_blank" rel="noopener"><img src="img/nav/w_viento.png" width="480" height="480" loading="lazy" data-alt="nc_w_viento"></a><figcaption data-i="nc_w_viento"></figcaption></figure><figure><a href="img/nav/w_historial.png" target="_blank" rel="noopener"><img src="img/nav/w_historial.png" width="480" height="480" loading="lazy" data-alt="nc_w_historial"></a><figcaption data-i="nc_w_historial"></figcaption></figure><figure><a href="img/nav/w_noche.png" target="_blank" rel="noopener"><img src="img/nav/w_noche.png" width="480" height="480" loading="lazy" data-alt="nc_w_noche"></a><figcaption data-i="nc_w_noche"></figcaption></figure></div>
+        <p class="shotnote" data-i="ncNote"></p>
+    </div>
+</section>
+
+<section id="ecosistema" class="alt">
     <div class="wrap">
         <h2 data-i="ecoT"></h2>
         <p class="lead" data-i="ecoL"></p>
@@ -412,7 +435,7 @@
     </div>
 </section>
 
-<section id="funciones" class="alt">
+<section id="funciones">
     <div class="wrap">
         <h2 data-i="featT"></h2>
         <p class="lead" data-i="featL"></p>
@@ -422,7 +445,7 @@
     </div>
 </section>
 
-<section id="placas">
+<section id="placas" class="alt">
     <div class="wrap">
         <h2 data-i="boardsT"></h2>
         <p class="lead" data-i="boardsL"></p>
@@ -441,7 +464,7 @@
     </div>
 </section>
 
-<section id="instalar" class="alt">
+<section id="instalar">
     <div class="wrap">
         <h2 data-i="instT"></h2>
         <p class="lead" data-i="instL"></p>
@@ -455,7 +478,7 @@
 </section>
 
 
-<section id="faq">
+<section id="faq" class="alt">
     <div class="wrap">
         <h2 data-i="faqT"></h2>
         <p class="lead" data-i="faqL"></p>
@@ -463,7 +486,7 @@
     </div>
 </section>
 
-<section id="docs" class="alt">
+<section id="docs">
     <div class="wrap">
         <h2 data-i="docsT"></h2>
         <p class="lead" data-i="docsL"></p>
@@ -767,6 +790,30 @@ const T = {
         emNote: "<b>Importante:</b> son ayudas entre radioaficionados y no sustituyen al <b>112</b> ni a los servicios de salvamento. La baliza SOS no se ha probado aún con la radio real en todas las placas: pruébala antes con otro equipo cerca y avisando a quien escuche.",
         shotNote: "Las imágenes reproducen la pantalla en color de 160 × 80 píxeles (Heltec Wireless Tracker) con datos de ejemplo; la disposición es la del firmware.",
         thAuto: "Auto", thLight: "Claro", thDark: "Oscuro", thTip: "Tema: automático (el del sistema), claro u oscuro",
+        ncK: "Náutica", ncT: "Plotter náutico y accesorio de viento",
+        ncL: "APRS LoRa+ también va al mar: un <b>plotter</b> en la Waveshare ESP32-S3-Touch-LCD-7B (7″, 1024 × 600, táctil) y un <b>instrumento de viento</b> de 4″ que se le conecta. Diseño propio, pensado para un velero y para trabajar sin internet.",
+        ncPlT: "El plotter",
+        np1: "<b>Carta</b> con teselas de la tarjeta microSD (OpenSeaMap, IGN, ortofoto), derrota, waypoints, rutas, medir, MOB e «Ir a».",
+        np2: "<b>Radar AIS</b> con CPA / TCPA, ficha de cada blanco y ventana de riesgo de colisión; las estaciones APRS oídas por el tracker también salen como blancos.",
+        np3: "<b>Instrumentos</b>, <b>viento</b> aparente y real con historial, <b>fondeo</b> con alarma de garreo y <b>piloto</b>: datos de ruta para el Raymarine ST2000+ y otros.",
+        np4: "<b>Meteo</b> de a bordo con relevo por internet, avisos oficiales y <b>navegación astronómica</b> (astros visibles y rectas de altura).",
+        np5: "Las mismas ventanas de emergencia que el tracker y la app.",
+        ncDataT: "De dónde lee los datos",
+        nd1: "<b>NMEA 2000</b> por el bus CAN de la placa (solo escucha): posición, rumbo, sonda, viento, motor y AIS.",
+        nd2: "<b>NMEA 0183</b> por RS485 (receptor AIS, emisoras VHF) y por <b>WiFi</b>: TCP, UDP, <b>gpsd</b> y <b>Signal K</b>.",
+        nd3: "<b>Bluetooth</b> con el tracker APRS LoRa+ (con su PIN), la pasarela NMEA 2000 y el instrumento de viento.",
+        nd4: "Si falla un sensor entra el siguiente por prioridad, y el tiempo de internet (OpenWeatherMap) cubre lo que falte, marcado como estimado.",
+        ncWT: "Instrumento de viento de 4″",
+        ncWP: "Accesorio del plotter en la Waveshare ESP32-S3-Touch-LCD-4 (480 × 480). Lee la veleta y el anemómetro <b>NASA Marine Target 2 Wind</b> (NMEA a 4800 baudios) y pasa el viento al plotter por <b>Bluetooth</b>, <b>NMEA 2000</b> o <b>WiFi</b>.",
+        nw1: "Rosa de viento en <b>tres estilos</b> a elegir, página de viento y números grandes.",
+        nw2: "<b>Historial</b> de 30 minutos de velocidad y dirección del viento real.",
+        nw3: "<b>Alarmas</b> de viento fuerte y de rolada, con zumbador.",
+        nw4: "<b>Modo noche</b> en rojo para no perder la visión nocturna.",
+        nc_carta: "Carta con OpenSeaMap, derrota y panel del punto tocado", nc_radar: "Radar AIS con CPA y TCPA de cada blanco",
+        nc_instrumentos: "Instrumentos: velocidad, rumbo, sonda y viento", nc_viento: "Viento aparente y real con historial",
+        nc_piloto: "Piloto: rumbo a gobernar y datos de ruta", nc_alerta: "Ventana de riesgo de colisión",
+        nc_w_rosa: "Rosa de viento con datos en columna", nc_w_viento: "Página de viento", nc_w_historial: "Historial de 30 minutos", nc_w_noche: "Modo noche",
+        ncNote: "Capturas de la interfaz con el simulador de datos. Plotter e instrumento están en desarrollo y aún sin probar en la placa.",
         nFaq: "Preguntas",
         basics: "Lo básico", aprsT: "¿Qué es APRS?",
         aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) es un sistema de radioaficionados para compartir en tiempo real información táctica: posiciones, mensajes cortos, estado de las estaciones, meteorología, objetos y avisos. Lo creó <b>Bob Bruninga, WB4APR</b>, a principios de los años 90.",
@@ -878,6 +925,30 @@ const T = {
         emNote: "<b>Important:</b> these are aids between radio amateurs and do not replace <b>112 / 911</b> or rescue services. The SOS beacon has not yet been tested with the real radio on every board: try it first with another device nearby and warn anyone listening.",
         shotNote: "The images reproduce the 160 × 80 pixel colour screen (Heltec Wireless Tracker) with sample data; the layout is the firmware's.",
         thAuto: "Auto", thLight: "Light", thDark: "Dark", thTip: "Theme: automatic (the system's), light or dark",
+        ncK: "Marine", ncT: "Marine plotter and wind accessory",
+        ncL: "APRS LoRa+ goes to sea too: a <b>plotter</b> on the Waveshare ESP32-S3-Touch-LCD-7B (7″, 1024 × 600, touch) and a 4″ <b>wind instrument</b> that connects to it. Our own design, made for a sailing boat and for working without internet.",
+        ncPlT: "The plotter",
+        np1: "<b>Chart</b> with tiles from the microSD card (OpenSeaMap, IGN, aerial imagery), track, waypoints, routes, measuring, MOB and Go to.",
+        np2: "<b>AIS radar</b> with CPA / TCPA, a card for each target and a collision-risk window; APRS stations heard by the tracker show up as targets too.",
+        np3: "<b>Instruments</b>, apparent and true <b>wind</b> with history, <b>anchor watch</b> with drag alarm and <b>autopilot</b>: route data for the Raymarine ST2000+ and others.",
+        np4: "On-board <b>weather</b> with internet fallback, official alerts and <b>celestial navigation</b> (visible bodies and lines of position).",
+        np5: "The same emergency windows as the tracker and the app.",
+        ncDataT: "Where the data comes from",
+        nd1: "<b>NMEA 2000</b> on the board's CAN bus (listen only): position, heading, depth, wind, engine and AIS.",
+        nd2: "<b>NMEA 0183</b> over RS485 (AIS receiver, VHF radios) and over <b>WiFi</b>: TCP, UDP, <b>gpsd</b> and <b>Signal K</b>.",
+        nd3: "<b>Bluetooth</b> with the APRS LoRa+ tracker (with its PIN), the NMEA 2000 gateway and the wind instrument.",
+        nd4: "If a sensor fails the next one takes over by priority, and internet weather (OpenWeatherMap) fills the gaps, marked as estimated.",
+        ncWT: "4″ wind instrument",
+        ncWP: "A plotter accessory on the Waveshare ESP32-S3-Touch-LCD-4 (480 × 480). It reads the <b>NASA Marine Target 2 Wind</b> vane and anemometer (NMEA at 4800 baud) and passes the wind to the plotter over <b>Bluetooth</b>, <b>NMEA 2000</b> or <b>WiFi</b>.",
+        nw1: "Wind rose in <b>three styles</b> to choose from, a wind page and large numbers.",
+        nw2: "30-minute <b>history</b> of true wind speed and direction.",
+        nw3: "Strong wind and wind shift <b>alarms</b>, with buzzer.",
+        nw4: "Red <b>night mode</b> to keep your night vision.",
+        nc_carta: "Chart with OpenSeaMap, track and the tapped-point panel", nc_radar: "AIS radar with each target's CPA and TCPA",
+        nc_instrumentos: "Instruments: speed, course, depth and wind", nc_viento: "Apparent and true wind with history",
+        nc_piloto: "Autopilot: course to steer and route data", nc_alerta: "Collision-risk window",
+        nc_w_rosa: "Wind rose with data in a column", nc_w_viento: "Wind page", nc_w_historial: "30-minute history", nc_w_noche: "Night mode",
+        ncNote: "Interface screenshots with the data simulator. The plotter and the instrument are in development and not yet tested on the board.",
         nFaq: "FAQ",
         basics: "The basics", aprsT: "What is APRS?",
         aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) is an amateur radio system for sharing tactical information in real time: positions, short messages, station status, weather, objects and alerts. It was created by <b>Bob Bruninga, WB4APR</b>, in the early 1990s.",
@@ -956,6 +1027,7 @@ function render() {
     document.querySelectorAll("[data-shots]").forEach(el => { el.innerHTML = SHOTS[el.dataset.shots].map(([f, ce, cn]) =>
         `<figure><img src="img/ex/${f}.png" width="480" height="240" loading="lazy" alt="${es ? ce : cn}"><figcaption>${es ? ce : cn}</figcaption></figure>`).join(""); });
     document.getElementById("faqList").innerHTML = FAQ.map(([qe, qn, ae, an]) => `<details><summary>${es ? qe : qn}</summary><p>${es ? ae : an}</p></details>`).join("");
+    document.querySelectorAll("img[data-alt]").forEach(el => { el.alt = t[el.dataset.alt] ?? ""; });
     document.getElementById("lang").textContent = t.other;
     const th = document.documentElement.dataset.theme || "auto", tb = document.getElementById("theme");
     tb.textContent = th === "light" ? t.thLight : th === "dark" ? t.thDark : t.thAuto; tb.parentNode.title = t.thTip;
@@ -991,7 +1063,7 @@ fetch("latest.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).th
 // Enlaces antiguos al instalador (ea7jrs.github.io/APRS-LoRa-Plus/#nautica...) siguen llevando al instalador
 (function () {
     const h = (location.hash || "").slice(1).toLowerCase();
-    if (h && !["lora", "balizas", "cw", "emergencias", "ecosistema", "funciones", "placas", "instalar", "faq", "docs"].includes(h)) location.replace("install/" + location.hash);
+    if (h && !["lora", "balizas", "cw", "emergencias", "plotter", "ecosistema", "funciones", "placas", "instalar", "faq", "docs"].includes(h)) location.replace("install/" + location.hash);
 })();
 </script>
 </body>
