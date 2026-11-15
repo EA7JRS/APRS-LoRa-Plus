@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS LoRa+</title>
+<meta name="description" content="APRS LoRa+: firmware APRS para LoRa y FM (ESP32) y su ecosistema: app Android, pantallas, rotor, plotter náutico y pasarelas. EA7JRS.">
+<!-- Copyright (C) 2026 Manuel - EA7JRS. SPDX-License-Identifier: GPL-3.0-or-later. Portada del proyecto APRS LoRa+. -->
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script>try { const t = localStorage.getItem("alp_theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<style>
+    /* Tema: oscuro de serie; claro si el sistema lo pide (automatico) o si se elige a mano (data-theme en <html>) */
+    :root {
+        --bg: #131A22; --bg2: #18212B; --card: #1C2631; --line: #2B3A4A; --text: #E8EEF3; --sub: #B6C2CE; --muted: #8C9AA8;
+        --green: #3CE68A; --cyan: #28B5E1; --amber: #FFB347; --red: #FF6B6B; --hdr: rgba(19,26,34,.92); --glow: #1D2A36; --ico: #22303D; --grid: #2B3A4A;
+        color-scheme: dark;
+    }
+    @media (prefers-color-scheme: light) {
+        :root:not([data-theme="dark"]) {
+            --bg: #F4F7FA; --bg2: #E9EFF4; --card: #FFFFFF; --line: #D2DBE3; --text: #13202B; --sub: #3D4E5D; --muted: #627486;
+            --green: #0E9A52; --cyan: #1A86B3; --amber: #B5650A; --red: #C83A3A; --hdr: rgba(244,247,250,.92); --glow: #DCE8F1; --ico: #E6EEF4; --grid: #C5D0DA; color-scheme: light;
+        }
+    }
+    :root[data-theme="light"] {
+            --bg: #F4F7FA; --bg2: #E9EFF4; --card: #FFFFFF; --line: #D2DBE3; --text: #13202B; --sub: #3D4E5D; --muted: #627486;
+            --green: #0E9A52; --cyan: #1A86B3; --amber: #B5650A; --red: #C83A3A; --hdr: rgba(244,247,250,.92); --glow: #DCE8F1; --ico: #E6EEF4; --grid: #C5D0DA; color-scheme: light;
+    }
+    /* colores de los dibujos SVG, que siguen al tema */
+    svg [stroke="#2B3A4A"] { stroke: var(--grid); }
+    svg [stroke="#4A5B6C"] { stroke: var(--muted); }
+    svg text[fill="#8C9AA8"], svg g[fill="#8C9AA8"] { fill: var(--muted); }
+    svg text[fill="#B6C2CE"] { fill: var(--sub); }
+    svg text[fill="#28B5E1"] { fill: var(--cyan); }
+    svg text[fill="#3CE68A"] { fill: var(--green); }
+    svg [stroke="#131A22"] { stroke: var(--card); }
+    svg rect[fill="#22303D"] { fill: var(--ico); }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 Barlow, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+    h1, h2, h3 { font-family: "Barlow Condensed", Barlow, sans-serif; letter-spacing: .01em; margin: 0; }
+    h2 { font-size: 2.1rem; font-weight: 700; margin-bottom: 6px; }
+    h3 { font-size: 1.3rem; font-weight: 600; }
+    .lead { color: var(--sub); max-width: 760px; margin: 0 0 28px; }
+    .mono { font-family: "Share Tech Mono", ui-monospace, monospace; }
+
+    /* barra superior */
+    header.top { position: sticky; top: 0; z-index: 10; background: var(--hdr); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+    header.top .wrap { max-width: 1260px; display: flex; align-items: center; gap: 18px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font: 700 1.35rem "Barlow Condensed", sans-serif; }
+    .brand img { width: 34px; height: 34px; border-radius: 8px; }
+    .brand b { color: var(--green); font-weight: 700; }
+    nav.links { display: flex; gap: 14px; margin-left: auto; font-weight: 500; font-size: .95rem; white-space: nowrap; }
+    nav.links a { color: var(--sub); }
+    nav.links a:hover { color: var(--text); text-decoration: none; }
+    .lang { white-space: nowrap; border: 1px solid var(--line); background: transparent; color: var(--sub); font: 600 .85rem Barlow, sans-serif; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+    .lang:hover { color: var(--text); border-color: var(--cyan); }
+    @media (max-width: 1250px) { nav.links { display: none; } .ctl { margin-left: auto; } }
+    .ctl { display: flex; gap: 8px; }
+
+    /* portada */
+    .hero { padding: 34px 0 40px; background: radial-gradient(ellipse at 50% 0%, var(--glow) 0%, var(--bg) 70%); }
+    .hero img.banner { display: block; width: 100%; max-width: 900px; height: auto; margin: 0 auto; border-radius: 16px; }
+    .hero .claim { text-align: center; max-width: 820px; margin: 26px auto 0; }
+    .hero .claim p { color: var(--sub); font-size: 1.15rem; margin: 0 0 22px; }
+    .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 10px; font: 600 1.05rem Barlow, sans-serif; border: 1px solid var(--line); color: var(--text); background: var(--card); }
+    .btn:hover { text-decoration: none; border-color: var(--cyan); }
+    .btn.primary { background: var(--green); border-color: var(--green); color: #0F1A14; }
+    .btn.primary:hover { filter: brightness(1.08); }
+    .ver { margin-top: 16px; text-align: center; color: var(--muted); font-size: .95rem; }
+    .ver .mono { color: var(--cyan); }
+
+    section { padding: 64px 0; border-top: 1px solid var(--line); }
+    section.alt { background: var(--bg2); }
+
+    /* tarjetas */
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .card p { margin: 0; color: var(--sub); font-size: .97rem; }
+    .card .foot { margin-top: auto; padding-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: .92rem; }
+    .card .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--ico); color: var(--green); }
+    .card .ico svg { width: 22px; height: 22px; }
+    .pill { font: 600 .74rem Barlow, sans-serif; text-transform: uppercase; letter-spacing: .06em; border-radius: 999px; padding: 2px 9px; border: 1px solid; }
+    .pill.ok { color: var(--green); border-color: rgba(60,230,138,.45); }
+    .pill.dev { color: var(--amber); border-color: rgba(255,179,71,.45); }
+    .pill.soon { color: var(--muted); border-color: var(--line); }
+
+    /* funciones */
+    .feat { display: grid; gap: 14px 28px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+    .feat div { border-left: 3px solid var(--cyan); padding: 2px 0 2px 14px; }
+    .feat h3 { font-size: 1.15rem; }
+    .feat p { margin: 2px 0 0; color: var(--sub); font-size: .96rem; }
+
+    /* placas */
+    table { border-collapse: collapse; width: 100%; font-size: .97rem; }
+    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    td.c, th.c { text-align: center; }
+    .y { color: var(--green); font-weight: 700; } .n { color: var(--muted); }
+    .boards { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .boards span { border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; color: var(--sub); font-size: .92rem; background: var(--card); }
+    .tablebox { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+
+    /* pasos */
+    .steps { counter-reset: s; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-bottom: 26px; }
+    .steps div { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    .steps div::before { content: counter(s); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--cyan); color: #0D1A22; font: 700 1.1rem "Barlow Condensed", sans-serif; margin-bottom: 10px; }
+    .steps p { margin: 4px 0 0; color: var(--sub); font-size: .96rem; }
+
+    .note { border: 1px solid rgba(255,179,71,.4); background: rgba(255,179,71,.07); border-radius: 12px; padding: 14px 16px; color: var(--sub); }
+    .note b { color: var(--amber); }
+
+    .docs a { display: flex; justify-content: space-between; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); color: var(--text); }
+    .docs a span { color: var(--muted); }
+    .docs a:hover { color: var(--cyan); text-decoration: none; }
+
+    .author { display: grid; gap: 22px; grid-template-columns: 1fr auto; align-items: center; }
+    @media (max-width: 760px) { .author { grid-template-columns: 1fr; } }
+    .socials { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .donate { background: #0070e0; border-color: #0070e0; color: #fff; }
+
+    footer { border-top: 1px solid var(--line); padding: 26px 0 40px; color: var(--muted); font-size: .92rem; }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+
+    /* explicacion LoRa APRS */
+    .two { display: grid; gap: 22px 40px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .two p { color: var(--sub); margin: 8px 0 0; }
+    .two h3 { color: var(--text); }
+    .two ul { color: var(--sub); margin: 8px 0 0 18px; padding: 0; }
+    .two li { margin: 3px 0; }
+    .kicker { color: var(--green); font: 600 .9rem Barlow, sans-serif; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+    .chirp { align-self: start; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+    .chirp svg { width: 100%; height: auto; display: block; }
+    .chirp small { color: var(--muted); display: block; margin-top: 8px; }
+    details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0 16px; margin-bottom: 10px; }
+    details summary { cursor: pointer; padding: 14px 0; font-weight: 600; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before { content: "+"; color: var(--green); display: inline-block; width: 22px; font-weight: 700; }
+    details[open] summary::before { content: "−"; }
+    details p { color: var(--sub); margin: 0 0 14px 22px; }
+
+    /* balizas */
+    #bcnList { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+    .bcn dl { margin: 2px 0 0; font-size: .95rem; }
+    .bcn dt { color: var(--muted); font: 600 .72rem Barlow, sans-serif; text-transform: uppercase; letter-spacing: .08em; margin-top: 8px; }
+    .bcn dd { margin: 1px 0 0; color: var(--sub); }
+    .bcn .tag { font: 500 .8rem "Share Tech Mono", ui-monospace, monospace; color: var(--cyan); }
+    .bcn h3 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .bcn.star { border-color: rgba(60,230,138,.55); box-shadow: 0 0 0 1px rgba(60,230,138,.15) inset; }
+    .lrf { margin-top: 26px; background: linear-gradient(135deg, rgba(60,230,138,.08), rgba(40,181,225,.06)); border: 1px solid rgba(60,230,138,.4); border-radius: 16px; padding: 24px; }
+    .lrf h3 { font-size: 1.35rem; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .lrf svg { width: 100%; height: auto; display: block; }
+    .lrf small { color: var(--muted); display: block; margin-top: 6px; }
+
+    /* emergencias */
+    .emg { border-top: 3px solid var(--red); }
+    .emg.wx { border-top-color: var(--amber); }
+    .emg .k { font: 600 .74rem Barlow, sans-serif; text-transform: uppercase; letter-spacing: .08em; color: var(--red); }
+    .emg.wx .k { color: var(--amber); }
+    .emg ul { margin: 2px 0 0 18px; padding: 0; color: var(--sub); font-size: .95rem; }
+    .emg li { margin: 3px 0; }
+
+    /* capturas de pantalla */
+    .shots { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); margin-top: 22px; }
+    .shots figure { margin: 0; }
+    .shots img { width: 100%; height: auto; display: block; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--line); background: #131A22; }
+    .shots figcaption { color: var(--muted); font-size: .88rem; margin-top: 6px; }
+    #emList { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .shotnote { color: var(--muted); font-size: .85rem; margin-top: 8px; }
+    [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header class="top">
+    <div class="wrap">
+        <a class="brand" href="#"><img src="img/icon.png" alt="" width="34" height="34">APRS&nbsp;<b>LoRa+</b></a>
+        <nav class="links">
+            <a href="#lora">LoRa APRS</a>
+            <a href="#balizas" data-i="nBcn"></a>
+            <a href="#cw">CW</a>
+            <a href="#emergencias">SOS</a>
+            <a href="#ecosistema" data-i="nEco"></a>
+            <a href="#funciones" data-i="nFeat"></a>
+            <a href="#placas" data-i="nBoards"></a>
+            <a href="#instalar" data-i="nInstall"></a>
+            <a href="#faq" data-i="nFaq"></a>
+            <a href="#docs" data-i="nDocs"></a>
+        </nav>
+        <div class="ctl"><button class="lang" id="themeBtn" type="button"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" style="vertical-align:-2px;margin-right:5px"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg><span id="theme"></span></button><button class="lang" id="lang" type="button">English</button></div>
+    </div>
+</header>
+
+<div class="hero">
+    <div class="wrap">
+        <img class="banner" src="img/aprs-lora-plus-banner.jpg" alt="APRS LoRa+ · Tracker · APRS · Map · Alerts" width="1800" height="600">
+        <div class="claim">
+            <p data-i="claim"></p>
+            <div class="cta">
+                <a class="btn primary" href="install/" data-i="ctaInstall"></a>
+                <a class="btn" href="https://github.com/EA7JRS/APRS-LoRa-Plus" data-i="ctaCode"></a>
+                <a class="btn" href="#ecosistema" data-i="ctaEco"></a>
+            </div>
+            <div class="ver" id="ver" hidden><span data-i="verLabel"></span> <span class="mono" id="verNum"></span></div>
+        </div>
+    </div>
+</div>
+
+
+<section id="lora">
+    <div class="wrap">
+        <div class="kicker" data-i="basics"></div>
+        <h2 data-i="aprsT"></h2>
+        <div class="two">
+            <div><p data-h="aprsP1"></p><p data-h="aprsP2"></p></div>
+            <div><p data-h="aprsP3"></p><p class="note" style="margin-top:14px" data-h="licence"></p></div>
+        </div>
+    </div>
+</section>
+
+<section class="alt">
+    <div class="wrap">
+        <h2 data-i="loraT"></h2>
+        <div class="two">
+            <div>
+                <p data-h="loraP1"></p>
+                <h3 style="margin-top:18px" data-i="cssT"></h3>
+                <p data-h="cssP"></p>
+            </div>
+            <div class="chirp">
+                <svg viewBox="0 0 400 180" role="img" aria-label="LoRa chirp">
+                    <defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#28B5E1"/><stop offset="1" stop-color="#3CE68A"/></linearGradient></defs>
+                    <path d="M30 46h350" stroke="#2B3A4A" stroke-dasharray="3 4" fill="none"/>
+                    <path d="M30.0 46.0 L30.5 45.4 L31.0 44.8 L31.5 44.2 L32.0 43.6 L32.5 43.0 L33.0 42.4 L33.5 41.8 L34.0 41.1 L34.5 40.5 L35.0 39.9 L35.5 39.3 L36.0 38.7 L36.5 38.1 L37.0 37.4 L37.5 36.8 L38.0 36.2 L38.5 35.6 L39.0 35.0 L39.5 34.4 L40.0 33.9 L40.5 33.3 L41.0 32.7 L41.5 32.2 L42.0 31.6 L42.5 31.1 L43.0 30.6 L43.5 30.0 L44.0 29.6 L44.5 29.1 L45.0 28.6 L45.5 28.2 L46.0 27.7 L46.5 27.3 L47.0 26.9 L47.5 26.6 L48.0 26.2 L48.5 25.9 L49.0 25.6 L49.5 25.3 L50.0 25.0 L50.5 24.8 L51.0 24.6 L51.5 24.4 L52.0 24.3 L52.5 24.2 L53.0 24.1 L53.5 24.0 L54.0 24.0 L54.5 24.0 L55.0 24.0 L55.5 24.1 L56.0 24.2 L56.5 24.4 L57.0 24.5 L57.5 24.7 L58.0 25.0 L58.5 25.3 L59.0 25.6 L59.5 25.9 L60.0 26.3 L60.5 26.7 L61.0 27.2 L61.5 27.6 L62.0 28.2 L62.5 28.7 L63.0 29.3 L63.5 29.9 L64.0 30.6 L64.5 31.3 L65.0 32.0 L65.5 32.7 L66.0 33.5 L66.5 34.3 L67.0 35.1 L67.5 36.0 L68.0 36.9 L68.5 37.8 L69.0 38.7 L69.5 39.6 L70.0 40.6 L70.5 41.6 L71.0 42.5 L71.5 43.6 L72.0 44.6 L72.5 45.6 L73.0 46.6 L73.5 47.6 L74.0 48.7 L74.5 49.7 L75.0 50.7 L75.5 51.8 L76.0 52.8 L76.5 53.8 L77.0 54.8 L77.5 55.7 L78.0 56.7 L78.5 57.6 L79.0 58.5 L79.5 59.4 L80.0 60.3 L80.5 61.1 L81.0 61.9 L81.5 62.6 L82.0 63.3 L82.5 64.0 L83.0 64.6 L83.5 65.2 L84.0 65.7 L84.5 66.2 L85.0 66.6 L85.5 67.0 L86.0 67.3 L86.5 67.6 L87.0 67.8 L87.5 67.9 L88.0 68.0 L88.5 68.0 L89.0 67.9 L89.5 67.8 L90.0 67.6 L90.5 67.4 L91.0 67.1 L91.5 66.7 L92.0 66.3 L92.5 65.7 L93.0 65.2 L93.5 64.5 L94.0 63.8 L94.5 63.1 L95.0 62.3 L95.5 61.4 L96.0 60.5 L96.5 59.5 L97.0 58.5 L97.5 57.4 L98.0 56.3 L98.5 55.1 L99.0 53.9 L99.5 52.7 L100.0 51.5 L100.5 50.2 L101.0 48.9 L101.5 47.6 L102.0 46.3 L102.5 44.9 L103.0 43.6 L103.5 42.3 L104.0 41.0 L104.5 39.7 L105.0 38.4 L105.5 37.1 L106.0 35.9 L106.5 34.7 L107.0 33.6 L107.5 32.5 L108.0 31.4 L108.5 30.4 L109.0 29.4 L109.5 28.6 L110.0 27.7 L110.5 27.0 L111.0 26.3 L111.5 25.7 L112.0 25.2 L112.5 24.8 L113.0 24.5 L113.5 24.2 L114.0 24.1 L114.5 24.0 L115.0 24.0 L115.5 24.2 L116.0 24.4 L116.5 24.7 L117.0 25.2 L117.5 25.7 L118.0 26.3 L118.5 27.0 L119.0 27.8 L119.5 28.7 L120.0 29.6 L120.5 30.7 L121.0 31.8 L121.5 33.0 L122.0 34.3 L122.5 35.6 L123.0 37.0 L123.5 38.4 L124.0 39.8 L124.5 41.3 L125.0 42.9 L125.5 44.4 L126.0 46.0 L126.5 47.6 L127.0 49.1 L127.5 50.7 L128.0 52.2 L128.5 53.7 L129.0 55.2 L129.5 56.6 L130.0 58.0 L130.5 59.3 L131.0 60.6 L131.5 61.7 L132.0 62.8 L132.5 63.8 L133.0 64.7 L133.5 65.5 L134.0 66.2 L134.5 66.8 L135.0 67.3 L135.5 67.7 L136.0 67.9 L136.5 68.0 L137.0 68.0 L137.5 67.8 L138.0 67.5 L138.5 67.1 L139.0 66.6 L139.5 65.9 L140.0 65.2 L140.5 64.3 L141.0 63.2 L141.5 62.1 L142.0 60.9 L142.5 59.6 L143.0 58.2 L143.5 56.7 L144.0 55.1 L144.5 53.5 L145.0 51.8 L145.5 50.1 L146.0 48.4 L146.5 46.6 L147.0 44.8 L147.5 43.0 L148.0 41.3 L148.5 39.5 L149.0 37.8 L149.5 36.2 L150.0 34.6 L150.5 33.1 L151.0 31.7 L151.5 30.3 L152.0 29.1 L152.5 28.0 L153.0 27.0 L153.5 26.1 L154.0 25.4 L154.5 24.8 L155.0 24.4 L155.5 24.1 L156.0 24.0 L156.5 24.0 L157.0 24.2 L157.5 24.6 L158.0 25.1 L158.5 25.8 L159.0 26.6 L159.5 27.6 L160.0 28.7 L160.5 29.9 L161.0 31.3 L161.5 32.8 L162.0 34.4 L162.5 36.1 L163.0 37.8 L163.5 39.7 L164.0 41.6 L164.5 43.5 L165.0 45.5 L165.5 47.4 L166.0 49.4 L166.5 51.3 L167.0 53.2 L167.5 55.1 L168.0 56.8 L168.5 58.5 L169.0 60.1 L169.5 61.6 L170.0 63.0 L170.5 64.2 L171.0 65.2 L171.5 66.1 L172.0 66.9 L172.5 67.4 L173.0 67.8 L173.5 68.0 L174.0 68.0 L174.5 67.8 L175.0 67.4 L175.5 66.8 L176.0 66.1 L176.5 65.1 L177.0 64.0 L177.5 62.7 L178.0 61.3 L178.5 59.7 L179.0 58.0 L179.5 56.2 L180.0 54.3 L180.5 52.3 L181.0 50.2 L181.5 48.1 L182.0 46.0 L182.5 43.8 L183.0 41.7 L183.5 39.6 L184.0 37.6 L184.5 35.6 L185.0 33.8 L185.5 32.0 L186.0 30.4 L186.5 29.0 L187.0 27.7 L187.5 26.6 L188.0 25.6 L188.5 24.9 L189.0 24.4 L189.5 24.1 L190.0 24.0 L190.5 24.1 L191.0 24.5 L191.5 25.1 L192.0 25.9 L192.5 26.9 L193.0 28.1 L193.5 29.5 L194.0 31.1 L194.5 32.9 L195.0 34.7 L195.5 36.7 L196.0 38.9 L196.5 41.0 L197.0 43.3 L197.5 45.6 L198.0 47.9 L198.5 50.2 L199.0 52.4 L199.5 54.6 L200.0 56.6 L200.5 58.6 L201.0 60.4 L201.5 62.1 L202.0 63.6 L202.5 64.9 L203.0 66.0 L203.5 66.9 L204.0 67.5 L204.5 67.9 L205.0 68.0 L205.5 67.9 L206.0 67.5 L206.5 66.9 L207.0 66.0 L207.5 64.9 L208.0 63.5 L208.5 62.0 L209.0 60.2 L209.5 58.3 L210.0 56.2 L210.5 54.0 L211.0 51.7 L211.5 49.3 L212.0 46.9 L212.5 44.4 L213.0 42.0 L213.5 39.6 L214.0 37.3 L214.5 35.1 L215.0 33.0 L215.5 31.1 L216.0 29.4 L216.5 27.9 L217.0 26.6 L217.5 25.5 L218.0 24.8 L218.5 24.2 L219.0 24.0 L219.5 24.1 L220.0 24.4 L220.5 25.0 L221.0 25.9 L221.5 27.1 L222.0 28.5 L222.5 30.2 L223.0 32.1 L223.5 34.1 L224.0 36.4 L224.5 38.7 L225.0 41.2 L225.5 43.8 L226.0 46.3 L226.5 48.9 L227.0 51.5 L227.5 53.9 L228.0 56.3 L228.5 58.5 L229.0 60.6 L229.5 62.4 L230.0 64.0 L230.5 65.4 L231.0 66.5 L231.5 67.3 L232.0 67.8 L232.5 68.0 L233.0 67.9 L233.5 67.4 L234.0 66.6 L234.5 65.6 L235.0 64.2 L235.5 62.6 L236.0 60.7 L236.5 58.6 L237.0 56.3 L237.5 53.9 L238.0 51.3 L238.5 48.6 L239.0 45.9 L239.5 43.2 L240.0 40.5 L240.5 37.9 L241.0 35.5 L241.5 33.1 L242.0 31.0 L242.5 29.1 L243.0 27.5 L243.5 26.2 L244.0 25.1 L244.5 24.4 L245.0 24.1 L245.5 24.0 L246.0 24.4 L246.5 25.1 L247.0 26.1 L247.5 27.4 L248.0 29.1 L248.5 31.0 L249.0 33.2 L249.5 35.5 L250.0 38.1 L250.5 40.8 L251.0 43.6 L251.5 46.4 L252.0 49.3 L252.5 52.0 L253.0 54.7 L253.5 57.3 L254.0 59.6 L254.5 61.8 L255.0 63.6 L255.5 65.2 L256.0 66.4 L256.5 67.3 L257.0 67.9 L257.5 68.0 L258.0 67.8 L258.5 67.1 L259.0 66.2 L259.5 64.8 L260.0 63.1 L260.5 61.1 L261.0 58.9 L261.5 56.4 L262.0 53.7 L262.5 50.9 L263.0 48.0 L263.5 45.0 L264.0 42.1 L264.5 39.2 L265.0 36.4 L265.5 33.8 L266.0 31.5 L266.5 29.4 L267.0 27.6 L267.5 26.1 L268.0 25.0 L268.5 24.3 L269.0 24.0 L269.5 24.1 L270.0 24.7 L270.5 25.6 L271.0 26.9 L271.5 28.6 L272.0 30.6 L272.5 33.0 L273.0 35.5 L273.5 38.3 L274.0 41.3 L274.5 44.3 L275.0 47.4 L275.5 50.4 L276.0 53.4 L276.5 56.2 L277.0 58.9 L277.5 61.2 L278.0 63.3 L278.5 65.1 L279.0 66.4 L279.5 67.4 L280.0 67.9 L280.5 68.0 L281.0 67.6 L281.5 66.8 L282.0 65.6 L282.5 63.9 L283.0 61.9 L283.5 59.6 L284.0 56.9 L284.5 54.1 L285.0 51.1 L285.5 47.9 L286.0 44.7 L286.5 41.6 L287.0 38.5 L287.5 35.6 L288.0 32.9 L288.5 30.4 L289.0 28.3 L289.5 26.6 L290.0 25.3 L290.5 24.4 L291.0 24.0 L291.5 24.1 L292.0 24.7 L292.5 25.7 L293.0 27.1 L293.5 29.0 L294.0 31.3 L294.5 33.9 L295.0 36.7 L295.5 39.8 L296.0 43.0 L296.5 46.3 L297.0 49.6 L297.5 52.8 L298.0 55.9 L298.5 58.7 L299.0 61.3 L299.5 63.5 L300.0 65.3 L300.5 66.7 L301.0 67.6 L301.5 68.0 L302.0 67.9 L302.5 67.3 L303.0 66.2 L303.5 64.6 L304.0 62.6 L304.5 60.2 L305.0 57.4 L305.5 54.4 L306.0 51.2 L306.5 47.8 L307.0 44.4 L307.5 41.0 L308.0 37.8 L308.5 34.7 L309.0 31.9 L309.5 29.5 L310.0 27.4 L310.5 25.8 L311.0 24.7 L311.5 24.1 L312.0 24.0 L312.5 24.5 L313.0 25.5 L313.5 27.1 L314.0 29.1 L314.5 31.5 L315.0 34.3 L315.5 37.3 L316.0 40.7 L316.5 44.1 L317.0 47.6 L317.5 51.1 L318.0 54.4 L318.5 57.5 L319.0 60.4 L319.5 62.9 L320.0 64.9 L320.5 66.5 L321.0 67.5 L321.5 68.0 L322.0 67.9 L322.5 67.2 L323.0 66.0 L323.5 64.2 L324.0 62.0 L324.5 59.3 L325.0 56.3 L325.5 53.0 L326.0 49.5 L326.5 46.0 L327.0 42.4 L327.5 38.9 L328.0 35.6 L328.5 32.5 L329.0 29.9 L329.5 27.6 L330.0 25.9 L330.5 24.7 L331.0 24.1 L331.5 24.1 L332.0 24.7 L332.5 25.9 L333.0 27.6 L333.5 29.9 L334.0 32.6 L334.5 35.7 L335.0 39.0 L335.5 42.6 L336.0 46.3 L336.5 50.0 L337.0 53.6 L337.5 56.9 L338.0 60.0 L338.5 62.6 L339.0 64.8 L339.5 66.5 L340.0 67.5 L340.5 68.0 L341.0 67.8 L341.5 67.0 L342.0 65.5 L342.5 63.5 L343.0 61.0 L343.5 58.0 L344.0 54.7 L344.5 51.1 L345.0 47.4 L345.5 43.6 L346.0 39.9 L346.5 36.3 L347.0 33.1 L347.5 30.2 L348.0 27.8 L348.5 25.9 L349.0 24.7 L349.5 24.1 L350.0 24.1 L350.5 24.8 L351.0 26.2 L351.5 28.2 L352.0 30.7 L352.5 33.7 L353.0 37.1 L353.5 40.7 L354.0 44.6 L354.5 48.5 L355.0 52.3 L355.5 55.9 L356.0 59.2 L356.5 62.1 L357.0 64.5 L357.5 66.3 L358.0 67.5 L358.5 68.0 L359.0 67.8 L359.5 66.9 L360.0 65.3 L360.5 63.1 L361.0 60.4 L361.5 57.2 L362.0 53.6 L362.5 49.8 L363.0 45.8 L363.5 41.9 L364.0 38.1 L364.5 34.5 L365.0 31.3 L365.5 28.6 L366.0 26.4 L366.5 24.9 L367.0 24.1 L367.5 24.1 L368.0 24.7 L368.5 26.1 L369.0 28.1 L369.5 30.7 L370.0 33.9 L370.5 37.5 L371.0 41.3 L371.5 45.4 L372.0 49.4 L372.5 53.3 L373.0 57.0 L373.5 60.4 L374.0 63.2 L374.5 65.4 L375.0 67.0 L375.5 67.9 L376.0 67.9 L376.5 67.3 L377.0 65.9 L377.5 63.8 L378.0 61.0 L378.5 57.8 L379.0 54.1 L379.5 50.1 L380.0 46.0" fill="none" stroke="url(#cg)" stroke-width="1.6"/>
+                    <g fill="none" stroke="#2B3A4A"><path d="M30 92v60h350"/><path d="M117.5 94v60 M205.0 94v60 M292.5 94v60" stroke-dasharray="2 4"/></g>
+                    <path d="M30.0 150.0 L117.5 98 M117.5 118.8 L152.5 98 M152.5 150 L205.0 118.8 M205.0 137.0 L270.6 98 M270.6 150 L292.5 137.0 M292.5 105.8 L305.6 98 M305.6 150 L380.0 105.8" fill="none" stroke="#FFB347" stroke-width="2.2" stroke-linecap="round"/>
+                    <g fill="#8C9AA8" font-family="Barlow, sans-serif" font-size="11">
+                        <text x="30" y="14" data-i="svgSig"></text>
+                        <text x="26" y="101" text-anchor="end">BW</text><text x="26" y="153" text-anchor="end">f₀</text>
+                        <text x="380" y="168" text-anchor="end" data-i="svgTime"></text>
+                        <text x="73" y="168" text-anchor="middle" data-i="svgSym"></text>
+                    </g>
+                </svg>
+                <small data-i="chirpCap"></small>
+            </div>
+        </div>
+        <div class="two" style="margin-top:28px">
+            <div>
+                <h3 data-i="paramT"></h3>
+                <ul>
+                    <li data-h="pSF"></li><li data-h="pBW"></li><li data-h="pCR"></li>
+                </ul>
+            </div>
+            <div>
+                <h3 data-i="advT"></h3>
+                <ul>
+                    <li data-h="a1"></li><li data-h="a2"></li><li data-h="a3"></li><li data-h="a4"></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="wrap">
+        <h2>LoRa APRS</h2>
+        <p class="lead" data-h="laL"></p>
+        <div class="two">
+            <div><h3 data-i="laHowT"></h3><p data-h="laHow"></p></div>
+            <div><h3 data-i="laNetT"></h3><p data-h="laNet"></p></div>
+        </div>
+        <h3 style="margin:30px 0 10px" data-i="stdT"></h3>
+        <div class="tablebox">
+            <table>
+                <thead><tr><th data-i="stdProf"></th><th data-i="stdFreq"></th><th class="c">SF</th><th class="c">BW</th><th class="c">CR</th><th class="c" data-i="stdRate"></th><th class="c" data-i="stdToa"></th></tr></thead>
+                <tbody>
+                    <tr><td data-i="profEU"></td><td class="mono num">433.775 MHz</td><td class="c">12</td><td class="c">125 kHz</td><td class="c">4/5</td><td class="c">≈ 290 bit/s</td><td class="c num">≈ 2.6 s</td></tr>
+                    <tr><td data-i="profPL"></td><td class="mono num">434.855 MHz</td><td class="c">9</td><td class="c">125 kHz</td><td class="c">4/7</td><td class="c">≈ 1250 bit/s</td><td class="c num">≈ 0.5 s</td></tr>
+                    <tr><td data-i="profUK"></td><td class="mono num">439.9125 MHz</td><td class="c">12</td><td class="c">125 kHz</td><td class="c">4/5</td><td class="c">≈ 290 bit/s</td><td class="c num">≈ 2.6 s</td></tr>
+                    <tr><td data-i="profUS"></td><td class="mono num">915.000 MHz</td><td class="c">12</td><td class="c">125 kHz</td><td class="c">4/5</td><td class="c">≈ 290 bit/s</td><td class="c num">≈ 2.6 s</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="color:var(--muted);font-size:.93rem;margin-top:10px" data-h="stdNote"></p>
+        <div class="two" style="margin-top:28px">
+            <div><h3 data-i="plusT"></h3><p data-h="plusP"></p></div>
+            <div><h3 data-i="goodT"></h3><ul><li data-h="g1"></li><li data-h="g2"></li><li data-h="g3"></li><li data-h="g4"></li><li data-h="g5"></li></ul></div>
+        </div>
+    </div>
+</section>
+
+<section id="balizas" class="alt">
+    <div class="wrap">
+        <div class="kicker" data-i="bcnK"></div>
+        <h2 data-i="bcnT"></h2>
+        <p class="lead" data-h="bcnL"></p>
+        <div class="grid" id="bcnList"></div>
+        <div class="shots" data-shots="bcn"></div>
+        <div class="lrf">
+            <h3><span data-i="lrfT"></span><span class="pill ok" data-i="lrfPill"></span></h3>
+            <div class="two" style="margin-top:6px">
+                <div>
+                    <p data-h="lrfP1"></p>
+                    <p data-h="lrfP2"></p>
+                </div>
+                <div>
+                    <svg viewBox="-14 0 634 200" role="img" aria-label="LR-FHSS">
+                    <path d="M40 20.0h560 M40 28.8h560 M40 37.5h560 M40 46.2h560 M40 55.0h560 M40 63.8h560 M40 72.5h560 M40 81.2h560 M40 90.0h560 M40 98.8h560 M40 107.5h560 M40 116.2h560 M40 125.0h560 M40 133.8h560 M40 142.5h560 M40 151.2h560 M40 160.0h560" stroke="#2B3A4A" stroke-width="1" fill="none"/>
+                    <path d="M40 20v140" stroke="#4A5B6C"/>
+                    <rect x="45.6" y="108.5" width="63.2" height="6.8" rx="2" fill="#28B5E1"/><rect x="110.8" y="38.5" width="63.2" height="6.8" rx="2" fill="#28B5E1"/><rect x="176.1" y="82.2" width="63.2" height="6.8" rx="2" fill="#28B5E1"/><rect x="241.3" y="117.2" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="269.9" y="21.0" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="298.4" y="38.5" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="327.0" y="143.5" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="355.6" y="91.0" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="384.1" y="29.8" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="412.7" y="73.5" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="441.2" y="108.5" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="469.8" y="21.0" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="498.4" y="152.2" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="526.9" y="91.0" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="555.5" y="47.2" width="26.6" height="6.8" rx="2" fill="#FFB347"/><rect x="584.0" y="21.0" width="26.6" height="6.8" rx="2" fill="#FFB347"/>
+                    <g fill="#8C9AA8" font-family="Barlow, sans-serif" font-size="15">
+                        <text x="34" y="28" text-anchor="end" class="num">+19.5</text><text x="34" y="160" text-anchor="end" class="num">−19.5</text>
+                        <text x="34" y="94.0" text-anchor="end">kHz</text>
+                        <text x="600" y="178" text-anchor="end">≈ 2 s</text>
+                        <rect x="40" y="184" width="12" height="9" rx="2" fill="#28B5E1"/><text x="58" y="193" data-i="hopHdr"></text>
+                        <rect x="270" y="184" width="12" height="9" rx="2" fill="#FFB347"/><text x="288" y="193" data-i="hopFrag"></text>
+                    </g>
+                </svg>
+                    <small data-i="hopCap"></small>
+                </div>
+            </div>
+            <div class="two" style="margin-top:18px">
+                <div><h3 style="font-size:1.1rem" data-i="lrfTxT"></h3><ul><li data-h="lt1"></li><li data-h="lt2"></li><li data-h="lt3"></li><li data-h="lt4"></li></ul></div>
+                <div><h3 style="font-size:1.1rem" data-i="lrfRxT"></h3><ul><li data-h="lr1"></li><li data-h="lr2"></li><li data-h="lr3"></li></ul></div>
+            </div>
+        </div>
+        <p class="note" style="margin-top:22px" data-h="bcnNote"></p>
+    </div>
+</section>
+
+<section id="cw">
+    <div class="wrap">
+        <div class="kicker">CW · Morse</div>
+        <h2 data-i="cwT"></h2>
+        <p class="lead" data-h="cwL"></p>
+        <div class="two">
+            <div>
+                <h3 data-i="cwKeyT"></h3>
+                <p data-h="cwKeyP"></p>
+                <div class="chirp" style="margin-top:14px"><svg viewBox="0 0 380 120" role="img" aria-label="TRS 3.5 mm">
+                    <g fill="none" stroke-width="2">
+                        <rect x="20" y="44" width="120" height="32" rx="6" fill="#22303D" stroke="#4A5B6C"/>
+                        <rect x="140" y="50" width="70" height="20" fill="#8C9AA8" stroke="#8C9AA8"/>
+                        <rect x="214" y="50" width="44" height="20" fill="#28B5E1" stroke="#28B5E1"/>
+                        <path d="M262 50h18l16 10-16 10h-18z" fill="#3CE68A" stroke="#3CE68A"/>
+                        <path d="M210 48v24M258 48v24" stroke="#131A22" stroke-width="4"/>
+                    </g>
+                    <g font-family="Barlow, sans-serif" font-size="13">
+                        <path d="M175 70v22M236 70v22M284 70v22" stroke="#4A5B6C"/>
+                        <path d="M175 50v-22M236 50v-22M284 50v-22" stroke="#4A5B6C"/>
+                        <text x="175" y="106" text-anchor="middle" fill="#B6C2CE" data-i="jS"></text>
+                        <text x="236" y="106" text-anchor="middle" fill="#28B5E1" data-i="jR"></text>
+                        <text x="284" y="106" text-anchor="middle" fill="#3CE68A" data-i="jT"></text>
+                        <text x="175" y="20" text-anchor="middle" fill="#8C9AA8">GND</text>
+                        <text x="242" y="20" text-anchor="end" fill="#8C9AA8" data-i="jRp"></text>
+                        <text x="278" y="20" text-anchor="start" fill="#8C9AA8" data-i="jTp"></text>
+                    </g>
+                </svg><small data-i="jCap"></small></div>
+            </div>
+            <div>
+                <h3 data-i="cwDevT"></h3>
+                <ul><li data-h="cd1"></li><li data-h="cd2"></li><li data-h="cd3"></li><li data-h="cd4"></li><li data-h="cd5"></li><li data-h="cd6"></li></ul>
+            </div>
+        </div>
+        <div class="shots" data-shots="cw"></div>
+        <div class="two" style="margin-top:28px">
+            <div>
+                <h3 data-i="cwAppT"></h3>
+                <p data-h="cwAppP"></p>
+                <ul><li data-h="ca1"></li><li data-h="ca2"></li><li data-h="ca3"></li></ul>
+            </div>
+            <div>
+                <h3 data-i="cwRemT"></h3>
+                <ul><li data-h="cr1"></li><li data-h="cr2"></li><li data-h="cr3"></li></ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="emergencias" class="alt">
+    <div class="wrap">
+        <div class="kicker" data-i="emK"></div>
+        <h2 data-i="emT"></h2>
+        <p class="lead" data-h="emL"></p>
+        <div class="grid" id="emList"></div>
+        <div class="shots" data-shots="emg"></div>
+        <div class="two" style="margin-top:28px">
+            <div><h3 data-i="emNetT"></h3><ul><li data-h="en1"></li><li data-h="en2"></li><li data-h="en3"></li><li data-h="en4"></li></ul></div>
+            <div><h3 data-i="emAlarmT"></h3><p data-h="emAlarmP"></p></div>
+        </div>
+        <p class="note" style="margin-top:22px" data-h="emNote"></p>
+    </div>
+</section>
+
+<section id="ecosistema">
+    <div class="wrap">
+        <h2 data-i="ecoT"></h2>
+        <p class="lead" data-i="ecoL"></p>
+        <div class="grid" id="eco"></div>
+    </div>
+</section>
+
+<section id="funciones" class="alt">
+    <div class="wrap">
+        <h2 data-i="featT"></h2>
+        <p class="lead" data-i="featL"></p>
+        <div class="feat" id="feat"></div>
+        <div class="shots" data-shots="feat"></div>
+        <p class="shotnote" data-i="shotNote"></p>
+    </div>
+</section>
+
+<section id="placas">
+    <div class="wrap">
+        <h2 data-i="boardsT"></h2>
+        <p class="lead" data-i="boardsL"></p>
+        <div class="tablebox">
+            <table>
+                <thead><tr><th data-i="mode"></th><th class="c">SX1262 / SX1268</th><th class="c">SX1276 / SX1278</th><th class="c">LLCC68</th><th class="c">SA868 (T-TWR)</th></tr></thead>
+                <tbody>
+                    <tr><td>APRS LoRa</td><td class="c y">✔</td><td class="c y">✔</td><td class="c y">✔</td><td class="c n">–</td></tr>
+                    <tr><td>APRS FSK 9600 (G3RUH)</td><td class="c y">✔</td><td class="c y">✔</td><td class="c n">✘</td><td class="c n">–</td></tr>
+                    <tr><td>CW · WSPR · FT8 · FT4 · FST4W · DAPNET</td><td class="c y">✔</td><td class="c n">✘</td><td class="c n">✘</td><td class="c n">–</td></tr>
+                    <tr><td data-i="rowAfsk"></td><td class="c n">–</td><td class="c n">–</td><td class="c n">–</td><td class="c y">✔</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="boards" id="boards"></div>
+    </div>
+</section>
+
+<section id="instalar" class="alt">
+    <div class="wrap">
+        <h2 data-i="instT"></h2>
+        <p class="lead" data-i="instL"></p>
+        <div class="steps">
+            <div><h3 data-i="st1"></h3><p data-i="st1p"></p></div>
+            <div><h3 data-i="st2"></h3><p data-i="st2p"></p></div>
+            <div><h3 data-i="st3"></h3><p data-i="st3p"></p></div>
+        </div>
+        <div class="cta" style="justify-content:flex-start"><a class="btn primary" href="install/" data-i="ctaInstall"></a></div>
+    </div>
+</section>
+
+
+<section id="faq">
+    <div class="wrap">
+        <h2 data-i="faqT"></h2>
+        <p class="lead" data-i="faqL"></p>
+        <div id="faqList"></div>
+    </div>
+</section>
+
+<section id="docs" class="alt">
+    <div class="wrap">
+        <h2 data-i="docsT"></h2>
+        <p class="lead" data-i="docsL"></p>
+        <div class="docs" id="docList"></div>
+        <p class="note" style="margin-top:26px"><b data-i="stateT"></b> <span data-i="stateP"></span></p>
+    </div>
+</section>
+
+<section class="alt">
+    <div class="wrap author">
+        <div>
+            <h2>EA7JRS</h2>
+            <p class="lead" style="margin-bottom:0" data-i="authorP"></p>
+            <div class="socials">
+                <a class="btn" href="https://github.com/EA7JRS">GitHub</a>
+                <a class="btn" href="https://www.qrz.com/db/EA7JRS">QRZ.com</a>
+                <a class="btn" href="https://app.worldradioleague.com/profile/EA7JRS">World Radio League</a>
+                <a class="btn" href="https://www.youtube.com/@EA7JRS">YouTube</a>
+            </div>
+        </div>
+        <div><a class="btn donate" href="https://paypal.me/ea7jrs" data-i="donate"></a></div>
+    </div>
+</section>
+
+<footer>
+    <div class="wrap">
+        <span>APRS LoRa+ · © 2026 Manuel - EA7JRS · GPL-3.0</span>
+        <span data-i="base"></span>
+        <span><a href="privacy.html" data-i="privacy"></a></span>
+    </div>
+</footer>
+
+<script>
+// Textos en español e inglés; el idioma sale del navegador y se puede cambiar con el boton (se recuerda en este navegador).
+const GH = "https://github.com/EA7JRS/";
+const ICON = {
+    tracker: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>',
+    app: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2" stroke-linecap="round"/></svg>',
+    display: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M9 21h6M12 17v4" stroke-linecap="round"/></svg>',
+    rotor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 12l5-5M12 3v2M21 12h-2M12 21v-2M3 12h2"/></svg>',
+    plotter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 18c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/><path d="M6 14l6-10 6 10z"/><path d="M12 4v10"/></svg>',
+    bus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18"/><path d="M7 12V7M12 12V5M17 12V7M7 12v5M12 12v7M17 12v5"/></svg>',
+    car: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-4l2-5h12l2 5v4z"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>',
+    gate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v12M8 21h8"/><path d="M7.5 6.5a6.5 6.5 0 0 1 9 0M5 4a10 10 0 0 1 14 0"/><circle cx="12" cy="9" r="1.5"/></svg>',
+    ais: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l5 16-5-3-5 3z"/></svg>',
+    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17v.5"/></svg>',
+};
+// [icono, titulo ES, titulo EN, texto ES, texto EN, estado (ok/dev/soon), enlace o null]
+const ECO = [
+    ["tracker", "Tracker", "Tracker",
+     "El firmware para placas ESP32 con LoRa o FM: APRS LoRa, APRS FSK 9600, CW, WSPR, FT8 / FT4 / FST4W, DAPNET, satélites, mensajería y 11 pantallas con un solo botón.",
+     "The firmware for ESP32 boards with LoRa or FM: APRS LoRa, APRS FSK 9600, CW, WSPR, FT8 / FT4 / FST4W, DAPNET, satellites, messaging and 11 one-button screens.",
+     "ok", GH + "APRS-LoRa-Plus"],
+    ["app", "App Android", "Android app",
+     "Controla y muestra todo el tracker por Bluetooth: mensajes, mapa, estaciones, satélites, SDR, modos digitales, libro de guardia, DX cluster, rotor y Android Auto.",
+     "Controls and shows the whole tracker over Bluetooth: messages, map, stations, satellites, SDR, digital modes, logbook, DX cluster, rotor and Android Auto.",
+     "dev", GH + "APRS-LoRa-Plus-Android"],
+    ["display", "Display", "Display",
+     "Pantallas táctiles Waveshare (7″, 3,5″, 2,8″ y 1,69″) enlazadas por Bluetooth: control completo del tracker, avisos y datos del barco. También como reloj OpenHamClock.",
+     "Waveshare touch screens (7″, 3.5″, 2.8″ and 1.69″) linked over Bluetooth: full tracker control, alerts and boat data. Also as an OpenHamClock clock.",
+     "dev", GH + "APRS-LoRa-Plus-Display"],
+    ["rotor", "Rotor", "Rotor",
+     "Controlador de rotores compatible con Hamlib (ESP32, Pico 2, Raspberry Pi y pantallas Waveshare): sigue satélites, estaciones APRS, el sol o la luna, con CAT de la emisora.",
+     "Hamlib-compatible rotator controller (ESP32, Pico 2, Raspberry Pi and Waveshare screens): follows satellites, APRS stations, the sun or the moon, with rig CAT.",
+     "dev", GH + "APRS-LoRa-Plus-Rotor"],
+    ["plotter", "Plotter náutico", "Marine plotter",
+     "Plotter para la Waveshare de 7″ con carta, radar AIS, rutas, fondeo, viento, piloto y avisos; y un instrumento de viento de 4″ como accesorio.",
+     "Plotter for the 7″ Waveshare with chart, AIS radar, routes, anchor watch, wind, autopilot data and alerts; plus a 4″ wind instrument accessory.",
+     "dev", GH + "APRS-LoRa-Plus-Plotter"],
+    ["ais", "Transponder MAPRS", "MAPRS transponder",
+     "Variante del tracker en la LilyGO T3 (433 MHz) que hace de transponder AIS por APRS LoRa, con los datos del barco sincronizados con el plotter.",
+     "Tracker variant for the LilyGO T3 (433 MHz) that works as an AIS transponder over APRS LoRa, with the boat data kept in sync with the plotter.",
+     "dev", null],
+    ["bus", "Pasarela NMEA 2000", "NMEA 2000 gateway",
+     "XIAO ESP32-S3 con CAN: las estaciones APRS aparecen como blancos AIS en el plotter del barco (Garmin GPSMAP y otros).",
+     "XIAO ESP32-S3 with CAN: APRS stations show up as AIS targets on the boat's plotter (Garmin GPSMAP and others).",
+     "dev", GH + "APRS-LoRa-Plus-NMEA2000"],
+    ["car", "Pasarela OBD-II", "OBD-II gateway",
+     "Datos del motor del coche como indicadores en el plotter APRS LoRa+ y en Garmin, por NMEA 2000.",
+     "The car's engine data as gauges on the APRS LoRa+ plotter and on Garmin, over NMEA 2000.",
+     "dev", null],
+    ["gate", "I-Gateway", "I-Gateway",
+     "iGate y pasarela APRS LoRa+ para estaciones fijas.",
+     "APRS LoRa+ iGate and gateway for fixed stations.",
+     "soon", null],
+    ["alert", "SAT-APRS+", "SAT-APRS+",
+     "Estación de alertas de emergencia por APRS en un PC Debian: fuentes oficiales y de radio, consola web y salida NMEA 2000.",
+     "Emergency alert station over APRS on a Debian PC: official and radio sources, web console and NMEA 2000 output.",
+     "dev", GH + "sat-aprs"],
+];
+// [titulo ES, titulo EN, texto ES, texto EN]
+const FEAT = [
+    ["Modos de radio", "Radio modes",
+     "APRS LoRa, APRS FSK 9600 (G3RUH), CW / Morse, balizas WSPR, FT8, FT4 y FST4W, y receptor DAPNET; LR-FHSS experimental.",
+     "APRS LoRa, APRS FSK 9600 (G3RUH), CW / Morse, WSPR, FT8, FT4 and FST4W beacons, and a DAPNET receiver; experimental LR-FHSS."],
+    ["Interfaz de un botón", "One-button interface",
+     "Páginas de estación, mensajes, GNSS, brújula, altímetro, reloj con sol y luna, telemetría y SOS; iconos APRS a color en las pantallas TFT.",
+     "Pages for stations, messages, GNSS, compass, altimeter, clock with sun and moon, telemetry and SOS; colour APRS icons on TFT screens."],
+    ["Mensajería", "Messaging",
+     "Mensajes APRS con respuestas rápidas desde el propio equipo y conversación completa desde la app, con estado de entrega.",
+     "APRS messages with quick replies on the device itself and full conversations from the app, with delivery status."],
+    ["Satélites y rotor", "Satellites and rotator",
+     "Pasos con azimut, elevación y Doppler; emisión con precompensación; el rotor sigue al satélite, a una estación oída o a una baliza CW.",
+     "Passes with azimuth, elevation and Doppler; transmit with pre-compensation; the rotator follows the satellite, a heard station or a CW beacon."],
+    ["FM con la T-TWR Plus", "FM with the T-TWR Plus",
+     "APRS AFSK 1200, M17, FM de voz con memorias, tonos y escaneo, receptor AIS y emisión limitada a las bandas de aficionado de tu región.",
+     "APRS AFSK 1200, M17, FM voice with memories, tones and scanning, AIS receiver and transmit limited to your region's amateur bands."],
+    ["Avisos y emergencias", "Alerts and emergencies",
+     "Ventanas de emergencia (SOS, socorro AIS, hombre caído) y avisos oficiales: meteorología, terremotos, tsunamis y tiempo espacial.",
+     "Emergency pop-ups (SOS, AIS distress, man down) and official alerts: weather, earthquakes, tsunamis and space weather."],
+    ["Bluetooth y WiFi", "Bluetooth and WiFi",
+     "Control completo por Bluetooth con PIN, KISS por TCP para APRSDroid, Xastir o YAAC, y CAT compatible con Hamlib.",
+     "Full control over Bluetooth with a PIN, KISS over TCP for APRSDroid, Xastir or YAAC, and Hamlib-compatible CAT."],
+    ["Región IARU automática", "Automatic IARU region",
+     "Deduce la región por el GPS y ajusta canales y frecuencias de cada modo.",
+     "Works out the region from GPS and sets each mode's channels and frequencies."],
+    ["Instalar y actualizar", "Install and update",
+     "Instalador web por USB que reconoce la placa, actualización desde la WebUI y desde la app por Bluetooth.",
+     "USB web installer that detects the board, updates from the WebUI and from the app over Bluetooth."],
+];
+const BOARDS = ["LilyGO T-Beam S3 Supreme", "LilyGO T-Beam v1.x / 1W", "LilyGO T-Deck / T-Deck Plus", "LilyGO T-TWR Plus (FM)", "LilyGO T3 / T3S3", "TTGO LoRa32",
+                "Heltec Wireless Tracker", "Heltec V2 / V3", "Heltec Wireless Stick Lite V3", "LightTracker Plus", "MeshCom", "ESP32-C3", "DIY SX127x / E22 / E220"];
+const DOCS = [
+    ["Guía rápida", "Quick guide", "docs/GUIA_RAPIDA.md", "docs/QUICK_GUIDE_EN.md"],
+    ["Manual de usuario", "User manual", "docs/MANUAL_USUARIO.md", "docs/USER_MANUAL_EN.md"],
+    ["Modos de funcionamiento", "Operating modes", "docs/MODOS.md", "docs/MODOS.md"],
+    ["LilyGO T-TWR Plus", "LilyGO T-TWR Plus", "docs/T_TWR.md", "docs/T_TWR.md"],
+    ["Modo satélite", "Satellite mode", "docs/SAT_MODE.md", "docs/SAT_MODE.md"],
+    ["Novedades de cada versión", "What's new in each version", "CHANGELOG.md", "CHANGELOG.md"],
+];
+// [modo, modulacion, envia ES, envia EN, ritmo ES, ritmo EN, frecuencia ES, frecuencia EN, recibe ES, recibe EN, destacada]
+const BCN = [
+    ["CW", "Morse",
+     "Texto con indicativo, locator y tensión: <span class=\"mono\">DE EA7JRS/B IM67NG V4.1</span>", "Text with callsign, locator and voltage: <span class=\"mono\">DE EA7JRS/B IM67NG V4.1</span>",
+     "Cada 1 a 240 min", "Every 1 to 240 min",
+     "La del perfil CW (432,050 MHz)", "The CW profile's (432.050 MHz)",
+     "Cualquier receptor de CW, skimmers y la app", "Any CW receiver, skimmers and the app"],
+    ["WSPR", "4-FSK · 1,46 Bd",
+     "Indicativo, locator de 4 y potencia (tipo 1)", "Callsign, 4-char locator and power (type 1)",
+     "110,6 s en minuto par, cada 2 a 60 min", "110.6 s on an even minute, every 2 to 60 min",
+     "432,3015 MHz (dial 432,300 USB)", "432.3015 MHz (dial 432.300 USB)",
+     "WSJT-X y la app, spots en WSPRnet", "WSJT-X and the app, spots on WSPRnet"],
+    ["FST4W", "4-GFSK",
+     "El mismo mensaje que WSPR, con más sensibilidad", "The same message as WSPR, with more sensitivity",
+     "Periodos de 120 s o 300 s", "120 s or 300 s periods",
+     "La que elijas (sin valor de serie)", "Your choice (no default)",
+     "WSJT-X y la app, spots en WSPRnet", "WSJT-X and the app, spots on WSPRnet"],
+    ["FT8", "8-GFSK",
+     "<span class=\"mono\">CQ EA7JRS IM67</span> o texto libre", "<span class=\"mono\">CQ EA7JRS IM67</span> or free text",
+     "Ranuras de 15 s, emisión de 12,6 s", "15 s slots, 12.6 s transmission",
+     "Dial 432,174 MHz", "Dial 432.174 MHz",
+     "WSJT-X y la app, spots en PSK Reporter", "WSJT-X and the app, spots on PSK Reporter"],
+    ["FT4", "4-GFSK",
+     "<span class=\"mono\">CQ EA7JRS IM67</span> o texto libre", "<span class=\"mono\">CQ EA7JRS IM67</span> or free text",
+     "Ranuras de 7,5 s, emisión de 5 s", "7.5 s slots, 5 s transmission",
+     "La que elijas (sin valor de serie)", "Your choice (no default)",
+     "WSJT-X y la app, spots en PSK Reporter", "WSJT-X and the app, spots on PSK Reporter"],
+    ["LR-FHSS", "Saltos de frecuencia", 
+     "<span class=\"mono\">PB1 EA7JRS IM67NG 14</span>", "<span class=\"mono\">PB1 EA7JRS IM67NG 14</span>",
+     "≈ 2 s, cada 2 a 60 min", "≈ 2 s, every 2 to 60 min",
+     "434,000 MHz, 39 kHz de ancho", "434.000 MHz, 39 kHz wide",
+     "La app APRS LoRa+ con un SDR", "The APRS LoRa+ app with an SDR", true],
+];
+// [clase, etiqueta ES, etiqueta EN, titulo ES, titulo EN, puntos ES, puntos EN]
+const EMG = [
+    ["", "Pedir ayuda", "Call for help", "Baliza SOS", "SOS beacon",
+     ["5 pulsaciones o <b>SOS en morse</b> con el botón; 5 s de cuenta atrás para cancelar.",
+      "Envía una baliza <b>Mic-E Emergency</b> (el estándar APRS) y otra con «EMERGENCY SOS» para quien no lea Mic-E.",
+      "Se repite cada 30 s con el GPS encendido hasta que la canceles."],
+     ["5 presses or <b>SOS in Morse</b> on the button; a 5 s countdown to cancel.",
+      "Sends a <b>Mic-E Emergency</b> beacon (the APRS standard) plus one with \"EMERGENCY SOS\" for receivers that don't read Mic-E.",
+      "Repeats every 30 s with the GPS on until you cancel it."]],
+    ["", "Lo que oyes", "What you hear", "Alarma de emergencia", "Emergency alarm",
+     ["Salta con una baliza Mic-E Emergency o con <b>SOS</b>, <b>EMERGENCY</b>, <b>MAYDAY</b>, <b>MOB</b> o <b>MAN OVERBOARD</b> en un mensaje o comentario.",
+      "También con el socorro y el riesgo de colisión AIS de las placas que lo reciben.",
+      "Sirena, LED, distancia, rumbo y GO TO hacia la estación."],
+     ["Triggered by a Mic-E Emergency beacon or by <b>SOS</b>, <b>EMERGENCY</b>, <b>MAYDAY</b>, <b>MOB</b> or <b>MAN OVERBOARD</b> in a message or comment.",
+      "Also by AIS distress and collision risk on boards that receive AIS.",
+      "Siren, LED, distance, bearing and GO TO towards the station."]],
+    ["", "A distancia", "Remote", "Emergencia remota (EAI)", "Remote emergency (EAI)",
+     ["Al estilo EAI de Yaesu: un mensaje <span class=\"mono\">EAI &lt;código&gt;</span> desde un indicativo autorizado inicia la baliza SOS del tracker durante 1 a 50 minutos.",
+      "Útil si quien lleva el tracker no puede pulsar el botón.",
+      "<span class=\"mono\">EAI STOP &lt;código&gt;</span> la termina. Apagada de serie; probada en placa."],
+     ["Like Yaesu's EAI: a <span class=\"mono\">EAI &lt;code&gt;</span> message from an authorised callsign starts the tracker's SOS beacon for 1 to 50 minutes.",
+      "Useful when whoever carries the tracker can't press the button.",
+      "<span class=\"mono\">EAI STOP &lt;code&gt;</span> ends it. Off by default; tested on a board."]],
+    ["", "Grupo", "Group", "Vigilancia de grupo", "Group watch",
+     ["Hasta 5 indicativos, como el ARTS de Yaesu: avisa cuando alguien entra o sale de alcance.",
+      "Radar con la posición de cada miembro, GO TO y mensajes rápidos a todo el grupo.",
+      "En la T-TWR Plus, además, EAI de voz y aviso de hombre caído en FM."],
+     ["Up to 5 callsigns, like Yaesu's ARTS: warns when someone comes into or goes out of range.",
+      "Radar with each member's position, GO TO and quick messages to the whole group.",
+      "On the T-TWR Plus, also voice EAI and a man-down alert in FM."]],
+    ["wx", "Avisos oficiales", "Official alerts", "Meteorología y desastres", "Weather and hazards",
+     ["<b>AEMET</b>, <b>MeteoAlarm</b> y el <b>NWS</b> de EE. UU.; tsunamis (<b>tsunami.gov</b>); terremotos (<b>USGS</b> y <b>EMSC</b>); tiempo espacial (<b>SWPC</b>).",
+      "Los descarga la app con el internet del móvil y los pasa al tracker: ventana del color del nivel, zumbador desde el nivel que elijas y lector de avisos.",
+      "La T-TWR Plus decodifica además <b>NOAA Weather Radio (SAME)</b> en 162,400–162,550 MHz."],
+     ["<b>AEMET</b>, <b>MeteoAlarm</b> and the US <b>NWS</b>; tsunamis (<b>tsunami.gov</b>); earthquakes (<b>USGS</b> and <b>EMSC</b>); space weather (<b>SWPC</b>).",
+      "The app downloads them over the phone's internet and passes them to the tracker: a window in the level's colour, buzzer from the level you choose, and an alert reader.",
+      "The T-TWR Plus also decodes <b>NOAA Weather Radio (SAME)</b> on 162.400–162.550 MHz."]],
+];
+// Capturas (simulacion de la pantalla TFT de 160x80): [archivo, pie ES, pie EN]
+const SHOTS = {
+    feat: [["main", "MAIN: indicativo, hora, posición y la última estación oída", "MAIN: callsign, time, position and last station heard"],
+           ["last", "LAST APRS con el icono a color de la estación", "LAST APRS with the station's colour icon"],
+           ["compass", "GO TO: brújula hacia una estación", "GO TO: compass towards a station"],
+           ["msg", "Mensaje recibido sobre cualquier página", "Message received over any page"],
+           ["sun", "Salida y puesta del sol", "Sunrise and sunset"],
+           ["moon", "Fase de la luna", "Moon phase"]],
+    bcn:  [["lrf", "Baliza LR-FHSS esperando su ranura", "LR-FHSS beacon waiting for its slot"],
+           ["wspr", "Baliza WSPR en 432,3015 MHz", "WSPR beacon on 432.3015 MHz"],
+           ["ft8", "Baliza FT8 en 432,174 MHz", "FT8 beacon on 432.174 MHz"]],
+    cw:   [["cw", "Manipulando con paletas (IB 18 WPM): texto y letra en curso", "Keying with paddles (IB 18 WPM): text and current letter"],
+           ["cwrx", "Escucha CW por RF con S-meter, SNR y silenciador", "CW listening over RF with S-meter, SNR and squelch"]],
+    emg:  [["sos", "Emergencia APRS recibida, con distancia y rumbo", "APRS emergency received, with distance and bearing"],
+           ["mob", "Hombre caído: cuenta atrás antes de pedir ayuda", "Man down: countdown before calling for help"],
+           ["ais", "Riesgo de colisión AIS", "AIS collision risk"],
+           ["wx", "Aviso naranja de AEMET para tu zona", "AEMET orange warning for your area"],
+           ["wxlist", "Avisos en vigor, el más grave primero", "Active warnings, most severe first"]],
+};
+// [pregunta ES, pregunta EN, respuesta ES, respuesta EN]
+const FAQ = [
+    ["¿Necesito licencia?", "Do I need a licence?",
+     "Para transmitir, sí: LoRa APRS usa bandas de radioaficionado y cada trama lleva tu indicativo. Para escuchar, no. La app comprueba el indicativo en RadioID.net y, sin validarlo, solo escucha.",
+     "To transmit, yes: LoRa APRS uses amateur bands and every frame carries your callsign. To listen, no. The app checks the callsign on RadioID.net and, until it is validated, only listens."],
+    ["¿Es lo mismo que LoRaWAN o Meshtastic?", "Is it the same as LoRaWAN or Meshtastic?",
+     "No. Usan la misma modulación, pero LoRaWAN es una red de sensores con pasarelas, servidores y cifrado, en otras frecuencias, y Meshtastic es una red de mensajería cifrada. LoRa APRS es APRS de radioaficionado: sin cifrar, con indicativo, en 70 cm. No se entienden entre sí.",
+     "No. They use the same modulation, but LoRaWAN is a sensor network with gateways, servers and encryption on other frequencies, and Meshtastic is an encrypted messaging mesh. LoRa APRS is amateur APRS: unencrypted, with callsigns, on 70 cm. They cannot talk to each other."],
+    ["¿Por qué no me ve aprs.fi?", "Why doesn't aprs.fi show me?",
+     "aprs.fi solo muestra lo que llega a APRS-IS, y a APRS-IS solo llega lo que oye un iGate. Si no hay ninguno a tu alcance con el mismo perfil, tu baliza sale al aire pero no aparece en el mapa. Mira en aprs.fi qué iGates LoRa hay cerca, o monta uno.",
+     "aprs.fi only shows what reaches APRS-IS, and only what an iGate hears reaches APRS-IS. If there is none in range on the same profile, your beacon goes out but doesn't show on the map. Check aprs.fi for LoRa iGates near you, or set one up."],
+    ["¿Puedo hablar con las emisoras APRS de VHF?", "Can I talk to VHF APRS radios?",
+     "No directamente: LoRa y AFSK 1200 son modulaciones distintas. Los mensajes pasan de una red a otra por APRS-IS. La LilyGO T-TWR Plus emite APRS AFSK 1200 en VHF con su radio FM, así que con ella sí.",
+     "Not directly: LoRa and 1200 AFSK are different modulations. Messages cross between networks through APRS-IS. The LilyGO T-TWR Plus sends APRS AFSK 1200 on VHF with its FM radio, so with that board you can."],
+    ["¿Merece la pena un amplificador?", "Is an amplifier worth it?",
+     "Casi nunca. LoRa ya trabaja por debajo del ruido; lo que más se nota es la antena y su altura. Más potencia ocupa el canal a más estaciones y, en muchos sitios, supera lo que permite la licencia o el plan de bandas.",
+     "Rarely. LoRa already works below the noise; what makes the difference is the antenna and its height. More power occupies the channel for more stations and, in many places, exceeds what the licence or band plan allows."],
+    ["¿Qué placa compro?", "Which board should I buy?",
+     "Para empezar, una con GPS y pantalla, como la LilyGO T-Beam S3 Supreme o la Heltec Wireless Tracker. Asegúrate de pedir la versión de 433 MHz (o la de 868/915 si vas a usar esas bandas) y una antena para esa banda.",
+     "To start, one with GPS and a screen, such as the LilyGO T-Beam S3 Supreme or the Heltec Wireless Tracker. Make sure you order the 433 MHz version (or 868/915 if you will use those bands) and an antenna for that band."],
+    ["¿Funciona con APRSDroid y otros programas?", "Does it work with APRSDroid and other software?",
+     "Sí. El tracker ofrece KISS por Bluetooth y por WiFi (TCP), que usan APRSDroid, Xastir, YAAC y otros. Para controlarlo todo está la app APRS LoRa+ para Android.",
+     "Yes. The tracker offers KISS over Bluetooth and WiFi (TCP), used by APRSDroid, Xastir, YAAC and others. To control everything there is the APRS LoRa+ Android app."],
+    ["¿Puedo usar mi placa con otro firmware después?", "Can I use my board with another firmware later?",
+     "Sí. Instalar APRS LoRa+ no bloquea nada: puedes volver al firmware CA2RXU u otro cuando quieras con su instalador.",
+     "Yes. Installing APRS LoRa+ locks nothing: you can go back to the CA2RXU firmware or another one at any time with its installer."],
+];
+const T = {
+    es: {
+        nBcn: "Balizas",
+        bcnK: "Propagación", bcnT: "Modos de baliza",
+        bcnL: "Además de APRS, el tracker puede trabajar como <b>baliza de propagación</b> en 70 cm, con la hora del GPS para caer en su ranura. Cada modo se elige en SELECT MODE al arrancar y emite solo lo suyo. WSPR, FT8, FT4, FST4W y LR-FHSS necesitan una placa con <b>SX1262 o SX1268</b>; la CW, cualquier placa que la admita.",
+        bSend: "Envía", bSlot: "Ritmo", bFreq: "Frecuencia", bRx: "Se recibe con",
+        lrfT: "Baliza LR-FHSS", lrfPill: "Exclusiva de APRS LoRa+",
+        lrfP1: "LR-FHSS (<i>Long Range – Frequency Hopping Spread Spectrum</i>) es la modulación de Semtech pensada para enlaces de sensores y satélites: el mensaje se reparte en <b>fragmentos muy cortos que saltan de frecuencia</b> dentro de un canal estrecho, con una corrección de errores fuerte que lo recompone aunque se pierdan varios fragmentos.",
+        lrfP2: "APRS LoRa+ la usa como baliza de propagación de radioaficionado: el SX1262 emite <span class=\"mono\">PB1 EA7JRS IM67NG 14</span> (indicativo, locator y potencia) y cualquiera con un receptor SDR y la app puede oírla, situarla en el mapa y medir hasta dónde llega. La app la ha decodificado ya en una grabación real de un tracker.",
+        hopHdr: "cabecera (3 copias)", hopFrag: "fragmentos de datos",
+        hopCap: "Así se ve una baliza en el tiempo y la frecuencia: tres copias de la cabecera y los fragmentos de datos, cada uno en un salto distinto dentro de unos 39 kHz.",
+        lrfTxT: "En el tracker",
+        lt1: "434,000 MHz (centro de experimentos digitales del plan IARU R1), 39 kHz de ancho y código 1/3, el más robusto.",
+        lt2: "Una baliza cada 2 a 60 minutos (10 por defecto), de unos 2 segundos, en una ranura fijada por la hora GPS.",
+        lt3: "Locator de 4, 6 u 8 caracteres. Con 8 la posición se conoce a pocos metros: úsalo solo si quieres.",
+        lt4: "El firmware no emite fuera de 430–440 MHz, ni en el segmento de señales débiles (432,0–432,5 MHz) ni en el de satélites (435–438 MHz). Apagada de serie.",
+        lrfRxT: "En la app",
+        lr1: "Decodificador propio en el móvil con un receptor RTL-SDR por OTG o un rtl_tcp de la red, o a partir de grabaciones I/Q de SDRconnect, SDR++ y otros.",
+        lr2: "Lista de balizas oídas con distancia y rumbo, mapa con el camino de cada una, y apuntar el rotor.",
+        lr3: "Spot al DX cluster, a mano o automático (<span class=\"mono\">DX 434000.0 EA7JRS LR-FHSS IM67NG 14dBm</span>), junto con las de WSPR, FST4W, FT8, FT4 y CW.",
+        bcnNote: "<b>Antes de emitir:</b> elige frecuencias que permitan el plan de bandas de tu región y la normativa de tu país (la WebUI avisa si el segmento es de balizas, repetidores o voz). WSPR y FST4W solo se decodifican a ±100 Hz del centro: calibra la placa con <i>Tune carrier</i> y un SDR. Pon un filtro paso bajo de 70 cm. Estos modos son nuevos y en su mayoría están sin probar en todas las placas.",
+        cwT: "Telegrafía con tu llave", 
+        cwL: "En el modo <b>MORSE / CW</b> el tracker es un pequeño transceptor de CW en 70 cm: conectas tu manipulador, el SX1262 emite la portadora manipulada (A1A) en la frecuencia del perfil y la pantalla va decodificando lo que envías.",
+        cwKeyT: "Conecta la llave",
+        cwKeyP: "Un jack de 3,5 mm a dos GPIO libres de la placa, que se eligen en la WebUI (<i>CW / Morse</i>). Valen la <b>llave vertical</b> (solo la punta) y el <b>manipulador de paletas</b> con keyer <b>iámbico A o B</b> y memoria de paletas; <i>Swap paddles</i> intercambia punto y raya para zurdos. Probado con manipuladores reales de los dos tipos.",
+        jT: "punta", jR: "anillo", jS: "malla", jTp: "punto / llave", jRp: "raya",
+        jCap: "Contactos a masa; los pines llevan pull-up interno. −1 = sin manipulador.",
+        cwDevT: "Qué hace el tracker",
+        cd1: "<b>Emisión en directo</b> mientras manipulas, con <b>tono local</b> de 700 Hz en el zumbador.",
+        cd2: "<b>Decodificador adaptativo</b>: ves en pantalla el texto, la letra en curso en puntos y rayas, el tipo de llave y los WPM.",
+        cd3: "<b>Macros 1–5</b> desde el submenú o con un <b>teclado Yaesu FH-2</b> conectado a un pin analógico.",
+        cd4: "<b>Escucha CW por RF</b> con S-meter, nivel en dBm, SNR y silenciador: decodifica portadoras manipuladas cerca de la frecuencia del perfil.",
+        cd5: "<b>Baliza CW</b> automática con indicativo, locator y tensión de la batería.",
+        cd6: "<b>Entrenador Koch</b> para aprender: escuchar grupos de 5 caracteres o teclear el que sale en pantalla (no emite).",
+        cwAppT: "O manipula desde el móvil",
+        cwAppP: "La app APRS LoRa+ hace de keyer iámbico A/B con tono local en el móvil y manda la manipulación al tracker por Bluetooth. Admite:",
+        ca1: "Adaptadores de tipo teclado <b>VBand</b> y <b>Vail</b> (Ctrl izquierdo / <span class=\"mono\">[</span> = punto, Ctrl derecho / <span class=\"mono\">]</span> = raya).",
+        ca2: "Adaptadores <b>MIDI</b> de Vail, con el elemento ya temporizado o paleta a paleta.",
+        ca3: "Tu llave por un adaptador <b>serie USB</b>, eligiendo qué línea (DSR, CTS, CD o RI) es punto y cuál raya.",
+        cwRemT: "Dos maneras de enviarlo",
+        cr1: "<b>Tiempo real:</b> el tracker reproduce tu manipulación con un retardo fijo (150 ms) que absorbe las variaciones del Bluetooth, así el ritmo sale limpio.",
+        cr2: "<b>Texto:</b> el móvil decodifica lo que manipulas y manda palabras enteras, que el tracker emite a la velocidad configurada.",
+        cr3: "La app también recibe lo que oye la escucha CW del tracker y puede publicar spots de CW.",
+        emK: "Seguridad", emT: "Avisos de emergencia",
+        emL: "APRS nació para dar información táctica en situaciones reales, y APRS LoRa+ lo aprovecha: puedes pedir ayuda con el botón, el tracker te avisa cuando alguien la pide cerca de ti y recibe los avisos oficiales de meteorología, terremotos o tsunamis.",
+        emNetT: "En todo el ecosistema",
+        en1: "La <b>app</b> abre una ventana de emergencia sobre cualquier pantalla, con la alarma del móvil, vibración y linterna, y desde ella se calla también el tracker, se para la EAI o se responde <i>I'M OK</i>.",
+        en2: "En <b>Android Auto</b> cada alerta llega como conversación: el coche la lee en voz alta y se puede contestar a la estación por voz.",
+        en3: "<b>APRS LoRa+ Display</b> y el <b>plotter náutico</b> muestran las mismas ventanas, y el plotter añade colisión AIS, garreo del ancla y hombre al agua.",
+        en4: "<b>sat-aprs</b> es una estación de avisos para un PC con Debian que reúne fuentes oficiales y de radio y las difunde por APRS.",
+        emAlarmT: "Cuando salta una alarma",
+        emAlarmP: "La pantalla se enciende, suena una sirena, parpadea el LED y aparece el indicativo en grande con el texto, la <b>distancia y el rumbo</b> hasta la estación y la antigüedad de su posición. Con una pulsación larga se abre <b>GO TO</b>, una brújula que apunta hacia ella. La misma estación no vuelve a sonar hasta pasados 10 minutos.",
+        emNote: "<b>Importante:</b> son ayudas entre radioaficionados y no sustituyen al <b>112</b> ni a los servicios de salvamento. La baliza SOS no se ha probado aún con la radio real en todas las placas: pruébala antes con otro equipo cerca y avisando a quien escuche.",
+        shotNote: "Las imágenes reproducen la pantalla en color de 160 × 80 píxeles (Heltec Wireless Tracker) con datos de ejemplo; la disposición es la del firmware.",
+        thAuto: "Auto", thLight: "Claro", thDark: "Oscuro", thTip: "Tema: automático (el del sistema), claro u oscuro",
+        nFaq: "Preguntas",
+        basics: "Lo básico", aprsT: "¿Qué es APRS?",
+        aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) es un sistema de radioaficionados para compartir en tiempo real información táctica: posiciones, mensajes cortos, estado de las estaciones, meteorología, objetos y avisos. Lo creó <b>Bob Bruninga, WB4APR</b>, a principios de los años 90.",
+        aprsP2: "Cada estación emite de vez en cuando una <b>baliza</b> con su indicativo, su posición y un símbolo. Las estaciones cercanas la reciben directamente; los <b>digipetidores</b> la repiten para que llegue más lejos, y los <b>iGates</b> la pasan a internet (red APRS-IS), donde se ve en mapas como aprs.fi.",
+        aprsP3: "El APRS clásico funciona en VHF con AFSK a 1200 baudios (144,800 MHz en Europa, 144,390 MHz en Norteamérica). <b>LoRa APRS</b> lleva la misma idea a la modulación LoRa en 70 cm: equipos pequeños, baratos y de poco consumo que llegan lejos con muy poca potencia.",
+        licence: "<b>Necesitas licencia de radioaficionado.</b> Todo lo que emite APRS LoRa+ lleva tu indicativo y usa bandas de aficionado. Sin licencia, el equipo y la app pueden escuchar, pero no transmitir.",
+        loraT: "¿Qué es LoRa?",
+        loraP1: "LoRa (<i>Long Range</i>) es una modulación de Semtech pensada para enviar pocos datos muy lejos gastando muy poca energía. Los chips SX127x, SX126x y LLCC68 que llevan las placas de este proyecto la generan y la reciben sin más componentes.",
+        cssT: "Modulación por chirp (CSS)",
+        cssP: "LoRa transmite <b>chirps</b>: barridos de frecuencia que recorren todo el ancho de banda. Cada símbolo es el mismo barrido empezado en un punto distinto, y ese punto de partida es el dato. El receptor «deshace» el barrido y concentra toda la energía del símbolo en una sola frecuencia, por eso puede decodificar señales que están <b>por debajo del ruido</b> y resiste bien el desvanecimiento, el efecto Doppler y las interferencias estrechas.",
+        svgSig: "señal", svgTime: "tiempo", svgSym: "1 símbolo",
+        chirpCap: "Arriba, un chirp ascendente. Abajo, cuatro símbolos: el mismo barrido empieza en una frecuencia distinta y, al llegar al final de la banda, vuelve al principio.",
+        paramT: "Tres parámetros que deciden alcance y velocidad",
+        pSF: "<b>SF, factor de ensanchado</b> (7 a 12): cuánto dura cada chirp. Cada paso hacia arriba duplica el tiempo del símbolo, gana unos 2,5 dB de sensibilidad y reduce la velocidad casi a la mitad.",
+        pBW: "<b>BW, ancho de banda</b> (125 kHz en LoRa APRS): más ancho es más rápido; más estrecho, más sensible pero más exigente con la precisión del cristal.",
+        pCR: "<b>CR, corrección de errores</b> (4/5 a 4/8): más redundancia recupera más errores, a costa de tiempo en el aire.",
+        advT: "Por qué funciona tan bien para APRS",
+        a1: "Decenas de kilómetros con 100 mW cuando hay visibilidad, y mucho más desde un monte o una antena alta.",
+        a2: "Sensibilidad de hasta unos −137 dBm con SF12 y 125 kHz: señales hasta 20 dB por debajo del ruido.",
+        a3: "Consumo bajo: un tracker funciona días con una batería 18650.",
+        a4: "Placas completas (radio, GPS, pantalla y batería) por poco dinero, y firmware abierto.",
+        laL: "LoRa APRS es APRS sobre LoRa. Las tramas viajan como texto en el formato habitual de APRS-IS (<span class=\"mono\">EA7JRS-7&gt;APZLRT,WIDE1-1:!3723.48N/00559.12W&gt;…</span>) precedido de una cabecera corta de 3 bytes, en lugar de AX.25 binario como en VHF.",
+        laHowT: "Cómo se organiza la red",
+        laHow: "Igual que en VHF: <b>trackers</b> que balizan su posición, <b>digipetidores</b> en sitios altos que repiten lo que oyen y <b>iGates</b> que suben las tramas a APRS-IS. Así una baliza LoRa aparece en aprs.fi y se puede mandar un mensaje desde internet a un tracker que esté al alcance de un iGate.",
+        laNetT: "Lo que hay que tener en cuenta",
+        laNet: "Es lento: con SF12 una baliza ocupa el canal unos 2 o 3 segundos y todas las estaciones comparten una sola frecuencia, así que las balizas demasiado frecuentes llenan el canal. Además no es compatible con las emisoras APRS de VHF: los dos mundos se unen a través de APRS-IS o de pasarelas que hablen los dos.",
+        stdT: "Perfiles de la red",
+        stdProf: "Perfil", stdFreq: "Frecuencia", stdRate: "Velocidad", stdToa: "Tiempo en el aire*",
+        profEU: "Europa y la mayor parte del mundo", profPL: "Polonia (rápido)", profUK: "Reino Unido", profUS: "EE. UU. (banda de 33 cm)",
+        stdNote: "* Para una baliza típica de 60 bytes. Las estaciones solo se oyen entre sí si usan el mismo perfil: frecuencia, SF, BW y CR iguales. APRS LoRa+ trae estos perfiles y los demás de la base y se pueden cambiar desde la pantalla, la WebUI o la app. Consulta el plan de bandas de tu región y la normativa de tu país.",
+        plusT: "Más que LoRa APRS",
+        plusP: "APRS LoRa+ mantiene la compatibilidad con la red LoRa APRS y añade otros modos en las mismas placas: <b>APRS FSK 9600</b> (G3RUH) con los chips LoRa, <b>APRS AFSK 1200</b> en 144,800 MHz con la radio FM de la T-TWR Plus (compatible con el APRS de VHF de siempre), balizas <b>CW, WSPR, FT8, FT4 y FST4W</b>, <b>M17</b>, recepción <b>DAPNET</b> y seguimiento de <b>satélites</b>.",
+        goodT: "Buenas prácticas",
+        g1: "<b>Baliza con cabeza:</b> SmartBeacon en movimiento y cada 15–30 minutos parado. Una estación fija no necesita más.",
+        g2: "<b>Camino corto:</b> <span class=\"mono\">WIDE1-1</span> o ninguno. Los digipetidores LoRa están en sitios altos; más saltos solo llenan el canal.",
+        g3: "<b>Antena antes que potencia:</b> una buena antena, bien alta, gana más que un amplificador y no satura el canal a los demás.",
+        g4: "<b>Usa el SSID que toca:</b> -7 de mano, -9 en el coche, -10 iGate… y un símbolo que se corresponda.",
+        g5: "<b>Mensajes cortos:</b> el tiempo en el aire es de todos.",
+        faqT: "Preguntas frecuentes", faqL: "Lo que se suele preguntar al empezar con LoRa APRS y con este proyecto.",
+        nEco: "Ecosistema", nFeat: "Funciones", nBoards: "Placas", nInstall: "Instalar", nDocs: "Documentación",
+        claim: "Firmware APRS para placas ESP32 con LoRa o FM, y un ecosistema de equipos que trabajan juntos: app Android, pantallas, rotor, plotter náutico y pasarelas. Para radioaficionados con licencia.",
+        ctaInstall: "Instalar en tu placa", ctaCode: "Código en GitHub", ctaEco: "Ver el ecosistema", verLabel: "Última versión:",
+        ecoT: "Ecosistema", ecoL: "Todos los equipos usan la misma versión y se instalan desde el mismo instalador web. La app Android puede controlarlos y mostrar todos sus datos.",
+        st_ok: "Disponible", st_dev: "En desarrollo", st_soon: "Próximamente", code: "Código", inInstaller: "En el instalador web",
+        featT: "Funciones del tracker", featL: "Una ampliación del firmware CA2RXU LoRa APRS Tracker con nuevos modos de radio, interfaz, mensajería y conexión con el resto del ecosistema.",
+        boardsT: "Placas", boardsL: "Conserva todas las placas de la base y añade la LilyGO T-TWR Plus. No todos los modos están en todos los chips de radio:",
+        mode: "Modo", rowAfsk: "APRS AFSK 1200 · M17 · FM de voz · AIS",
+        instT: "Instalar", instL: "Desde el navegador, sin programas: el instalador reconoce la placa y la versión que tiene.",
+        st1: "Conecta la placa", st1p: "Por USB, con Chrome o Edge en un ordenador (necesitan Web Serial).",
+        st2: "Elige el equipo", st2p: "Tracker, Rotor, Display, Náutica… El instalador detecta la placa o la eliges de la lista.",
+        st3: "Instala y configura", st3p: "Al terminar, configura el indicativo y el resto en la WebUI del equipo o desde la app.",
+        docsT: "Documentación", docsL: "Manuales en español e inglés, y notas técnicas de cada función.",
+        stateT: "Estado del proyecto.", stateP: "En desarrollo activo. Se prueba en las placas del autor, pero muchas funciones nuevas aún no se han verificado en todas las placas; la documentación indica qué está probado. Si lo pruebas, cuéntalo en un issue de GitHub.",
+        authorP: "Manuel, radioaficionado. APRS LoRa+ nace para operar en portable, desde el coche y desde el barco.",
+        donate: "Invítame a un café · PayPal",
+        base: "Basado en CA2RXU LoRa APRS Tracker (Ricardo Guzman, CA2RXU)", privacy: "Privacidad", other: "English",
+    },
+    en: {
+        nBcn: "Beacons",
+        bcnK: "Propagation", bcnT: "Beacon modes",
+        bcnL: "Besides APRS, the tracker can work as a <b>propagation beacon</b> on 70 cm, using GPS time to hit its slot. Each mode is chosen in SELECT MODE at start-up and sends only its own signal. WSPR, FT8, FT4, FST4W and LR-FHSS need a board with an <b>SX1262 or SX1268</b>; CW works on any board that supports it.",
+        bSend: "Sends", bSlot: "Timing", bFreq: "Frequency", bRx: "Received with",
+        lrfT: "LR-FHSS beacon", lrfPill: "Only in APRS LoRa+",
+        lrfP1: "LR-FHSS (<i>Long Range – Frequency Hopping Spread Spectrum</i>) is Semtech's modulation for sensor and satellite links: the message is split into <b>very short fragments that hop in frequency</b> inside a narrow channel, with strong error correction that rebuilds it even when several fragments are lost.",
+        lrfP2: "APRS LoRa+ uses it as an amateur propagation beacon: the SX1262 sends <span class=\"mono\">PB1 EA7JRS IM67NG 14</span> (callsign, locator and power) and anyone with an SDR receiver and the app can hear it, put it on the map and measure how far it gets. The app has already decoded it from a real recording of a tracker.",
+        hopHdr: "header (3 copies)", hopFrag: "data fragments",
+        hopCap: "A beacon in time and frequency: three copies of the header and the data fragments, each on a different hop within about 39 kHz.",
+        lrfTxT: "On the tracker",
+        lt1: "434.000 MHz (the IARU R1 digital experiments centre), 39 kHz wide and rate-1/3 coding, the most robust.",
+        lt2: "One beacon every 2 to 60 minutes (10 by default), about 2 seconds long, in a slot set by GPS time.",
+        lt3: "4, 6 or 8-character locator. With 8 your position is known to a few metres: use it only if you want to.",
+        lt4: "The firmware will not transmit outside 430–440 MHz, in the weak-signal segment (432.0–432.5 MHz) or in the satellite segment (435–438 MHz). Off by default.",
+        lrfRxT: "In the app",
+        lr1: "Its own decoder on the phone with an RTL-SDR receiver over OTG or an rtl_tcp server on the network, or from I/Q recordings from SDRconnect, SDR++ and others.",
+        lr2: "List of heard beacons with distance and bearing, a map with each path, and rotator pointing.",
+        lr3: "Spots to the DX cluster, by hand or automatically (<span class=\"mono\">DX 434000.0 EA7JRS LR-FHSS IM67NG 14dBm</span>), together with WSPR, FST4W, FT8, FT4 and CW.",
+        bcnNote: "<b>Before you transmit:</b> pick frequencies your region's band plan and your country's rules allow (the WebUI warns if a segment is for beacons, repeaters or voice). WSPR and FST4W only decode within ±100 Hz of centre: calibrate the board with <i>Tune carrier</i> and an SDR. Fit a 70 cm low-pass filter. These modes are new and mostly untested on every board.",
+        cwT: "Telegraphy with your key",
+        cwL: "In <b>MORSE / CW</b> mode the tracker becomes a small 70 cm CW transceiver: plug in your key, the SX1262 sends the keyed carrier (A1A) on the profile frequency and the screen decodes what you send.",
+        cwKeyT: "Connect the key",
+        cwKeyP: "A 3.5 mm jack to two free GPIOs on the board, chosen in the WebUI (<i>CW / Morse</i>). Both a <b>straight key</b> (tip only) and a <b>paddle</b> with an <b>iambic A or B</b> keyer and paddle memory work; <i>Swap paddles</i> swaps dit and dah for left-handers. Tested with real keys of both kinds.",
+        jT: "tip", jR: "ring", jS: "sleeve", jTp: "dit / key", jRp: "dah",
+        jCap: "Contacts to ground; the pins use internal pull-ups. −1 = no key.",
+        cwDevT: "What the tracker does",
+        cd1: "<b>Live transmit</b> while you key, with a 700 Hz <b>sidetone</b> on the buzzer.",
+        cd2: "<b>Adaptive decoder</b>: the screen shows the text, the current letter in dits and dahs, the key type and WPM.",
+        cd3: "<b>Macros 1–5</b> from the submenu or with a <b>Yaesu FH-2 keypad</b> on an analogue pin.",
+        cd4: "<b>CW listening over RF</b> with S-meter, dBm level, SNR and squelch: decodes keyed carriers near the profile frequency.",
+        cd5: "Automatic <b>CW beacon</b> with callsign, locator and battery voltage.",
+        cd6: "<b>Koch trainer</b> to learn: listen to 5-character groups or key the one on screen (no transmission).",
+        cwAppT: "Or key from your phone",
+        cwAppP: "The APRS LoRa+ app works as an iambic A/B keyer with sidetone on the phone and sends the keying to the tracker over Bluetooth. It supports:",
+        ca1: "Keyboard-type adapters from <b>VBand</b> and <b>Vail</b> (left Ctrl / <span class=\"mono\">[</span> = dit, right Ctrl / <span class=\"mono\">]</span> = dah).",
+        ca2: "Vail <b>MIDI</b> adapters, with the element already timed or paddle by paddle.",
+        ca3: "Your own key through a <b>USB serial</b> adapter, choosing which line (DSR, CTS, CD or RI) is dit and which is dah.",
+        cwRemT: "Two ways to send it",
+        cr1: "<b>Real time:</b> the tracker plays back your keying with a fixed 150 ms delay that soaks up Bluetooth jitter, so the timing comes out clean.",
+        cr2: "<b>Text:</b> the phone decodes what you key and sends whole words, which the tracker transmits at the configured speed.",
+        cr3: "The app also receives what the tracker's CW listening hears and can post CW spots.",
+        emK: "Safety", emT: "Emergency alerts",
+        emL: "APRS was born to share tactical information in real situations, and APRS LoRa+ builds on that: you can call for help with the button, the tracker warns you when someone nearby calls for it, and it receives official weather, earthquake and tsunami alerts.",
+        emNetT: "Across the ecosystem",
+        en1: "The <b>app</b> opens an emergency window over any screen, with the phone's alarm, vibration and torch, and from it you can also silence the tracker, stop EAI or answer <i>I'M OK</i>.",
+        en2: "In <b>Android Auto</b> every alert arrives as a conversation: the car reads it aloud and you can reply to the station by voice.",
+        en3: "<b>APRS LoRa+ Display</b> and the <b>marine plotter</b> show the same windows, and the plotter adds AIS collision, anchor drag and man overboard.",
+        en4: "<b>sat-aprs</b> is an alert station for a Debian PC that gathers official and radio sources and broadcasts them over APRS.",
+        emAlarmT: "When an alarm goes off",
+        emAlarmP: "The screen wakes, a siren sounds, the LED flashes and the callsign appears in large type with the text, the <b>distance and bearing</b> to the station and the age of its position. A long press opens <b>GO TO</b>, a compass pointing at it. The same station won't sound again for 10 minutes.",
+        emNote: "<b>Important:</b> these are aids between radio amateurs and do not replace <b>112 / 911</b> or rescue services. The SOS beacon has not yet been tested with the real radio on every board: try it first with another device nearby and warn anyone listening.",
+        shotNote: "The images reproduce the 160 × 80 pixel colour screen (Heltec Wireless Tracker) with sample data; the layout is the firmware's.",
+        thAuto: "Auto", thLight: "Light", thDark: "Dark", thTip: "Theme: automatic (the system's), light or dark",
+        nFaq: "FAQ",
+        basics: "The basics", aprsT: "What is APRS?",
+        aprsP1: "APRS (<i>Automatic Packet Reporting System</i>) is an amateur radio system for sharing tactical information in real time: positions, short messages, station status, weather, objects and alerts. It was created by <b>Bob Bruninga, WB4APR</b>, in the early 1990s.",
+        aprsP2: "Every station sends a <b>beacon</b> now and then with its callsign, position and a symbol. Nearby stations receive it directly; <b>digipeaters</b> repeat it so it travels further, and <b>iGates</b> pass it to the internet (the APRS-IS network), where it shows on maps such as aprs.fi.",
+        aprsP3: "Classic APRS runs on VHF with 1200-baud AFSK (144.800 MHz in Europe, 144.390 MHz in North America). <b>LoRa APRS</b> brings the same idea to LoRa modulation on 70 cm: small, cheap, low-power devices that reach far with very little power.",
+        licence: "<b>You need an amateur radio licence.</b> Everything APRS LoRa+ transmits carries your callsign and uses amateur bands. Without a licence, the device and the app can listen but not transmit.",
+        loraT: "What is LoRa?",
+        loraP1: "LoRa (<i>Long Range</i>) is a Semtech modulation designed to send small amounts of data very far using very little energy. The SX127x, SX126x and LLCC68 chips on this project's boards generate and receive it with no extra parts.",
+        cssT: "Chirp modulation (CSS)",
+        cssP: "LoRa transmits <b>chirps</b>: frequency sweeps across the whole bandwidth. Every symbol is the same sweep started at a different point, and that starting point is the data. The receiver \"undoes\" the sweep and concentrates all the symbol's energy in a single frequency, which is why it can decode signals <b>below the noise</b> and copes well with fading, Doppler and narrow interference.",
+        svgSig: "signal", svgTime: "time", svgSym: "1 symbol",
+        chirpCap: "Top, an up-chirp. Bottom, four symbols: the same sweep starts at a different frequency and, on reaching the top of the band, wraps round to the bottom.",
+        paramT: "Three parameters that set range and speed",
+        pSF: "<b>SF, spreading factor</b> (7 to 12): how long each chirp lasts. Each step up doubles the symbol time, gains about 2.5 dB of sensitivity and roughly halves the speed.",
+        pBW: "<b>BW, bandwidth</b> (125 kHz in LoRa APRS): wider is faster; narrower is more sensitive but needs a more accurate crystal.",
+        pCR: "<b>CR, coding rate</b> (4/5 to 4/8): more redundancy fixes more errors, at the cost of time on air.",
+        advT: "Why it works so well for APRS",
+        a1: "Tens of kilometres with 100 mW when there is line of sight, and much more from a hilltop or a high antenna.",
+        a2: "Sensitivity down to about −137 dBm at SF12 and 125 kHz: signals up to 20 dB below the noise.",
+        a3: "Low consumption: a tracker runs for days on an 18650 cell.",
+        a4: "Complete boards (radio, GPS, screen and battery) for little money, with open firmware.",
+        laL: "LoRa APRS is APRS over LoRa. Frames travel as text in the usual APRS-IS format (<span class=\"mono\">EA7JRS-7&gt;APZLRT,WIDE1-1:!3723.48N/00559.12W&gt;…</span>) after a short 3-byte header, instead of binary AX.25 as on VHF.",
+        laHowT: "How the network is organised",
+        laHow: "Just like on VHF: <b>trackers</b> beacon their position, <b>digipeaters</b> on high sites repeat what they hear and <b>iGates</b> upload frames to APRS-IS. So a LoRa beacon shows up on aprs.fi, and a message sent from the internet can reach a tracker within range of an iGate.",
+        laNetT: "Things to keep in mind",
+        laNet: "It is slow: at SF12 a beacon holds the channel for 2 or 3 seconds and every station shares one frequency, so beacons that are too frequent fill the channel. It is also not compatible with VHF APRS radios: the two worlds meet through APRS-IS or through gateways that speak both.",
+        stdT: "Network profiles",
+        stdProf: "Profile", stdFreq: "Frequency", stdRate: "Rate", stdToa: "Time on air*",
+        profEU: "Europe and most of the world", profPL: "Poland (fast)", profUK: "United Kingdom", profUS: "USA (33 cm band)",
+        stdNote: "* For a typical 60-byte beacon. Stations only hear each other if they use the same profile: same frequency, SF, BW and CR. APRS LoRa+ ships these profiles and the others from the base, and you can switch them from the screen, the WebUI or the app. Check your region's band plan and your country's rules.",
+        plusT: "More than LoRa APRS",
+        plusP: "APRS LoRa+ stays compatible with the LoRa APRS network and adds other modes on the same boards: <b>APRS FSK 9600</b> (G3RUH) on the LoRa chips, <b>APRS AFSK 1200</b> on 144.800 MHz with the T-TWR Plus FM radio (compatible with classic VHF APRS), <b>CW, WSPR, FT8, FT4 and FST4W</b> beacons, <b>M17</b>, <b>DAPNET</b> reception and <b>satellite</b> tracking.",
+        goodT: "Good practice",
+        g1: "<b>Beacon sensibly:</b> SmartBeacon on the move and every 15–30 minutes when parked. A fixed station needs no more.",
+        g2: "<b>Short path:</b> <span class=\"mono\">WIDE1-1</span> or none. LoRa digipeaters sit on high sites; extra hops only fill the channel.",
+        g3: "<b>Antenna before power:</b> a good antenna, mounted high, gains more than an amplifier and doesn't hog the channel.",
+        g4: "<b>Use the right SSID:</b> -7 handheld, -9 car, -10 iGate… and a matching symbol.",
+        g5: "<b>Keep messages short:</b> airtime belongs to everyone.",
+        faqT: "Frequently asked questions", faqL: "What people usually ask when starting with LoRa APRS and with this project.",
+        nEco: "Ecosystem", nFeat: "Features", nBoards: "Boards", nInstall: "Install", nDocs: "Docs",
+        claim: "APRS firmware for ESP32 boards with LoRa or FM, and an ecosystem of devices that work together: Android app, screens, rotator, marine plotter and gateways. For licensed radio amateurs.",
+        ctaInstall: "Install on your board", ctaCode: "Code on GitHub", ctaEco: "See the ecosystem", verLabel: "Latest version:",
+        ecoT: "Ecosystem", ecoL: "All devices share the same version and install from the same web installer. The Android app can control them and show all their data.",
+        st_ok: "Available", st_dev: "In development", st_soon: "Coming soon", code: "Code", inInstaller: "In the web installer",
+        featT: "Tracker features", featL: "An extension of the CA2RXU LoRa APRS Tracker firmware with new radio modes, interface, messaging and links to the rest of the ecosystem.",
+        boardsT: "Boards", boardsL: "Keeps every board of the base and adds the LilyGO T-TWR Plus. Not every mode is available on every radio chip:",
+        mode: "Mode", rowAfsk: "APRS AFSK 1200 · M17 · FM voice · AIS",
+        instT: "Install", instL: "From the browser, no software needed: the installer detects the board and the version it has.",
+        st1: "Connect the board", st1p: "Over USB, with Chrome or Edge on a computer (they need Web Serial).",
+        st2: "Choose the device", st2p: "Tracker, Rotor, Display, Marine… The installer detects the board or you pick it from the list.",
+        st3: "Install and configure", st3p: "When it finishes, set your callsign and the rest in the device's WebUI or from the app.",
+        docsT: "Documentation", docsL: "Manuals in Spanish and English, plus technical notes for each feature.",
+        stateT: "Project status.", stateP: "Under active development. It is tested on the author's boards, but many new features have not yet been verified on every board; the documentation says what has been tested. If you try it, tell us in a GitHub issue.",
+        authorP: "Manuel, radio amateur. APRS LoRa+ was born to operate portable, from the car and from the boat.",
+        donate: "Buy me a coffee · PayPal",
+        base: "Based on CA2RXU LoRa APRS Tracker (Ricardo Guzman, CA2RXU)", privacy: "Privacy", other: "Español",
+    },
+};
+let lang = "es";
+try { lang = new URLSearchParams(location.search).get("lang") || localStorage.getItem("alp_lang") || ((navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en"); } catch (e) {}
+if (lang !== "en") lang = "es";
+
+function render() {
+    const t = T[lang], es = lang === "es";
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i]").forEach(el => { el.textContent = t[el.dataset.i] ?? ""; });
+    document.querySelectorAll("[data-h]").forEach(el => { el.innerHTML = t[el.dataset.h] ?? ""; });
+    document.querySelectorAll(".num").forEach(el => { el.dataset.v ??= el.textContent; el.textContent = es ? el.dataset.v.replace(/(\d)\.(\d)/g, "$1,$2") : el.dataset.v; });
+    document.getElementById("bcnList").innerHTML = BCN.map(([m, mod, se, sn, re, rn, fe, fn, xe, xn, star]) => `
+        <div class="card bcn${star ? " star" : ""}">
+            <h3>${m} <span class="tag">${es ? mod : mod.replace("Saltos de frecuencia", "Frequency hopping").replace(",", ".")}</span>${star ? `<span class="pill ok">${es ? "Exclusiva" : "Exclusive"}</span>` : ""}</h3>
+            <dl><dt>${t.bSend}</dt><dd>${es ? se : sn}</dd><dt>${t.bSlot}</dt><dd>${es ? re : rn}</dd><dt>${t.bFreq}</dt><dd>${es ? fe : fn}</dd><dt>${t.bRx}</dt><dd>${es ? xe : xn}</dd></dl>
+        </div>`).join("");
+    document.getElementById("emList").innerHTML = EMG.map(([c, ke, kn, te, tn, pe, pn]) => `
+        <div class="card emg ${c}"><div class="k">${es ? ke : kn}</div><h3>${es ? te : tn}</h3><ul>${(es ? pe : pn).map(x => `<li>${x}</li>`).join("")}</ul></div>`).join("");
+    document.querySelectorAll("[data-shots]").forEach(el => { el.innerHTML = SHOTS[el.dataset.shots].map(([f, ce, cn]) =>
+        `<figure><img src="img/ex/${f}.png" width="480" height="240" loading="lazy" alt="${es ? ce : cn}"><figcaption>${es ? ce : cn}</figcaption></figure>`).join(""); });
+    document.getElementById("faqList").innerHTML = FAQ.map(([qe, qn, ae, an]) => `<details><summary>${es ? qe : qn}</summary><p>${es ? ae : an}</p></details>`).join("");
+    document.getElementById("lang").textContent = t.other;
+    const th = document.documentElement.dataset.theme || "auto", tb = document.getElementById("theme");
+    tb.textContent = th === "light" ? t.thLight : th === "dark" ? t.thDark : t.thAuto; tb.parentNode.title = t.thTip;
+    document.getElementById("eco").innerHTML = ECO.map(([ico, te, tn, pe, pn, st, url]) => `
+        <div class="card">
+            <div style="display:flex;align-items:center;gap:12px"><div class="ico">${ICON[ico]}</div><h3>${es ? te : tn}</h3></div>
+            <p>${es ? pe : pn}</p>
+            <div class="foot"><span class="pill ${st}">${t["st_" + st]}</span>${url ? `<a href="${url}">${t.code} →</a>` : ""}</div>
+        </div>`).join("");
+    document.getElementById("feat").innerHTML = FEAT.map(([te, tn, pe, pn]) => `<div><h3>${es ? te : tn}</h3><p>${es ? pe : pn}</p></div>`).join("");
+    document.getElementById("boards").innerHTML = BOARDS.map(b => `<span>${b}</span>`).join("");
+    document.getElementById("docList").innerHTML = DOCS.map(([te, tn, fe, fn]) =>
+        `<a href="${GH}APRS-LoRa-Plus/blob/main/${es ? fe : fn}"><b>${es ? te : tn}</b><span>${es ? fe : fn}</span></a>`).join("");
+}
+document.getElementById("themeBtn").addEventListener("click", () => {      // Auto -> Claro -> Oscuro -> Auto
+    const cur = document.documentElement.dataset.theme || "auto", next = cur === "auto" ? "light" : cur === "light" ? "dark" : "auto";
+    if (next === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = next;
+    try { if (next === "auto") localStorage.removeItem("alp_theme"); else localStorage.setItem("alp_theme", next); } catch (e) {}
+    render();
+});
+document.getElementById("lang").addEventListener("click", () => {
+    lang = lang === "es" ? "en" : "es";
+    try { localStorage.setItem("alp_lang", lang); } catch (e) {}
+    render();
+});
+render();
+
+// Version publicada (la misma que usa el instalador)
+fetch("latest.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(j => {
+    if (j && j.version) { document.getElementById("verNum").textContent = j.version; document.getElementById("ver").hidden = false; }
+}).catch(() => {});
+
+// Enlaces antiguos al instalador (ea7jrs.github.io/APRS-LoRa-Plus/#nautica...) siguen llevando al instalador
+(function () {
+    const h = (location.hash || "").slice(1).toLowerCase();
+    if (h && !["lora", "balizas", "cw", "emergencias", "ecosistema", "funciones", "placas", "instalar", "faq", "docs"].includes(h)) location.replace("install/" + location.hash);
+})();
+</script>
+</body>
+</html>

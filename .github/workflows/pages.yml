@@ -109,6 +109,16 @@ jobs:
             - name: Build site
               run: python3 tools/make_web_assets.py site --root site --page web/index.html
 
+            # Pagina del proyecto en la raiz (web/home) y el instalador en install/. latest.json, manifests/, firmware/, ota/ (la app lee
+            # ota/<placa>.json), privacy.html y las carpetas de los demas equipos se quedan en la raiz; el instalador las pide con "../".
+            # Los enlaces antiguos a la raiz con #dispositivo (#rotor, #nautica...) los reenvia la pagina del proyecto a install/.
+            - name: Pagina del proyecto e instalador en install/
+              run: |
+                  mkdir -p site/install
+                  mv site/index.html site/install/index.html
+                  cp -r web/home/. site/
+                  test -f site/index.html && test -f site/install/index.html && test -f site/latest.json
+
             - uses: actions/configure-pages@v6
 
             - uses: actions/upload-pages-artifact@v5

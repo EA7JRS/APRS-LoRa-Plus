@@ -96,6 +96,7 @@
         </ul>
     </div>
 
+    <p id="homeBox" hidden><small><a href="../">← ea7jrs.github.io/APRS-LoRa-Plus</a></small></p>
     <p><small><span data-i="foot"></span> <a href="https://github.com/EA7JRS/APRS-LoRa-Plus">github.com/EA7JRS/APRS-LoRa-Plus</a></small></p>
     <p><small><span data-i="satLabel"></span> <a href="https://github.com/EA7JRS/sat-aprs">SAT-APRS+</a> <span data-i="satHelp"></span></small></p>
     <!-- Donativos (PayPal.me de EA7JRS); logo de Simple Icons, CC0 -->
@@ -171,8 +172,11 @@
     const ALIAS = { nautica: "nautica", maprs: "nautica", wind: "nautica", plotter: "nautica", n2k: "nautica" };
     const FILTER = { tracker: n => !/MAPRS/i.test(n) };    // el MAPRS sale solo en Nautica, no en Tracker
     const known = d => d === "nautica" || d in BASE;
-    const base = () => BASE[device] || "";
-    const boardBase = name => (latest && latest.boards[name] && latest.boards[name]._base != null) ? latest.boards[name]._base : base();
+    // El instalador vive en install/ (la raiz es la pagina del proyecto); latest.json, manifests/, firmware/, ota/ y las carpetas de
+    // los demas equipos siguen en la raiz del sitio. Abierto en la raiz (despliegues antiguos), ROOT queda vacio.
+    const ROOT = /\/install(\/|\/index\.html)?$/.test(location.pathname) ? "../" : "";
+    const base = () => ROOT + (BASE[device] || "");
+    const boardBase = name => (latest && latest.boards[name] && latest.boards[name]._base != null) ? ROOT + latest.boards[name]._base : base();
 
     // Contador anonimo (EA7JRS): GoatCounter (https://www.goatcounter.com), gratuito, sin cookies ni datos personales.
     // Para activarlo crea una cuenta, elige un codigo (p. ej. "ea7jrs") y ponlo aqui; vacio = sin contador y sin conexion a terceros.
@@ -300,7 +304,7 @@
     async function loadNautica() {
         try {
             const parts = await Promise.all(NAUTICA.map(s =>
-                fetch(s.base + "latest.json?_t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null).then(j => ({ s, j }))));
+                fetch(ROOT + s.base + "latest.json?_t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null).then(j => ({ s, j }))));
             const boards = {}; let version = null;
             parts.forEach(({ s, j }) => {
                 if (!j) return; version = version || j.version;
@@ -365,10 +369,11 @@
     document.querySelectorAll("[data-dev]").forEach(b => b.addEventListener("click", () => { if (b.dataset.dev !== device) load(b.dataset.dev); }));
 
     // Version del release actual bajo el titulo (del latest.json del tracker, que esta en la raiz; todos los repos van a la par)
-    fetch("latest.json?_t=" + Date.now()).then(r => r.ok ? r.json() : null).then(j => {
+    fetch(ROOT + "latest.json?_t=" + Date.now()).then(r => r.ok ? r.json() : null).then(j => {
         if (j && j.version) $("headVer").innerHTML = '<a href="https://github.com/EA7JRS/APRS-LoRa-Plus/releases/tag/v' + encodeURIComponent(j.version) + '" target="_blank" rel="noopener">v' + j.version.replace(/[<>"]/g, "") + "</a>";
     }).catch(() => {});
 
+    if (ROOT) $("homeBox").hidden = false;
     if (!("serial" in navigator)) { $("unsupported").hidden = false; $("detect").disabled = true; }
     let want = (location.hash || "").replace("#", "").toLowerCase();   // enlace directo: ...APRS-LoRa-Plus/#rotor
     if (want in ALIAS) want = ALIAS[want];
