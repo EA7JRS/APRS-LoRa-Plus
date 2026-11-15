@@ -7,6 +7,7 @@
 
 #include <cmath>
 
+#include "celnav.h"
 #include "geo.h"
 
 namespace plotter {
@@ -45,22 +46,10 @@ bool sunTimes(int y, int m, int d, double lat, double lon, double alt, double& r
 }
 
 void sunPosition(int y, int m, int d, double utc, double lat, double lon, double& alt, double& az) {
-    // Meeus, cap. 25 (baja precision, ~0,01 grados): mejor que la serie de NOAA para apuntar una antena al sol
-    const double jd = julianDay(y, m, d, utc), T = (jd + 69.0 / 86400.0 - 2451545.0) / 36525.0;
-    const double L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T * T;
-    const double M = deg2rad(357.52911 + 35999.05029 * T - 0.0001537 * T * T);
-    const double C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * std::sin(M) + (0.019993 - 0.000101 * T) * std::sin(2 * M) +
-                     0.000289 * std::sin(3 * M);
-    const double om = deg2rad(125.04 - 1934.136 * T);
-    const double lam = deg2rad(L0 + C - 0.00569 - 0.00478 * std::sin(om));
-    const double eps = deg2rad(23.439291 - 0.0130042 * T + 0.00256 * std::cos(om));
-    const double ra = std::atan2(std::cos(eps) * std::sin(lam), std::cos(lam));
-    const double dec = std::asin(std::sin(eps) * std::sin(lam));
-    const double Tu = (jd - 2451545.0) / 36525.0;
-    double gmst = std::fmod(280.46061837 + 360.98564736629 * (jd - 2451545.0) + 0.000387933 * Tu * Tu, 360.0);
-    const double ha = deg2rad(gmst + lon) - ra, la = deg2rad(lat);
-    alt = rad2deg(std::asin(std::sin(la) * std::sin(dec) + std::cos(la) * std::cos(dec) * std::cos(ha)));
-    az = norm360(rad2deg(std::atan2(-std::sin(ha) * std::cos(dec), std::sin(dec) * std::cos(la) - std::cos(dec) * std::sin(la) * std::cos(ha))));
+    // Lugar aparente con precision de almanaque (celnav: VSOP87 recortada, nutacion y aberracion; 0,1')
+    double gha, dec;
+    sunGhaDec(julianDay(y, m, d, utc), gha, dec);
+    bodyAltAz(gha, dec, lat, lon, alt, az);
 }
 
 double julianDay(int y, int m, int d, double utc) {
