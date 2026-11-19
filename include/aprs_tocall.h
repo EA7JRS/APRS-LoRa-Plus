@@ -5,7 +5,7 @@
 
 #pragma once
 
-// Destino (tocall) de las tramas APRS que genera el tracker: identifica el dispositivo en aprs.fi y demas (registro oficial
-// aprsorg/aprs-deviceid). Antes "APLRT1", el de CA2RXU. Mientras no haya uno asignado a APRS LoRa+, rango experimental APZ
-// ("APZLRT", libre en el registro; la app usa APZLRP y el rotor APZLRR). Al asignarlo, cambiar solo esta linea.
-#define APRS_TOCALL "APZLRT"
+// Destino (tocall) de las tramas APRS que genera el tracker: identifica el dispositivo en aprs.fi y demas. Asignado por el
+// registro oficial aprsorg/aprs-deviceid el 2026-11-16: APLJRT = APRS LoRa+ (tracker), APLJRA = APRS LoRa+ for Android.
+// Antes "APLRT1" (el de CA2RXU) y, hasta la 5.4.6, "APZLRT" (rango experimental). El rotor sigue con APZLRR.
+#define APRS_TOCALL "APLJRT"

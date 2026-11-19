@@ -2,6 +2,8 @@
 
 ## Sin publicar
 
+- **Identificador APRS oficial:** el registro aprs-deviceid ha asignado `APLJRT` a APRS LoRa+ (tracker) y `APLJRA` a APRS LoRa+ for Android (2026-11-16). Las tramas del tracker salen ya con `APLJRT` (antes `APZLRT`, experimental; `include/aprs_tocall.h`). En LAST APRS / STATIONS se llaman «APRS LoRa+» y «APRS LoRa+ App»; los `APZLR?` de firmware anterior y del rotor se siguen reconociendo. Lista oficial de equipos al día (480 tocalls, 27 sufijos Mic-E, 7 Mic-E clásicos).
+
 ## 5.4.6 — 2026-11-15
 _La 5.4.5 no tuvo entrada propia: lo que ya llevaba está también en esta lista._ _Los .zip de la release se rehicieron el mismo día desde `main` (2ce8170) con las primeras entradas de esta lista, hasta la del MAPRS._
 

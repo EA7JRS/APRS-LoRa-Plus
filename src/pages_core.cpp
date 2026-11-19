@@ -855,7 +855,8 @@ namespace PAGES_Core {
         }
         struct Entry { const char* pattern; const char* name; };
         static const Entry own[] = {                            // nombres propios del proyecto (tienen prioridad sobre la lista oficial)
-            { "APZLR?", "APRS LoRa+" }, { "APLJR?", "APRS LoRa+" },    // los nuestros (experimental y el pedido al registro)
+            { "APLJRT", "APRS LoRa+" }, { "APLJRA", "APRS LoRa+ App" },  // los nuestros (registro oficial, 2026-11-16)
+            { "APZLR?", "APRS LoRa+" },                                // experimentales: firmware hasta la 5.4.6, app y rotor
             { "APLRT?", "LoRa Tracker" }, { "APLRG?", "LoRa iGate" }, { "APLG??", "LoRa iGate" }, { "APLT??", "LoRa Tracker" },
             { "APLR??", "LoRa APRS" }
         };

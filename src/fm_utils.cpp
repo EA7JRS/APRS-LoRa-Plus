@@ -585,7 +585,7 @@ namespace FM_Utils {
         }
     }
 
-    // "EA7JRS-7>APZLRT,WIDE1-1:info" -> "EA7JRS-7>APZLRT,ARISS:info"
+    // "EA7JRS-7>APLJRT,WIDE1-1:info" -> "EA7JRS-7>APLJRT,ARISS:info"
     static String satPath(const char* tnc2) {
         const char* gt = strchr(tnc2, '>');
         const char* colon = strchr(tnc2, ':');
