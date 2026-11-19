@@ -58,7 +58,9 @@ void displayPopup(const String& title, const String& line1, const String& line2,
     void    pagesZone(uint8_t zone);                                        // vale hasta el siguiente pagesZone / pagesBegin (PZ_BODY)
     // Tintas (pantallas a color): el "on" de los dibujos sale con el color de la tinta en uso. En monocromo no hacen nada.
     enum PagesInk : uint8_t { INK_TEXT, INK_HEAD, INK_ACCENT, INK_SEL, INK_FRAME, INK_MUTED, INK_GOOD, INK_WARN, INK_BAD,
-                             INK_SUN, INK_MOON, INK_SHADE, INK_NIGHT, INK_LV1, INK_LV2, INK_MARIA, INK_COUNT };   // sol, luna iluminada, cara oscura, arco de la noche, avisos amarillo y naranja, mares de la luna
+                             INK_SUN, INK_MOON, INK_SHADE, INK_NIGHT, INK_LV1, INK_LV2, INK_MARIA,
+                             INK_N1, INK_N2, INK_N3, INK_N4, INK_N5, INK_NTXT, INK_COUNT };   // sol, luna iluminada, cara oscura, arco de la noche, avisos amarillo y naranja, mares de la luna;
+                                                                                      // escalas de NOAA 1 a 5 (los mismos en los dos temas) y el texto negro sobre ellas
     void    pagesInk(uint8_t ink);                                          // vale hasta el siguiente pagesInk / pagesBegin (INK_TEXT)
     bool    pagesHasColor();
     void    pagesSetLight(bool light);                                      // tema claro (true) u oscuro

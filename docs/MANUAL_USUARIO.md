@@ -782,6 +782,7 @@ Transpondedor AIS **de clase B** por APRS LoRa en la **LilyGO T3 v1.6.1** (LoRa3
 - **SPACE WX:** número de manchas solares (**SSN**) y viento solar en tiempo real (velocidad, Bz y Bt) además de SFI, rayos X y Kp; la app los manda por BLE (`spacewx` con `sn`).
 - **TELEMETRY > HF** (nueva vista tras SPACE WX): MUF, frecuencia óptima de trabajo (FOT = 85 % de la MUF) y LUF estimadas con el flujo solar, la altura del sol aquí y los rayos X, y el estado de cada banda de 160 a 10 m (*open*, *fair*, *shut*, *abs* absorbida, *poor* con tormenta), con las fórmulas de sat-aprs. La absorción por rayos X solo cuenta de día y crece con la altura del sol, como el modelo D-RAP de SWPC. Es una estimación, no una medida de ionosonda.
 - **Terremotos de ShakeNet** (Raspberry Shake) entre los avisos oficiales, además de USGS y EMSC (los descarga la app).
+- **SPACE WX en color con el código de NOAA:** G / R / S y la clase de rayos X en un recuadro amarillo (1), naranja claro (2), naranja (3), rojo (4) o rojo oscuro (5) con la letra en negro; el nivel 0 sin color; barras de Kp verdes por debajo de Kp 5 y luego con el color de G1 a G5.
 
 ## Apéndice A — Mapa de pulsaciones por página
 

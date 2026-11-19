@@ -788,6 +788,7 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 - **SPACE WX:** sunspot number (**SSN**) and real-time solar wind (speed, Bz and Bt) besides SFI, X-rays and Kp; the app sends them over BLE (`spacewx` with `sn`).
 - **TELEMETRY > HF** (new view after SPACE WX): estimated MUF, optimum working frequency (FOT = 85 % of the MUF) and LUF from the solar flux, the sun's altitude here and the X-rays, and the state of each band from 160 to 10 m (*open*, *fair*, *shut*, *abs* absorbed, *poor* in a storm), with the sat-aprs formulas. X-ray absorption only counts by day and grows with the sun's altitude, as SWPC's D-RAP model. It is an estimate, not an ionosonde measurement.
 - **ShakeNet earthquakes** (Raspberry Shake) among the official alerts, besides USGS and EMSC (downloaded by the app).
+- **SPACE WX in colour with the NOAA code:** G / R / S and the X-ray class in a yellow (1), light orange (2), orange (3), red (4) or dark red (5) box with black letters; level 0 without colour; Kp bars green below Kp 5 and then in the G1 to G5 colour.
 
 ## Appendix A — Button map per page
 

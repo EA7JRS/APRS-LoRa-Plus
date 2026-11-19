@@ -2699,22 +2699,35 @@ namespace {
         const int barsW = 8 * 6;                                 // 8 barras de 5 px y 1 de hueco
         const int x0 = PW - barsW - 2;
         rowLimit = min(COLS, (x0 - 4) / 6);
-        // escalas G, R y S de hoy en una fila, cada una con el color de su nivel (EA7JRS: asi caben tambien las manchas solares
-        // y el viento solar, que antes solo salia sin Bz)
+        // escalas G, R y S de hoy en una fila (EA7JRS: asi caben tambien las manchas solares y el viento solar). En color, con el
+        // codigo de NOAA (SWPC) como en su web: recuadro amarillo, naranja claro, naranja, rojo o rojo oscuro para los niveles 1 a 5
+        // con la letra en negro; el nivel 0 sin color. Los rayos X, igual, con su escala R; el Kp, en verde por debajo de G1
+        const bool color = pagesHasColor();
+        auto badge = [&](int x, int y, const char* t, int level) {   // recuadro de NOAA con el texto en negro (solo en color)
+            if (color && level >= 1) {
+                pagesInk(INK_N1 + min(level, 5) - 1);
+                pagesFillRect(x - 1, y - 1, 6 * (int)strlen(t) + 1, 9, true);
+                pagesInk(INK_NTXT);
+            } else pagesInk(INK_TEXT);
+            text(x, y, t);
+            pagesInk(INK_TEXT);
+        };
         const struct { char b; int v; } sc[] = {{'G', w.g}, {'R', w.r}, {'S', w.s}};
         char scales[16] = "";
         for (int i = 0; i < 3; i++) {
             char one[4];
             if (sc[i].v >= 0) snprintf(one, sizeof(one), "%c%d", sc[i].b, sc[i].v); else snprintf(one, sizeof(one), "%c-", sc[i].b);
-            pagesInk(sc[i].v >= 4 ? INK_BAD : sc[i].v == 3 ? INK_LV2 : sc[i].v >= 1 ? INK_LV1 : INK_GOOD);
-            text(i * 18, ROW_Y0 + rowDy, one);
+            badge(i * 18 + (color ? 1 : 0), ROW_Y0 + rowDy, one, sc[i].v);
             snprintf(scales + strlen(scales), sizeof(scales) - strlen(scales), "%s%s", i ? " " : "", one);
         }
-        pagesInk(INK_TEXT);
         snprintf(mirrorRows[0], sizeof(mirrorRows[0]), "%s", scales);   // espejo de la pantalla (app)
         if (w.sfi > 0) row(1, "SFI %.0f", w.sfi);
         if (ALERTS::spaceSsn() >= 0) row(2, "SSN %.0f", ALERTS::spaceSsn());
-        if (!w.xray.empty()) row(3, "X-ray %s", w.xray.c_str());
+        if (!w.xray.empty()) {
+            row(3, "X-ray %s", w.xray.c_str());
+            const int rx = plotter::xrayToR(plotter::xrayClassFlux(w.xray));
+            if (color && rx >= 1) badge(36, ROW_Y0 + 3 * ROW_PITCH + rowDy, w.xray.substr(0, max(0, rowLimit - 6)).c_str(), rx);
+        }
         if (w.bz < 999) row(4, w.bt >= 0 && rowLimit >= 14 ? "Bz %+.1f Bt %.0f" : "Bz %+.1f nT", w.bz, w.bt);
         if (w.windKms > 0) row(5, "Wind %.0fkm/s", w.windKms);
         rowLimit = COLS;
@@ -2726,7 +2739,8 @@ namespace {
         text(x0, ROW_Y0, "Kp 24h");
         for (int i = 0; i < w.kpCount && i < 8; i++) {
             const float v = w.kp[i];
-            pagesInk(v >= 7 ? INK_BAD : v >= 6 ? INK_LV2 : v >= 5 ? INK_LV1 : INK_GOOD);
+            const int g = plotter::kpToG(v);
+            pagesInk(g >= 1 ? INK_N1 + g - 1 : INK_GOOD);          // NOAA: verde por debajo de Kp 5, luego el color de G1 a G5
             const int hgt = max(1, (int)lroundf(v * 5));
             pagesFillRect(x0 + i * 6, yb - hgt, 5, hgt, true);
         }

@@ -890,6 +890,35 @@ const char* swpcScaleName(char b) {
     }
 }
 
+int xrayToR(double f) {
+    if (f >= 2e-3) return 5;
+    if (f >= 1e-3) return 4;
+    if (f >= 1e-4) return 3;
+    if (f >= 5e-5) return 2;
+    if (f >= 1e-5) return 1;
+    return 0;
+}
+
+double xrayClassFlux(const std::string& c) {
+    if (c.empty()) return 0;
+    double base;
+    switch (std::toupper((unsigned char)c[0])) {
+        case 'A': base = 1e-8; break;
+        case 'B': base = 1e-7; break;
+        case 'C': base = 1e-6; break;
+        case 'M': base = 1e-5; break;
+        case 'X': base = 1e-4; break;
+        default: return 0;
+    }
+    const double m = c.size() > 1 ? std::atof(c.c_str() + 1) : 0;
+    return base * (m > 0 ? m : 1);
+}
+
+uint32_t noaaScaleRgb(int level) {
+    static const uint32_t C[6] = {0, 0xFFFF00, 0xFFC800, 0xFF9600, 0xFF0000, 0xC80000};
+    return C[level < 0 ? 0 : level > 5 ? 5 : level];
+}
+
 int kpToG(float kp) {
     if (kp >= 9) return 5;
     if (kp >= 8) return 4;

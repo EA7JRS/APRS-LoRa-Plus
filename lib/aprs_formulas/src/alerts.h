@@ -183,6 +183,11 @@ bool swpcParseSummary(const std::string& json, SpaceWx& w);     // 10cm-flux (Fl
 bool swpcParseXray(const std::string& json, SpaceWx& w);        // ultimo dato de 0,1-0,8 nm
 std::string xrayClass(double wattsM2);                          // 2.4e-5 -> "M2.4"
 int kpToG(float kp);                                            // escala G de un Kp (5 -> G1 ... 9 -> G5)
+int xrayToR(double wattsM2);                                    // escala R de un flujo de rayos X: M1 R1, M5 R2, X1 R3, X10 R4, X20 R5
+double xrayClassFlux(const std::string& cls);                   // "M2.4" -> 2.4e-5 (0 si no es una clase)
+// Colores de las escalas de NOAA (SWPC) como en su web: 1 amarillo, 2 naranja claro, 3 naranja, 4 rojo, 5 rojo oscuro.
+// 0 = nivel 0 (NOAA no le da color: cada pantalla pone el suyo). RGB 0xRRGGBB.
+uint32_t noaaScaleRgb(int level);
 // Avisos del SWPC (ALERT / WARNING / WATCH de las ultimas 48 h; los cancelados se quitan). Nivel por la escala:
 // 1-2 amarillo, 3 naranja, 4-5 rojo; sin escala, informacion.
 bool swpcParseAlerts(const std::string& json, int64_t now, std::vector<Alert>& out);
