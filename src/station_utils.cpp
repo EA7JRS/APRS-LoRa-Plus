@@ -317,6 +317,8 @@ namespace STATION_Utils {
             packet += "**LowVoltagePowerOff**";
         }
 
+        if (miceActive && sizeof(APRS_MICE_SUFFIX) > 1) packet += APRS_MICE_SUFFIX;     // codigo de equipo Mic-E, lo ultimo del comentario (EA7JRS)
+
         displayShow("<<< TX >>>", "", packet, 100);
         LoRa_Utils::sendNewPacket(packet);
 
@@ -358,6 +360,7 @@ namespace STATION_Utils {
         if (GPS_Utils::getSpeedKmph() > 200 || altMeters > 9000) path = "";
         String packet = APRSPacketLib::generateMiceGPSBeaconPacket("000", currentBeacon->callsign, currentBeacon->symbol, currentBeacon->overlay, path,
                                                                    lat, lng, GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), altMeters);
+        if (sizeof(APRS_MICE_SUFFIX) > 1) packet += APRS_MICE_SUFFIX;  // codigo de equipo Mic-E (EA7JRS)
         displayShow("<<< SOS >>>", "", packet, 100);
         LoRa_Utils::sendNewPacket(packet);
         if (Config.bluetooth.useBLE) BLE_Utils::sendToPhone(packet);
