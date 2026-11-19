@@ -2386,11 +2386,36 @@ namespace BLE_Control {
     }
 
     // Luces de la app (banda A): TX / RX al momento; MSG (mensajes sin leer), EMG (alarma de emergencia) y FL (flash blanco) cuando cambian
-    void rfEvent(char state, int rssi, float snr) {
+    uint32_t rxPacketHash(const String& tnc2) {
+        const int gt = tnc2.indexOf('>');
+        const int colon = tnc2.indexOf(':');
+        if (gt <= 0 || colon < gt) return 0;
+        int srcEnd = gt;
+        if (srcEnd > 2 && tnc2[srcEnd - 2] == '-' && tnc2[srcEnd - 1] == '0') srcEnd -= 2;     // la app escribe el SSID 0 sin "-0"
+        uint32_t h = 2166136261u;
+        auto add = [&h](uint8_t c) { h ^= c; h *= 16777619u; };
+        for (int i = 0; i < srcEnd; i++) add((uint8_t)tnc2[i]);
+        add(':');
+        for (unsigned i = colon + 1; i < tnc2.length(); i++) add((uint8_t)tnc2[i]);
+        return h;
+    }
+
+    // Con cada trama recibida, ademas: modem (numeros de ModemType de IS2: 1 AX.25, 2 LoRa APRS, 9 M17), velocidad (bit/s), frecuencia
+    // (Hz) y la huella de la trama: la app los manda a APRS-IS con su iGate como metadatos IS2 (#is2-meta, IS2PLAIN.md de aprsc)
+    void rfEvent(char state, int rssi, float snr, const String* packet) {
         if (!connected || !authed) return;
         JW j("rf");
         j.text("s", state == 't' ? "tx" : state == 'r' ? "rx" : "idle");
-        if (state == 'r') { j.num("rssi", rssi); j.flt("snr", snr, 1); }
+        if (state == 'r') {
+            j.num("rssi", rssi); j.flt("snr", snr, 1);
+            uint8_t modem = 0; long bitrate = 0;
+            LoRa_Utils::rxModemInfo(modem, bitrate);
+            if (modem) j.num("m", modem);
+            if (bitrate > 0) j.num("br", bitrate);
+            const long hz = LoRa_Utils::liveFreqHz();
+            if (hz > 0) j.num("f", hz);
+            if (packet && packet->length() > 3) j.num("h", rxPacketHash(packet->substring(3)));
+        }
         j.send(sendLine);
     }
 

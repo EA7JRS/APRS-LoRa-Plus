@@ -501,6 +501,15 @@ namespace LoRa_Utils {
         return activeFreqHz();
     }
 
+    // LoRa: Rb = SF * BW / 2^SF * 4 / CR (SF12, 125 kHz, 4/5: 293 bit/s); FSK: AX.25 G3RUH a la velocidad del perfil
+    void rxModemInfo(uint8_t& modem, long& bitrate) {
+        if (fskMode) { modem = 1; bitrate = lroundf(fskBitRateKbps() * 1000.0f); return; }
+        modem = 2;
+        const int sf = currentLoRaType->spreadingFactor, cr = currentLoRaType->codingRate4;
+        const double bw = currentLoRaType->signalBandwidth;          // Hz
+        bitrate = (sf >= 6 && sf <= 12 && cr >= 5 && cr <= 8 && bw > 0) ? lround(sf * bw / (double)(1L << sf) * 4.0 / cr) : 0;
+    }
+
     // Aplica de nuevo la frecuencia del perfil activo (la configuracion cambio en caliente) y rearma la escucha
     void retune() {
         if (aisLoraActive) return;

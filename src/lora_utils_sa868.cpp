@@ -95,7 +95,11 @@ namespace LoRa_Utils {
     void satTxEnd()                 {}
 
     long profileFreqHz()            { return Config.sa868.rxFreqHz; }
-    long liveFreqHz()               { return catRxHz > 0 ? catRxHz : SA868::rxFreqHz(); }       // la del modo (9600: perfil FSK; M17, DAPNET, FM: la suya)
+    long liveFreqHz()               { return catRxHz > 0 ? catRxHz : SA868::rxFreqHz(); }
+    void rxModemInfo(uint8_t& modem, long& bitrate) {           // T-TWR: AFSK 1200 / G3RUH 9600 son AX.25; M17, 9600 bit/s
+        if (SA868::modeM17()) { modem = 9; bitrate = 9600; return; }
+        modem = 1; bitrate = SA868::mode9600() ? 9600 : 1200;
+    }       // la del modo (9600: perfil FSK; M17, DAPNET, FM: la suya)
     long ppmCorrectionHz(long hz)   { return SA868::ppmCorrectionHz(hz); }     // el cristal del SA868: emision y recepcion
     double ppmCorrectionHzExact(long hz) { return (double)hz * (double)Config.radioPpm1000 / 1e9; }
 

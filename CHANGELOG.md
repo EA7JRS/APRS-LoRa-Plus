@@ -2,6 +2,7 @@
 
 ## Sin publicar
 
+- **Datos de recepción para el iGate de la app:** el evento BLE `rf` de cada trama recibida lleva además el modem (LoRa APRS, AX.25 o M17), la velocidad en bit/s, la frecuencia y una huella de la trama. La app los manda a APRS-IS con la trama en una línea `#is2-meta` (IS2PLAIN de aprsc: RSSI, SNR, modem, velocidad y frecuencia llegan a los mapas de cobertura). `LoRa_Utils::rxModemInfo`, `BLE_Control::rxPacketHash`.
 - **Identificador APRS oficial:** el registro aprs-deviceid ha asignado `APLJRT` a APRS LoRa+ (tracker) y `APLJRA` a APRS LoRa+ for Android (2026-11-16). Las tramas del tracker salen ya con `APLJRT` (antes `APZLRT`, experimental; `include/aprs_tocall.h`). En LAST APRS / STATIONS se llaman «APRS LoRa+» y «APRS LoRa+ App»; los `APZLR?` de firmware anterior y del rotor se siguen reconociendo. Lista oficial de equipos al día (480 tocalls, 27 sufijos Mic-E, 7 Mic-E clásicos).
 
 ## 5.4.6 — 2026-11-15

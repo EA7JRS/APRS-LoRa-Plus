@@ -362,7 +362,7 @@ void loop() {
     #endif
 
     ReceivedLoRaPacket packet = LoRa_Utils::receivePacket();
-    if (!packet.text.isEmpty()) { BLE_Control::rfEvent('r', packet.rssi, packet.snr); RGB_LED::rx(); }     // luz RX de la app y LED RGB (EA7JRS)
+    if (!packet.text.isEmpty()) { BLE_Control::rfEvent('r', packet.rssi, packet.snr, &packet.text); RGB_LED::rx(); }     // luz RX de la app y LED RGB (EA7JRS)
     #ifdef HAS_SA868
         if (SA868::modeFm()) FM_Utils::loop();     // T-TWR: PTT, escaneo, ARTS, EAI; modos FM y SAT (VFO que sigue al satelite) (EA7JRS)
     #endif
