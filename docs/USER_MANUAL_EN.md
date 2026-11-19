@@ -243,6 +243,10 @@ The header shows the time source: `GPS`, `NTP`, `DAPNET`, `RTC` (with the age of
 - **Format** — 24 h or 12 h (AM/PM).
 - **Sync from GPS** — sets the clock from GPS time; if the GPS has no valid time yet it says "No GPS time".
 
+**SUN and MOON** (1P on CLOCK, another 1P goes from SUN to MOON; 2P goes back): data for this instant. SUN: azimuth with the 16-point bearing, apparent altitude (with refraction) and whether it is rising or setting, time to sunset or sunrise, declination, equation of time and the **shadow** (length of the shadow of a vertical pole, in times its height), with the day's arc and the sun in its place. MOON: phase, lit part and whether waxing (`+`) or waning (`-`), age in days, azimuth, altitude and distance in km; in the header, the next rise (`R`) or set (`S`); the disc with its phase, maria and craters.
+
+**Following the sun or the moon with the rotor:** with the rotor enabled (*WebUI > Rotor*), the SUN submenu starts with **Rotor to Sun** and the MOON one with **Rotor to Moon**: the antenna follows that body (rotor source 6 or 7, the same as *ROTOR > Follow* and the app's SAT > Rotor tab) and the antenna icon appears before the title in the header. The same option becomes **Rotor: stop Sun / stop Moon**, which puts the rotor back on the source it had before. With the body below the horizon the antenna waits.
+
 ---
 
 ## 13. LORA — radio
@@ -776,6 +780,15 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 
 **After 5.4.6 (unreleased):** maritime call sign checked in MarineTraffic **without a key** (*Look up in MarineTraffic* + *Confirmed in MarineTraffic*); more OLED screens like the colour ones; MAPRS's own WebUI.
 
+**Also unreleased (2026-11-20):**
+- **STATIONS** (OLED) with more room between the callsign, the distance and the time or bearing.
+- **TELEMETRY:** the forecast also uses the internet weather the app sends (wind, clouds, rain and the internet pressure trend when there is no sensor).
+- **CLOCK:** the lower lines are back in place on the OLED (the moon or sun on the right only on screens wider than 128 px).
+- **SUN and MOON** with data for this instant (section 12), one more decimal and, on SUN, a 24 px arc and a 3 px sun; MOON with maria and craters. **Rotor to Sun / Rotor to Moon** in their submenu.
+- **SPACE WX:** sunspot number (**SSN**) and real-time solar wind (speed, Bz and Bt) besides SFI, X-rays and Kp; the app sends them over BLE (`spacewx` with `sn`).
+- **TELEMETRY > HF** (new view after SPACE WX): estimated MUF, optimum working frequency (FOT = 85 % of the MUF) and LUF from the solar flux, the sun's altitude here and the X-rays, and the state of each band from 160 to 10 m (*open*, *fair*, *shut*, *abs* absorbed, *poor* in a storm), with the sat-aprs formulas. X-ray absorption only counts by day and grows with the sun's altitude, as SWPC's D-RAP model. It is an estimate, not an ionosonde measurement.
+- **ShakeNet earthquakes** (Raspberry Shake) among the official alerts, besides USGS and EMSC (downloaded by the app).
+
 ## Appendix A — Button map per page
 
 | Page | LP opens | Options |
@@ -788,7 +801,7 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 | COMPASS | submenu | Target, Next station, Heading, North, Declination, Reset align, Back |
 | ALTIMETER | submenu | Span, Reset profile, QNH, Back |
 | TELEMETRY | — | (read only) |
-| CLOCK | submenu | Zone, Format, Sync from GPS, Back |
+| CLOCK | submenu | Zone, Format, Sync from GPS, Back (on SUN / MOON with a rotor, first: Rotor to Sun / Rotor to Moon) |
 | LORA | submenu | Next profile, Power, Reset counters, Heard list, Back |
 | GROUP | submenu | Browse, Radar, Quick msg: all, Ping all, Back (with cursor: GO TO, Quick msg, Ping, Back) |
 | SYSTEM | submenu | Bluetooth: ON/OFF, BT data: KISS/TNC2, WiFi KISS: ON/OFF, WiFi CAT: ON/OFF, Back (1P toggles the LINK view when connections are active) |

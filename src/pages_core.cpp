@@ -1256,6 +1256,75 @@ void PAGES_Core::forecastText(float p, bool hasTrend, Trend trend, float tempC, 
     snprintf(out, size, "%s", text);
 }
 
+void PAGES_Core::forecastText(float p, bool hasTrend, Trend trend, float tempC, float hum, float dew, const ForecastExtra& ex,
+                              char* out, size_t size, float delta) {
+    char base[24];
+    forecastText(p, hasTrend, trend, tempC, hum, dew, base, sizeof(base), delta);
+    const char* text = base;
+    const bool known = hasTrend && trend != TREND_UNKNOWN;
+    const bool falling = known && (trend == TREND_FALLING_FAST || trend == TREND_FALLING || trend == TREND_FALLING_SLOW);
+    const bool rising = known && (trend == TREND_RISING_SLOW || trend == TREND_RISING || trend == TREND_RISING_FAST);
+    const bool wet = ex.windDeg >= 0 && (ex.north ? (ex.windDeg >= 150 && ex.windDeg <= 290) : (ex.windDeg >= 250 || ex.windDeg <= 30));
+    const bool strong = ex.windMs >= 10.8f;                     // fuerza 6 o mas
+    if (ex.rainMmH >= 0.2f) {                                    // ya llueve: lo que se ve manda
+        text = rising ? "Rain easing" : ex.rainMmH >= 4.0f ? "Heavy rain now" : "Rain now";
+    } else if (falling && strong) {
+        text = (p < 1010.0f || trend == TREND_FALLING_FAST) ? "Gale, rain soon" : "Windy, rain soon";
+    } else if (falling && wet) {
+        if (!strcmp(base, "Turning cloudy")) text = "Showers possible";
+        else if (!strcmp(base, "Clouding over")) text = "Rain likely";
+    } else if (!falling && !rising && ex.clouds >= 0) {          // presion quieta o sin tendencia: el cielo de ahora
+        const bool calm = !strcmp(base, "Little change") || !strcmp(base, "Fair") || !strcmp(base, "Fair, stable") || !strcmp(base, "Trend wait");
+        if (calm && ex.clouds >= 85) text = "Overcast";
+        else if (calm && ex.clouds <= 15) text = "Clear skies";
+        else if (!strcmp(base, "Trend wait")) text = ex.clouds >= 50 ? "Cloudy" : "Fair";
+    }
+    snprintf(out, size, "%s", text);
+}
+
+// ---------- Propagacion en HF (sat-aprs: calculateMufAndBands, calculateLuf, estadoBandas) ----------
+const PAGES_Core::HfBand PAGES_Core::HF_BANDS[10] = {
+    {"160m", 1.85f}, {"80m", 3.65f}, {"60m", 5.36f}, {"40m", 7.1f}, {"30m", 10.12f},
+    {"20m", 14.15f}, {"17m", 18.1f}, {"15m", 21.2f}, {"12m", 24.93f}, {"10m", 28.5f}
+};
+
+PAGES_Core::HfEstimate PAGES_Core::hfEstimate(float sfi, double sunElevDeg, double xray) {
+    HfEstimate e;
+    const double s = sunElevDeg > 0 ? sin(sunElevDeg * M_PI / 180.0) : 0;
+    const double mufBase = 7.0 + (sfi - 65) * 0.06;
+    e.muf = (float)(sunElevDeg > 0 ? mufBase + s * (12.0 + (sfi - 70) * 0.12) : fmax(4.5, mufBase * 0.85));
+    const double lufBase = 1.5 + (sfi - 65) * 0.005;
+    double luf = sunElevDeg > 0 ? lufBase + s * (2.0 + (sfi - 70) * 0.015) : fmax(1.0, lufBase * 0.7);
+    double dAbs = 0;                        // rayos X: absorcion de la capa D, solo en el lado de dia
+    if (xray > 1e-4) dAbs = 8.0;            // clase X
+    else if (xray > 1e-5) dAbs = 4.0;       // M
+    else if (xray > 1e-6) dAbs = 1.5;       // C
+    else if (xray > 1e-7) dAbs = 0.5;       // B
+    luf += dAbs * pow(s, 0.75);             // como el D-RAP de SWPC: cos(zenit)^0,75, nada de noche
+    e.luf = (float)fmax(0.5, luf);
+    return e;
+}
+
+PAGES_Core::HfState PAGES_Core::hfBandState(float mhz, const HfEstimate& e, float kp) {
+    if (mhz < e.luf) return HF_ABSORBED;
+    if (mhz > e.muf) return HF_SHUT;
+    if (kp >= 4.5f) return HF_POOR;
+    return mhz <= e.muf * 0.85f ? HF_OPEN : HF_FAIR;
+}
+
+const char* PAGES_Core::hfStateShort(HfState s) {
+    switch (s) { case HF_OPEN: return "open"; case HF_FAIR: return "fair"; case HF_ABSORBED: return "abs"; case HF_POOR: return "poor"; default: return "shut"; }
+}
+
+double PAGES_Core::xrayFluxFromClass(const char* c) {
+    if (!c || !c[0]) return 0;
+    double base;
+    switch (toupper((unsigned char)c[0])) { case 'A': base = 1e-8; break; case 'B': base = 1e-7; break; case 'C': base = 1e-6; break;
+                                            case 'M': base = 1e-5; break; case 'X': base = 1e-4; break; default: return 0; }
+    const double v = atof(c + 1);
+    return base * (v > 0 ? v : 1.0);
+}
+
 static bool alarmWord(const char* text, const char* word) {
     size_t n = strlen(word);
     for (const char* p = text; *p; p++) {

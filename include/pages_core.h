@@ -192,8 +192,35 @@ namespace PAGES_Core {
     // Devuelve un texto de como maximo 16 caracteres ("Rain likely", "Fair, stable"...).
     // deltaHpa3h: cambio de presion en 3 h (NAN si no se conoce); activa la matriz de decision (caida/subida fuerte + presion + T-Td).
     void        forecastText(float pressureHpa, bool hasTrend, Trend trend, float tempC, float humidityPct, float dewPointC, char* out, size_t size, float deltaHpa3h = NAN);
+    // Lo que no mide el tracker y si da el tiempo de internet (EA7JRS): viento, nubosidad y lluvia de ahora. Afina el pronostico:
+    // lluvia ya cayendo, caida de presion con viento del lado humedo (SW en el hemisferio norte, NW en el sur) o fuerte, y cielo
+    // cubierto o despejado cuando la presion no cambia. -1 = sin dato.
+    struct ForecastExtra {
+        int16_t windDeg = -1;       // de donde viene
+        float   windMs = -1;
+        int8_t  clouds = -1;        // %
+        float   rainMmH = -1;
+        bool    north = true;       // hemisferio
+        bool    any() const { return windDeg >= 0 || windMs >= 0 || clouds >= 0 || rainMmH >= 0; }
+    };
+    void        forecastText(float pressureHpa, bool hasTrend, Trend trend, float tempC, float humidityPct, float dewPointC,
+                             const ForecastExtra& extra, char* out, size_t size, float deltaHpa3h = NAN);
     float       cloudBaseM(float tempC, float dewPointC);                             // Hennig: (T - Td) * 125 m
     const char* convectionClass(float tempC, float dewPointC);                        // "Saturated" / "Cumulus" / "Moderate" / "Dry, stable"
+
+    // ---------- Propagacion en HF (formulas de EA7JRS/sat-aprs, server.ts y server/propagacion.ts) ----------
+    // MUF (3000 km) y LUF estimadas con el flujo solar, la altura del sol sobre la estacion y los rayos X (la absorcion de la capa
+    // D): de noche la MUF baja y la LUF tambien. Estado de cada banda como en sat-aprs: abierta hasta el 85 % de la MUF (frecuencia
+    // optima), justa hasta la MUF, cerrada por encima y absorbida por debajo de la LUF; con tormenta (Kp >= 4,5) lo abierto queda
+    // degradado (desvanecimientos, ruido).
+    struct HfEstimate { float muf, luf; };
+    HfEstimate  hfEstimate(float sfi, double sunElevDeg, double xrayWm2);
+    enum HfState : uint8_t { HF_SHUT, HF_FAIR, HF_OPEN, HF_ABSORBED, HF_POOR };
+    HfState     hfBandState(float mhz, const HfEstimate& e, float kp);
+    const char* hfStateShort(HfState s);                                              // "shut" "fair" "open" "abs" "poor"
+    struct HfBand { const char* name; float mhz; };
+    extern const HfBand HF_BANDS[10];                                                  // 160 m .. 10 m
+    double      xrayFluxFromClass(const char* cls);                                    // "C3.1" -> 3.1e-6 W/m2; 0 si no vale
     float       frostMinC(float temp18C, float dew18C, float groundK = 2.0f);          // T18 - 0,55 (T18 - Td18) - K
 
     // ---------- Alarmas de emergencia ----------

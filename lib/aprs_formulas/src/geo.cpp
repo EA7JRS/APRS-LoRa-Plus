@@ -50,6 +50,17 @@ double rhumbBearing(LatLon a, LatLon b) {
     return norm360(rad2deg(std::atan2(dl, dpsi)));
 }
 
+LatLon rhumbDestination(LatLon from, double brg, double distNm) {
+    const double d = distNm / kRnm, t = deg2rad(brg), p1 = deg2rad(from.lat);
+    double p2 = p1 + d * std::cos(t);
+    if (p2 > kPi / 2) p2 = kPi / 2;
+    if (p2 < -kPi / 2) p2 = -kPi / 2;
+    const double dpsi = std::log(std::tan(kPi / 4 + p2 / 2) / std::tan(kPi / 4 + p1 / 2));
+    const double q = std::fabs(dpsi) > 1e-12 ? (p2 - p1) / dpsi : std::cos(p1);
+    const double dl = q != 0 ? d * std::sin(t) / q : 0;
+    return {rad2deg(p2), norm180(from.lon + rad2deg(dl))};
+}
+
 bool vincentyInverse(LatLon p1, LatLon p2, double& distM, double& brg) {
     const double a = 6378137.0, f = 1 / 298.257223563, b = a * (1 - f);
     double L = deg2rad(p2.lon - p1.lon);

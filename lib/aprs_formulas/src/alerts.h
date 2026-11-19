@@ -25,8 +25,8 @@
 
 namespace plotter {
 
-enum class AlertSrc : uint8_t { Aemet, MeteoAlarm, Nws, Tsunami, Swpc, Same, Usgs, Emsc, Other };
-const char* alertSrcName(AlertSrc s);           // "AEMET", "MeteoAlarm", "NWS", "TSUNAMI", "SWPC", "SAME", "USGS", "EMSC"
+enum class AlertSrc : uint8_t { Aemet, MeteoAlarm, Nws, Tsunami, Swpc, Same, Usgs, Emsc, Shake, Other };
+const char* alertSrcName(AlertSrc s);           // "AEMET", "MeteoAlarm", "NWS", "TSUNAMI", "SWPC", "SAME", "USGS", "EMSC", "ShakeNet"
 const char* alertSrcCode(AlertSrc s);           // corto, para el protocolo: "aemet", "ma", "nws", "tsu", "swpc", "same"
 AlertSrc alertSrcFromCode(const std::string& code);
 const char* alertLevelName(uint8_t level);      // "INFO", "YELLOW", "ORANGE", "RED"
@@ -140,6 +140,12 @@ constexpr const char* kUsgs45Day = "https://earthquake.usgs.gov/earthquakes/feed
 std::string emscUrl(double lat, double lon, int64_t sinceUnix, double minMag = 3.5, double radiusDeg = 15);
 bool quakeParseUsgs(const std::string& json, std::vector<Alert>& out);
 bool quakeParseEmsc(const std::string& json, std::vector<Alert>& out);
+// ShakeNet (Raspberry Shake, QuakeLink): FDSN de quakelink.raspberryshake.org cerca de una posicion (shakeUrl), en el
+// formato texto de FDSN (columnas separadas por «|», con cabecera «#EventID|Time|Latitude|...»). Localizaciones automaticas
+// de la red de estaciones Raspberry Shake: con duplicados mandan EMSC y USGS. Condiciones de uso no publicadas.
+std::string shakeUrl(double lat, double lon, int64_t sinceUnix, double minMag = 3.5, double radiusDeg = 15);
+bool quakeParseFdsnText(const std::string& text, AlertSrc src, std::vector<Alert>& out);
+bool alertIsQuake(AlertSrc s);                                  // USGS, EMSC o ShakeNet
 // magnitud (en el campo "text" queda la profundidad); distancia en km. 3 rojo: M6 a < 300 km o M7 a < 1000 km;
 // 2 naranja: M5 a < 300, M6 a < 1000, M7,5 a < 3000; 1 amarillo: M4 a < 100, M5 a < 600, M6 a < 2000; si no, 0.
 uint8_t quakeLevel(double mag, double distKm);

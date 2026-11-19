@@ -72,6 +72,14 @@ Sight advanceSight(const Sight& s, double fromLat, double fromLon, double toLat,
 // Situacion por dos o mas rectas (minimos cuadrados alrededor de la estima). false si son casi paralelas.
 bool fixFromSights(double estLat, double estLon, const Sight* sights, int n, double& lat, double& lon);
 
+// Latitud con una sola altura observada: sin Ho = sin(lat) sin(dec) + cos(lat) cos(dec) cos(LHA), resuelta en la latitud
+// (de las dos soluciones, la mas cercana a la de estima). Con LHA 0 es la latitud por la meridiana; con la Polar, la
+// latitud por la Polar; fuera del meridiano depende de la longitud de estima (LHA = AHG + longitud). false sin solucion.
+bool latitudeFromAltitude(double hoDeg, double decDeg, double lhaDeg, double latEstDeg, double& latDeg);
+// Paso por el meridiano superior de la longitud lonDeg: el instante (dia juliano) mas cercano a jd0 en que el horario
+// local es 0. gha(jd, ctx) da el AHG del astro en grados. Tambien sirve para la Luna y los planetas (se itera).
+double meridianPassageJd(double jd0, double lonDeg, double (*gha)(double jd, void* ctx), void* ctx);
+
 // Astros que se pueden observar ahora: Sol, Luna, los cuatro planetas y las estrellas entre minAlt y maxAlt (altura
 // verdadera, grados), ordenados por azimut. kind: 0 Sol, 1 Luna, 2 planeta (index = Planet), 3 estrella (index de navStar).
 struct SkyItem {

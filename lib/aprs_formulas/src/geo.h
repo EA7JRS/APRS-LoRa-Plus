@@ -28,6 +28,7 @@ LatLon gcDestination(LatLon from, double bearingDeg, double distNm);
 // Loxodromica (rumbo constante)
 double rhumbDistanceNm(LatLon a, LatLon b);
 double rhumbBearing(LatLon a, LatLon b);
+LatLon rhumbDestination(LatLon from, double bearingDeg, double distNm);
 
 // Elipsoide WGS84 (Vincenty inverso). false si no converge (puntos casi antipodas).
 bool vincentyInverse(LatLon a, LatLon b, double& distM, double& initialBearingDeg);

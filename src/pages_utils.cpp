@@ -85,6 +85,7 @@
 #include "iaru_auto.h"
 #include "ble_control.h"
 #include "astro.h"            // lib/aprs_formulas (formulas del plotter): luna
+#include "celnav.h"           // declinacion y ecuacion del tiempo del sol (CLOCK > SUN) (EA7JRS)
 #include "wind.h"             // Beaufort
 #include "alerts_utils.h"     // avisos oficiales (EA7JRS)
 
@@ -193,7 +194,7 @@ namespace {
         X(TEAM_RADAR) X(TEAM_LIST) X(TEAM_AUTO) X(TEAM_QUICK) X(TEAM_PING) X(TEAM_GOTO) X(SYS_BT) X(SYS_BTPROTO) X(SYS_KISSWIFI) X(SYS_CATWIFI) \
         X(SYS_IARU) X(FM_VM) X(FM_EDIT) X(FM_SHIFT) X(FM_TONEMODE) X(FM_STEP) X(FM_POWER) X(FM_WIDE) X(FM_SQLAUTO) X(FM_NR) \
         X(FM_SCAN) X(FM_STORE) X(FM_ARTS) X(FM_EAI) X(FM_APRS) X(RADIO_TUNE) X(QSY) X(FM_SAT) X(FM_SATNEXT) X(FM_SATTX) X(SAT_FAV) X(SATTX_POS) X(WX_NET) X(SAT_PHONE) X(AIS_VIEW) X(AIS_NEXT) X(AIS_PREV) X(AIS_GOTO) X(AIS_CH) X(AIS_ALARM) X(AIS_CLEAR) \
-        X(BC_SEEKUP) X(BC_SEEKDN) X(BC_VOLUP) X(BC_VOLDN) X(BC_MUTE) X(BC_BAND) X(BC_MONO) X(BC_STORE) X(BC_PRESET) X(BC_POWER) X(SYS_THEME)
+        X(BC_SEEKUP) X(BC_SEEKDN) X(BC_VOLUP) X(BC_VOLDN) X(BC_MUTE) X(BC_BAND) X(BC_MONO) X(BC_STORE) X(BC_PRESET) X(BC_POWER) X(SYS_THEME) X(CLK_ROTOR)
     enum Command : uint8_t {
     #define X(n) C_##n,
         COMMAND_LIST(X)
@@ -253,7 +254,7 @@ namespace {
     uint8_t         boardView           = 0;        // SYSTEM: 0 = sistema, 1 = vista LINK (conexiones activas), 2 = BATTERY (no son paginas aparte)
     uint8_t         gpsView             = 0;        // GPS: 0 = posicion, 1 = GNSS (constelaciones, bandas, cielo) (EA7JRS)
     uint8_t         clockView           = 0;        // CLOCK: 0 = reloj, 1 = SUN (orto y ocaso), 2 = MOON (fase) (EA7JRS)
-    uint8_t         wxView              = 0;        // TELEMETRY: 0 = sensores, 1 = ALERTS (avisos oficiales), 2 = SPACE WX (EA7JRS)
+    uint8_t         wxView              = 0;        // TELEMETRY: 0 = sensores, 1 = ALERTS (avisos oficiales), 2 = SPACE WX, 3 = HF (EA7JRS)
     uint8_t         alertTop            = 0;        // ALERTS: primera fila
     uint8_t         alertSel            = 0;        // ALERTS: aviso marcado (LP lo abre)
     bool            alertRead           = false;    // ALERTS: leyendo el aviso marcado entero
@@ -339,6 +340,8 @@ namespace {
     int             aisSel = 0;                  // barco elegido (posicion en la lista por distancia)
     char            satListenLabel[24];
     Item            rotItems[5];
+    Item            clockItems[5];
+    int8_t          rotBeforeSky        = -1;       // fuente del rotor antes de seguir al sol / la luna desde SUN / MOON (EA7JRS)
     char            rotSourceLabel[28];
     char            satCatLabel[28];
     char            satFavLabel[20];
@@ -547,7 +550,12 @@ namespace {
             }
             case PAGE_COMPASS:  PAGES_ITEMS(ITEMS_COMPASS);
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
-            case PAGE_CLOCK:    PAGES_ITEMS(ITEMS_CLOCK);
+            case PAGE_CLOCK:
+                if (clockView == 0 || !Config.rotor.enabled) { PAGES_ITEMS(ITEMS_CLOCK); }
+                count = 0;                                       // SUN / MOON con rotor (EA7JRS): seguir al astro con la antena
+                clockItems[count++] = Item{"Rotor", C_CLK_ROTOR};
+                for (const Item& it : ITEMS_CLOCK) clockItems[count++] = it;
+                return clockItems;
             case PAGE_WX:       PAGES_ITEMS(ITEMS_WX);
             case PAGE_AIS: {
                 uint8_t n = 0;
@@ -653,6 +661,11 @@ namespace {
                 return buffer;
             }
             case C_CLK_FORMAT:  return clock24h ? "Format: 24h" : "Format: 12h";
+            case C_CLK_ROTOR: {
+                const int sky = clockView == 2 ? RotorFollow::SRC_MOON : RotorFollow::SRC_SUN;
+                if (Config.rotor.source == sky) return clockView == 2 ? "Rotor: stop Moon" : "Rotor: stop Sun";
+                return clockView == 2 ? "Rotor to Moon" : "Rotor to Sun";
+            }
             case C_ZN_MODE: {
                 static char buffer[24];
                 if (zoneMode == ZONE_AUTO_EU) snprintf(buffer, sizeof(buffer), "Zone: auto EU");
@@ -839,6 +852,18 @@ namespace {
         pagesText((PW - 6 * (int)strlen(title)) / 2, 1, title, 1, true);
         if (sos) right = "SOS";                                 // emergencia en curso: parpadea en todas las paginas
         if (right) pagesText(PW - 2 - 6 * (int)strlen(right), 1, right, 1, true);
+        pagesInk(INK_TEXT);
+        pagesZone(PZ_BODY);
+    }
+
+    void icon(uint8_t i, int x, int y, bool on);
+
+    // SUN / MOON (EA7JRS): con el rotor siguiendo a ese astro, la antena del rotor a la izquierda del titulo
+    static void skyRotorMark(const char* title, int sky) {
+        if (!Config.rotor.enabled || Config.rotor.source != sky) return;
+        pagesZone(PZ_TOP);
+        pagesInk(INK_HEAD);
+        icon(PAGE_ROT, (PW - 6 * (int)strlen(title)) / 2 - 12, 0, false);
         pagesInk(INK_TEXT);
         pagesZone(PZ_BODY);
     }
@@ -1424,9 +1449,23 @@ namespace {
                 }
             #endif
             if (!iconDrawn) {
-                if (XR >= 16) snprintf(line, sizeof(line), "%c %-9.9s%6s %3s%4s", kindLetter(s->kind), s->call, distance, course, age);
-                else          snprintf(line, sizeof(line), "%c %-9.9s%6s%4s", kindLetter(s->kind), s->call, distance, showBrg ? course : age);   // OLED: rumbo y antiguedad alternos (EA7JRS)
-                pagesText(0, y, line, 1, selected);
+                if (XR >= 16) {
+                    snprintf(line, sizeof(line), "%c %-9.9s%6s %3s%4s", kindLetter(s->kind), s->call, distance, course, age);
+                    pagesText(0, y, line, 1, selected);
+                } else {
+                    // OLED de 128 px (EA7JRS): columnas por pixeles y no por caracteres, para que entre el tipo, el indicativo, la
+                    // distancia y la antiguedad / rumbo quede hueco aunque vayan llenos: tipo en 0, indicativo desde 11 (9 caracteres,
+                    // hasta 63), distancia alineada a la derecha en 106 (6 caracteres desde 70) y el ultimo dato a la derecha del todo
+                    // (3 caracteres desde 110): 5 o 6 px entre columnas en lugar de 0 o 1
+                    char kind[2] = { kindLetter(s->kind), 0 };
+                    snprintf(line, sizeof(line), "%.9s", s->call);
+                    distance[6] = '\0';
+                    const char* last = showBrg ? course : age;
+                    pagesText(0, y, kind, 1, selected);
+                    pagesText(11, y, line, 1, selected);
+                    pagesText(106 - 6 * (int)strlen(distance), y, distance, 1, selected);
+                    pagesText(PW - 6 * (int)strlen(last), y, last, 1, selected);
+                }
             }
             pagesInk(INK_TEXT);
         }
@@ -2148,11 +2187,14 @@ namespace {
     void drawWxSensors();
     void drawAlertsView();
     void drawSpaceView();
+    void drawHfView();
+    bool hfAvailable();
     void drawAlertReader();
     void drawWx() {
         if (wxView == 1 && alertRead) { drawAlertReader(); return; }
         if (wxView == 1) { drawAlertsView(); return; }
         if (wxView == 2) { if (ALERTS::hasSpace()) { drawSpaceView(); return; } wxView = 0; }
+        if (wxView == 3) { if (hfAvailable()) { drawHfView(); return; } wxView = 0; }
         drawWxSensors();
     }
 
@@ -2224,18 +2266,34 @@ namespace {
         #endif
         float delta = 0;
         bool hasDelta = netP ? NET_WX::delta3h(delta) : pressureTrend.delta3h(delta);
-        const Trend tr = netP ? (hasDelta ? PressureTrend::classifyDelta(delta) : TREND_UNKNOWN) : pressureTrend.trend();
+        Trend tr = netP ? (hasDelta ? PressureTrend::classifyDelta(delta) : TREND_UNKNOWN) : pressureTrend.trend();
+        // con barometro propio pero aun sin 3 h de datos (recien encendido): la tendencia de la presion de internet (EA7JRS)
+        bool netTrend = false;
+        if (!netP && (!hasDelta || tr == TREND_UNKNOWN) && haveNet && nd.hasP && NET_WX::delta3h(delta)) {
+            hasDelta = true;
+            tr = PressureTrend::classifyDelta(delta);
+            netTrend = true;
+        }
         const float fT = netH ? nd.tempC : r.tempC;
         const float fH = netH ? nd.humidity : (r.hasHumidity ? r.humidity : -1.0f);
         float dew = fH >= 0 ? dewPointC(fT, fH) : 0.0f;
+        // viento, nubes y lluvia de internet: el tracker no los mide (EA7JRS)
+        ForecastExtra ex;
+        if (haveNet) {
+            if (nd.hasWind) { ex.windDeg = nd.windDeg; ex.windMs = nd.windMs; }
+            if (nd.hasClouds) ex.clouds = nd.clouds;
+            if (nd.hasRain) ex.rainMmH = nd.rainMmH;
+            double la, lo;
+            if (ownPosition(la, lo)) ex.north = la >= 0;
+        }
         char forecast[20];
-        forecastText(pressure, hasDelta, tr, fT, fH, dew, forecast, sizeof(forecast), hasDelta ? delta : NAN);
-        snprintf(line, sizeof(line), (netP || netH) ? "Fc+N: %s" : "Fcst: %s", forecast);
+        forecastText(pressure, hasDelta, tr, fT, fH, dew, ex, forecast, sizeof(forecast), hasDelta ? delta : NAN);
+        snprintf(line, sizeof(line), (netP || netH || netTrend || ex.any()) ? "Fc+N: %s" : "Fcst: %s", forecast);
         line[COLS] = '\0';
         text(0, y, line);
         y += 9;
         char because[32];
-        if (hasDelta) snprintf(because, sizeof(because), "%+.1f hPa/3h", delta);       // solo la tendencia de 3 h
+        if (hasDelta) snprintf(because, sizeof(because), netTrend ? "N %+.1f hPa/3h" : "%+.1f hPa/3h", delta);       // solo la tendencia de 3 h
         else snprintf(because, sizeof(because), "3h trend: wait");
         because[COLS] = '\0';
         text(0, y, because);
@@ -2400,7 +2458,8 @@ namespace {
         switch (a.src) {
             case plotter::AlertSrc::Tsunami: return WI_WAVE;
             case plotter::AlertSrc::Usgs:
-            case plotter::AlertSrc::Emsc:    return WI_QUAKE;
+            case plotter::AlertSrc::Emsc:
+            case plotter::AlertSrc::Shake:   return WI_QUAKE;
             case plotter::AlertSrc::Swpc:    return WI_SUN;
             case plotter::AlertSrc::Same:    return WI_RADIO;
             default: break;
@@ -2421,7 +2480,7 @@ namespace {
     // Ventana del aviso oficial mas grave sin ver
     void drawAlertWindow(const plotter::Alert& a) {
         char title[24];
-        const bool quake = a.src == plotter::AlertSrc::Usgs || a.src == plotter::AlertSrc::Emsc;
+        const bool quake = plotter::alertIsQuake(a.src);
         if (quake) snprintf(title, sizeof(title), "EARTHQUAKE");
         else if (a.src == plotter::AlertSrc::Tsunami) snprintf(title, sizeof(title), "%s", a.level >= 3 ? "TSUNAMI WARN" : a.level == 2 ? "TSUNAMI ADV" : "TSUNAMI");
         else if (a.src == plotter::AlertSrc::Swpc) snprintf(title, sizeof(title), "SPACE WX");
@@ -2634,24 +2693,30 @@ namespace {
     void drawSpaceView() {
         const plotter::SpaceWx& w = ALERTS::space();
         char right[12];
-        if (w.kpCount) snprintf(right, sizeof(right), "Kp %.1f", w.kpNow());
+        if (w.kpCount) snprintf(right, sizeof(right), "Kp%.1f", w.kpNow());     // sin espacio: no se pega al titulo
         else snprintf(right, sizeof(right), "--");
         header("SPACE WX", right);
         const int barsW = 8 * 6;                                 // 8 barras de 5 px y 1 de hueco
         const int x0 = PW - barsW - 2;
         rowLimit = min(COLS, (x0 - 4) / 6);
-        const struct { char b; int v; const char* name; } sc[] = {{'G', w.g, "Geomag"}, {'R', w.r, "Radio"}, {'S', w.s, "Radiation"}};
+        // escalas G, R y S de hoy en una fila, cada una con el color de su nivel (EA7JRS: asi caben tambien las manchas solares
+        // y el viento solar, que antes solo salia sin Bz)
+        const struct { char b; int v; } sc[] = {{'G', w.g}, {'R', w.r}, {'S', w.s}};
+        char scales[16] = "";
         for (int i = 0; i < 3; i++) {
-            const uint8_t ink = sc[i].v >= 4 ? INK_BAD : sc[i].v == 3 ? INK_LV2 : sc[i].v >= 1 ? INK_LV1 : INK_GOOD;
-            pagesInk(ink);
-            if (sc[i].v >= 0) row((uint8_t)i, "%c%d %s", sc[i].b, sc[i].v, sc[i].name);
-            else row((uint8_t)i, "%c- %s", sc[i].b, sc[i].name);
-            pagesInk(INK_TEXT);
+            char one[4];
+            if (sc[i].v >= 0) snprintf(one, sizeof(one), "%c%d", sc[i].b, sc[i].v); else snprintf(one, sizeof(one), "%c-", sc[i].b);
+            pagesInk(sc[i].v >= 4 ? INK_BAD : sc[i].v == 3 ? INK_LV2 : sc[i].v >= 1 ? INK_LV1 : INK_GOOD);
+            text(i * 18, ROW_Y0 + rowDy, one);
+            snprintf(scales + strlen(scales), sizeof(scales) - strlen(scales), "%s%s", i ? " " : "", one);
         }
-        if (w.sfi > 0) row(3, "SFI %.0f", w.sfi);
-        if (!w.xray.empty()) row(4, "X-ray %s", w.xray.c_str());
-        if (w.bz < 999) row(5, "Bz %+.0f nT", w.bz);
-        else if (w.windKms > 0) row(5, "Wind %.0f km/s", w.windKms);
+        pagesInk(INK_TEXT);
+        snprintf(mirrorRows[0], sizeof(mirrorRows[0]), "%s", scales);   // espejo de la pantalla (app)
+        if (w.sfi > 0) row(1, "SFI %.0f", w.sfi);
+        if (ALERTS::spaceSsn() >= 0) row(2, "SSN %.0f", ALERTS::spaceSsn());
+        if (!w.xray.empty()) row(3, "X-ray %s", w.xray.c_str());
+        if (w.bz < 999) row(4, w.bt >= 0 && rowLimit >= 14 ? "Bz %+.1f Bt %.0f" : "Bz %+.1f nT", w.bz, w.bt);
+        if (w.windKms > 0) row(5, "Wind %.0fkm/s", w.windKms);
         rowLimit = COLS;
         // Kp: barras de 0 a 9 (5 px por unidad), raya de puntos en Kp 5 (tormenta)
         const int yb = 62;
@@ -2673,6 +2738,63 @@ namespace {
         }
     }
 
+    // TELEMETRY > HF (EA7JRS): MUF y LUF de ahora y estado de las 10 bandas para DX, con las formulas de sat-aprs (flujo solar,
+    // altura del sol aqui, rayos X y Kp del tiempo espacial que manda la app). Sin ionosonda: la MUF es una estimacion.
+    bool hfAvailable() {
+        double lat, lon;
+        return ALERTS::hasSpace() && ALERTS::space().sfi > 0 && year(now()) >= 2024 && ownPosition(lat, lon);
+    }
+
+    void drawHfView() {
+        const plotter::SpaceWx& w = ALERTS::space();
+        double lat = 0, lon = 0, alt = 0, az = 0;
+        ownPosition(lat, lon);
+        int y, m, d;
+        double h;
+        plotter::unixToUtc((long long)now(), y, m, d, h);
+        plotter::sunPosition(y, m, d, h, lat, lon, alt, az);
+        const HfEstimate e = hfEstimate(w.sfi, alt, xrayFluxFromClass(w.xray.c_str()));
+        const float kp = w.kpCount ? w.kpNow() : 0;
+        HfState st[10];
+        int best = -1;
+        for (int i = 0; i < 10; i++) { st[i] = hfBandState(HF_BANDS[i].mhz, e, kp); if (st[i] == HF_OPEN || st[i] == HF_POOR) best = i; }
+        char right[10];
+        if (best >= 0) snprintf(right, sizeof(right), "DX %s", HF_BANDS[best].name); else snprintf(right, sizeof(right), "%s", alt > 0 ? "day" : "night");
+        header("HF", right);
+        // primera linea centrada, de mayor a menor: MUF, frecuencia optima de trabajo (FOT, el 85 % de la MUF) y LUF; cada nombre con
+        // su valor a 2 px y los tres grupos repartidos por el ancho. En 128 px no caben las tres con decimal: desde 10 MHz sin el
+        // (con decimal en las de 160 px)
+        auto mhz = [&](char* out, size_t n, float v) { if (v < 10 || PW > 128) snprintf(out, n, "%.1f", v); else snprintf(out, n, "%.0f", v); };
+        char val[3][8];
+        static const char* const LBL[3] = { "MUF", "FOT", "LUF" };
+        mhz(val[0], sizeof(val[0]), e.muf); mhz(val[1], sizeof(val[1]), e.muf * 0.85f); mhz(val[2], sizeof(val[2]), e.luf);
+        int wGroup[3], total = 0;
+        for (int i = 0; i < 3; i++) { wGroup[i] = 18 + 2 + 6 * (int)strlen(val[i]) - 1; total += wGroup[i]; }
+        const int gap = max(4, (PW - total) / 4);
+        int x = max(0, (PW - total - 2 * gap) / 2);
+        pagesInk(kp >= 4.5f ? INK_LV2 : INK_ACCENT);                     // con tormenta, en naranja
+        for (int i = 0; i < 3; i++) {
+            text(x, ROW_Y0 + rowDy, LBL[i]);
+            text(x + 20, ROW_Y0 + rowDy, val[i]);
+            x += wGroup[i] + gap;
+        }
+        pagesInk(INK_TEXT);
+        snprintf(mirrorRows[0], sizeof(mirrorRows[0]), "MUF %s FOT %s LUF %s", val[0], val[1], val[2]);
+        // dos columnas: 160-30 m a la izquierda y 20-10 m a la derecha, cada estado con el color de lo que vale
+        for (int r = 0; r < 5; r++) {
+            const int yy = ROW_Y0 + (r + 1) * ROW_PITCH + rowDy;
+            char cell[2][12];
+            for (int c = 0; c < 2; c++) {
+                const int i = c * 5 + r;
+                snprintf(cell[c], sizeof(cell[c]), "%-4s %s", HF_BANDS[i].name, hfStateShort(st[i]));
+                pagesInk(st[i] == HF_OPEN ? INK_GOOD : st[i] == HF_FAIR ? INK_LV1 : st[i] == HF_POOR ? INK_LV2 : INK_MUTED);
+                text(c * (PW / 2 + 2), yy, cell[c]);
+            }
+            pagesInk(INK_TEXT);
+            if (r + 1 < MIRROR_ROWS) snprintf(mirrorRows[r + 1], sizeof(mirrorRows[r + 1]), "%-10s %s", cell[0], cell[1]);
+        }
+    }
+
     static bool moveWxView(int direction) {
         if (page != PAGE_WX) return false;
         if (wxView == 1 && alertRead && direction != 0) return scrollAlertReader(direction);
@@ -2681,10 +2803,11 @@ namespace {
             if (direction > 0 && alertSel + 1 < L.size()) { alertSel++; return true; }
             if (direction < 0 && alertSel > 0) { alertSel--; return true; }
         }
-        uint8_t seq[3], n = 0;
+        uint8_t seq[4], n = 0;
         seq[n++] = 0;
         if (ALERTS::list().size() > 0) seq[n++] = 1;
         if (ALERTS::hasSpace()) seq[n++] = 2;
+        if (hfAvailable()) seq[n++] = 3;
         int at = 0;
         for (uint8_t i = 0; i < n; i++) if (seq[i] == wxView) at = i;
         const int to = at + direction;
@@ -2814,11 +2937,32 @@ namespace {
         return info;
     }
 
-    // Disco de la luna con su fase; en el hemisferio sur, al reves (la parte iluminada a la izquierda al crecer)
+    // Mares y crateres de la cara visible (EA7JRS): latitud y longitud selenograficas (+ al norte y al este, el este a la derecha
+    // visto desde el hemisferio norte) y radio en grados; los mares, mas oscuros, y unos crateres con el borde marcado
+    struct MoonSpot { int8_t lat, lon, r; };
+    static const MoonSpot MOON_MARIA[] = {
+        {33, -16, 18}, {28, 18, 11}, {9, 31, 13}, {17, 59, 8}, {-8, 51, 11}, {-15, 35, 6}, {-21, -17, 11}, {-24, -39, 6},
+        {22, -55, 17}, {5, -48, 14}, {-5, -62, 8}, {57, -20, 6}, {56, 12, 6}, {13, 4, 5}, {38, -38, 9}, {-2, 20, 4}
+    };
+    static const MoonSpot MOON_CRATERS[] = { {-43, -11, 3}, {10, -20, 3}, {52, -9, 3}, {-5, -68, 3}, {8, -38, 2}, {24, -47, 2} };
+    static bool moonSpotAt(const MoonSpot* list, int n, double sinLat, double cosLat, double lon, double margin) {
+        for (int i = 0; i < n; i++) {
+            const double la = list[i].lat * DEG_TO_RAD, lo = list[i].lon * DEG_TO_RAD;
+            const double c = sinLat * sin(la) + cosLat * cos(la) * cos(lon - lo);
+            if (c > cos((list[i].r + margin) * DEG_TO_RAD)) return true;
+        }
+        return false;
+    }
+
+    // Disco de la luna con su fase y sus mares; en el hemisferio sur, al reves (la parte iluminada a la izquierda al crecer y la
+    // cara girada media vuelta). En color: tierras claras, mares grises y crateres con el borde oscuro; en las OLED los mares a
+    // medio tono (un punto si y otro no) y el borde de los crateres apagado
     static void drawMoonDisc(int cx, int cy, int r, const MoonInfo& mi, bool south) {
         const double th = (mi.waxing ? mi.elong : 360 - mi.elong) * DEG_TO_RAD;
         const double c = cos(th);
         const bool color = pagesHasColor();
+        const bool texture = r >= 8;                            // en los iconos pequenos del reloj, solo la fase
+        const int NM = sizeof(MOON_MARIA) / sizeof(MOON_MARIA[0]), NC = sizeof(MOON_CRATERS) / sizeof(MOON_CRATERS[0]);
         for (int dy = -r; dy <= r; dy++) {
             const double w = sqrt((double)(r * r - dy * dy));
             const int W = (int)floor(w);
@@ -2831,9 +2975,27 @@ namespace {
             if (color) {
                 pagesInk(INK_SHADE);
                 pagesFillRect(cx - W, cy + dy, 2 * W + 1, 1, true);
-                pagesInk(INK_MOON);
             }
-            if (b >= a) pagesFillRect(cx + a, cy + dy, b - a + 1, 1, true);
+            if (b < a) continue;
+            if (!texture) {
+                pagesInk(INK_MOON);
+                pagesFillRect(cx + a, cy + dy, b - a + 1, 1, true);
+                continue;
+            }
+            for (int dx = a; dx <= b; dx++) {
+                // punto de la cara: proyeccion ortografica (y hacia arriba); en el sur, girada 180 grados
+                const double X = (south ? -dx : dx) / (r + 0.5), Y = (south ? dy : -dy) / (r + 0.5);
+                const double sinLat = Y, cosLat = sqrt(max(0.0, 1 - Y * Y));
+                const double lon = cosLat > 1e-6 ? asin(constrain(X / cosLat, -1.0, 1.0)) : 0;
+                const bool crater = moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, 0) && !moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, -1.6);
+                const bool mare = moonSpotAt(MOON_MARIA, NM, sinLat, cosLat, lon, 0);
+                if (color) {
+                    pagesInk(crater ? INK_MUTED : mare ? INK_MARIA : INK_MOON);
+                    pagesFillRect(cx + dx, cy + dy, 1, 1, true);
+                } else if (!crater && (!mare || ((cx + dx + cy + dy) & 1))) {
+                    pagesFillRect(cx + dx, cy + dy, 1, 1, true);
+                }
+            }
         }
         pagesInk(INK_MUTED);
         pagesDrawCircle(cx, cy, r, true);
@@ -2864,8 +3026,22 @@ namespace {
         return true;
     }
 
-    // CLOCK > SUN: duracion del dia o la noche, orto y ocaso con su azimut, mediodia con la altura, crepusculo civil y el
-    // recorrido del sol sobre el horizonte (de dia el sol sobre su arco; de noche apagado bajo el horizonte)
+    // Azimut de 0 a 359,9 con una decima (359,96 no sale como 360,0)
+    static double azTenths(double az) {
+        double a = fmod(az + 360.0, 360.0);
+        return a >= 359.95 ? 0.0 : a;
+    }
+
+    // "3h12m" / "45m": cuanto falta (minutos)
+    static void fmtSpan(double minutes, char* out, size_t size) {
+        const int m = (int)lround(minutes < 0 ? 0 : minutes);
+        if (m >= 60) snprintf(out, size, "%dh%02dm", m / 60, m % 60);
+        else snprintf(out, size, "%dm", m);
+    }
+
+    // CLOCK > SUN (EA7JRS): el sol ahora, en tiempo real (el orto, el ocaso y la duracion del dia ya estan en CLOCK): azimut con su
+    // punto cardinal, altura aparente y si sube o baja, sombra (largo de la sombra / altura del objeto), cuanto falta para el ocaso o
+    // el orto, declinacion y ecuacion del tiempo; y el recorrido del dia con el sol en su sitio (de noche apagado bajo el horizonte)
     void drawSun() {
         time_t t;
         double lat, lon;
@@ -2875,55 +3051,72 @@ namespace {
         double h, alt, az;
         plotter::unixToUtc((long long)t, y, m, d, h);
         plotter::sunPosition(y, m, d, h, lat, lon, alt, az);
-        char right[10];
-        snprintf(right, sizeof(right), "El %d", (int)lround(alt + plotter::refractionDeg(alt)));
+        double alt2, az2;
+        plotter::sunPosition(y, m, d, h + 2.0 / 60.0, lat, lon, alt2, az2);          // dentro de 2 min: sube o baja
+        const double app = alt + plotter::refractionDeg(alt);                        // altura aparente (la que se ve)
+        char right[8];
+        const time_t lt = t + (time_t)off * 60;
+        snprintf(right, sizeof(right), "%02d:%02d", hour(lt), minute(lt));
         header("SUN", right);
+        skyRotorMark("SUN", RotorFollow::SRC_SUN);
 
-        double rise, set, dawn, dusk;
+        double rise, set;
         const bool hasRise = plotter::sunTimes(y, m, d, lat, lon, -0.833, rise, set);
-        const bool hasDawn = plotter::sunTimes(y, m, d, lat, lon, -6.0, dawn, dusk);
-        const double noon = plotter::solarNoonUtcMin(y, m, d, lon);
         double nAlt, nAz;
+        const double noon = plotter::solarNoonUtcMin(y, m, d, lon);
         plotter::sunPosition(y, m, d, noon / 60.0, lat, lon, nAlt, nAz);
         const bool up = alt > -0.833;
         const double nowMin = h * 60.0;
-        char a[6], b[6];
+        const double jd = plotter::julianDay(y, m, d, h);
+        double gha, dec;
+        plotter::sunGhaDec(jd, gha, dec);
+        const double eot = plotter::equationOfTimeMin(jd);
 
         const bool big = XR >= 16;                                   // 160 px: arco mayor
         // TFT (EA7JRS): con el sitio que sobra encima de la barra, arco de 28 px, horizonte mas abajo y sol mayor
-        // OLED de 128 px (EA7JRS): arco de 17 px (antes 15) pegado al borde y horizonte mas abajo; las filas siguen en 15 columnas
-        const int R = PAGES_EXTRA ? 28 : (big ? 21 : 17);
-        const int cx = PW - (PAGES_EXTRA ? 4 : (big ? 8 : 1)) - R, hy = PAGES_EXTRA ? 54 : (big ? 46 : 50);
-        rowLimit = min(COLS, (cx - R - 2) / 6);
+        // OLED de 128 px (EA7JRS): arco de 24 px (antes 17) hasta el borde y horizonte en 52; el arco solo es ancho abajo, asi que las
+        // filas largas (azimut, altura, cuanto falta) van arriba, por encima del arco, las cortas (declinacion, ecuacion del tiempo) a
+        // su izquierda y la sombra en la ultima, bajo el horizonte
+        const bool oled = !big && !PAGES_EXTRA;
+        const int R = PAGES_EXTRA ? 28 : (big ? 21 : 24);
+        const int cx = PW - (PAGES_EXTRA ? 4 : (big ? 8 : 3)) - R, hy = PAGES_EXTRA ? 54 : (big ? 46 : 52);
+        rowLimit = oled ? COLS : min(COLS, (cx - R - 2) / 6);
+        const int a360 = ((int)lround(az) + 360) % 360;
+        row(0, "Az %05.1f %s", azTenths(az), cardinal16(a360));
+        row(1, "El %+.2f %s", app, alt2 > alt ? "up" : "down");
+        if (app > 0.5) {
+            const double ratio = 1.0 / tan(app * DEG_TO_RAD);          // sombra / altura del objeto
+            if (ratio < 10) row(5, "Shadow x%.2f", ratio);
+            else if (ratio < 100) row(5, "Shadow x%.1f", ratio);
+            else row(5, "Shadow long");
+        } else {
+            row(5, "Shadow -");
+        }
+        char span[10];
         int dayLen = 0;
         if (hasRise) {
             dayLen = (int)lround(set - rise);
             if (dayLen < 0) dayLen += 1440;
-            if (up) row(0, "Day %dh%02dm", dayLen / 60, dayLen % 60);
-            else    row(0, "Night %dh%02dm", (1440 - dayLen) / 60, (1440 - dayLen) % 60);
-            double ra, rz;
-            fmtLocalMin(rise, off, a, sizeof(a));
-            plotter::sunPosition(y, m, d, rise / 60.0, lat, lon, ra, rz);
-            row(1, "Rise %s %3d", a, ((int)lround(rz) + 360) % 360);
-            fmtLocalMin(set, off, b, sizeof(b));
-            plotter::sunPosition(y, m, d, set / 60.0, lat, lon, ra, rz);
-            row(2, "Set  %s %3d", b, ((int)lround(rz) + 360) % 360);
+            if (up) {
+                fmtSpan(fmod(set - nowMin + 2880, 1440), span, sizeof(span));
+                row(2, "Set in %s", span);
+            } else {
+                double next = fmod(rise - nowMin + 2880, 1440);
+                if (rise <= nowMin) {                                   // el orto de hoy ya paso: el de manana
+                    int y2, m2, d2;
+                    double h2, r2, s2;
+                    plotter::unixToUtc((long long)t + 86400, y2, m2, d2, h2);
+                    if (plotter::sunTimes(y2, m2, d2, lat, lon, -0.833, r2, s2)) next = r2 + 1440 - nowMin;
+                }
+                fmtSpan(next, span, sizeof(span));
+                row(2, "Rise in %s", span);
+            }
         } else {
-            row(0, nAlt > 0 ? "Polar day" : "Polar night");
-            row(1, "Rise --:--");
-            row(2, "Set  --:--");
+            row(2, nAlt > 0 ? "Polar day" : "Polar night");
         }
-        fmtLocalMin(noon, off, a, sizeof(a));
-        row(3, "Noon %s El%d", a, (int)lround(nAlt + plotter::refractionDeg(nAlt)));
-        if (hasDawn) {
-            fmtLocalMin(dawn, off, a, sizeof(a));
-            fmtLocalMin(dusk, off, b, sizeof(b));
-            row(4, "Dawn %s", a);
-            row(5, "Dusk %s", b);
-        } else {
-            row(4, "Dawn --:--");
-            row(5, "Dusk --:--");
-        }
+        row(3, "Decl %+.2f", dec);
+        const double ae = fabs(eot);
+        row(4, "EqT %c%dm%02ds", eot < 0 ? '-' : '+', (int)ae, (int)lround((ae - (int)ae) * 60) % 60);
         rowLimit = COLS;
 
         // recorrido: horizonte, arco del dia punteado (en el color del cielo) y arco de la noche bajo el horizonte
@@ -2949,51 +3142,66 @@ namespace {
         frac = constrain(frac, 0.0f, 1.0f);
         const float ang = frac * (float)PI;
         if (up) {
-            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), PAGES_EXTRA ? 6 : (big ? 4 : 5));
+            drawSunIcon(cx - (int)lroundf(R * cosf(ang)), hy - (int)lroundf(R * 0.8f * sinf(ang)), PAGES_EXTRA ? 6 : (big ? 4 : 3));   // OLED: sol de 3 px (antes 5)
         } else {
+            // de noche, apagado bajo el horizonte; en la OLED sin pisar las letras E y W de los extremos
+            const float a2 = oled ? constrain(ang, 0.95f, (float)PI - 0.95f) : ang;
             pagesInk(INK_NIGHT);
-            pagesDrawCircle(cx + (int)lroundf(R * cosf(ang)), hy + (int)lroundf(R * 0.25f * sinf(ang)), PAGES_EXTRA ? 4 : 3, true);
+            pagesDrawCircle(cx + (int)lroundf(R * cosf(a2)), hy + (int)lroundf(R * 0.25f * sinf(a2)), PAGES_EXTRA ? 4 : (oled ? 2 : 3), true);
             pagesInk(INK_TEXT);
         }
     }
 
-    // CLOCK > MOON: fase, parte iluminada, edad, salida y puesta, y cuanto falta para la llena y la nueva
+    // CLOCK > MOON (EA7JRS): la luna ahora, en tiempo real: fase, parte iluminada, edad, azimut, altura aparente y distancia; en la
+    // cabecera la proxima salida o puesta. El disco con su fase, sus mares y sus crateres
     void drawMoon() {
         time_t t;
         double lat, lon;
         int off;
         if (!skyNow(t, lat, lon, off)) { header("MOON"); text(4, 24, "Needs time and GPS"); return; }
         const MoonInfo& mi = moonInfo(t, lat, lon);
-        char right[8];
-        snprintf(right, sizeof(right), "%d%%", (int)lround(mi.lit * 100));
-        header("MOON", right);
+        int y, m, d;
+        double h, alt, az, dist;
+        plotter::unixToUtc((long long)t, y, m, d, h);
+        plotter::moonPosition(y, m, d, h, lat, lon, alt, az, dist);
+        const double app = alt + plotter::refractionDeg(alt);
+        // cabecera: la siguiente salida ("R") o puesta ("S"), hora local; si las de hoy ya pasaron, las de manana
+        const double nowMin = h * 60.0;
+        double nextMin = 1e9;
+        char kind = 0;
+        if (mi.hasRise && mi.riseMin > nowMin && mi.riseMin < nextMin) { nextMin = mi.riseMin; kind = 'R'; }
+        if (mi.hasSet && mi.setMin > nowMin && mi.setMin < nextMin) { nextMin = mi.setMin; kind = 'S'; }
+        if (!kind) {
+            static double tRise = 0, tSet = 0;
+            static bool tHasRise = false, tHasSet = false;
+            static int tDay = -1;
+            int y2, m2, d2;
+            double h2;
+            plotter::unixToUtc((long long)t + 86400, y2, m2, d2, h2);
+            if (tDay != d2) { plotter::moonTimes(y2, m2, d2, lat, lon, tRise, tHasRise, tSet, tHasSet); tDay = d2; }
+            if (tHasRise) { nextMin = tRise + 1440; kind = 'R'; }
+            if (tHasSet && tSet + 1440 < nextMin) { nextMin = tSet + 1440; kind = 'S'; }
+        }
+        char right[10] = "", a[6];
+        if (kind) { fmtLocalMin(nextMin, off, a, sizeof(a)); snprintf(right, sizeof(right), "%c %s", kind, a); }
+        header("MOON", right[0] ? right : nullptr);
+        skyRotorMark("MOON", RotorFollow::SRC_MOON);
         const bool big = XR >= 16;
         int r = PAGES_EXTRA ? 27 : (big ? 24 : 17);                 // TFT: casi todo el alto libre (EA7JRS)
         int cx = PW - 2 - r, cy = 37 + (PAGES_EXTRA ? 3 : 0);
-        if (!big && !PAGES_EXTRA) {
-            // OLED de 128 px (EA7JRS): el disco del mismo tamano y en el mismo sitio que la rosa de COMPASS (22 px, x 100, y 37;
-            // antes 17 px pegado al borde); la fase ocupa la fila 0 entera y las demas filas caben a su izquierda (el % iluminado
-            // ya va en la cabecera)
-            r = 22; cx = 100 + XR; cy = 37;
-            rowLimit = COLS;
-            row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
-            rowLimit = min(COLS, (cx - r - 2) / 6);
-        } else {
-            rowLimit = min(COLS, (cx - r - 2) / 6);
-            row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));
-        }
-        if (big) row(1, "Lit %d%% Age %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
-        else if (!PAGES_EXTRA) row(1, "Age %.1fd", mi.ageDays);
-        else     row(1, "Lit %d%% %.1fd", (int)lround(mi.lit * 100), mi.ageDays);
-        char a[6] = "--:--";
-        if (mi.hasRise) fmtLocalMin(mi.riseMin, off, a, sizeof(a));
-        row(2, "Rise %s", a);
-        snprintf(a, sizeof(a), "--:--");
-        if (mi.hasSet) fmtLocalMin(mi.setMin, off, a, sizeof(a));
-        row(3, "Set  %s", a);
-        const int fh = (int)lround(mi.toFullH), nh = (int)lround(mi.toNewH);
-        row(4, "Full %dd%02dh", fh / 24, fh % 24);
-        row(5, "New  %dd%02dh", nh / 24, nh % 24);
+        if (!big && !PAGES_EXTRA) { r = 22; cx = 100 + XR; cy = 37; }  // OLED: como la rosa de COMPASS (22 px, x 100, y 37)
+        rowLimit = COLS;
+        row(0, "%s", plotter::moonPhaseNameEn(plotter::moonPhase8(mi.ageDays)));    // la fase, a lo ancho (el disco empieza mas abajo)
+        rowLimit = min(COLS, (cx - r - 2) / 6);
+        // iluminada y edad de este instante (la fase, la salida y la puesta se recalculan cada 5 min en moonInfo)
+        const double el = moonElongation((long long)t, lat, lon);
+        const double litNow = (1 - cos(el * DEG_TO_RAD)) / 2, ageNow = (mi.waxing ? el : 360 - el) / 360 * 29.530588853;
+        row(1, "Lit %.1f%%%s", litNow * 100, mi.waxing ? " +" : " -");      // + creciente, - menguante
+        row(2, "Age %.2fd", ageNow);
+        const int a360 = ((int)lround(az) + 360) % 360;
+        row(3, "Az %05.1f %s", azTenths(az), cardinal16(a360));
+        row(4, "Alt %+.2f", app);
+        row(5, "%.0fkm", dist);
         rowLimit = COLS;
         drawMoonDisc(cx, cy, r, mi, lat < 0);
     }
@@ -3085,7 +3293,9 @@ namespace {
         };
 
         // orto y ocaso con la posicion propia; cada 4 s se alterna con la luna (fase, iluminada, salida y puesta); en
-        // pantallas de 160 px, el sol o la luna pequenos a la derecha
+        // pantallas de 160 px, el sol o la luna pequenos a la derecha. En las OLED de 128 px (EA7JRS) sin dibujo: tapaba la fecha
+        // y la hora UTC; las tres lineas en su sitio (x 4) y la del sol / luna, si llega a 21 caracteres, desde x 1 para que quepa
+        auto skyX = [&](const char* s) { const int w = 6 * (int)strlen(s); return 4 + w <= PW ? 4 : max(0, (PW - w) / 2); };
         double lat, lon;
         if (ownPosition(lat, lon) && (millis() / 4000) % 2 == 1) {
             const MoonInfo& mi = moonInfo(t, lat, lon);
@@ -3093,9 +3303,9 @@ namespace {
             if (mi.hasRise) fmtLocalMin(mi.riseMin, offsetMin, a, sizeof(a));
             if (mi.hasSet) fmtLocalMin(mi.setMin, offsetMin, b, sizeof(b));
             snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(mi.lit * 100), mi.waxing ? '+' : '-', a, b);   // + creciente, - menguante
-            text(4, Y_SKY, buffer);
+            text(skyX(buffer), Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
+            if (PW > 128) { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
         } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
@@ -3110,9 +3320,9 @@ namespace {
             } else {
                 snprintf(buffer, sizeof(buffer), sun > 0 ? "Sun: polar day" : "Sun: polar night");
             }
-            text(4, Y_SKY, buffer);
+            text(skyX(buffer), Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 4 : 2; if (r >= 3) drawSunIcon(cx, cy, r); }   // el disco, sin los rayos
+            if (PW > 128) { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 4 : 2; if (r >= 3) drawSunIcon(cx, cy, r); }   // el disco, sin los rayos
         }
     }
 
@@ -6882,6 +7092,25 @@ namespace PAGES_Utils {
                 Config.writeFile();
                 char toast[32];
                 snprintf(toast, sizeof(toast), "Rotor: %s", RotorFollow::sourceName(s));
+                showToast(toast);
+                break;
+            }
+            case C_CLK_ROTOR: {                                  // SUN / MOON: el rotor sigue al astro; otra vez, vuelve a la fuente de antes
+                if (!Config.rotor.enabled) { showToast("Rotor off (WebUI)"); break; }
+                const int sky = clockView == 2 ? RotorFollow::SRC_MOON : RotorFollow::SRC_SUN;
+                if (Config.rotor.source == sky) {
+                    int back = rotBeforeSky;
+                    if (back < 0 || back == RotorFollow::SRC_SUN || back == RotorFollow::SRC_MOON || !RotorFollow::validSource(back) ||
+                        (back == RotorFollow::SRC_SAT && Config.operatingMode != MODE_SAT)) back = RotorFollow::SRC_APRS_TARGET;
+                    Config.rotor.source = back;
+                    rotBeforeSky = -1;
+                } else {
+                    if (Config.rotor.source != RotorFollow::SRC_SUN && Config.rotor.source != RotorFollow::SRC_MOON) rotBeforeSky = (int8_t)Config.rotor.source;
+                    Config.rotor.source = sky;
+                }
+                Config.writeFile();
+                char toast[32];
+                snprintf(toast, sizeof(toast), "Rotor: %s", RotorFollow::sourceName(Config.rotor.source));
                 showToast(toast);
                 break;
             }

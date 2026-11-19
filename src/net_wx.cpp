@@ -74,7 +74,11 @@ namespace NET_WX {
         const float hum = d.hasH && d.hasT ? d.humidity : -1.0f;
         const float dew = hum >= 0 ? PAGES_Core::dewPointC(d.tempC, d.humidity) : 0.0f;
         const PAGES_Core::Trend tr = hasDelta ? PAGES_Core::PressureTrend::classifyDelta(delta) : PAGES_Core::TREND_UNKNOWN;
-        PAGES_Core::forecastText(d.pressureHpa, hasDelta, tr, d.hasT ? d.tempC : 15.0f, hum, dew, out, n, hasDelta ? delta : NAN);
+        PAGES_Core::ForecastExtra ex;                           // viento, nubes y lluvia de la misma observacion
+        if (d.hasWind) { ex.windDeg = d.windDeg; ex.windMs = d.windMs; }
+        if (d.hasClouds) ex.clouds = d.clouds;
+        if (d.hasRain) ex.rainMmH = d.rainMmH;
+        PAGES_Core::forecastText(d.pressureHpa, hasDelta, tr, d.hasT ? d.tempC : 15.0f, hum, dew, ex, out, n, hasDelta ? delta : NAN);
         if (delta3hOut) *delta3hOut = hasDelta ? delta : NAN;
         return true;
     }

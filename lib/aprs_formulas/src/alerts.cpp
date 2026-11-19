@@ -27,6 +27,7 @@ const char* alertSrcName(AlertSrc s) {
         case AlertSrc::Same: return "SAME";
         case AlertSrc::Usgs: return "USGS";
         case AlertSrc::Emsc: return "EMSC";
+        case AlertSrc::Shake: return "ShakeNet";
         default: return "ALERT";
     }
 }
@@ -41,6 +42,7 @@ const char* alertSrcCode(AlertSrc s) {
         case AlertSrc::Same: return "same";
         case AlertSrc::Usgs: return "usgs";
         case AlertSrc::Emsc: return "emsc";
+        case AlertSrc::Shake: return "shake";
         default: return "other";
     }
 }
@@ -54,6 +56,7 @@ AlertSrc alertSrcFromCode(const std::string& c) {
     if (c == "same") return AlertSrc::Same;
     if (c == "usgs") return AlertSrc::Usgs;
     if (c == "emsc") return AlertSrc::Emsc;
+    if (c == "shake") return AlertSrc::Shake;
     return AlertSrc::Other;
 }
 
@@ -703,12 +706,12 @@ void quakeFill(Alert& a, double mag, const std::string& place, double lat, doubl
 }
 }  // namespace
 
-std::string emscUrl(double lat, double lon, int64_t since, double minMag, double radius) {
+namespace {
+// "AAAA-MM-DDThh:mm:ss" de un instante Unix (algoritmo inverso de daysFromCivil)
+std::string isoUtc(int64_t since) {
     int y, mo, d;
-    const int64_t days = since / 86400;
-    // fecha civil del dia (algoritmo inverso de daysFromCivil)
     {
-        int64_t z = days + 719468;
+        int64_t z = since / 86400 + 719468;
         const int64_t era = (z >= 0 ? z : z - 146096) / 146097;
         const unsigned doe = (unsigned)(z - era * 146097);
         const unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
@@ -719,12 +722,87 @@ std::string emscUrl(double lat, double lon, int64_t since, double minMag, double
         y = (int)(yoe + era * 400 + (mo <= 2));
     }
     const int sec = (int)(since % 86400);
+    char buf[48];
+    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d", y, mo, d, sec / 3600, sec / 60 % 60, sec % 60);
+    return buf;
+}
+}  // namespace
+
+std::string emscUrl(double lat, double lon, int64_t since, double minMag, double radius) {
     char buf[256];
     std::snprintf(buf, sizeof(buf),
                   "https://www.seismicportal.eu/fdsnws/event/1/query?format=json&limit=50&minmag=%.1f&latitude=%.2f&longitude=%.2f&maxradius=%.0f"
-                  "&start=%04d-%02d-%02dT%02d:%02d:%02d",
-                  minMag, lat, lon, radius, y, mo, d, sec / 3600, sec / 60 % 60, sec % 60);
+                  "&start=%s",
+                  minMag, lat, lon, radius, isoUtc(since).c_str());
     return buf;
+}
+
+std::string shakeUrl(double lat, double lon, int64_t since, double minMag, double radius) {
+    char buf[256];
+    std::snprintf(buf, sizeof(buf),
+                  "https://quakelink.raspberryshake.org/fdsnws/event/1/query?format=text&orderby=time&limit=50&minmagnitude=%.1f"
+                  "&latitude=%.2f&longitude=%.2f&maxradius=%.0f&starttime=%s",
+                  minMag, lat, lon, radius, isoUtc(since).c_str());
+    return buf;
+}
+
+bool alertIsQuake(AlertSrc s) { return s == AlertSrc::Usgs || s == AlertSrc::Emsc || s == AlertSrc::Shake; }
+
+bool quakeParseFdsnText(const std::string& text, AlertSrc src, std::vector<Alert>& out) {
+    // columnas por su nombre en la cabecera (FDSN-WS 1.2: EventID|Time|Latitude|Longitude|Depth/km|Author|Catalog|
+    // Contributor|ContributorID|MagType|Magnitude|MagAuthor|EventLocationName|EventType)
+    int cId = -1, cTime = -1, cLat = -1, cLon = -1, cDep = -1, cMag = -1, cPlace = -1, cType = -1;
+    bool header = false;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t eol = text.find('\n', pos);
+        if (eol == std::string::npos) eol = text.size();
+        std::string line = text.substr(pos, eol - pos);
+        pos = eol + 1;
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (trim(line).empty()) continue;
+        std::vector<std::string> f;
+        for (size_t a = 0;;) {
+            const size_t b = line.find('|', a);
+            f.push_back(trim(line.substr(a, b == std::string::npos ? std::string::npos : b - a)));
+            if (b == std::string::npos) break;
+            a = b + 1;
+        }
+        if (line[0] == '#') {
+            if (!f.empty() && !f[0].empty() && f[0][0] == '#') f[0].erase(0, 1);
+            for (int i = 0; i < (int)f.size(); i++) {
+                const std::string& n = f[i];
+                if (containsNoCase(n, "eventid")) cId = i;
+                else if (n == "Time" || containsNoCase(n, "time")) { if (cTime < 0) cTime = i; }
+                else if (containsNoCase(n, "latitude")) cLat = i;
+                else if (containsNoCase(n, "longitude")) cLon = i;
+                else if (containsNoCase(n, "depth")) cDep = i;
+                else if (containsNoCase(n, "magtype") || containsNoCase(n, "magauthor")) {}
+                else if (containsNoCase(n, "magnitude")) cMag = i;
+                else if (containsNoCase(n, "locationname")) cPlace = i;
+                else if (containsNoCase(n, "eventtype")) cType = i;
+            }
+            header = cTime >= 0 && cLat >= 0 && cLon >= 0 && cMag >= 0;
+            continue;
+        }
+        if (!header) {                                   // sin cabecera: el orden de la norma
+            cId = 0; cTime = 1; cLat = 2; cLon = 3; cDep = 4; cMag = 10; cPlace = 12; cType = 13;
+            header = true;
+        }
+        auto at = [&](int i) -> const std::string& { static const std::string none; return i >= 0 && i < (int)f.size() ? f[i] : none; };
+        const std::string& mag = at(cMag);
+        if (at(cLat).empty() || at(cLon).empty() || mag.empty()) continue;
+        if (!at(cType).empty() && !containsNoCase(at(cType), "earthquake")) continue;   // voladuras, canteras...
+        const int64_t t = parseIsoTime(at(cTime));
+        if (!t) continue;
+        Alert a;
+        a.src = src;
+        a.id = std::string(alertSrcCode(src)) + "/" + (at(cId).empty() ? at(cTime) : at(cId));
+        quakeFill(a, std::atof(mag.c_str()), at(cPlace), std::atof(at(cLat).c_str()), std::atof(at(cLon).c_str()),
+                  std::atof(at(cDep).c_str()), t);
+        out.push_back(a);
+    }
+    return header;
 }
 
 bool quakeParseUsgs(const std::string& json, std::vector<Alert>& out) {
@@ -779,11 +857,12 @@ bool quakeSame(const Alert& a, const Alert& b) {
 }
 
 void quakeSetLevels(std::vector<Alert>& q, LatLon here, bool haveHere) {
-    // duplicados: se queda el de EMSC si esta cerca (mas datos locales), si no el primero
+    // duplicados: manda EMSC (mas datos locales), luego USGS y luego ShakeNet (localizacion automatica)
     for (size_t i = 0; i < q.size(); i++) {
         for (size_t j = i + 1; j < q.size();) {
             if (quakeSame(q[i], q[j])) {
-                if (q[j].src == AlertSrc::Emsc && q[i].src != AlertSrc::Emsc) q[i] = q[j];
+                auto rank = [](AlertSrc s) { return s == AlertSrc::Emsc ? 2 : s == AlertSrc::Usgs ? 1 : 0; };
+                if (rank(q[j].src) > rank(q[i].src)) q[i] = q[j];
                 q.erase(q.begin() + (long)j);
             } else j++;
         }

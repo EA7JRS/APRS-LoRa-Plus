@@ -24,6 +24,7 @@ namespace ALERTS {
     static plotter::AlertList       items;
     static plotter::SpaceWx         sw;
     static uint32_t                 swMs        = 0;
+    static float                    swSsn       = -1;           // manchas solares: no esta en SpaceWx del nucleo del plotter
     static uint16_t                 ver         = 0;
     static std::vector<std::string> unseen;                 // id de los avisos nuevos (para la ventana)
     static std::vector<std::string> closed;                 // cerrados por el usuario (con su nivel, "id#2")
@@ -113,8 +114,10 @@ namespace ALERTS {
         w.windKms = d["ws"] | -1.0f;
         w.xray = cut(d["xr"] | "", 8);
         w.updated = nowUnix();
-        if (!w.valid()) return false;
+        const float ssn = d["sn"] | -1.0f;
+        if (!w.valid() && ssn < 0) return false;
         sw = w;
+        swSsn = ssn;
         swMs = millis() ? millis() : 1;
         ver++;
         return true;
@@ -180,6 +183,7 @@ namespace ALERTS {
     const plotter::SpaceWx& space() { return sw; }
     bool hasSpace() { return swMs != 0 && millis() - swMs < 6UL * 3600000UL; }
     uint32_t spaceAgeS() { return swMs ? (millis() - swMs) / 1000 : 0; }
+    float spaceSsn() { return swSsn; }
     uint16_t version() { return ver; }
 
     const plotter::Alert* popup() {

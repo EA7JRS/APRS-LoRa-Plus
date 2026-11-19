@@ -271,6 +271,41 @@ void bodyAltAz(double gha, double decDeg, double lat, double lon, double& alt, d
     az = norm360(rad2deg(std::atan2(-std::sin(ha) * std::cos(dec), std::sin(dec) * std::cos(la) - std::cos(dec) * std::sin(la) * std::cos(ha))));
 }
 
+bool latitudeFromAltitude(double ho, double decDeg, double lhaDeg, double latEst, double& lat) {
+    const double a = std::sin(deg2rad(decDeg)), b = std::cos(deg2rad(decDeg)) * std::cos(deg2rad(lhaDeg));
+    const double r = std::sqrt(a * a + b * b), s = std::sin(deg2rad(ho));
+    if (r < 1e-12 || std::fabs(s) > r) return false;
+    // a sin(lat) + b cos(lat) = r sin(lat + th), th = atan2(b, a)
+    const double th = std::atan2(b, a), u = std::asin(s / r);
+    double best = 1e9;
+    const double cands[2] = {u - th, kPi - u - th};
+    for (double v : cands) {
+        double d = rad2deg(v);
+        while (d > 180) d -= 360;
+        while (d < -180) d += 360;
+        if (d < -90 || d > 90) continue;
+        if (std::fabs(d - latEst) < std::fabs(best - latEst)) best = d;
+    }
+    if (best > 90) return false;
+    lat = best;
+    return true;
+}
+
+double meridianPassageJd(double jd0, double lonDeg, double (*gha)(double, void*), void* ctx) {
+    double jd = jd0;
+    for (int it = 0; it < 8; it++) {
+        double lha = std::fmod(gha(jd, ctx) + lonDeg, 360.0);
+        if (lha < 0) lha += 360;
+        if (lha > 180) lha -= 360;                        // -180..180: el paso mas cercano
+        double rate = std::fmod(gha(jd + 0.01, ctx) - gha(jd, ctx) + 720.0, 360.0) / 0.01;   // grados por dia
+        if (rate < 300) rate = 300;
+        const double step = lha / rate;
+        jd -= step;
+        if (std::fabs(step) < 1e-7) break;
+    }
+    return jd;
+}
+
 double dipArcmin(double h) { return h > 0 ? 1.76 * std::sqrt(h) : 0.0; }
 
 double refractionArcmin(double h) {

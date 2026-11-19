@@ -940,6 +940,7 @@ namespace {
         j.endArr();
         j.num("kt", (long long)w.kpTime);
         if (w.sfi > 0) j.flt("sfi", w.sfi, 0);
+        if (ALERTS::spaceSsn() >= 0) j.flt("sn", ALERTS::spaceSsn(), 0);
         if (w.bz < 999) j.flt("bz", w.bz, 1);
         if (w.bt >= 0) j.flt("bt", w.bt, 1);
         if (w.windKms > 0) j.flt("ws", w.windKms, 0);
@@ -1723,7 +1724,7 @@ namespace {
         else if (strcmp(cmd, "alertclr") == 0) { ALERTS::clear(doc["s"] | ""); reply(cmd, id); }
         else if (strcmp(cmd, "alerts") == 0) { sendAlerts(max(0, (int)(doc["from"] | 0)), constrain((int)(doc["cnt"] | 6), 1, 12)); }
         else if (strcmp(cmd, "spacewx") == 0) {                   // tiempo espacial del SWPC; sin datos = pedirlo
-            if (doc["g"].isNull() && doc["kp"].isNull() && doc["sfi"].isNull()) { sendSpaceWx(); return; }
+            if (doc["g"].isNull() && doc["kp"].isNull() && doc["sfi"].isNull() && doc["sn"].isNull()) { sendSpaceWx(); return; }
             if (!ALERTS::spaceFromJson(doc)) { reply(cmd, id, "no data"); return; }
             reply(cmd, id);
         }
