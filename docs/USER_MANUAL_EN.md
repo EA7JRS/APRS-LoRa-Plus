@@ -1,8 +1,8 @@
-# LoRa APRS Tracker V5.4.6 — User Manual
+# LoRa APRS Tracker V5.4.7 — User Manual
 
 **Reference board:** LilyGO T-Beam S3 Supreme (ESP32-S3, SX1262, u-blox M10 GPS, 128×64 OLED)
 **Base:** CA2RXU LoRa APRS Tracker V4.0.1, with the T-Beam S3 Supreme improvements and the APRS screen interface by EA7JRS.
-**New in 5.4.6:** see section 39 (TFT and OLED screens better used, CLOCK > SUN and MOON, official alerts read in full on the tracker, message and alarm pop-ups, LR-FHSS beacon fixed, MAPRS). **In 5.4.4:** colour screens (Heltec Wireless Tracker and T-Deck) at full width with the app colours, light / dark / automatic theme, colour welcome logo and colour APRS icons; GPS > GNSS (constellations, L1 / L5 bands, PPS, sky); SYSTEM > BATTERY (state, time left, automatic power saving); cleaner FM audio on the T-TWR Rev2.1. **From 5.4.3:** NTP time (`ntp.roa.es`) when there is no GPS and the moon in CLOCK (section 12), the rotor follows the sun or the moon, Beaufort force in TELEMETRY, the app tells official firmware from a modified one (`elf` fingerprint in the `info` event), a donate button in the WebUI *About*, and the web installer **Náutica** group (plotter and wind instrument). **From 5.4.1:** section 37. **From 5.4.0:** section 36. **From 5.3.4 and 5.3.5:** sections 34 and 35. **New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
+**New in 5.4.7:** see section 40 (SUN and MOON with data for this instant and rotor tracking, SPACE WX with SSN, solar wind and the NOAA colour code, the HF view, forecast with the internet weather, official APRS identifier `APLJRT`). **In 5.4.6:** section 39 (TFT and OLED screens better used, CLOCK > SUN and MOON, official alerts read in full on the tracker, message and alarm pop-ups, LR-FHSS beacon fixed, MAPRS). **In 5.4.4:** colour screens (Heltec Wireless Tracker and T-Deck) at full width with the app colours, light / dark / automatic theme, colour welcome logo and colour APRS icons; GPS > GNSS (constellations, L1 / L5 bands, PPS, sky); SYSTEM > BATTERY (state, time left, automatic power saving); cleaner FM audio on the T-TWR Rev2.1. **From 5.4.3:** NTP time (`ntp.roa.es`) when there is no GPS and the moon in CLOCK (section 12), the rotor follows the sun or the moon, Beaufort force in TELEMETRY, the app tells official firmware from a modified one (`elf` fingerprint in the `info` event), a donate button in the WebUI *About*, and the web installer **Náutica** group (plotter and wind instrument). **From 5.4.1:** section 37. **From 5.4.0:** section 36. **From 5.3.4 and 5.3.5:** sections 34 and 35. **New in 5.2.1:** LAST APRS shows the station's APRS symbol icon; ALTIMETER shows vertical speed 0 while the tracker is stopped. **From 5.2.0:** **WSPR beacon** mode (chapter 22). **From 5.1.0:** mode selector at boot (APRS LoRa / APRS FSK 9600 / MORSE), 9600 baud AX.25 G3RUH FSK, IARU band plan in the WebUI, and a MORSE mode with macros, key, CW listening, autonomous CW beacon and trainer (chapters 19 to 21).
 **Related documents:** `QUICK_GUIDE_EN.md` (two pages), `releases/RELEASE_5.1.0.md` (release notes), `APRS_PANTALLAS_TRACKER.md` (technical notes and test status, in Spanish).
 
 > The images in this manual are **simulated screenshots** (drawn by a 128×64 simulator running the same screen code); they are not photos of the real board.
@@ -778,9 +778,10 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 - **Heltec Wireless Tracker:** UC6580 constellations from the WebUI (on L1 and L5) and accessory pins; the configuration is now saved with the SPIFFS almost full.
 - **Safer configuration:** checked temporary copy, first start without SPIFFS without a black screen, boot log visible in the web installer, and leaving the access point by holding the button 2 s.
 
-**After 5.4.6 (unreleased):** maritime call sign checked in MarineTraffic **without a key** (*Look up in MarineTraffic* + *Confirmed in MarineTraffic*); more OLED screens like the colour ones; MAPRS's own WebUI.
+**Also in 5.4.6** (the release .zip files were rebuilt the same day): maritime call sign checked in MarineTraffic **without a key** (*Look up in MarineTraffic* + *Confirmed in MarineTraffic*); more OLED screens like the colour ones; MAPRS's own WebUI.
 
-**Also unreleased (2026-11-20):**
+## 40. New in 5.4.7
+
 - **STATIONS** (OLED) with more room between the callsign, the distance and the time or bearing.
 - **TELEMETRY:** the forecast also uses the internet weather the app sends (wind, clouds, rain and the internet pressure trend when there is no sensor).
 - **CLOCK:** the lower lines are back in place on the OLED (the moon or sun on the right only on screens wider than 128 px).
@@ -789,6 +790,9 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 - **TELEMETRY > HF** (new view after SPACE WX): estimated MUF, optimum working frequency (FOT = 85 % of the MUF) and LUF from the solar flux, the sun's altitude here and the X-rays, and the state of each band from 160 to 10 m (*open*, *fair*, *shut*, *abs* absorbed, *poor* in a storm), with the sat-aprs formulas. X-ray absorption only counts by day and grows with the sun's altitude, as SWPC's D-RAP model. It is an estimate, not an ionosonde measurement.
 - **ShakeNet earthquakes** (Raspberry Shake) among the official alerts, besides USGS and EMSC (downloaded by the app).
 - **SPACE WX in colour with the NOAA code:** G / R / S and the X-ray class in a yellow (1), light orange (2), orange (3), red (4) or dark red (5) box with black letters; level 0 without colour; Kp bars green below Kp 5 and then in the G1 to G5 colour.
+- **Official APRS identifier:** the tracker's frames go out with the destination **`APLJRT`**, assigned by the aprs-deviceid registry on 2026-11-16 (before, the experimental `APZLRT`); the app uses `APLJRA`. There is room for an own Mic-E suffix once the registry assigns it.
+- **The app's iGate:** the BLE `rf` event of each received frame carries the modem (LoRa APRS, AX.25 or M17), the speed, the frequency and a fingerprint of the frame; the app sends them to APRS-IS as receive metadata (aprsc `#is2-meta`).
+- Not yet tested on the boards: everything in this section has been built for every board and the screens have been drawn on the PC.
 
 ## Appendix A — Button map per page
 

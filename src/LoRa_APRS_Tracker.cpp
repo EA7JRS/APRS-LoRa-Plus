@@ -94,8 +94,8 @@ ____________________________________________________________________*/
 #endif
 
 
-String      versionDate             = "2026-11-15";
-String      versionNumber           = "5.4.6";
+String      versionDate             = "2026-11-20";
+String      versionNumber           = "5.4.7";
 const char* lastResetReason         = "";       // motivo del ultimo reinicio si no fue normal (fallo, vigilante, tension baja): log, pantalla y evento info
 
 // Rastro del arranque anterior en memoria RTC (sobrevive a un reinicio por fallo, no a quitar la alimentacion): modo, segundos
@@ -206,9 +206,9 @@ void setup() {
     {
         static const char* const R[] = {"?", "power on / RST key", "external", "software", "CRASH", "INT WDT", "TASK WDT", "WDT", "deep sleep", "LOW VOLTAGE", "SDIO", "USB", "JTAG", "eFuse", "power glitch", "CPU lockup"};
         const int r = (int)esp_reset_reason();
-        consoleLog("APRS LoRa+ tracker 5.4.6, reset: %s (%d)", (r >= 0 && r < (int)(sizeof(R) / sizeof(R[0]))) ? R[r] : "?", r);
+        consoleLog("APRS LoRa+ tracker 5.4.7, reset: %s (%d)", (r >= 0 && r < (int)(sizeof(R) / sizeof(R[0]))) ? R[r] : "?", r);
     }
-    Serial.println("\n=== LoRa APRS Tracker 5.4.6 | build: main (2026-11-15) ===");   // si no ves esta linea, no se ha grabado este firmware
+    Serial.println("\n=== LoRa APRS Tracker 5.4.7 | build: main (2026-11-20) ===");   // si no ves esta linea, no se ha grabado este firmware
     FW_Update::printBanner();                                      // placa + version para el instalador web USB
     Config.init();                                                 // antes estaba en el constructor global (provocaba el bucle de arranque)
     myBeaconsSize     = Config.beacons.size();

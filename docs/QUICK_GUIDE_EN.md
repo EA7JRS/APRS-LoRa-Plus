@@ -1,6 +1,6 @@
-# LoRa APRS Tracker V5.4.6 — Quick Guide
+# LoRa APRS Tracker V5.4.7 — Quick Guide
 
-**Board:** T-Beam S3 Supreme (128×64 OLED) · **Version:** 5.4.6 (base 4.0.1 + APRS screens + FSK + MORSE + WSPR + FT8 / FT4 / FST4W + DAPNET + SAT; what is new since 5.2.1 is in the user manual) · **Screens author:** EA7JRS
+**Board:** T-Beam S3 Supreme (128×64 OLED) · **Version:** 5.4.7 (base 4.0.1 + APRS screens + FSK + MORSE + WSPR + FT8 / FT4 / FST4W + DAPNET + SAT; what is new since 5.2.1 is in the user manual) · **Screens author:** EA7JRS
 
 ## 0. At power-on: choose a mode
 
@@ -38,8 +38,8 @@ In the classic menu, 2P returns to the screens. The icon bar at the bottom appea
 | **GPS** | Coordinates (DD, 6 decimals), locator, altitude, satellites, HDOP, heading | GPS on/off · Coords · Units · SBAS · Constellations |
 | **COMPASS** | Compass rose and arrow to a station (GO TO) | Target · Next station · Heading · North · Declination · Reset align |
 | **ALTIMETER** | Altitude, vertical speed (0 when stopped), QNH and altitude profile | Span · Reset profile · QNH |
-| **TELEMETRY** | Temperature, dew point, humidity, pressure + trend, gas, **forecast** | — |
-| **CLOCK** | Local time, date, sunrise and sunset, moon (phase, rise and set) | Zone · Format · Sync from GPS |
+| **TELEMETRY** | Temperature, dew point, humidity, pressure + trend, gas, **forecast** (also with the app's internet weather); views for the internet weather, alerts, **SPACE WX** (G / R / S scales, SFI, SSN, X-rays, solar wind, Kp; in colour with the NOAA code) and **HF** (MUF, FOT, LUF and bands) | — |
+| **CLOCK** | Local time, date, sunrise and sunset, moon (phase, rise and set); 1P: **SUN** and **MOON** with azimuth, altitude and the other data for this instant | Zone · Format · Sync from GPS (on SUN / MOON with a rotor: **Rotor to Sun / Moon**) |
 | **LORA** | Frequency, SF, BW, CR, power, counters, RSSI, S-meter, time on air | Next profile · Power · Reset counters · Heard list |
 | **SYSTEM** | Heap, PSRAM, Flash, battery, uptime, Bluetooth and WiFi | — |
 

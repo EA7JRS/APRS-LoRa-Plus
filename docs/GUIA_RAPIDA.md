@@ -1,6 +1,6 @@
-# LoRa APRS Tracker V5.4.6 — Guía rápida
+# LoRa APRS Tracker V5.4.7 — Guía rápida
 
-**Placa:** T-Beam S3 Supreme (pantalla OLED 128×64) · **Versión:** 5.4.6 (base 4.0.1 + pantallas APRS + FSK + MORSE + WSPR + FT8 / FT4 / FST4W + DAPNET + SAT; lo nuevo desde la 5.2.1, en el manual de usuario) · **Autor de las pantallas:** EA7JRS
+**Placa:** T-Beam S3 Supreme (pantalla OLED 128×64) · **Versión:** 5.4.7 (base 4.0.1 + pantallas APRS + FSK + MORSE + WSPR + FT8 / FT4 / FST4W + DAPNET + SAT; lo nuevo desde la 5.2.1, en el manual de usuario) · **Autor de las pantallas:** EA7JRS
 
 ## 0. Al encender: elige modo
 
@@ -38,8 +38,8 @@ Dentro del menú clásico, 2P vuelve a las pantallas. La barra de iconos de abaj
 | **GPS** | Coordenadas (DD con 6 decimales), locator, altitud, satélites, HDOP, rumbo | GPS on/off · Coords · Units · SBAS · Constellations |
 | **COMPASS** | Rosa de los vientos y flecha hacia una estación (GO TO) | Target · Next station · Heading · North · Declination · Reset align |
 | **ALTIMETER** | Altitud, velocidad vertical (0 si estás parado), QNH y perfil de altitud | Span · Reset profile · QNH |
-| **TELEMETRY** | Temperatura, punto de rocío, humedad, presión + tendencia, gas, **pronóstico** | — |
-| **CLOCK** | Hora local, fecha, orto y ocaso, luna (fase, salida y puesta) | Zone · Format · Sync from GPS |
+| **TELEMETRY** | Temperatura, punto de rocío, humedad, presión + tendencia, gas, **pronóstico** (también con el tiempo de internet de la app); vistas de tiempo de internet, avisos, **SPACE WX** (escalas G / R / S, SFI, SSN, rayos X, viento solar, Kp; en color con el código de NOAA) y **HF** (MUF, FOT, LUF y bandas) | — |
+| **CLOCK** | Hora local, fecha, orto y ocaso, luna (fase, salida y puesta); 1P: **SUN** y **MOON** con azimut, altura y demás datos de este instante | Zone · Format · Sync from GPS (en SUN / MOON con rotor: **Rotor to Sun / Moon**) |
 | **LORA** | Frecuencia, SF, BW, CR, potencia, contadores, RSSI, S-meter, tiempo en el aire | Next profile · Power · Reset counters · Heard list |
 | **SYSTEM** | Heap, PSRAM, Flash, batería, tiempo encendido, Bluetooth y WiFi | — |
 
