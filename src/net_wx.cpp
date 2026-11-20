@@ -7,6 +7,7 @@
  */
 
 #include "net_wx.h"
+#include <Preferences.h>
 #include "press_trend.h"
 #include "pages_core.h"
 #include "baro_utils.h"
@@ -54,8 +55,16 @@ namespace NET_WX {
         return d.hasT || d.hasH || d.hasP || d.hasWind || d.aqiOwm > 0 || d.aqiUs >= 0;
     }
 
+    static int8_t seen = -1;                                    // -1 sin leer de la NVS
+
+    bool everReceived() {
+        if (seen < 0) { Preferences p; p.begin("netwx", true); seen = p.getBool("seen", false) ? 1 : 0; p.end(); }
+        return seen == 1;
+    }
+
     void apply(const Data& d) {
         set(d);
+        if (!everReceived()) { Preferences p; p.begin("netwx", false); p.putBool("seen", true); p.end(); seen = 1; }
         if (d.hasP && d.ageAtRxS < MAX_AGE_S) BARO_Utils::setNetQnh(d.pressureHpa, millis() - d.ageAtRxS * 1000UL);   // QNH del altimetro sin GPS
     }
 

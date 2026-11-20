@@ -2754,9 +2754,18 @@ namespace {
 
     // TELEMETRY > HF (EA7JRS): MUF y LUF de ahora y estado de las 10 bandas para DX, con las formulas de sat-aprs (flujo solar,
     // altura del sol aqui, rayos X y Kp del tiempo espacial que manda la app). Sin ionosonda: la MUF es una estimacion.
+    // Flujo solar para HF: el de la app o, si no llega (SWPC sin el resumen de 10,7 cm), el que corresponde a las manchas solares
+    // (relacion media SFI = 63,7 + 0,728 SSN + 0,00089 SSN^2); -1 sin ninguno de los dos
+    float hfSfi() {
+        const plotter::SpaceWx& w = ALERTS::space();
+        if (w.sfi > 0) return w.sfi;
+        const float r = ALERTS::spaceSsn();
+        return r >= 0 ? 63.7f + 0.728f * r + 0.00089f * r * r : -1;
+    }
+
     bool hfAvailable() {
         double lat, lon;
-        return ALERTS::hasSpace() && ALERTS::space().sfi > 0 && year(now()) >= 2024 && ownPosition(lat, lon);
+        return ALERTS::hasSpace() && hfSfi() > 0 && year(now()) >= 2024 && ownPosition(lat, lon);
     }
 
     void drawHfView() {
@@ -2767,7 +2776,7 @@ namespace {
         double h;
         plotter::unixToUtc((long long)now(), y, m, d, h);
         plotter::sunPosition(y, m, d, h, lat, lon, alt, az);
-        const HfEstimate e = hfEstimate(w.sfi, alt, xrayFluxFromClass(w.xray.c_str()));
+        const HfEstimate e = hfEstimate(hfSfi(), alt, xrayFluxFromClass(w.xray.c_str()));
         const float kp = w.kpCount ? w.kpNow() : 0;
         HfState st[10];
         int best = -1;
@@ -3298,6 +3307,13 @@ namespace {
         // hueco del dibujo: a la derecha de las tres lineas, desde la fecha hasta la barra; el disco centrado en el
         const int gapRight = textRight;                          // la linea del sol / luna va debajo del hueco en las OLED
         auto skyIcon = [&](int& cx, int& cy, int& r) {
+            if (PW <= 128) {                                      // OLED: a la derecha de la fecha y la hora UTC, encima de su linea
+                const int left = gapRight + 3, top = Y_DATE, bottom = Y_SKY - 2;
+                r = min((PW - left) / 2 - 1, (bottom - top) / 2);
+                cx = left + (PW - left) / 2;
+                cy = (top + bottom) / 2;
+                return;
+            }
             const int top = Y_DATE, bottom = 53 + PAGES_EXTRA;
             const int left = (Y_SKY < bottom ? textRight : gapRight) + 2;
             r = min((PW - left) / 2 - 1, (bottom - top) / 2);
@@ -3307,8 +3323,9 @@ namespace {
         };
 
         // orto y ocaso con la posicion propia; cada 4 s se alterna con la luna (fase, iluminada, salida y puesta); en
-        // pantallas de 160 px, el sol o la luna pequenos a la derecha. En las OLED de 128 px (EA7JRS) sin dibujo: tapaba la fecha
-        // y la hora UTC; las tres lineas en su sitio (x 4) y la del sol / luna, si llega a 21 caracteres, desde x 1 para que quepa
+        // el sol o la luna pequenos a la derecha. En las OLED de 128 px (EA7JRS) el dibujo va a la derecha de la fecha y la hora UTC,
+        // del tamano que deje libre su texto (sin tocarlo; con una zona larga no cabe y no se dibuja); las tres lineas en su sitio
+        // (x 4) y la del sol / luna, si llega a 21 caracteres, desde x 1 para que quepa
         auto skyX = [&](const char* s) { const int w = 6 * (int)strlen(s); return 4 + w <= PW ? 4 : max(0, (PW - w) / 2); };
         double lat, lon;
         if (ownPosition(lat, lon) && (millis() / 4000) % 2 == 1) {
@@ -3319,7 +3336,7 @@ namespace {
             snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(mi.lit * 100), mi.waxing ? '+' : '-', a, b);   // + creciente, - menguante
             text(skyX(buffer), Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            if (PW > 128) { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
+            { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
         } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
@@ -3336,7 +3353,7 @@ namespace {
             }
             text(skyX(buffer), Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            if (PW > 128) { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 4 : 2; if (r >= 3) drawSunIcon(cx, cy, r); }   // el disco, sin los rayos
+            { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 4 : 2; if (r >= 3) drawSunIcon(cx, cy, r); }   // r = hasta la punta de los rayos
         }
     }
 

@@ -131,6 +131,7 @@ namespace {
     volatile bool           keyRejected     = false;           // llegaron eventos de manipulador fuera del modo MORSE
     volatile bool           connected       = false;
     volatile bool           authed          = false;           // enlace cifrado y emparejado con PIN
+    uint32_t                wxAskAtMs       = 0;               // cuando pedir a la app el tiempo de internet (0 = no)
     uint32_t                ledSent         = 0xFFFFFFFF;      // luces de la app: ultimo estado enviado (todo a 1 = enviar en la proxima vuelta)
     uint32_t                eaiSent         = 0xFFFFFFFF;      // estado de SOS / EAI / hombre caido enviado a la app
     uint32_t                eaiSentMs       = 0;
@@ -2262,6 +2263,7 @@ namespace BLE_Control {
 
     void onSecurity(bool authenticated) {
         authed = authenticated;
+        if (authenticated) wxAskAtMs = millis() + 15000;              // a los 15 s: el tiempo de internet, si falta (p. ej. tras reiniciar)
         ledSent = 0xFFFFFFFF;                                           // las luces y el EAI se mandan en la proxima vuelta
         eaiSent = 0xFFFFFFFF;
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "BLE Ctrl", "Pairing %s", authenticated ? "OK" : "not authenticated");
@@ -2276,6 +2278,7 @@ namespace BLE_Control {
     void onDisconnect() {
         connected      = false;
         authed         = false;
+        wxAskAtMs      = 0;
         if (otaActive) { FW_Update::bleAbort(); otaStop(); displayPopup("Firmware update", "Cancelled", "Link lost", -1, 1500); }
         keyDelay       = KEY_DELAY_DEFAULT_MS;
         nmeaWanted     = false;
@@ -2326,6 +2329,11 @@ namespace BLE_Control {
         checkFm();
         #endif
         checkAlerts();
+        if (wxAskAtMs && connected && authed && (int32_t)(millis() - wxAskAtMs) >= 0) {
+            wxAskAtMs = 0;                                              // una vez por enlace y solo si la app ya lo mando alguna vez
+            NET_WX::Data nd;
+            if (!NET_WX::get(nd) && NET_WX::everReceived()) netRequest("wx");
+        }
         if (!connected) return;
         const uint32_t now = millis();
         if (sensorsEveryMs && now - sensorsLastMs >= sensorsEveryMs) { sensorsLastMs = now; sendSensors(); }

@@ -40,6 +40,7 @@ namespace NET_WX {
     // Pronostico con lo de internet (presion, tendencia, temperatura y humedad), el mismo de TELEMETRY; false sin presion
     bool        forecast(char* out, size_t n, float* delta3hOut = nullptr);
     bool        get(Data& out);         // false si no hay datos o tienen mas de 2 h
+    bool        everReceived();         // alguna vez llego (se guarda en la NVS): tras reiniciar, el tracker se lo pide a la app
     uint32_t    ageS();                 // antiguedad de la observacion ahora
     const char* owmAqiName(int a);      // 1 Good .. 5 Very poor
     const char* usAqiName(int a);       // Good, Moderate, USG, Unhealthy, V.unhealthy, Hazardous
