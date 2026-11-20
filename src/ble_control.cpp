@@ -2200,7 +2200,7 @@ namespace {
                         line.text[rxLen] = '\0';
                         if (!keyFastPath(line.text)) {
                             if (strstr(line.text, "\"cwrx\"") && strstr(line.text, "\"stop\"")) cwRxStop = true;   // la escucha CW bloquea el bucle: se mira aqui
-                            if (xQueueSend(queue, &line, 0) != pdTRUE) queueDrops++;   // cola llena: se pierde la orden (se cuenta)
+                            if (xQueueSend(queue, &line, 0) != pdTRUE) queueDrops = queueDrops + 1;   // cola llena: se pierde la orden (se cuenta)
                         }
                     }
                     rxLen = 0;
