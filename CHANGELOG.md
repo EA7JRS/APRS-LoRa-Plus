@@ -1,5 +1,12 @@
 # Changelog
 
+## Después de la 5.4.7 (sin publicar)
+
+- **CLOCK (OLED de 128 px):** vuelven el sol y la luna pequeños, a la derecha de la fecha y la hora UTC y encima de su línea, del tamaño que deja libre el texto (no lo tapan; con una zona muy larga no se dibujan). En las pantallas de 160 px, como estaban.
+- **TELEMETRY > HF:** si la app no manda el flujo solar (SFI), se calcula con el número de manchas solares; antes la vista no aparecía.
+- **Tiempo de internet (TELEMETRY NET):** 15 s después de enlazar, si el tracker no tiene datos y la app ya los mandó alguna vez, se los pide; antes, tras un reinicio había que esperar a la siguiente descarga de la app.
+- **BLE:** cola de órdenes de 16 (antes 4): al enlazar, la app manda de golpe avisos, tiempo espacial y suscripciones, y las últimas se podían perder (SPACE WX incompleta, sin HF). Si se pierde alguna, queda en el registro.
+
 ## 5.4.7 — 2026-11-20
 
 - **SPACE WX con el código de colores de NOAA** (pantallas a color): G / R / S en un recuadro amarillo, naranja claro, naranja, rojo o rojo oscuro para los niveles 1 a 5 con la letra en negro (nivel 0 sin color), los rayos X igual con su escala R (M1, M5, X1, X10, X20) y las barras de Kp en verde por debajo de G1 y luego con el color de G1 a G5. Antes, cuatro colores propios (el 2 en amarillo, el 5 en rojo). La OLED no cambia. Fórmulas comunes `noaaScaleRgb`, `xrayToR` (`lib/aprs_formulas`, e44a873); lo mismo en la app y en la Display.
