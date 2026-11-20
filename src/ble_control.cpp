@@ -74,7 +74,7 @@
 
 #define CONTROL_PROTOCOL        1
 #define CONTROL_LINE_MAX        256
-#define CONTROL_QUEUE_LEN       4
+#define CONTROL_QUEUE_LEN       16      // al enlazar la app manda de golpe avisos, tiempo espacial, suscripciones... (con 4 se perdian)
 #define KEY_QUEUE_LEN           64
 #define KEY_DELAY_DEFAULT_MS    150
 #define KEY_DELAY_MAX_MS        1000
@@ -132,6 +132,8 @@ namespace {
     volatile bool           connected       = false;
     volatile bool           authed          = false;           // enlace cifrado y emparejado con PIN
     uint32_t                wxAskAtMs       = 0;               // cuando pedir a la app el tiempo de internet (0 = no)
+    volatile uint32_t       queueDrops      = 0;               // ordenes perdidas con la cola llena (se anotan en el registro)
+    uint32_t                queueDropsLogged = 0;
     uint32_t                ledSent         = 0xFFFFFFFF;      // luces de la app: ultimo estado enviado (todo a 1 = enviar en la proxima vuelta)
     uint32_t                eaiSent         = 0xFFFFFFFF;      // estado de SOS / EAI / hombre caido enviado a la app
     uint32_t                eaiSentMs       = 0;
@@ -2198,7 +2200,7 @@ namespace {
                         line.text[rxLen] = '\0';
                         if (!keyFastPath(line.text)) {
                             if (strstr(line.text, "\"cwrx\"") && strstr(line.text, "\"stop\"")) cwRxStop = true;   // la escucha CW bloquea el bucle: se mira aqui
-                            xQueueSend(queue, &line, 0);   // cola llena: se pierde la orden (el movil reintenta)
+                            if (xQueueSend(queue, &line, 0) != pdTRUE) queueDrops++;   // cola llena: se pierde la orden (se cuenta)
                         }
                     }
                     rxLen = 0;
@@ -2294,6 +2296,10 @@ namespace BLE_Control {
         if (queue == nullptr) return;
         Line line;
         while (xQueueReceive(queue, &line, 0) == pdTRUE) handle(line.text);
+        if (queueDrops != queueDropsLogged) {
+            queueDropsLogged = queueDrops;
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "BLE Ctrl", "Command queue full: %lu commands lost", (unsigned long)queueDropsLogged);
+        }
         GPS_Utils::aidPump();
         if (connected && authed) sendLeds(ledSent == 0xFFFFFFFF);
         if (keyEventWaiting()) {
