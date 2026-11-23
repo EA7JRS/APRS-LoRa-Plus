@@ -99,11 +99,14 @@ jobs:
                       esac
                       if [ -z "$GH_TOKEN" ]; then echo "::warning::Sin el secreto FLASHER_TOKEN: el instalador no incluye $dev"; continue; fi
                       rm -rf "/tmp/$dev"
-                      if gh release download "$TAG" --repo "$repo" --pattern "web-site-$dev.zip" --dir "/tmp/$dev"; then
+                      # Sin release con esta etiqueta (el tracker puede ir por delante: 5.4.8), la ultima publicada de ese equipo
+                      if gh release download "$TAG" --repo "$repo" --pattern "web-site-$dev.zip" --dir "/tmp/$dev" \
+                          || { echo "::notice::$repo no tiene la release $TAG: se toma su ultima release"; rm -rf "/tmp/$dev"; \
+                               gh release download --repo "$repo" --pattern "web-site-$dev.zip" --dir "/tmp/$dev"; }; then
                           mkdir -p "site/$dev" && unzip -q -o "/tmp/$dev/web-site-$dev.zip" -d "site/$dev"
                           echo "$dev: $(python3 -c "import json;print(json.load(open('site/$dev/latest.json'))['version'])")"
                       else
-                          echo "::warning::$repo no tiene la release $TAG con web-site-$dev.zip"
+                          echo "::warning::$repo no tiene ninguna release con web-site-$dev.zip"
                       fi
                   done
 

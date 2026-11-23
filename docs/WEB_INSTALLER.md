@@ -6,7 +6,7 @@ Dirección: **https://ea7jrs.github.io/APRS-LoRa-Plus/install/** (enlaces direct
 
 ## Misma versión en todo el proyecto
 
-Tracker, rotor, gateway, display y app llevan **el mismo número de versión** (ahora 5.4.4) y se publican juntos. Cada lanzador muestra la versión de su dispositivo y el aviso de versión nueva compara con la instalada.
+Tracker, rotor, gateway, display y plotter suelen llevar **el mismo número de versión** y publicarse juntos. Si un equipo no tiene release con la etiqueta del tracker (el tracker 5.4.8 salió solo), el instalador toma **la última release publicada** de ese equipo. Cada lanzador muestra la versión de su dispositivo y el aviso de versión nueva compara con la instalada.
 
 ## Cómo se forma el sitio
 
