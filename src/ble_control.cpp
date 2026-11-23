@@ -363,6 +363,7 @@ namespace {
         #endif
         caps["ais"] = true;                                      // receptor AIS: eventos "ais", ordenes "aislist", "aisin", "aisset" (modo 12 en la T-TWR, modulo por UART)
         caps["netreq"] = true;                                   // el tracker puede pedir a la app que baje el tiempo o los satelites (evento "netreq")
+        caps["rkeys"] = true;                                    // "screen" con k: el boton del equipo (siguiente / anterior / atras)
         caps["wxnet"] = true;                                    // tiempo de internet de la app para TELEMETRY (orden "wxnet")
         caps["alerts"] = true;                                   // avisos oficiales de la app ("alert", "alertdel", "alertclr", "spacewx"; eventos "alertsv", "alerts", "alert", "spacewx")
         #ifdef HAS_SA868
@@ -1941,9 +1942,15 @@ namespace {
             #ifdef HAS_APRS_PAGES
                 const int p = doc["p"] | -1;
                 if (p >= 0 && !PAGES_Utils::selectPage((uint8_t)p)) { reply(cmd, id, "page not available"); return; }
+                // k = el boton del equipo: 1 siguiente y -1 anterior (vistas de la pagina y luego paginas, saltando las que este modo
+                // no tiene), 0 atras (cierra el submenu o vuelve de una vista)
+                const int key = doc["k"] | -99;
+                if (key == 1) PAGES_Utils::next();
+                else if (key == -1) PAGES_Utils::previous();
+                else if (key == 0) PAGES_Utils::back();
                 const int every = doc["every"] | -1;
                 if (every >= 0) screenEveryMs = every == 0 ? 0 : (uint32_t)max(every, 1) * 1000UL;
-                if (p >= 0 || every >= 0) reply(cmd, id);
+                if (p >= 0 || every >= 0 || key != -99) reply(cmd, id);
                 sendScreen();
             #else
                 reply(cmd, id, "not available");

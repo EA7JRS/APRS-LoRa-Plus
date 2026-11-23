@@ -7462,6 +7462,30 @@ namespace PAGES_Utils {
             for (uint8_t i = 0; i < count; i++) {
                 const Command c = items[i].cmd;
                 if (c == C_BACK) continue;
+                // las opciones que abren un segundo nivel (GNSS, zona, potencia, QNH, declinacion) no se pueden abrir desde la app:
+                // en su lugar van las del segundo nivel, una a una, con el nombre de la que lo abre delante
+                const Item* sub = nullptr;
+                uint8_t subCount = 0;
+                #define PAGES_SUB(array) { sub = array; subCount = sizeof(array) / sizeof(array[0]); }
+                switch (c) {
+                    case C_GPS_GNSS:     PAGES_SUB(ITEMS_GNSS); break;
+                    case C_CLK_ZONE:     PAGES_SUB(ITEMS_ZONE); break;
+                    case C_LORA_POWER:   PAGES_SUB(ITEMS_POWER); break;
+                    case C_ALT_QNH:      PAGES_SUB(ITEMS_QNH); break;
+                    case C_COMPASS_DECL: PAGES_SUB(ITEMS_DECL); break;
+                    default: break;
+                }
+                #undef PAGES_SUB
+                if (sub) {
+                    for (uint8_t k = 0; k < subCount; k++) {
+                        if (sub[k].cmd == C_BACK) continue;
+                        char label[40];
+                        if (strcasecmp(sub[k].label, items[i].label) == 0) snprintf(label, sizeof(label), "%s", items[i].label);
+                        else snprintf(label, sizeof(label), "%s: %s", items[i].label, sub[k].label);
+                        callback(p, PAGE_TITLES[p], COMMAND_NAMES[sub[k].cmd], label, true, ctx);
+                    }
+                    continue;
+                }
                 callback(p, PAGE_TITLES[p], COMMAND_NAMES[c], items[i].label, !remoteBlocked(c), ctx);
             }
         }

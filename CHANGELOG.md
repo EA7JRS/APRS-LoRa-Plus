@@ -2,6 +2,7 @@
 
 ## Después de la 5.4.8 (sin publicar)
 
+- **Remote de la app:** `screen` con `k` hace de botón del equipo (siguiente / anterior / atrás): recorre las vistas de cada página (TELEMETRY, CLOCK, GPS, SYSTEM...) y salta las páginas que el modo no tiene; antes solo se podía ir por número de página y se quedaba parado en una que no existiera. `actlist` da ya las opciones de segundo nivel (constelaciones GNSS, zona horaria, potencia, QNH, declinación), que antes salían bloqueadas.
 - **TELEMETRY > HF y SPACE WX con el Hp30** (GFZ, cada media hora y sin tope en 9): si la app lo manda y tiene menos de 2 h, el estado de las bandas lo usa en vez del Kp de 3 h, y la cabecera de SPACE WX lo muestra («Hp6.3»). Sin él, todo como antes con el Kp.
 
 ## 5.4.8 — 2026-11-23
