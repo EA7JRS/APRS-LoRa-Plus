@@ -86,6 +86,7 @@
 #include "ble_control.h"
 #include "astro.h"            // lib/aprs_formulas (formulas del plotter): luna
 #include "celnav.h"           // declinacion y ecuacion del tiempo del sol (CLOCK > SUN) (EA7JRS)
+#include "ephem.h"            // fases, eclipses, marea de equilibrio, rebote lunar (CLOCK > ALMANAC y EME) (EA7JRS)
 #include "wind.h"             // Beaufort
 #include "alerts_utils.h"     // avisos oficiales (EA7JRS)
 
@@ -253,7 +254,7 @@ namespace {
     uint8_t         teamScale           = 0;        // 0 = automatica; 1.. = indice en TEAM_SCALES_KM
     uint8_t         boardView           = 0;        // SYSTEM: 0 = sistema, 1 = vista LINK (conexiones activas), 2 = BATTERY (no son paginas aparte)
     uint8_t         gpsView             = 0;        // GPS: 0 = posicion, 1 = GNSS (constelaciones, bandas, cielo) (EA7JRS)
-    uint8_t         clockView           = 0;        // CLOCK: 0 = reloj, 1 = SUN (orto y ocaso), 2 = MOON (fase) (EA7JRS)
+    uint8_t         clockView           = 0;        // CLOCK: 0 = reloj, 1 = SUN, 2 = MOON, 3 = ALMANAC, 4 = EME (EA7JRS)
     uint8_t         wxView              = 0;        // TELEMETRY: 0 = sensores, 1 = ALERTS (avisos oficiales), 2 = SPACE WX, 3 = HF (EA7JRS)
     uint8_t         alertTop            = 0;        // ALERTS: primera fila
     uint8_t         alertSel            = 0;        // ALERTS: aviso marcado (LP lo abre)
@@ -551,7 +552,7 @@ namespace {
             case PAGE_COMPASS:  PAGES_ITEMS(ITEMS_COMPASS);
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:
-                if (clockView == 0 || !Config.rotor.enabled) { PAGES_ITEMS(ITEMS_CLOCK); }
+                if (clockView == 0 || clockView > 2 || !Config.rotor.enabled) { PAGES_ITEMS(ITEMS_CLOCK); }
                 count = 0;                                       // SUN / MOON con rotor (EA7JRS): seguir al astro con la antena
                 clockItems[count++] = Item{"Rotor", C_CLK_ROTOR};
                 for (const Item& it : ITEMS_CLOCK) clockItems[count++] = it;
@@ -2904,35 +2905,15 @@ namespace {
         return acos(c) * RAD_TO_DEG;
     }
 
-    // Llena (maxima elongacion) o nueva (minima) cerca de "center": malla de 2 h en +-18 h y parabola en el mejor punto
-    static long long moonExtreme(long long center, double lat, double lon, bool full) {
-        const int N = 19;
-        double e[N];
-        int best = 0;
-        for (int i = 0; i < N; i++) {
-            e[i] = moonElongation(center + (long long)(i - N / 2) * 7200, lat, lon);
-            if (full ? e[i] > e[best] : e[i] < e[best]) best = i;
-        }
-        double shift = 0;
-        if (best > 0 && best < N - 1) {
-            const double den = e[best - 1] - 2 * e[best] + e[best + 1];
-            if (fabs(den) > 1e-9) shift = 0.5 * (e[best - 1] - e[best + 1]) / den;
-            if (shift > 1) shift = 1;
-            if (shift < -1) shift = -1;
-        }
-        return center + (long long)lround((best - N / 2 + shift) * 7200.0);
-    }
-
     struct MoonInfo {
         bool   ok = false;
         double elong = 0, lit = 0, ageDays = 0;     // edad equivalente (dias desde la nueva) para la fase en 8 partes
         bool   waxing = true;
-        double toFullH = 0, toNewH = 0;
         double riseMin = 0, setMin = 0;             // minutos UTC del dia
         bool   hasRise = false, hasSet = false;
     };
 
-    // Datos de la luna, recalculados cada 5 minutos (la busqueda de llena y nueva cuesta unos 40 calculos de posicion)
+    // Datos de la luna, recalculados cada 5 minutos (las proximas fases estan en CLOCK > ALMANAC, con plotter::nextMoonPhase)
     static const MoonInfo& moonInfo(time_t t, double lat, double lon) {
         static MoonInfo info;
         static uint32_t calcMs = 0;
@@ -2947,14 +2928,6 @@ namespace {
         int y, m, d;
         double h;
         plotter::unixToUtc(u, y, m, d, h);
-        const double age = plotter::moonAgeDays(y, m, d, h);                      // edad media: solo para saber donde buscar
-        for (int k = 0; k < 2; k++) {
-            const bool full = k == 0;
-            double ahead = fmod((full ? syn / 2 : syn) - age + 2 * syn, syn);
-            long long when = moonExtreme(u + (long long)(ahead * 86400), lat, lon, full);
-            if (when <= u) when = moonExtreme(u + (long long)((ahead + syn) * 86400), lat, lon, full);
-            (full ? info.toFullH : info.toNewH) = (double)(when - u) / 3600.0;
-        }
         plotter::moonTimes(y, m, d, lat, lon, info.riseMin, info.hasRise, info.setMin, info.hasSet);
         info.ok = true;
         return info;
@@ -3229,7 +3202,133 @@ namespace {
         drawMoonDisc(cx, cy, r, mi, lat < 0);
     }
 
-    // CLOCK: 1P pasa a SUN y a MOON (con hora y posicion) y de ahi a la pagina siguiente; 2P vuelve
+    // CLOCK > ALMANAC (EA7JRS): lo que viene, con las efemerides comunes (lib/aprs_formulas, ephem): proxima fase de la luna,
+    // perigeo o apogeo, marea de equilibrio de hoy, proximos eclipses de Luna y de Sol, y solsticio o equinoccio. Horas locales.
+    // Cada dato cuesta decenas de calculos de la Luna (sin coma flotante doble en el ESP32): se calcula uno por dibujo y se
+    // guardan seis horas, o hasta que pasa el primero de ellos
+    static void fmtJdLocal(double jd, int offsetMin, bool withTime, bool withYear, char* out, size_t size) {
+        static const char* const MON[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+        int y, m, d;
+        double h;
+        plotter::jdToUtc(jd + offsetMin / 1440.0, y, m, d, h);
+        const int mins = (int)lround(h * 60.0) % 1440;
+        if (withTime) snprintf(out, size, "%d%s %02d:%02d", d, MON[(m - 1) % 12], mins / 60, mins % 60);
+        else if (withYear) snprintf(out, size, "%d%s%02d", d, MON[(m - 1) % 12], y % 100);
+        else snprintf(out, size, "%d%s", d, MON[(m - 1) % 12]);
+    }
+
+    struct AlmanacInfo {
+        uint8_t stage = 0;                  // 0 sin empezar .. 6 completo
+        double  jdCalc = 0;
+        double  phaseJd = 0;   int phaseQ = 0;
+        double  apsisJd = 0;   bool perigee = true; double apsisKm = 0;
+        plotter::Eclipse lunar, solar;
+        double  seasonJd = 0;  int season = 0;
+    };
+
+    void drawAlmanac() {
+        time_t t;
+        double lat, lon;
+        int off;
+        if (!skyNow(t, lat, lon, off)) { header("ALMANAC"); text(4, 24, "Needs time and GPS"); return; }
+        static AlmanacInfo al;
+        const double jd = (double)t / 86400.0 + 2440587.5;
+        if (al.stage == 6 && (jd - al.jdCalc > 0.25 || jd > al.phaseJd || jd > al.apsisJd)) al.stage = 0;
+        switch (al.stage) {
+            case 0: {
+                al.jdCalc = jd;
+                al.phaseJd = 0;
+                for (int q = 0; q < 4; q++) {
+                    const double p = plotter::nextMoonPhase(jd, q);
+                    if (al.phaseJd == 0 || p < al.phaseJd) { al.phaseJd = p; al.phaseQ = q; }
+                }
+                al.stage = 1;
+                break;
+            }
+            case 1: {
+                double kmP, kmA;
+                const double p = plotter::nextMoonApsis(jd, true, kmP), a = plotter::nextMoonApsis(jd, false, kmA);
+                al.perigee = p > 0 && (a == 0 || p < a);
+                al.apsisJd = al.perigee ? p : a;
+                al.apsisKm = al.perigee ? kmP : kmA;
+                al.stage = 2;
+                break;
+            }
+            case 2: al.lunar = plotter::nextEclipse(jd, true);  al.stage = 3; break;
+            case 3: al.solar = plotter::nextEclipse(jd, false); al.stage = 4; break;
+            case 4: al.seasonJd = plotter::nextSeason(jd, al.season); al.stage = 5; break;
+            case 5: al.stage = 6; break;
+            default: break;
+        }
+        char right[8];
+        const time_t lt = t + (time_t)off * 60;
+        snprintf(right, sizeof(right), "%02d:%02d", hour(lt), minute(lt));
+        header("ALMANAC", right);
+        rowLimit = COLS;
+        char when[16];
+        static const char* const PHASE[] = {"New", "1stQ", "Full", "LastQ"};
+        if (al.stage > 0) { fmtJdLocal(al.phaseJd, off, true, false, when, sizeof(when)); row(0, "%s %s", PHASE[al.phaseQ & 3], when); }
+        else row(0, "Computing...");
+        if (al.stage > 1) { fmtJdLocal(al.apsisJd, off, false, false, when, sizeof(when)); row(1, "%s %s %.0fkm", al.perigee ? "Perig" : "Apog", when, al.apsisKm); }
+        if (al.stage > 5) {
+            const double tide = plotter::tideForceIndex(jd);
+            row(2, "Tide %.0f%% %s", tide, tide >= 85 ? "spring" : (tide <= 55 ? "neap" : "mid"));
+        }
+        static const char* const ECL[] = {"-", "pen", "part", "total", "part", "annul", "total"};
+        if (al.stage > 2) {
+            if (al.lunar.kind == plotter::EclipseKind::None) row(3, "EclM -");
+            else { fmtJdLocal(al.lunar.jd, off, false, true, when, sizeof(when)); row(3, "EclM %s %s", when, ECL[(int)al.lunar.kind % 7]); }
+        }
+        if (al.stage > 3) {
+            if (al.solar.kind == plotter::EclipseKind::None) row(4, "EclS -");
+            else { fmtJdLocal(al.solar.jd, off, false, true, when, sizeof(when)); row(4, "EclS %s %s", when, ECL[(int)al.solar.kind % 7]); }
+        }
+        if (al.stage > 4) {
+            static const char* const SEASON[] = {"Equinox", "Solstice", "Equinox", "Solstice"};
+            fmtJdLocal(al.seasonJd, off, true, false, when, sizeof(when));
+            row(5, "%s %s", SEASON[al.season & 3], when);
+        }
+    }
+
+    // CLOCK > EME (EA7JRS): rebote lunar en la frecuencia del perfil en uso (70 cm) desde la posicion propia: perdida del
+    // trayecto de ida y vuelta, retardo del eco, Doppler del propio eco y altura de la Luna; y del Sol, distancia, irradiancia
+    // fuera de la atmosfera e indice UV de cielo despejado. Solo datos: el tracker no tiene potencia para el rebote lunar
+    void drawEme() {
+        time_t t;
+        double lat, lon;
+        int off;
+        if (!skyNow(t, lat, lon, off)) { header("EME"); text(4, 24, "Needs time and GPS"); return; }
+        const double jd = (double)t / 86400.0 + 2440587.5;
+        long hz = LoRa_Utils::liveFreqHz();
+        if (hz < 1000000L) hz = 432000000L;
+        static plotter::EmeInfo eme;
+        static double sunAu = 1, mAlt = 0, sAlt = 0;
+        static uint32_t calcMs = 0;
+        static long calcHz = 0;
+        if (calcMs == 0 || millis() - calcMs > 10000UL || calcHz != hz) {         // cada 10 s: el Doppler cambia despacio
+            calcMs = millis() ? millis() : 1;
+            calcHz = hz;
+            eme = plotter::emeInfo(jd, lat, lon, (double)hz);
+            sunAu = plotter::sunDistanceAu(jd);
+            int y, m, d;
+            double h, az, dist;
+            plotter::unixToUtc((long long)t, y, m, d, h);
+            plotter::moonPosition(y, m, d, h, lat, lon, mAlt, az, dist);
+            plotter::sunPosition(y, m, d, h, lat, lon, sAlt, az);
+        }
+        char right[10];
+        snprintf(right, sizeof(right), "%.1fM", hz / 1e6);
+        header("EME", right);
+        rowLimit = COLS;
+        row(0, "Loss %.1f dB", eme.pathLossDb);
+        row(1, "Echo %.3f s", eme.echoDelayS);
+        row(2, "Doppler %+.0f Hz", eme.dopplerHz);
+        row(3, "Moon %+.1f %.0fkm", mAlt + plotter::refractionDeg(mAlt), eme.rangeKm);
+        row(4, "Sun %.4fAU %.0fW/m2", sunAu, plotter::kSolarConstant / (sunAu * sunAu));
+        row(5, "UV clear sky %.1f", plotter::clearSkyUvIndex(sAlt, sunAu));
+    }
+
+    // CLOCK: 1P pasa a SUN, MOON, ALMANAC y EME (con hora y posicion) y de ahi a la pagina siguiente; 2P vuelve
     static bool moveClockView(int direction) {
         if (page != PAGE_CLOCK) return false;
         time_t t;
@@ -3237,7 +3336,7 @@ namespace {
         int off;
         if (!skyNow(t, lat, lon, off)) { clockView = 0; return false; }
         const int to = clockView + direction;
-        if (to < 0 || to > 2) return false;
+        if (to < 0 || to > 4) return false;
         clockView = (uint8_t)to;
         return true;
     }
@@ -3245,6 +3344,8 @@ namespace {
     void drawClock() {
         if (clockView == 1) { drawSun(); return; }
         if (clockView == 2) { drawMoon(); return; }
+        if (clockView == 3) { drawAlmanac(); return; }
+        if (clockView == 4) { drawEme(); return; }
         time_t t = now();
         bool haveTime = year(t) >= 2024;
         uint32_t nowMs = millis();

@@ -1,1 +1,1 @@
-Copia parcial de lib/plotter_core de EA7JRS/APRS-LoRa-Plus-Plotter, commit e44a873, con tools/sync_formulas.sh. No editar aqui.
+Copia parcial de lib/plotter_core de EA7JRS/APRS-LoRa-Plus-Plotter, commit 476b7ab, con tools/sync_formulas.sh. No editar aqui.
