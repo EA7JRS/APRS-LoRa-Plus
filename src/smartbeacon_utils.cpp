@@ -40,7 +40,7 @@ bool                wxRequestStatus             = false;
 uint32_t            wxRequestTime               = 0;
 
 
-SmartBeaconValues   smartBeaconSettings[6] = {
+SmartBeaconValues   smartBeaconSettings[7] = {
     {120,  3, 60, 15,  50, 20, 12, 60, 0},      // Runner settings  = SLOW
     {120,  5, 60, 40, 100, 12, 12, 60, 0},      // Bike settings    = MEDIUM
     {120, 10, 60, 70, 100, 12, 10, 80, 0},      // Car settings     = FAST
@@ -48,7 +48,11 @@ SmartBeaconValues   smartBeaconSettings[6] = {
     // sin condicion de distancia ni corner pegging. Los valores de abajo solo son informativos.
     {180,  2,  2, 43,   0,  0, 360, 0, AIS_Profiles::CLASS_A},      // AIS Clase A
     {180,  4,  5, 43,   0,  0, 360, 0, AIS_Profiles::CLASS_B_SO},   // AIS Clase B "SO"
-    {180,  4, 15, 26,   0,  0, 360, 0, AIS_Profiles::CLASS_B_CS}    // AIS Clase B "CS"
+    {180,  4, 15, 26,   0,  0, 360, 0, AIS_Profiles::CLASS_B_CS},   // AIS Clase B "CS"
+    // SmartBeaconing "de carretera" con los valores habituales de APRS (HamHUD: KA9MVA y KD7TA; los que traen las emisoras con
+    // APRS y las guias): baliza lenta cada 30 min por debajo de 5 km/h, rapida cada 90 s desde 100 km/h, giro de 30 grados +
+    // 240 / velocidad con 15 s como minimo entre balizas. Mucho menos canal que los tres primeros (EA7JRS)
+    {1800, 5, 90, 100, 100, 15, 30, 240, 0}                         // APRS estandar
 };
 
 

@@ -653,6 +653,7 @@ function loadSettings(settings) {
                                 <option value="3" ${beacons.smartBeaconSetting == 3 ? 'selected' : ''}>AIS Class A (ITU-R M.1371-6)</option>
                                 <option value="4" ${beacons.smartBeaconSetting == 4 ? 'selected' : ''}>AIS Class B "SO" (ITU-R M.1371-6)</option>
                                 <option value="5" ${beacons.smartBeaconSetting == 5 ? 'selected' : ''}>AIS Class B "CS" (ITU-R M.1371-6)</option>
+                                <option value="6" ${beacons.smartBeaconSetting == 6 ? 'selected' : ''}>APRS standard (road: 30 min slow, 90 s at 100 km/h, 30° turns)</option>
                             </optgroup>
                         </select>
                     </div>
