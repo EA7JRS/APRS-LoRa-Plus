@@ -847,5 +847,8 @@ Transpondedor AIS **de clase B** por APRS LoRa en la **LilyGO T3 v1.6.1** (LoRa3
 - **CLOCK > EME** (1P desde ALMANAC): rebote lunar en la frecuencia en uso desde la posición propia: `Loss` (pérdida del trayecto de ida y vuelta), `Echo` (retardo del eco), `Doppler` del propio eco y la altura y la distancia de la Luna; del Sol, distancia en UA, irradiancia fuera de la atmósfera e índice UV de cielo despejado. Son datos para la estación: el tracker no tiene potencia para el rebote lunar.
 - **WebUI > Config check:** comprobación de la configuración antes de guardar (apartado 32).
 - **Estado por HTTP** (`/api/status`) con el KISS por WiFi activo (apartado 32), para S.A.T.-APRS+.
+- **SmartBeacon «APRS standard»** (ajuste 6 de cada baliza, WebUI): 30 min por debajo de 5 km/h, 90 s desde 100 km/h, giro de 30° + 240 / velocidad, 15 s como mínimo entre balizas. Gasta mucho menos canal que los ajustes de corredor, bici y coche.
+- **Remote de la app:** ◀ ▶ y *Back* hacen de botón del equipo (vistas de cada página incluidas) y las opciones de GNSS, zona, potencia, QNH y declinación salen una a una.
+- **HF y SPACE WX con el Hp30** de GFZ (media hora) cuando la app lo manda; si no, el Kp.
 - Sin probar todavía en las placas.
 

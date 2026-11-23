@@ -14,7 +14,17 @@ Versión del **tracker**. La app Android lleva su propia numeración; el resto d
   contraseña del WiFi AP y PIN de fábrica, enlaces KISS).
 - **`/api/status`:** estado del equipo en JSON, también con el KISS por WiFi activo (puerto 80), para S.A.T.-APRS+
   (Radio · APRS LoRa+, v1.55.0).
+- **SmartBeacon «APRS standard»** (ajuste 6 de cada baliza, en la WebUI): baliza lenta cada 30 min por debajo de 5 km/h,
+  rápida cada 90 s desde 100 km/h, giro de 30° + 240 / velocidad y 15 s como mínimo entre balizas. Mucho menos canal que
+  los ajustes de corredor, bici y coche.
+- **Remote de la app:** las teclas ◀ ▶ y *Back* hacen de botón del equipo (recorren las vistas de cada página y saltan las
+  páginas que el modo no tiene), y las opciones de GNSS, zona horaria, potencia, QNH y declinación salen una a una.
+- **TELEMETRY > HF y SPACE WX con el Hp30 de GFZ** (cada media hora, sin tope en 9) cuando la app lo manda y tiene menos
+  de 2 h; si no, el Kp como antes.
 - Fórmulas comunes nuevas del plotter (`ephem`): fases verdaderas, eclipses, estaciones, marea de equilibrio, rebote
   lunar, horizonte de radio.
 
 **Sin probar en las placas**: compila en la CI para todas; las fórmulas pasan sus pruebas en el PC.
+
+**Binarios rehechos el 23-11-2026** con los tres últimos puntos (SmartBeacon «APRS standard», Remote y Hp30): quien
+instaló la 5.4.8 antes de esa fecha puede volver a instalarla para tenerlos.

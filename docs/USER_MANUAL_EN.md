@@ -853,5 +853,8 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 - **CLOCK > EME** (1P from ALMANAC): moonbounce on the frequency in use from your position: `Loss` (two-way path loss), `Echo` (echo delay), `Doppler` of your own echo and the Moon's altitude and range; for the Sun, distance in AU, irradiance outside the atmosphere and clear-sky UV index. Data for the station: the tracker has no power for moonbounce.
 - **WebUI > Config check:** configuration check before saving (section 32).
 - **Status over HTTP** (`/api/status`) with KISS over WiFi on (section 32), for S.A.T.-APRS+.
+- **SmartBeacon "APRS standard"** (setting 6 of each beacon, WebUI): 30 min below 5 km/h, 90 s from 100 km/h, a turn of 30° + 240 / speed, at least 15 s between beacons. Much less channel use than the runner, bike and car settings.
+- **Remote in the app:** ◀ ▶ and *Back* act as the device button (the views of each page included) and the GNSS, time zone, power, QNH and declination options are listed one by one.
+- **HF and SPACE WX with the GFZ Hp30** (half-hourly) when the app sends it; otherwise Kp.
 - Not yet tested on the boards.
 
