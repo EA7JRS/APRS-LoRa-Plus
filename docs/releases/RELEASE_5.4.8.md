@@ -6,8 +6,6 @@ Versión del **tracker**. La app Android lleva su propia numeración; el resto d
 - **Botón con la pantalla apagada** (modo ECO o ahorro de batería): la pantalla se enciende en cuanto se aprieta el botón y
   se redibuja al momento; cada pulsación reinicia la cuenta del apagado. Antes la pantalla se apagaba a los 4 s de
   encenderla aunque se pasaran páginas, y la siguiente pulsación solo la volvía a encender.
-- **CLOCK > ALMANAC** (vista nueva): próxima fase de la luna, perigeo o apogeo, marea de equilibrio, próximos eclipses de
-  Luna y de Sol y próximo equinoccio o solsticio.
 - **CLOCK > EME** (vista nueva): rebote lunar en la frecuencia en uso (pérdida del trayecto, retardo del eco, Doppler) y,
   del Sol, distancia, irradiancia e índice UV de cielo despejado.
 - **WebUI > Config check:** errores, avisos y correcciones seguras antes de guardar (NOCALL, ruta, plan de la IARU,
@@ -21,10 +19,9 @@ Versión del **tracker**. La app Android lleva su propia numeración; el resto d
   páginas que el modo no tiene), y las opciones de GNSS, zona horaria, potencia, QNH y declinación salen una a una.
 - **TELEMETRY > HF y SPACE WX con el Hp30 de GFZ** (cada media hora, sin tope en 9) cuando la app lo manda y tiene menos
   de 2 h; si no, el Kp como antes.
-- Fórmulas comunes nuevas del plotter (`ephem`): fases verdaderas, eclipses, estaciones, marea de equilibrio, rebote
-  lunar, horizonte de radio.
+- Fórmulas comunes nuevas del plotter (`ephem`): rebote lunar, distancia e irradiancia del Sol, horizonte de radio.
 
 **Sin probar en las placas**: compila en la CI para todas; las fórmulas pasan sus pruebas en el PC.
 
-**Binarios rehechos el 23-11-2026** con los tres últimos puntos (SmartBeacon «APRS standard», Remote y Hp30): quien
+**Binarios rehechos el 23-11-2026** con SmartBeacon «APRS standard», Remote y Hp30, y sin la vista CLOCK > ALMANAC (atascaba el paso de página tras MOON): quien
 instaló la 5.4.8 antes de esa fecha puede volver a instalarla para tenerlos.
