@@ -17,6 +17,10 @@
  */
 
 #include <OneButton.h>
+#include <logger.h>
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    #include "esp32-hal-periman.h"
+#endif
 #include "keyboard_utils.h"
 #include "configuration.h"
 #include "board_pinout.h"
@@ -36,10 +40,51 @@
     extern int              menuDisplay;
     extern uint32_t         displayTime;
     extern uint32_t         menuTime;
+    extern logging::Logger  logger;
+    extern bool             displayState;
+    extern uint32_t         refreshDisplayTime;
 
     namespace BUTTON_Utils {
 
         OneButton userButton = OneButton(BUTTON_PIN, true, true);
+
+        // Cada pulsacion cuenta como actividad: reinicia el temporizador del modo ECO de la pantalla (EA7JRS). Antes solo lo
+        // hacia la pulsacion que la encendia, asi que la pantalla se apagaba mientras se pasaban paginas y la siguiente
+        // pulsacion solo la volvia a encender (parecia que el boton no respondia)
+        static void touched() {
+            menuTime = displayTime = millis();
+        }
+
+        // Pantalla apagada por el modo ECO (EA7JRS): se enciende en cuanto se aprieta el boton, sin esperar a que OneButton
+        // decida si es un clic, un doble clic o una pulsacion larga (hasta ~0,6 s), y se redibuja enseguida. Esa pulsacion
+        // solo enciende: sus eventos se descartan, para no pasar de pagina ni abrir menus a ciegas. Si en la misma rafaga
+        // llega un doble clic, la segunda pulsacion cuenta como 1P (pagina siguiente)
+        static bool     wakeDown        = false;
+        static bool     wakeArmed       = false;
+        static uint32_t wakeReleasedMs  = 0;
+
+        static void wakeOnPress() {
+            const bool down = digitalRead(BUTTON_PIN) == LOW;
+            if (down && !wakeDown) {
+                wakeDown = true;
+                if (!displayState) {
+                    displayToggle(true);
+                    touched();
+                    refreshDisplayTime = 0;             // redibujar ya: la OLED guarda la ultima imagen de antes de apagarse
+                    wakeArmed = true;
+                }
+            } else if (!down && wakeDown) {
+                wakeDown = false;
+                if (wakeArmed) wakeReleasedMs = millis();
+            }
+            if (wakeArmed && !wakeDown && millis() - wakeReleasedMs > 1500) wakeArmed = false;   // OneButton no dio evento
+        }
+
+        static bool swallowWake() {
+            if (!wakeArmed) return false;
+            wakeArmed = false;
+            return true;
+        }
 
         // Gesto de emergencia (5 pulsaciones cortas o SOS en morse): se lee el boton en bruto, aparte de OneButton.
         // Al reconocerlo se ignoran las pulsaciones que OneButton aun entregue de ese mismo gesto.
@@ -91,35 +136,40 @@
         #endif
 
         void singlePress1() {
-            if (suppressed()) return;
-            menuTime = millis();
+            if (suppressed() || swallowWake()) return;
+            touched();
             KEYBOARD_Utils::downArrow();
         }
         #ifdef RPC_Electronics_1W_LoRa_GPS
             void singlePress2() {
-                menuTime = millis();
+                touched();
                 KEYBOARD_Utils::upArrow();
             }
             void singlePress3() {
-                menuTime = millis();
+                touched();
                 KEYBOARD_Utils::rightArrow();
             }
             void singlePress4() {
-                menuTime = millis();
+                touched();
                 KEYBOARD_Utils::leftArrow();
             }
         #endif
 
         void longPress1() {
-            if (suppressed()) return;
-            menuTime = millis();
+            if (suppressed() || swallowWake()) return;
+            touched();
             KEYBOARD_Utils::rightArrow();
         }
 
         void doublePress1() {
             if (suppressed()) return;
+            if (swallowWake()) {                    // la primera pulsacion encendio la pantalla: la segunda es 1P
+                touched();
+                KEYBOARD_Utils::downArrow();
+                return;
+            }
+            touched();
             displayToggle(true);
-            menuTime = millis();
             if (menuDisplay == 0) {
                 #ifdef HAS_APRS_PAGES
                     if (PAGES_Utils::back()) return;        // primero cierra el submenu de la pagina
@@ -133,8 +183,9 @@
 
         void multiPress1() {
             if (suppressed()) return;
+            swallowWake();
+            touched();
             displayToggle(true);
-            menuTime = millis();
             menuDisplay = 9000;
         }
 
@@ -153,13 +204,32 @@
             }
         #endif
 
+        // El GPIO del boton no lo debe tomar ningun otro periferico (EA7JRS). Si otro modulo lo reconfigura, OneButton deja
+        // de ver las pulsaciones y el equipo parece dormido hasta reiniciar: se detecta, se anota en el registro y se recupera
+        static void guardPin() {
+            #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+                static uint32_t lastCheck = 0;
+                const uint32_t now = millis();
+                if (now - lastCheck < 2000) return;
+                lastCheck = now;
+                const peripheral_bus_type_t bus = perimanGetPinBusType(BUTTON_PIN);
+                if (bus != ESP32_BUS_TYPE_GPIO) {
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Button", "GPIO %d taken by %s: restored as button input",
+                               BUTTON_PIN, perimanGetTypeName(bus));
+                    pinMode(BUTTON_PIN, INPUT_PULLUP);
+                }
+            #endif
+        }
+
         void loop() {
+            guardPin();
             if (!Config.simplifiedTrackerMode) {
                 #ifdef LILYGO_T_TWR_PLUS
                     if (!SA868::modeFm()) userButtonPtt.tick();
                     userButtonDown.tick();
                     encoderNav();
                 #endif
+                wakeOnPress();
                 userButton.tick();
                 #ifdef HAS_APRS_PAGES
                     pollSosGesture();
@@ -173,6 +243,7 @@
         }
 
         void setup() {
+            pinMode(BUTTON_PIN, INPUT_PULLUP);          // OneButton lo configura en su constructor, antes de setup(): se repite aqui
             if (!Config.simplifiedTrackerMode) {
                 userButton.attachClick(singlePress1);
                 userButton.attachLongPressStart(longPress1);

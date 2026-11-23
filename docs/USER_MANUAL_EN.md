@@ -692,6 +692,17 @@ The board can be a **KISS TNC over WiFi** for programs such as **APRSdroid** (te
 - **Power:** the WiFi stays on and the board does not enter deep sleep.
 - **Security:** KISS has no password; anyone allowed can transmit with your callsign. Use it on trusted networks and with the address list.
 - With a phone hotspot the IP may change between sessions: read the screen, or use `aprs-lora-plus.local` if your application resolves it. Tested with APRSdroid on Android over TCP in **LoRa and FSK**; UDP untested. The `.local` name (mDNS) works on Windows, macOS and Linux, but **many Android apps do not resolve it**: use the IP shown in the LINK view of SYSTEM. The network host name is `aprs-lora-plus` (applied after a restart).
+- **Status over HTTP** (after 5.4.7): with KISS over WiFi on, `http://<IP>/api/status` (port 80) returns the state of the tracker as JSON: callsign, version, board, mode, profile, frequency and LoRa settings, battery, digipeater, SmartBeacon and KISS clients. Read-only, and it honours the allowed addresses. S.A.T.-APRS+ uses it (Radio · APRS LoRa+). In configuration mode (WiFi AP) the WebUI answers at the same address.
+
+### Configuration check (WebUI)
+
+The **Config check** section of the WebUI reviews the configuration before it is saved, on top of the limits the firmware already enforces:
+
+- **Errors** (they stop *Save* until fixed, or press *Save anyway*): NOCALL or malformed callsign, malformed path, factory WiFi AP password (`1234567890`) or one shorter than 8 characters.
+- **Warnings:** path asking for more than two hops, LoRa frequency outside the amateur band of the profile's region or off the Region 1 digital channels, factory Bluetooth control PIN (`123456`), Bluetooth KISS and KISS over WiFi both on, KISS over WiFi open to any address.
+- **Notes:** profile on 433.775 MHz with settings other than SF12 / 125 kHz / CR 4/5.
+
+The **safe fix** buttons (path `WIDE1-1`, 433.775 MHz, random password or PIN) only change the field shown; nothing is stored until you press *Save*. The new password and PIN are displayed so you can write them down. The numbers in the sidebar and on the *Save* button show what is pending. *Check before every Save* is remembered by the browser.
 
 ## 33. CAT over WiFi (Hamlib) (5.3.3)
 

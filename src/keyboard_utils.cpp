@@ -90,6 +90,7 @@ bool        showHumanHeading        = false;
 namespace KEYBOARD_Utils {
 
     void upArrow() {
+        if (displayState) displayTime = millis();     // actividad: el modo ECO cuenta desde la ultima tecla (EA7JRS)
         #ifdef HAS_APRS_PAGES
             if (menuDisplay == 0) {         // pantalla principal: pagina anterior / opcion anterior del submenu
                 PAGES_Utils::previous();
@@ -164,6 +165,7 @@ namespace KEYBOARD_Utils {
     }
 
     void downArrow() {
+        if (displayState) displayTime = millis();     // actividad: el modo ECO cuenta desde la ultima tecla (EA7JRS)
         if (menuDisplay == 0) {
             if (displayState) {
                 #ifdef HAS_APRS_PAGES
@@ -271,6 +273,7 @@ namespace KEYBOARD_Utils {
     }
 
     void leftArrow() {
+        if (displayState) displayTime = millis();     // actividad: el modo ECO cuenta desde la ultima tecla (EA7JRS)
         #ifdef HAS_APRS_PAGES
             if (menuDisplay == 0) {         // pantalla principal: cierra el submenu
                 PAGES_Utils::back();
@@ -322,6 +325,7 @@ namespace KEYBOARD_Utils {
     }
 
     void rightArrow() {
+        if (displayState) displayTime = millis();     // actividad: el modo ECO cuenta desde la ultima tecla (EA7JRS)
         #ifdef HAS_APRS_PAGES
             if (menuDisplay == 0) {         // pantalla principal: pulsacion larga = submenu de la pagina
                 int command = PAGES_Utils::longPress();

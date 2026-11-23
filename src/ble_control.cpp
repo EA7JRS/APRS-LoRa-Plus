@@ -20,6 +20,7 @@
 #include "time_sync.h"
 #include "gnss_sky.h"
 #include "configuration.h"
+#include "kiss_net.h"
 #include "board_pinout.h"
 #include "display.h"
 #include "battery_utils.h"
@@ -92,6 +93,8 @@ extern const char*      lastResetTasks;
 extern uint8_t          myBeaconsIndex;
 extern int              myBeaconsSize;
 extern Beacon*          currentBeacon;
+extern LoraType*        currentLoRaType;
+extern bool             bluetoothConnected;
 extern uint8_t          loraIndex;
 extern int              loraIndexSize;
 extern bool             statusUpdate;
@@ -430,8 +433,7 @@ namespace {
         }
     }
 
-    void sendStatus() {
-        JW j("status");
+    static void statusFields(JW& j) {
         j.num("mode", Config.operatingMode);
         j.num("profile", myBeaconsIndex);
         j.num("lora", loraIndex);
@@ -446,7 +448,38 @@ namespace {
         radioState(hz, mod);
         if (hz > 0) j.unum("f", hz);
         if (mod[0]) j.text("mod", mod);
+    }
+
+    void sendStatus() {
+        JW j("status");
+        statusFields(j);
         j.send(sendLine);
+    }
+
+    // Estado para /api/status (WebUI y enlace KISS por WiFi): los campos del evento BLE "status" mas la identidad del equipo,
+    // los parametros del perfil LoRa en uso y los enlaces KISS. Lo lee S.A.T.-APRS+ para repartir funciones (EA7JRS)
+    String statusJsonBuild() {
+        JW j("status");
+        statusFields(j);
+        if (currentBeacon) j.text("call", currentBeacon->callsign.c_str());
+        j.text("ver", versionNumber.c_str());
+        j.text("board", APRS_BOARD_ID);
+        if (currentLoRaType && (Config.operatingMode == MODE_APRS_LORA)) {
+            j.num("sf", currentLoRaType->spreadingFactor);
+            j.num("bw", currentLoRaType->signalBandwidth);
+            j.num("cr", currentLoRaType->codingRate4);
+            j.num("pwr", currentLoRaType->power);
+        }
+        j.text("path", Config.path.c_str());
+        j.objKey("kiss");
+        j.flag("tcp", Config.kissNet.enabled);
+        j.num("port", Config.kissNet.tcpPort);
+        j.num("clients", KISS_NET::clientCount());
+        j.flag("ble", bluetoothConnected && Config.bluetooth.useKISS);
+        j.endObj();
+        j.unum("heap", ESP.getFreeHeap());
+        j.s += '}';
+        return j.s;
     }
 
     void sendSensors() {
@@ -2236,6 +2269,9 @@ extern bool messageLed;     // msg_utils.cpp: mensajes sin leer (LED de aviso)
 extern bool flashlight;     // linterna manual
 
 namespace BLE_Control {
+
+    String statusJson() { return statusJsonBuild(); }
+
 
     void sendLeds(bool force);
 

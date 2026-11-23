@@ -29,6 +29,7 @@
 #include "lora_utils.h"
 #include "kiss_utils.h"
 #include "kiss_stream.h"
+#include "ble_control.h"
 #include "display.h"
 #include "logger.h"
 
@@ -57,6 +58,52 @@ namespace {
     bool            linkUp          = false;
     uint32_t        lastRetryMs     = 0;
 
+    // Estado por HTTP en el mismo enlace WiFi (EA7JRS): GET /api/status devuelve el JSON de BLE_Control::statusJson().
+    // La WebUI solo existe en el modo de configuracion (WiFi AP); con esto, S.A.T.-APRS+ u otro programa leen el estado
+    // del equipo en marcha. Solo lectura, una peticion cada vez y con el mismo filtro de direcciones que KISS.
+    constexpr uint16_t  STATUS_PORT     = 80;
+    WiFiServer*     statusServer    = nullptr;
+    WiFiClient      statusClient;
+    String          statusRequest;
+    uint32_t        statusSinceMs   = 0;
+
+    void statusReply(const char* code, const char* type, const String& body) {
+        String head = "HTTP/1.1 ";
+        head += code;
+        head += "\r\nContent-Type: ";
+        head += type;
+        head += "\r\nContent-Length: ";
+        head += String(body.length());
+        head += "\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+        statusClient.print(head);
+        statusClient.print(body);
+        statusClient.flush();
+        statusClient.stop();
+        statusRequest = "";
+    }
+
+    void statusPoll() {
+        if (statusServer == nullptr) return;
+        if (!statusClient || !statusClient.connected()) {
+            statusClient = statusServer->accept();
+            if (!statusClient) return;
+            if (!KissNetUtil::ipAllowed(statusClient.remoteIP().toString().c_str(), Config.kissNet.allowed.c_str())) { statusClient.stop(); return; }
+            statusRequest = "";
+            statusSinceMs = millis();
+        }
+        while (statusClient.available() > 0 && statusRequest.length() < 512) {
+            statusRequest += (char)statusClient.read();
+            if (statusRequest.endsWith("\r\n\r\n")) break;
+        }
+        if (!statusRequest.endsWith("\r\n\r\n") && statusRequest.length() < 512) {
+            if (millis() - statusSinceMs > 2000) { statusClient.stop(); statusRequest = ""; }     // peticion a medias: no se espera mas
+            return;
+        }
+        if (statusRequest.startsWith("GET /api/status ") || statusRequest.startsWith("GET /api/status?")) statusReply("200 OK", "application/json", BLE_Control::statusJson());
+        else if (statusRequest.startsWith("GET /status "))  statusReply("200 OK", "text/plain", "OK");
+        else                                                statusReply("404 Not Found", "text/plain", "Not found");
+    }
+
     bool wanted() {                                         // el enlace WiFi se mantiene si KISS o CAT estan activados
         return Config.kissNet.enabled || Config.cat.enabled || Config.rotor.serverEnabled;
     }
@@ -82,6 +129,7 @@ namespace {
 
     void startSockets() {
         if (server) { server->close(); delete server; server = nullptr; }
+        if (statusServer) { statusClient.stop(); statusServer->close(); delete statusServer; statusServer = nullptr; }
         const String ip = WiFi.localIP().toString();
         MDNS.end();
         const bool mdns = MDNS.begin(KISS_HOST);
@@ -92,6 +140,9 @@ namespace {
             server->setNoDelay(true);
             if (Config.kissNet.udpPort > 0) udpOn = udp.begin((uint16_t)Config.kissNet.udpPort) != 0;
             if (mdns) MDNS.addService("kiss", "tcp", (uint16_t)Config.kissNet.tcpPort);
+            statusServer = new WiFiServer(STATUS_PORT);       // GET /api/status
+            statusServer->begin();
+            if (mdns) MDNS.addService("http", "tcp", STATUS_PORT);
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "KISS WiFi", "TCP %s:%d%s", ip.c_str(), Config.kissNet.tcpPort, udpOn ? " + UDP" : "");
         }
         if (Config.cat.enabled) CAT_NET::begin();           // CAT (Hamlib) comparte el enlace WiFi y el nombre mDNS
@@ -105,6 +156,7 @@ namespace {
     void stopSockets() {
         for (uint8_t i = 0; i < MAX_CLIENTS; i++) { clients[i].socket.stop(); clients[i].splitter.clear(); }
         if (server) { server->close(); delete server; server = nullptr; }
+        if (statusServer) { statusClient.stop(); statusServer->close(); delete statusServer; statusServer = nullptr; }
         if (udpOn) { udp.stop(); udpOn = false; }
         CAT_NET::end();
         ROTOR_NET::end();
@@ -229,6 +281,7 @@ namespace KISS_NET {
         }
         CAT_NET::poll();
         ROTOR_NET::poll();
+        statusPoll();
         if (server == nullptr) return;
         acceptClients();
         uint8_t budget = MAX_FRAMES_PER_POLL;

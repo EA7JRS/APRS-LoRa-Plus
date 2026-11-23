@@ -1339,6 +1339,7 @@ function loadSettings(settings) {
     pttPinInput.disabled        = !pttTriggerCheckbox.checked;
 
     clampOutOfRangeInputs();
+    cfgCheckRun();
 }
 
 function showToast(message) {
@@ -1718,6 +1719,7 @@ form.addEventListener("submit", async (event) => {
 
     const gpsProblem = gpsGnssProblem();
     if (gpsProblem) { showToast(gpsProblem); document.querySelector('[data-target="sec-gps"]').click(); return; }
+    if (!cfgCheckAllowSave()) return;           // configuration check: errors open the check (EA7JRS)
 
     fetch(form.action, {
         method: form.method,
@@ -2284,3 +2286,270 @@ document.getElementById("netWx.on").addEventListener("change", netWxSchedule);
 document.getElementById("netWx.show").addEventListener("change", e => {
     ["netWx.owmKey", "netWx.iqairKey"].forEach(id => document.getElementById(id).type = e.target.checked ? "text" : "password");
 });
+
+// ======================= Configuration check (Manuel - EA7JRS) =======================
+// Cross-field and good-practice checks run before saving, on top of the ranges the firmware already enforces
+// (clampOutOfRangeInputs). Same idea as wx3cfg for the WX3in1. CFG_CHECK BEGIN / END delimit the pure rules,
+// which tools/test_cfg_check.js runs with Node.
+// ---- CFG_CHECK BEGIN ----
+const CFG_CALL_RE  = /^(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{3,6}(-([0-9]|1[0-5]))?$/;
+const CFG_ALIAS_RE = /^[A-Z0-9]{1,6}(-([0-9]|1[0-5]))?$/;
+const CFG_LORA_STD = { freq: 433775000, sf: 12, bw: 125000, cr: 5 };   // LoRa APRS on 433.775 MHz
+
+// Hops requested by a path: WIDEn-N asks for N more; any other alias or callsign counts one
+function cfgPathHops(path) {
+    let hops = 0, worstN = 0;
+    for (const t of path) {
+        const m = /^WIDE([1-7])-([0-7])$/.exec(t);
+        if (m) { hops += parseInt(m[2], 10); worstN = Math.max(worstN, parseInt(m[1], 10)); }
+        else hops += 1;
+    }
+    return { hops, worstN };
+}
+
+// v: values read from the form (cfgCollect). Returns { findings: [...], passed: [...] }.
+// finding: { id, sev: "error" | "warn" | "info", section, where, title, why, fix?: { label, field, value | random } }
+function cfgRules(v, channels, inBand) {
+    const out = [], passed = [];
+    const add = (f) => out.push(f);
+    const pass = (name, before) => { if (out.length === before) passed.push(name); };
+
+    // Callsigns of the beacon profiles
+    let n0 = out.length;
+    const nocall = v.beacons.filter((b) => (b.callsign || "").trim().toUpperCase().startsWith("NOCALL")).map((b) => b.i + 1);
+    if (nocall.length) add({ id: "nocall", sev: "error", section: "sec-beaconing",
+        where: "Beaconing · Beacon" + (nocall.length > 1 ? "s " : " ") + nocall.join(", "),
+        title: nocall.length > 1 ? nocall.length + " beacon profiles still use NOCALL" : "Callsign is still NOCALL",
+        why: "The tracker does not transmit with a NOCALL callsign. Enter your callsign and SSID, for example EA7XXX-7." });
+    v.beacons.forEach((b) => {
+        const call = (b.callsign || "").trim().toUpperCase();
+        const where = "Beaconing · Beacon " + (b.i + 1);
+        if (call.startsWith("NOCALL")) return;
+        if (!CFG_CALL_RE.test(call)) add({ id: "call" + b.i, sev: "error", section: "sec-beaconing", where,
+            title: "\"" + call + "\" is not a valid callsign",
+            why: "3 to 6 letters and digits (at least one of each) and an optional SSID from -0 to -15." });
+    });
+    pass("Callsigns of the beacon profiles", n0);
+
+    // Path
+    n0 = out.length;
+    const path = (v.path || "").toUpperCase().split(",").map((t) => t.trim()).filter((t) => t !== "");
+    const bad = path.find((t) => !CFG_ALIAS_RE.test(t) || (/^WIDE\d-\d$/.test(t) && +t[6] > +t[4]));
+    if (bad) {
+        add({ id: "path", sev: "error", section: "sec-beaconing", where: "Beaconing · Path",
+            title: "\"" + bad + "\" is not a valid path element",
+            why: "Use aliases such as WIDE1-1 or WIDE2-1 separated by commas. In WIDEn-N, N cannot be greater than n." });
+    } else {
+        const h = cfgPathHops(path);
+        if (h.hops > 2 || h.worstN > 2) add({ id: "path", sev: "warn", section: "sec-beaconing", where: "Beaconing · Path",
+            title: "Path " + path.join(",") + " asks for " + h.hops + " hop" + (h.hops === 1 ? "" : "s"),
+            why: "On LoRa a tracker normally needs WIDE1-1 only: every extra hop repeats the packet on a slow, shared channel.",
+            fix: { label: "Set WIDE1-1", field: "path", value: "WIDE1-1" } });
+    }
+    pass("Path", n0);
+
+    // LoRa profiles: amateur band, IARU channel, LoRa APRS settings on 433.775
+    n0 = out.length;
+    let nStd = out.length;
+    v.loras.forEach((l) => {
+        if (l.ais || !(l.freq > 0)) return;
+        const where = "Transmission mode · LoRa profile " + (l.i + 1);
+        const mhz = (l.freq / 1e6).toFixed(3);
+        if (!inBand(l.region, l.freq)) {
+            add({ id: "freq" + l.i, sev: "warn", section: "sec-lora", where,
+                title: mhz + " MHz is outside the amateur band of IARU Region " + l.region,
+                why: "Do not select this profile there. If it is meant for another region, set that region on the profile; if not, choose a channel of your band plan (national rules always prevail)." });
+            return;
+        }
+        if (l.region === 1 && !channels.some((c) => Math.abs(c * 1e6 - l.freq) < 1000)) {
+            add({ id: "freq" + l.i, sev: "warn", section: "sec-lora", where,
+                title: mhz + " MHz is not an IARU Region 1 digital channel",
+                why: "LoRa APRS uses 433.775 MHz unless your local network says otherwise.",
+                fix: { label: "Use 433.775 MHz", field: "lora." + l.i + ".frequency", value: String(CFG_LORA_STD.freq) } });
+        }
+        if (Math.abs(l.freq - CFG_LORA_STD.freq) < 1000 && (l.sf !== CFG_LORA_STD.sf || l.bw !== CFG_LORA_STD.bw || l.cr !== CFG_LORA_STD.cr)) {
+            add({ id: "std" + l.i, sev: "info", section: "sec-lora", where,
+                title: "SF" + l.sf + " / " + (l.bw / 1000) + " kHz / CR 4/" + l.cr + " on 433.775 MHz",
+                why: "Only stations with the same settings decode it. The LoRa APRS network on 433.775 uses SF12, 125 kHz, CR 4/5." });
+        }
+    });
+    pass("LoRa frequencies within the IARU band plan", n0);
+
+    // WiFi AP password (WPA2: 8 to 63 characters)
+    n0 = out.length;
+    const ap = v.wifiApPassword || "";
+    if (ap === "1234567890") add({ id: "ap", sev: "error", section: "sec-connectivity", where: "Connectivity · WiFi AP",
+        title: "WiFi AP password is the factory default 1234567890",
+        why: "Anyone within range can open this WebUI and change the configuration.",
+        fix: { label: "Generate password", field: "wifiAP.password", random: "password" } });
+    else if (ap.length > 0 && ap.length < 8) add({ id: "ap", sev: "error", section: "sec-connectivity", where: "Connectivity · WiFi AP",
+        title: "WiFi AP password has " + ap.length + " characters",
+        why: "WPA2 needs at least 8: with a shorter one the access point does not start.",
+        fix: { label: "Generate password", field: "wifiAP.password", random: "password" } });
+    else if (ap.length === 0) add({ id: "ap", sev: "warn", section: "sec-connectivity", where: "Connectivity · WiFi AP",
+        title: "WiFi AP without password",
+        why: "The access point is open: anyone within range can open this WebUI.",
+        fix: { label: "Generate password", field: "wifiAP.password", random: "password" } });
+    pass("WiFi AP password", n0);
+
+    // Bluetooth
+    n0 = out.length;
+    if (v.bt.active && v.bt.ble && v.bt.pin === "123456") add({ id: "pin", sev: "warn", section: "sec-connectivity", where: "Connectivity · Bluetooth",
+        title: "Control PIN is the factory default 123456",
+        why: "Anyone nearby with the APRS LoRa+ app could control the tracker. Enter the new PIN in the app after saving.",
+        fix: { label: "Generate PIN", field: "bluetooth.controlPin", random: "pin" } });
+    pass("Bluetooth control PIN", n0);
+
+    // KISS links
+    n0 = out.length;
+    if (v.bt.active && v.bt.kiss && v.kissNet.enabled) add({ id: "kiss", sev: "warn", section: "sec-connectivity", where: "Connectivity · Bluetooth + KISS over WiFi",
+        title: "Bluetooth KISS and KISS over WiFi (TCP " + v.kissNet.port + ") are both on",
+        why: "Two apps connected at the same time (for example APRSdroid by Bluetooth and S.A.T.-APRS+ by WiFi) will both transmit. Keep one KISS link active." });
+    if (v.kissNet.enabled && !v.kissNet.allowed.trim()) add({ id: "kissopen", sev: "warn", section: "sec-connectivity", where: "Connectivity · KISS over WiFi",
+        title: "KISS over WiFi accepts any address",
+        why: "There is no password: anyone on the network can transmit with your callsign. Add your computer or network to Allowed addresses (e.g. 192.168.1.)." });
+    pass("KISS links", n0);
+
+    return { findings: out, passed };
+}
+// ---- CFG_CHECK END ----
+
+let cfgLast = { findings: [], passed: [] };
+let cfgFixed = {};                      // id -> text shown after a safe fix
+let cfgSaveAnyway = false;
+let cfgFilter = "all";
+
+function cfgVal(name) { const e = document.getElementById(name); return e ? e.value : ""; }
+function cfgChecked(name) { const e = document.getElementById(name); return !!(e && e.checked); }
+
+function cfgCollect() {
+    const beacons = [], loras = [];
+    document.querySelectorAll('#beacon-settings input[name$=".callsign"]').forEach((e) => {
+        const m = /^beacons\.(\d+)\.callsign$/.exec(e.name);
+        if (m && !e.closest(".d-none")) beacons.push({ i: +m[1], callsign: e.value });
+    });
+    document.querySelectorAll('#lora-settings input[name$=".frequency"]').forEach((e) => {
+        const m = /^lora\.(\d+)\.frequency$/.exec(e.name);
+        if (!m) return;
+        const i = +m[1], reg = document.getElementById("lora." + i + ".iaruRegion");
+        loras.push({ i, ais: !reg, region: reg ? +reg.value : 1, freq: +e.value,
+                     sf: +cfgVal("lora." + i + ".spreadingFactor"), bw: +cfgVal("lora." + i + ".signalBandwidth"), cr: +cfgVal("lora." + i + ".codingRate4") });
+    });
+    return {
+        beacons, loras,
+        path: cfgVal("path"),
+        wifiApPassword: cfgVal("wifiAP.password"),
+        bt: { active: cfgChecked("bluetooth.active"), ble: cfgVal("bluetooth.useBLE") === "1", kiss: cfgVal("bluetooth.useKISS") === "1", pin: cfgVal("bluetooth.controlPin") },
+        kissNet: { enabled: cfgChecked("kissNet.enabled"), allowed: cfgVal("kissNet.allowed"), port: cfgVal("kissNet.tcpPort") || "8001" }
+    };
+}
+
+function cfgRandom(kind) {
+    const a = new Uint32Array(12);
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    if (kind === "pin") return String(100000 + (a[0] % 900000));
+    const abc = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    return Array.from(a, (x) => abc[x % abc.length]).join("");
+}
+
+function cfgApplyFix(f) {
+    const el = document.getElementById(f.fix.field);
+    if (!el) return;
+    const value = f.fix.random ? cfgRandom(f.fix.random) : f.fix.value;
+    el.value = value;
+    if (f.fix.random === "password") el.type = "text";          // the new password must be seen to be written down
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    cfgFixed[f.id] = f.fix.random === "password" ? "New password: " + value + " — write it down before saving."
+                   : f.fix.random === "pin" ? "New PIN: " + value + " — enter it in the app after saving."
+                   : f.fix.label.replace(/^Set |^Use /, "Set to ") + ".";
+}
+
+function cfgEsc(t) { return String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function cfgCheckRun() {
+    const box = document.getElementById("cfg-list");
+    if (!box) return cfgLast;
+    const r = cfgRules(cfgCollect(), IARU_CHANNELS[1].map((c) => c[1]), (reg, hz) => iaruCheckFrequency(reg, hz));
+    // a fixed item stays listed as fixed until it fails again for another reason
+    Object.keys(cfgFixed).forEach((id) => { if (r.findings.some((f) => f.id === id)) delete cfgFixed[id]; });
+    cfgLast = r;
+    const errors = r.findings.filter((f) => f.sev === "error").length;
+    const warns  = r.findings.filter((f) => f.sev === "warn").length;
+    document.getElementById("cfg-n-err").textContent  = errors;
+    document.getElementById("cfg-n-warn").textContent = warns;
+    document.getElementById("cfg-n-ok").textContent   = r.passed.length;
+    const badge = document.getElementById("cfgBadge");
+    badge.textContent = errors + warns;
+    badge.className = "badge cfg-pill ms-auto " + (errors ? "text-bg-danger" : "text-bg-warning") + (errors + warns ? "" : " d-none");
+    const saveBadge = document.getElementById("cfgSaveBadge");
+    saveBadge.textContent = errors;
+    saveBadge.classList.toggle("d-none", !errors);
+
+    const filters = [["all", "All", r.findings.length], ["error", "Errors", errors], ["warn", "Warnings", warns]];
+    document.getElementById("cfg-filters").innerHTML = filters.map(([k, label, n]) =>
+        `<button type="button" class="btn btn-sm cfg-filter${cfgFilter === k ? " on" : ""}" data-cfg-filter="${k}" aria-pressed="${cfgFilter === k}">${label} (${n})</button>`).join("");
+    const fixable = r.findings.filter((f) => f.fix);
+    const fixAll = document.getElementById("cfg-fixall");
+    fixAll.disabled = !fixable.length;
+    fixAll.textContent = fixable.length ? "Apply safe fixes (" + fixable.length + ")" : "No safe fixes left";
+
+    const SEV = { error: ["danger", "Error"], warn: ["warning", "Warning"], info: ["info", "Note"] };
+    const shown = r.findings.filter((f) => cfgFilter === "all" || f.sev === cfgFilter);
+    const items = shown.map((f) => {
+        const [cls, label] = SEV[f.sev];
+        const link = document.querySelector('.side-link[data-target="' + f.section + '"] .label');
+        return `<li class="cfg-item cfg-${f.sev}">
+            <div><span class="badge text-bg-${cls}">${label}</span> <small>${cfgEsc(f.where)}</small></div>
+            <div class="fw-semibold">${cfgEsc(f.title)}</div>
+            <div class="cfg-why">${cfgEsc(f.why)}</div>
+            <div class="cfg-actions">
+                ${f.fix ? `<button type="button" class="btn btn-sm btn-outline-danger" data-cfg-fix="${f.id}">${cfgEsc(f.fix.label)}</button>` : ""}
+                <button type="button" class="btn btn-sm cfg-link" data-cfg-goto="${f.section}">Go to ${cfgEsc(link ? link.textContent : "section")}</button>
+            </div></li>`;
+    });
+    if (cfgFilter === "all") Object.keys(cfgFixed).forEach((id) => {
+        items.push(`<li class="cfg-item cfg-fixed"><div><span class="badge text-bg-success">Fixed</span></div><div class="cfg-why">${cfgEsc(cfgFixed[id])} Save to keep it.</div></li>`);
+    });
+    box.innerHTML = items.length ? items.join("") : '<li class="cfg-item cfg-fixed"><span class="badge text-bg-success">OK</span> Nothing to review.</li>';
+    document.getElementById("cfg-passed").innerHTML = r.passed.map((p) => `<li>&#10003; ${cfgEsc(p)}</li>`).join("");
+    document.getElementById("cfg-passed-toggle").textContent = (document.getElementById("cfg-passed").hidden ? "Show " : "Hide ") + r.passed.length + " passed checks";
+    return r;
+}
+
+// Save: with errors and "Check before every Save" on, open the check instead of saving (once "Save anyway" is pressed it goes through)
+function cfgCheckAllowSave() {
+    const r = cfgCheckRun();
+    let on = true;
+    try { on = localStorage.getItem("cfgCheckOnSave") !== "0"; } catch (e) {}
+    if (!on || cfgSaveAnyway) { cfgSaveAnyway = false; return true; }
+    const errors = r.findings.filter((f) => f.sev === "error").length;
+    if (!errors) return true;
+    document.querySelector('.side-link[data-target="sec-check"]').click();
+    document.getElementById("cfg-saveanyway").classList.remove("d-none");
+    showToast("Configuration check: " + errors + " error" + (errors > 1 ? "s" : "") + " to fix before saving.<br><small>Or press <b>Save anyway</b>.</small>");
+    return false;
+}
+
+(function cfgWire() {
+    const sec = document.getElementById("sec-check");
+    if (!sec) return;
+    const onSave = document.getElementById("cfg-onsave");
+    try { onSave.checked = localStorage.getItem("cfgCheckOnSave") !== "0"; } catch (e) {}
+    onSave.addEventListener("change", () => { try { localStorage.setItem("cfgCheckOnSave", onSave.checked ? "1" : "0"); } catch (e) {} });
+    sec.addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        if (b.dataset.cfgFilter) { cfgFilter = b.dataset.cfgFilter; cfgCheckRun(); }
+        else if (b.dataset.cfgFix) { const f = cfgLast.findings.find((x) => x.id === b.dataset.cfgFix); if (f) { cfgApplyFix(f); cfgCheckRun(); } }
+        else if (b.dataset.cfgGoto) document.querySelector('.side-link[data-target="' + b.dataset.cfgGoto + '"]').click();
+        else if (b.id === "cfg-fixall") { cfgLast.findings.filter((f) => f.fix).forEach(cfgApplyFix); cfgCheckRun(); }
+        else if (b.id === "cfg-passed-toggle") { const l = document.getElementById("cfg-passed"); l.hidden = !l.hidden; b.setAttribute("aria-expanded", String(!l.hidden)); cfgCheckRun(); }
+        else if (b.id === "cfg-saveanyway") { cfgSaveAnyway = true; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true })); }
+    });
+    let t = 0;
+    const later = () => { clearTimeout(t); t = setTimeout(cfgCheckRun, 400); };
+    document.getElementById("configuration").addEventListener("input", (e) => { if (!sec.contains(e.target)) later(); });
+    document.getElementById("configuration").addEventListener("change", (e) => { if (!sec.contains(e.target)) later(); });
+    document.querySelector('.side-link[data-target="sec-check"]').addEventListener("click", cfgCheckRun);
+})();

@@ -686,6 +686,17 @@ La placa puede ser un **TNC KISS por WiFi** para programas como **APRSdroid** (p
 - **Consumo:** la WiFi queda encendida y la placa no entra en sueño profundo.
 - **Seguridad:** KISS no tiene contraseña; cualquiera permitido puede transmitir con tu indicativo. Úsalo en redes de confianza y con la lista de direcciones.
 - Con el punto de acceso del móvil, la IP puede cambiar entre sesiones: mira la pantalla o usa `aprs-lora-plus.local` si tu aplicación lo resuelve. Probado con APRSdroid en Android por TCP en **LoRa y en FSK**; UDP sin probar. El nombre `.local` (mDNS) lo resuelven bien Windows, macOS y Linux, pero **muchas aplicaciones de Android no**: allí usa la IP que muestra la vista LINK de SYSTEM. El nombre de equipo en la red es `aprs-lora-plus` (se aplica al reiniciar).
+- **Estado por HTTP** (después de la 5.4.7): con el KISS por WiFi activo, `http://<IP>/api/status` (puerto 80) devuelve en JSON el estado del equipo: indicativo, versión, placa, modo, perfil, frecuencia y parámetros LoRa, batería, digipetidor, SmartBeacon y clientes KISS. Es de solo lectura y respeta la lista de direcciones permitidas. Lo usa S.A.T.-APRS+ (Radio · APRS LoRa+). En el modo de configuración (WiFi AP) la WebUI responde en la misma dirección.
+
+### Comprobación de la configuración (WebUI)
+
+La sección **Config check** de la WebUI revisa la configuración antes de guardarla, además de los límites que ya aplica el firmware:
+
+- **Errores** (detienen *Save* hasta corregirlos o pulsar *Save anyway*): indicativo NOCALL o con formato no válido, ruta mal escrita, contraseña del WiFi AP de fábrica (`1234567890`) o de menos de 8 caracteres.
+- **Avisos:** ruta con más de dos saltos, frecuencia LoRa fuera de la banda de aficionados de la región del perfil o fuera de los canales digitales del plan de la Región 1, PIN de control Bluetooth de fábrica (`123456`), KISS por Bluetooth y por WiFi activos a la vez, KISS por WiFi abierto a cualquier dirección.
+- **Notas:** perfil en 433,775 MHz con parámetros distintos de SF12 / 125 kHz / CR 4/5.
+
+Los botones de **corrección segura** (ruta `WIDE1-1`, 433,775 MHz, contraseña o PIN aleatorios) solo cambian el campo indicado; nada se guarda hasta pulsar *Save*. La contraseña y el PIN nuevos se muestran para apuntarlos. El número de la barra lateral y el del botón *Save* indican lo pendiente. *Check before every Save* se recuerda en el navegador.
 
 ## 33. CAT por WiFi (Hamlib) (5.3.3)
 

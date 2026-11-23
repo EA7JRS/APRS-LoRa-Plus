@@ -28,6 +28,7 @@
 #include "lora_utils.h"
 #include "gps_utils.h"
 #include "web_utils.h"
+#include "ble_control.h"
 #include "board_pins.h"
 #include "display.h"
 #include "utils.h"
@@ -866,6 +867,11 @@ namespace WEB_Utils {
     void setup() {
         server.on("/", HTTP_GET, handleHome);
         server.on("/status", HTTP_GET, handleStatus);
+        server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {    // estado del equipo en JSON (el mismo que por KISS WiFi)
+            AsyncWebServerResponse *r = request->beginResponse(200, "application/json", BLE_Control::statusJson());
+            r->addHeader("Cache-Control", "no-store");
+            request->send(r);
+        });
         server.on("/version", HTTP_GET, handleVersion);
         server.on("/gpsinfo", HTTP_GET, handleGpsInfo);
         server.on("/api/keypad", HTTP_GET, handleKeypad);

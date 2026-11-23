@@ -94,6 +94,7 @@ extern Configuration    Config;
 extern Beacon           *currentBeacon;
 extern int              menuDisplay;
 extern bool             bluetoothConnected;
+extern bool             displayState;
 
 const char* symbolArray[]     = { "[", ">", "j", "b", "<", "s", "u", "R", "v", "(", ";", "-", "k",
                                 "C", "a", "Y", "O", "'", "=", "y", "U", "p", "_", ")"};
@@ -307,6 +308,9 @@ void displaySetup() {
 }
 
 void displayToggle(bool toggle) {
+    // displayState sigue siempre al estado real de la pantalla (EA7JRS): antes, las ventanas de mensaje o de aviso la
+    // encendian sin marcarla, la primera pulsacion se gastaba en «despertarla» y el modo ECO ya no la volvia a apagar
+    displayState = toggle;
     if (toggle) {
         #ifdef HAS_TFT
             analogWrite(TFT_BL, screenBrightness);
