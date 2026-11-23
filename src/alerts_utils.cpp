@@ -24,6 +24,8 @@ namespace ALERTS {
     static plotter::AlertList       items;
     static plotter::SpaceWx         sw;
     static uint32_t                 swMs        = 0;
+    static float                    swHp        = -1;           // Hp30 de GFZ (media hora, sin tope en 9) y su hora; -1 = sin dato
+    static int64_t                  swHpTime    = 0;
     static float                    swSsn       = -1;           // manchas solares: no esta en SpaceWx del nucleo del plotter
     static uint16_t                 ver         = 0;
     static std::vector<std::string> unseen;                 // id de los avisos nuevos (para la ventana)
@@ -118,6 +120,8 @@ namespace ALERTS {
         if (!w.valid() && ssn < 0) return false;
         sw = w;
         swSsn = ssn;
+        swHp = d["hp"] | -1.0f;
+        swHpTime = (int64_t)(d["ht"] | 0LL);
         swMs = millis() ? millis() : 1;
         ver++;
         return true;
@@ -184,6 +188,17 @@ namespace ALERTS {
     bool hasSpace() { return swMs != 0 && millis() - swMs < 6UL * 3600000UL; }
     uint32_t spaceAgeS() { return swMs ? (millis() - swMs) / 1000 : 0; }
     float spaceSsn() { return swSsn; }
+
+    // Indice geomagnetico con el que trabajar ahora: el Hp30 si su media hora empezo hace menos de 2 h (reacciona antes que el Kp
+    // de 3 h), acotado a 9; si no, el Kp; 0 sin ninguno. *isHp dice cual
+    float spaceGeomag(bool* isHp) {
+        const int64_t t = nowUnix();
+        const bool hp = swHp >= 0 && swHpTime > 0 && t > 0 && t - swHpTime < 2 * 3600;
+        if (isHp) *isHp = hp;
+        if (hp) return swHp > 9 ? 9 : swHp;
+        return sw.kpCount ? sw.kpNow() : 0;
+    }
+    float spaceHp() { return swHp; }
     uint16_t version() { return ver; }
 
     const plotter::Alert* popup() {

@@ -32,6 +32,8 @@ namespace ALERTS {
     bool        hasSpace();                                     // datos de menos de 6 h
     uint32_t    spaceAgeS();
     float       spaceSsn();                                     // numero de manchas solares (SWPC); -1 = sin dato
+    float       spaceGeomag(bool* isHp = nullptr);              // Hp30 reciente (acotado a 9) o, si no, el Kp; 0 sin dato
+    float       spaceHp();                                      // ultimo Hp30 (GFZ); -1 = sin dato
     uint16_t    version();                                      // cambia con la lista (para Display y la app)
 
     // Ventana emergente del aviso mas grave sin ver

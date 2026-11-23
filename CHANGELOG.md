@@ -1,5 +1,9 @@
 # Changelog
 
+## Después de la 5.4.8 (sin publicar)
+
+- **TELEMETRY > HF y SPACE WX con el Hp30** (GFZ, cada media hora y sin tope en 9): si la app lo manda y tiene menos de 2 h, el estado de las bandas lo usa en vez del Kp de 3 h, y la cabecera de SPACE WX lo muestra («Hp6.3»). Sin él, todo como antes con el Kp.
+
 ## 5.4.8 — 2026-11-23
 
 - **CLOCK > ALMANAC y EME** (vistas nuevas tras MOON, con 1P): ALMANAC da la próxima fase de la luna con su hora local, el próximo perigeo o apogeo con su distancia, la **marea de equilibrio** de este momento (fuerza de la Luna y el Sol frente a una marea viva media = 100; orienta, no predice ningún puerto), los próximos eclipses de Luna y de Sol y el próximo equinoccio o solsticio. EME da, para la frecuencia en uso y la posición propia, la pérdida del trayecto del **rebote lunar**, el retardo del eco, el Doppler del propio eco y la altura de la Luna; y del Sol, la distancia, la irradiancia fuera de la atmósfera y el índice UV de cielo despejado. Fórmulas comunes nuevas (`ephem`, `lib/aprs_formulas` del plotter 476b7ab): fases verdaderas, perigeo, eclipses, estaciones, horizonte de radio y gravedad, contrastadas con Meeus y con las fases, estaciones y eclipses de 2026 y 2027. ALMANAC calcula un dato por dibujo (el ESP32 no tiene coma flotante doble) y los guarda seis horas. Sin probar en la placa.

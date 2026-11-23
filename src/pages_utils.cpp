@@ -2694,7 +2694,10 @@ namespace {
     void drawSpaceView() {
         const plotter::SpaceWx& w = ALERTS::space();
         char right[12];
-        if (w.kpCount) snprintf(right, sizeof(right), "Kp%.1f", w.kpNow());     // sin espacio: no se pega al titulo
+        bool isHp = false;
+        ALERTS::spaceGeomag(&isHp);
+        if (isHp) snprintf(right, sizeof(right), "Hp%.1f", ALERTS::spaceHp());        // Hp30 reciente (sin tope en 9) antes que el Kp
+        else if (w.kpCount) snprintf(right, sizeof(right), "Kp%.1f", w.kpNow());     // sin espacio: no se pega al titulo
         else snprintf(right, sizeof(right), "--");
         header("SPACE WX", right);
         const int barsW = 8 * 6;                                 // 8 barras de 5 px y 1 de hueco
@@ -2778,7 +2781,7 @@ namespace {
         plotter::unixToUtc((long long)now(), y, m, d, h);
         plotter::sunPosition(y, m, d, h, lat, lon, alt, az);
         const HfEstimate e = hfEstimate(hfSfi(), alt, xrayFluxFromClass(w.xray.c_str()));
-        const float kp = w.kpCount ? w.kpNow() : 0;
+        const float kp = ALERTS::spaceGeomag();                 // Hp30 reciente o, si no, el Kp
         HfState st[10];
         int best = -1;
         for (int i = 0; i < 10; i++) { st[i] = hfBandState(HF_BANDS[i].mhz, e, kp); if (st[i] == HF_OPEN || st[i] == HF_POOR) best = i; }
