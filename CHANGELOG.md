@@ -1,7 +1,8 @@
 # Changelog
 
-## Después de la 5.4.8 (sin publicar)
+## 5.4.9 — 2026-11-24
 
+- **Estado propio una vez**: con el campo Status vacío, el tracker manda una sola vez por versión e indicativo «APRS LoRa+ 5.4.9» (10 min después de arrancar). aprs.fi y otras webs conservan el último estado recibido; en estaciones que venían de otro firmware seguía saliendo el enlace a aquel proyecto (visto en una estación: «Último estado … 2025-08-11»). Con un Status propio se manda ese.
 - **Modo de arranque por USB**: `MODE LORA` o `MODE FSK` por el puerto serie (115200) deja ese modo APRS como el de arranque y reinicia; para cuando el botón no llega a elegirlo en el menú. Y el menú deja en el registro lo que vio: «Mode menu: saved 1, button GPIO 38 idle, 0 clicks, no long press in 8 s: saved mode kept».
 - **Registro sin el error del botón** en las T-Beam v0.7 / v1.x y la Hydra: su botón está en un GPIO solo de entrada (38 o 39), sin resistencia interna, y pedirla dejaba «gpio_pullup_en: GPIO number error (input-only pad has no internal PU)» varias veces en cada arranque. Sin efecto en el funcionamiento: la resistencia va en la placa (`include/button_pin.h`).
 

@@ -19,6 +19,7 @@
 #include <APRSPacketLib.h>
 #include <logger.h>
 #include <Wire.h>
+#include <Preferences.h>
 #include "configuration.h"
 #include "board_pinout.h"
 #include "lora_utils.h"
@@ -33,6 +34,7 @@
 
 extern Beacon                   *currentBeacon;
 extern Configuration            Config;
+extern String                   versionNumber;
 extern logging::Logger          logger;
 
 extern uint32_t                 lastTx;
@@ -116,16 +118,45 @@ namespace Utils {
         return timeString;
     }
 
+    // Estado propio (EA7JRS, 5.4.9): con el campo Status vacio el tracker no mandaba ninguno, y las webs (aprs.fi) siguen
+    // ensenando para siempre el ultimo que recibieron: en estaciones que vienen de otro firmware, el enlace a ese proyecto.
+    // Una sola vez por version e indicativo se manda «APRS LoRa+ <version>», que lo sustituye. Lo ya enviado se apunta en la
+    // NVS («alpst» / «sent» = «5.4.9|EA7XXX-7,EA7XXX-9»).
+    static bool ownStatusPending() {
+        if (Config.callsignMissing() || currentBeacon->callsign.startsWith("NOCALL")) return false;
+        Preferences p;
+        p.begin("alpst", true);
+        const String sent = p.getString("sent", "");
+        p.end();
+        if (!sent.startsWith(versionNumber + "|")) return true;
+        const String list = "," + sent.substring(versionNumber.length() + 1) + ",";
+        return list.indexOf("," + currentBeacon->callsign + ",") < 0;
+    }
+
+    static void ownStatusDone() {
+        Preferences p;
+        p.begin("alpst", false);
+        String sent = p.getString("sent", "");
+        if (!sent.startsWith(versionNumber + "|") || sent.length() > 120) sent = versionNumber + "|";
+        else sent += ",";
+        sent += currentBeacon->callsign;
+        p.putString("sent", sent);
+        p.end();
+    }
+
     void checkStatus() {
         if (statusUpdate) {
-            if (currentBeacon->status == "") {
+            const bool own = currentBeacon->status == "";
+            if (own && !ownStatusPending()) {
                 statusUpdate = false;
             } else {
                 uint32_t currentTime = millis();
                 uint32_t statusTx = currentTime - statusTime;
                 lastTx = currentTime - lastTxTime;
                 if (statusTx > 10 * 60 * 1000 && lastTx > 10 * 1000) {
-                    LoRa_Utils::sendNewPacket(APRSPacketLib::generateStatusPacket(currentBeacon->callsign, APRS_TOCALL, Config.path, currentBeacon->status));
+                    const String text = own ? String("APRS LoRa+ ") + versionNumber : currentBeacon->status;
+                    LoRa_Utils::sendNewPacket(APRSPacketLib::generateStatusPacket(currentBeacon->callsign, APRS_TOCALL, Config.path, text));
+                    if (own) ownStatusDone();
                     statusUpdate = false;
                 }
             }
