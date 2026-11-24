@@ -106,7 +106,11 @@ namespace {
     }
 
     bool wanted() {                                         // el enlace WiFi se mantiene si KISS, CAT, rotor o la WebUI siempre-on lo piden
-        return Config.kissNet.enabled || Config.cat.enabled || Config.rotor.serverEnabled || Config.wifiAP.webMode == 2;
+        bool w = Config.kissNet.enabled || Config.cat.enabled || Config.rotor.serverEnabled;
+        #ifndef NO_WEBUI_LAN
+            w = w || Config.wifiAP.webMode == 2;
+        #endif
+        return w;
     }
 
     bool modeOk() {
@@ -148,11 +152,13 @@ namespace {
         }
         if (Config.cat.enabled) CAT_NET::begin();           // CAT (Hamlib) comparte el enlace WiFi y el nombre mDNS
         if (Config.rotor.serverEnabled) ROTOR_NET::begin(); // servidor de rotor (GPredict)
+        #ifndef NO_WEBUI_LAN
         if (Config.wifiAP.webMode == 2) {                   // WebUI de configuracion siempre accesible en la red local (http://aprs-lora-plus.local)
             static bool webUiStarted = false;               // el AsyncWebServer se arranca una sola vez por arranque (registrar las rutas dos veces lo rompe)
             if (!webUiStarted) { WEB_Utils::setup(); webUiStarted = true; }
             if (mdns) MDNS.addService("http", "tcp", 80);
         }
+        #endif
         String second = kissOn ? "KISS " + String(Config.kissNet.tcpPort) + (udpOn ? "  UDP " + String(Config.kissNet.udpPort) : String("")) : String("");
         if (Config.cat.enabled)           second += (second.isEmpty() ? "" : "  ") + String("CAT ") + String(Config.cat.port);
         if (Config.rotor.serverEnabled)   second += (second.isEmpty() ? "" : "  ") + String("ROT ") + String(Config.rotor.serverPort);
@@ -290,7 +296,9 @@ namespace KISS_NET {
         CAT_NET::poll();
         ROTOR_NET::poll();
         statusPoll();
+        #ifndef NO_WEBUI_LAN
         if (Config.wifiAP.webMode == 2) WEB_Utils::loop();   // guardado de la config pedido desde la WebUI (en la tarea principal)
+        #endif
         if (server == nullptr) return;
         acceptClients();
         uint8_t budget = MAX_FRAMES_PER_POLL;

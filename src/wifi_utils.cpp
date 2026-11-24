@@ -43,7 +43,11 @@ namespace WIFI_Utils {
     // webMode >= 1 y con red local configurada (credenciales de KISS/OTA): se une a la red ademas de levantar su AP, para
     // abrir la WebUI desde la LAN por http://aprs-lora-plus.local sin conectarse al punto de acceso del equipo (EA7JRS)
     static bool staConfigWanted() {
-        return Config.wifiAP.webMode >= 1 && !Config.fwUpdate.ssid.isEmpty();
+        #ifdef NO_WEBUI_LAN
+            return false;
+        #else
+            return Config.wifiAP.webMode >= 1 && !Config.fwUpdate.ssid.isEmpty();
+        #endif
     }
 
     void startAutoAP() {
