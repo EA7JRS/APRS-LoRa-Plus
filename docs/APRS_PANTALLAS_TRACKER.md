@@ -75,22 +75,36 @@ Ficheros de datos en flash: `/pagesCfg.dat` (9 enteros, compatible hacia atrás)
 - `docs/MANUAL_USUARIO.md` / `.pdf` — manual de usuario.
 - `docs/img/` — capturas simuladas de las pantallas.
 
-## 7. Actualización de librerías (23-oct-2026)
+## 7. Librerías: base de CA2RXU y APRS LoRa+
 
-Versiones comprobadas con las etiquetas de cada repositorio en GitHub (el registro de PlatformIO no era accesible desde el entorno de desarrollo).
+**Antes** = las que lleva el tracker de Ricardo Guzmán (CA2RXU), LoRa APRS Tracker 4.0.1 del 2026-10-07, del que parte el proyecto. **Ahora** = las que lleva APRS LoRa+ 5.4.9 a 2026-11-24 (`common_settings.ini` y los `platformio.ini` de `variants/`).
 
-| Librería | Antes | Ahora | Nota |
+| Librería | Antes (CA2RXU 4.0.1) | Ahora (APRS LoRa+ 5.4.9) | Nota |
 |---|---|---|---|
-| RadioLib | 7.6.0 | **7.8.1** | Desaparece `radio.XTAL` (ahora 0 V de TCXO = XTAL): ajustado en `lora_utils.cpp` bajo `RADIO_HAS_XTAL` (ninguna placa lo define hoy). El resto de funciones usadas existen igual. |
-| NimBLE-Arduino | 1.4.1 | **2.5.1** | Cambio de API: callbacks con `NimBLEConnInfo&` (y `reason` en `onDisconnect`), `service->start()` ya no hace falta, `enableScanResponse` y `setPreferredParams`. Portado en `ble_utils.cpp`. **Exige C++17**: `-std=gnu++17` en `common_settings.ini` y `build_unflags = -std=gnu++11` en `platformio.ini`. |
+| Plataforma `espressif32` | 6.12.0 | **8.0.0** | Arduino core 3.3.x (IDF 5.5). `playTone` adaptado a la API LEDC del core 3 (`ledcAttach` / `ledcDetach`). Las variantes T-Deck siguen en 6.3.1 en los dos. |
+| RadioLib | 7.6.0 | **7.8.1** | Desaparece `radio.XTAL` (ahora 0 V de TCXO = XTAL): ajustado en `lora_utils.cpp` bajo `RADIO_HAS_XTAL`. |
+| NimBLE-Arduino | 1.4.1 | **2.5.2** | Cambio de API: callbacks con `NimBLEConnInfo&` (y `reason` en `onDisconnect`), `service->start()` ya no hace falta, `enableScanResponse` y `setPreferredParams`. Portado en `ble_utils.cpp`; sobre ella va el servicio de control por BLE. **Exige C++17** (`-std=gnu++17`). |
 | Adafruit GFX Library | 1.12.6 | **1.13.0** | Solo correcciones (esp8266, nRF52840, canvas). |
-| XPowersLib | 0.2.4 | **0.3.3** | La inicialización del AXP192/AXP2101 es idéntica y todas las funciones que usa `power_utils.cpp` existen. `getTemperature()` puede devolver `NAN` si la lectura no es válida. |
-| Adafruit BusIO / Unified Sensor / BME280 / BMP280 / BME680 / SHTC3 / SSD1306 / SH110X | 1.17.4 / 1.1.15 / 2.3.0 / 3.0.0 / 2.0.6 / 1.0.2 / 2.5.17 / 2.1.15 | sin cambio | Ya eran la última versión. |
-| ArduinoJson / AsyncTCP / ESPAsyncWebServer / Time / APRSPacketLib / TFT_eSPI | 7.4.3 / 3.5.0 / 3.12.1 / 1.6.1 / 1.0.10 / 2.5.43 | sin cambio | Ya eran la última versión. |
-| TinyGPSPlus, esp-logger, OneButton (shaggydog) | 1.1.0 / 1.0.0 / 1.5.0 | sin cambio | Paquetes solo del registro de PlatformIO (o repositorio no público): no pude comprobar si hay versión nueva. |
-| Plataforma `espressif32` | 6.12.0 | 8.0.0 | Arduino core 3.3.x (IDF 5.5). `playTone` adaptado a la API LEDC del core 3 (`ledcAttach`/`ledcDetach`). Las variantes T-Deck siguen en 6.3.1. |
+| XPowersLib | 0.2.4 | **0.3.3** | La inicialización del AXP192 / AXP2101 es idéntica. `getTemperature()` puede devolver `NAN` si la lectura no es válida. |
+| Adafruit BusIO | 1.17.4 | 1.17.4 | Sin cambio. |
+| Adafruit Unified Sensor | 1.1.15 | 1.1.15 | Sin cambio. |
+| Adafruit BME280 / BMP280 / BME680 | 2.3.0 / 3.0.0 / 2.0.6 | 2.3.0 / 3.0.0 / 2.0.6 | Sin cambio. |
+| Adafruit SHTC3 | 1.0.2 | 1.0.2 | Sin cambio (una variante). |
+| Adafruit SSD1306 / SH110X | 2.5.17 / 2.1.15 | 2.5.17 / 2.1.15 | Sin cambio. |
+| TFT_eSPI | 2.5.43 | 2.5.43 | Sin cambio (placas con TFT). |
+| ArduinoJson | 7.4.3 | 7.4.3 | Sin cambio. |
+| AsyncTCP / ESPAsyncWebServer | 3.5.0 / 3.12.1 | 3.5.0 / 3.12.1 | Sin cambio. |
+| TinyGPSPlus | 1.1.0 | 1.1.0 | Sin cambio. |
+| Time | 1.6.1 | 1.6.1 | Sin cambio. |
+| esp-logger | 1.0.0 | 1.0.0 | Sin cambio. |
+| APRSPacketLib (CA2RXU) | 1.0.10 | 1.0.10 | Sin cambio. |
+| OneButton (shaggydog) | 1.5.0 | 1.5.0 | Sin cambio. |
 
-**Sin compilar:** el cambio de NimBLE 1.x a 2.x y el paso a C++17 son los que más probabilidad tienen de dar errores en la primera compilación (con `-Werror` cualquier aviso nuevo es un error). Si algo falla, el cambio es reversible: NimBLE 1.4.1 + quitar `-std=gnu++17` y `build_unflags` + restaurar los tres callbacks de `ble_utils.cpp`.
+Propias de APRS LoRa+, dentro del repositorio (`lib/`): `aprs_formulas` (astronomía, viento y meteorología, compartidas con el plotter), `ft8lib` (FT8 / FT4) y `libm17` (M17).
+
+Opciones de compilación que cambian respecto a la base: `-std=gnu++17`; `-Wno-error=cpp`, `implicit-fallthrough`, `format-truncation`, `int-in-bool-context` y `misleading-indentation` (avisos de las librerías con el compilador nuevo, que con `-Werror` paraban la compilación); y NimBLE sin los papeles de central y observador.
+
+**Compilado y probado:** todas las placas compilan en la CI con estas versiones y el firmware está probado en placa.
 
 ### 7.1 Ajustes tras la primera compilación (espressif32 8.0.0 / Arduino core 3.3.12)
 - `RadioLib.h` emite un `#warning` por usar USB CDC (`ARDUINO_USB_CDC_ON_BOOT=1`) y con `-Werror` era un error: se añadió `-Wno-error=cpp` en `common_settings.ini`.
