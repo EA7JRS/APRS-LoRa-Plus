@@ -16,6 +16,7 @@
  * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "button_pin.h"
 #include <OneButton.h>
 #include <logger.h>
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
@@ -46,7 +47,7 @@
 
     namespace BUTTON_Utils {
 
-        OneButton userButton = OneButton(BUTTON_PIN, true, true);
+        OneButton userButton = OneButton(BUTTON_PIN, true, BUTTON_HAS_PULLUP);
 
         // Cada pulsacion cuenta como actividad: reinicia el temporizador del modo ECO de la pantalla (EA7JRS). Antes solo lo
         // hacia la pulsacion que la encendia, asi que la pantalla se apagaba mientras se pasaban paginas y la siguiente
@@ -216,7 +217,7 @@
                 if (bus != ESP32_BUS_TYPE_GPIO) {
                     logger.log(logging::LoggerLevel::LOGGER_LEVEL_WARN, "Button", "GPIO %d taken by %s: restored as button input",
                                BUTTON_PIN, perimanGetTypeName(bus));
-                    pinMode(BUTTON_PIN, INPUT_PULLUP);
+                    pinMode(BUTTON_PIN, BUTTON_INPUT_MODE);
                 }
             #endif
         }
@@ -243,7 +244,7 @@
         }
 
         void setup() {
-            pinMode(BUTTON_PIN, INPUT_PULLUP);          // OneButton lo configura en su constructor, antes de setup(): se repite aqui
+            pinMode(BUTTON_PIN, BUTTON_INPUT_MODE);          // OneButton lo configura en su constructor, antes de setup(): se repite aqui
             if (!Config.simplifiedTrackerMode) {
                 userButton.attachClick(singlePress1);
                 userButton.attachLongPressStart(longPress1);

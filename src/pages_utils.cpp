@@ -17,6 +17,7 @@
  * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "button_pin.h"
 #include "product.h"
 #include "pages_utils.h"
 #include "gnss_sky.h"
@@ -6099,7 +6100,7 @@ namespace PAGES_Utils {
             #endif
             uint8_t sel = 0;
             for (uint8_t i = 0; i < n; i++) if (options[i].mode == Config.savedMode) sel = i;
-            pinMode(BUTTON_PIN, INPUT_PULLUP);
+            pinMode(BUTTON_PIN, BUTTON_INPUT_MODE);
             const uint32_t TIMEOUT_MS = 8000, HOLD_MS = 700;
             uint32_t waitStart = millis();
             while (digitalRead(BUTTON_PIN) == LOW && millis() - waitStart < 3000) delay(10);   // sigue pulsado desde el arranque: se espera a que lo suelte

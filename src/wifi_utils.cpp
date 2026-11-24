@@ -16,6 +16,7 @@
  * along with LoRa APRS Tracker. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "button_pin.h"
 #include "product.h"
 #include <logger.h>
 #include <WiFi.h>
@@ -58,7 +59,7 @@ namespace WIFI_Utils {
             startAutoAP();
             WEB_Utils::setup();
             #ifdef BUTTON_PIN
-                pinMode(BUTTON_PIN, INPUT_PULLUP);
+                pinMode(BUTTON_PIN, BUTTON_INPUT_MODE);
                 uint32_t pressedAt = 0;
             #endif
             while (true) {

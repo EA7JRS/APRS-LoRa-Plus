@@ -1,5 +1,9 @@
 # Changelog
 
+## Después de la 5.4.8 (sin publicar)
+
+- **Registro sin el error del botón** en las T-Beam v0.7 / v1.x y la Hydra: su botón está en un GPIO solo de entrada (38 o 39), sin resistencia interna, y pedirla dejaba «gpio_pullup_en: GPIO number error (input-only pad has no internal PU)» varias veces en cada arranque. Sin efecto en el funcionamiento: la resistencia va en la placa (`include/button_pin.h`).
+
 ## 5.4.8 — 2026-11-23
 
 - **SmartBeacon «APRS standard»** (ajuste 6 de cada baliza, en la WebUI): los valores habituales de APRS para carretera (baliza lenta cada 30 min por debajo de 5 km/h, rápida cada 90 s desde 100 km/h, giro de 30° + 240 / velocidad, 15 s como mínimo entre balizas). Ocupa mucho menos canal que los perfiles de corredor, bici y coche, que no cambian.
