@@ -192,6 +192,7 @@ namespace {
     const Field kWifiApFields[] = {
         FB(WiFiAP, active,   FF_REQUIRED, true),
         FS(WiFiAP, password, FF_REQUIRED, "1234567890"),
+        FC(WiFiAP, webMode,  FF_KEEP, 0, 0, 2),
     };
     const Field kFwUpdateFields[] = {
         FS(FwUpdate, ssid,     FF_REQUIRED, ""),
@@ -1404,6 +1405,7 @@ void Configuration::setCwDefaults() {
 void Configuration::setDefaultValues() {
     wifiAP.active                   = true;
     wifiAP.password                 = "1234567890";
+    wifiAP.webMode                  = 0;            // por defecto solo el punto de acceso propio
 
     fwUpdate.ssid                   = "";
     fwUpdate.password               = "";

@@ -28,6 +28,7 @@ class WiFiAP {
 public:
     bool    active;
     String  password;
+    int     webMode;                            // acceso a la WebUI: 0 = solo su punto de acceso (actual); 1 = en modo config se une a la red local (usa las credenciales de KISS/OTA) y se abre por http://aprs-lora-plus.local; 2 = WebUI siempre accesible en la red local (mas consumo) (EA7JRS)
 };
 
 // Actualizacion del firmware (5.3.1): WiFi de casa para buscar versiones nuevas y opciones automaticas

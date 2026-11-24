@@ -20,6 +20,7 @@
 #include "product.h"
 #include <logger.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include "configuration.h"
 #include "board_pinout.h"
 #include "web_utils.h"
@@ -36,10 +37,29 @@ RTC_NOINIT_ATTR static uint32_t skipWebConfOnce;                        // sobre
 
 namespace WIFI_Utils {
 
+    // Nombre mDNS del equipo (igual que KISS_HOST de kiss_net.cpp): http://aprs-lora-plus.local
+    static const char* WEB_HOST = "aprs-lora-plus";
+
+    // webMode >= 1 y con red local configurada (credenciales de KISS/OTA): se une a la red ademas de levantar su AP, para
+    // abrir la WebUI desde la LAN por http://aprs-lora-plus.local sin conectarse al punto de acceso del equipo (EA7JRS)
+    static bool staConfigWanted() {
+        return Config.wifiAP.webMode >= 1 && !Config.fwUpdate.ssid.isEmpty();
+    }
+
     void startAutoAP() {
         WiFi.mode(WIFI_MODE_NULL);
-        WiFi.mode(WIFI_AP);
-        WiFi.softAP(PRODUCT_AP_SSID, Config.wifiAP.password);
+        if (staConfigWanted()) {
+            WiFi.setHostname(WEB_HOST);
+            WiFi.mode(WIFI_AP_STA);                                     // AP propio + union a la red local a la vez
+            WiFi.softAP(PRODUCT_AP_SSID, Config.wifiAP.password);
+            WiFi.setHostname(WEB_HOST);
+            WiFi.setAutoReconnect(true);
+            WiFi.begin(Config.fwUpdate.ssid.c_str(), Config.fwUpdate.password.c_str());
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "WebConf: joining %s for LAN access", Config.fwUpdate.ssid.c_str());
+        } else {
+            WiFi.mode(WIFI_AP);
+            WiFi.softAP(PRODUCT_AP_SSID, Config.wifiAP.password);
+        }
         #ifdef RPC_MicroTracker
             digitalWrite(15, LOW);    // Led WiFI
         #endif
@@ -58,6 +78,7 @@ namespace WIFI_Utils {
                        Config.callsignMissing() ? "callsign still NOCALL: set it in the WebUI" : "WiFi AP turned on");
             startAutoAP();
             WEB_Utils::setup();
+            bool lanShown = false;                                       // aviso unico con la URL de la LAN al conectar
             #ifdef BUTTON_PIN
                 pinMode(BUTTON_PIN, BUTTON_INPUT_MODE);
                 uint32_t pressedAt = 0;
@@ -65,6 +86,18 @@ namespace WIFI_Utils {
             while (true) {
                 WEB_Utils::loop();                                       // guardado pedido por la WebUI
                 delay(5);                                                // deja correr a la WiFi y al servidor web
+                if (staConfigWanted() && !lanShown && WiFi.status() == WL_CONNECTED) {
+                    lanShown = true;
+                    MDNS.end();
+                    if (MDNS.begin(WEB_HOST)) MDNS.addService("http", "tcp", 80);
+                    const String ip = WiFi.localIP().toString();
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "WebConf on LAN: http://%s.local  (%s)", WEB_HOST, ip.c_str());
+                    #ifdef HAS_APRS_PAGES
+                        displayPopup("WEB CONFIG - LAN", String("http://") + WEB_HOST + ".local", "IP " + ip, -1, 4000);
+                    #else
+                        displayShow("** WEB-CONF LAN **", "", String(WEB_HOST) + ".local", "IP " + ip, "", "", 4000);
+                    #endif
+                }
                 #ifdef BUTTON_PIN
                     // Mantener el boton 2 s: sale del punto de acceso y arranca normal (antes solo salia al guardar o a los 2 min sin
                     // nadie conectado, y el boton no hacia nada) (EA7JRS)

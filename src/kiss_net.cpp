@@ -18,6 +18,7 @@
 
 #include "kiss_net.h"
 #include "cat_net.h"
+#include "web_utils.h"
 #include "rotor_net.h"
 
 #if KISS_NET_SUPPORTED
@@ -104,8 +105,8 @@ namespace {
         else                                                statusReply("404 Not Found", "text/plain", "Not found");
     }
 
-    bool wanted() {                                         // el enlace WiFi se mantiene si KISS o CAT estan activados
-        return Config.kissNet.enabled || Config.cat.enabled || Config.rotor.serverEnabled;
+    bool wanted() {                                         // el enlace WiFi se mantiene si KISS, CAT, rotor o la WebUI siempre-on lo piden
+        return Config.kissNet.enabled || Config.cat.enabled || Config.rotor.serverEnabled || Config.wifiAP.webMode == 2;
     }
 
     bool modeOk() {
@@ -147,10 +148,17 @@ namespace {
         }
         if (Config.cat.enabled) CAT_NET::begin();           // CAT (Hamlib) comparte el enlace WiFi y el nombre mDNS
         if (Config.rotor.serverEnabled) ROTOR_NET::begin(); // servidor de rotor (GPredict)
+        if (Config.wifiAP.webMode == 2) {                   // WebUI de configuracion siempre accesible en la red local (http://aprs-lora-plus.local)
+            static bool webUiStarted = false;               // el AsyncWebServer se arranca una sola vez por arranque (registrar las rutas dos veces lo rompe)
+            if (!webUiStarted) { WEB_Utils::setup(); webUiStarted = true; }
+            if (mdns) MDNS.addService("http", "tcp", 80);
+        }
         String second = kissOn ? "KISS " + String(Config.kissNet.tcpPort) + (udpOn ? "  UDP " + String(Config.kissNet.udpPort) : String("")) : String("");
         if (Config.cat.enabled)           second += (second.isEmpty() ? "" : "  ") + String("CAT ") + String(Config.cat.port);
         if (Config.rotor.serverEnabled)   second += (second.isEmpty() ? "" : "  ") + String("ROT ") + String(Config.rotor.serverPort);
-        displayShow(kissOn ? "KISS WiFi" : (Config.cat.enabled ? "CAT WiFi" : "ROTOR WiFi"), "", "IP " + ip, second, "", KISS_HOST, 2500);
+        if (Config.wifiAP.webMode == 2)   second += (second.isEmpty() ? "" : "  ") + String("WEB 80");
+        const char* wifiTitle = kissOn ? "KISS WiFi" : (Config.cat.enabled ? "CAT WiFi" : (Config.rotor.serverEnabled ? "ROTOR WiFi" : "WEB WiFi"));
+        displayShow(wifiTitle, "", "IP " + ip, second, "", KISS_HOST, 2500);
     }
 
     void stopSockets() {
@@ -282,6 +290,7 @@ namespace KISS_NET {
         CAT_NET::poll();
         ROTOR_NET::poll();
         statusPoll();
+        if (Config.wifiAP.webMode == 2) WEB_Utils::loop();   // guardado de la config pedido desde la WebUI (en la tarea principal)
         if (server == nullptr) return;
         acceptClients();
         uint8_t budget = MAX_FRAMES_PER_POLL;

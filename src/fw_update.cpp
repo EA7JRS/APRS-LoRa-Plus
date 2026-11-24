@@ -330,6 +330,16 @@ namespace FW_Update {
                         ESP.restart();
                     }
                 }
+                // "WEBCONF" por USB (EA7JRS): entra en el configurador web sin tocar la pantalla. Con wifiAP.webMode >= 1 y red
+                // local configurada, se abre en la LAN por http://aprs-lora-plus.local; si no, en su punto de acceso (192.168.4.1)
+                else if (n > 0 && strcasecmp(line, "WEBCONF") == 0) {
+                    Config.wifiAP.active = true;
+                    const bool ok = Config.writeFile();
+                    Serial.printf("WEBCONF: entering web configuration (%s), restarting\n", ok ? "saved" : "NOT saved");
+                    Serial.flush();
+                    delay(200);
+                    ESP.restart();
+                }
                 n = 0;
             } else if (n < sizeof(line) - 1) {
                 line[n++] = (char)c;
