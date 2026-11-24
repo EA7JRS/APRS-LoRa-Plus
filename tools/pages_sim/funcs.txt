@@ -1,0 +1,60 @@
+void text(int x, int y, const char* s, uint8_t size = 1) {
+void row(uint8_t r, const char* format, ...) {
+void header(const char* title, const char* right = nullptr) {
+void icon(uint8_t i, int x, int y, bool on) {
+static void skyRotorMark(
+bool ownPosition(double& lat, double& lon) {
+void fmtDist(double km, char* out, size_t size) {
+char kindLetter(Kind kind) {
+uint8_t stationView(uint8_t* view) {
+void drawList() {
+static void fmtLocalMin(double utcMin, int offsetMin, char* out, size_t size) {
+static double moonElongation(
+struct MoonInfo {
+static const MoonInfo& moonInfo(
+struct MoonSpot {
+static const MoonSpot MOON_MARIA[] = {
+static const MoonSpot MOON_CRATERS[] = {
+static bool moonSpotAt(
+static void drawMoonDisc(
+static void drawSunIcon(
+static bool skyNow(
+static double azTenths(
+static void fmtSpan(
+void drawSun() {
+void drawMoon() {
+void drawEme() {
+void drawClock() {
+void drawSubmenu() {
+void drawNetWx(const NET_WX::Data& d) {
+void drawWxSensors() {
+void drawSpaceView() {
+float hfSfi() {
+bool hfAvailable() {
+void drawHfView() {
+void polar(int cx, int cy, float radius, float deg, int& x, int& y) {
+void formatShort(uint32_t seconds, char* out, size_t size) {
+uint32_t epochNow() {
+void messageIcon(int x, int y, MsgState state, bool on) {
+const char* stateLabel(MsgState state) {
+bool altitudeAvailable() {
+const char* altitudeSource() {
+const Station* compassStation() {
+void drawSosCountdown() {
+void drawAltimeter() {
+void drawCompass() {
+void drawMessageList() {
+void drawMessageDetail() {
+void drawMessages() {
+const char* packetTypeName(int type) {
+void formatPosition(double lat, double lon, const char* state, char* out, size_t size) {
+void miniCompass(int cx, int cy, int r, float bearing) {
+bool drawAprsIcon(int x, int y, char symbol, char table) {
+void drawMain() {
+void drawGps() {
+void drawLast() {
+const char* regionName() {
+void formatAirtime(uint32_t ms, char* out, size_t size) {
+void drawLink() {
+void drawCwPage() {
+void drawWsprPage() {

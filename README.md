@@ -67,27 +67,54 @@ Ejemplos de las páginas del tracker. Capturas de pantallas con datos de ejemplo
 
 | | | |
 |:-:|:-:|:-:|
+| ![MAIN](docs/img/screens/tft_main.png) | ![GPS](docs/img/screens/tft_gps.png) | ![COMPASS hacia una estación](docs/img/screens/tft_compass.png) |
+| <sub>MAIN</sub> | <sub>GPS</sub> | <sub>COMPASS hacia una estación</sub> |
+| ![ALTIMETER con perfil](docs/img/screens/tft_altimeter.png) | ![MESSAGES](docs/img/screens/tft_messages.png) | ![Mensaje abierto](docs/img/screens/tft_message_detail.png) |
+| <sub>ALTIMETER con perfil</sub> | <sub>MESSAGES</sub> | <sub>Mensaje abierto</sub> |
+| ![LAST APRS](docs/img/screens/tft_last_aprs.png) | ![LAST APRS: posición y ruta](docs/img/screens/tft_last_aprs_pos.png) | ![STATIONS](docs/img/screens/tft_stations.png) |
+| <sub>LAST APRS</sub> | <sub>LAST APRS: posición y ruta</sub> | <sub>STATIONS</sub> |
+| ![STATIONS con una estación elegida](docs/img/screens/tft_stations_sel.png) | ![LORA](docs/img/screens/tft_lora.png) | ![TELEMETRY](docs/img/screens/tft_telemetry.png) |
+| <sub>STATIONS con una estación elegida</sub> | <sub>LORA</sub> | <sub>TELEMETRY</sub> |
+| ![TELEMETRY > NET](docs/img/screens/tft_telemetry_net.png) | ![SPACE WX](docs/img/screens/tft_spacewx.png) | ![HF: MUF, FOT, LUF y bandas](docs/img/screens/tft_hf.png) |
+| <sub>TELEMETRY > NET</sub> | <sub>SPACE WX</sub> | <sub>HF: MUF, FOT, LUF y bandas</sub> |
 | ![CLOCK con el Sol](docs/img/screens/tft_clock.png) | ![CLOCK con la Luna](docs/img/screens/tft_clock_moon.png) | ![CLOCK > SUN](docs/img/screens/tft_sun.png) |
 | <sub>CLOCK con el Sol</sub> | <sub>CLOCK con la Luna</sub> | <sub>CLOCK > SUN</sub> |
-| ![CLOCK > MOON](docs/img/screens/tft_moon.png) | ![SPACE WX](docs/img/screens/tft_spacewx.png) | ![HF: MUF, FOT, LUF y bandas](docs/img/screens/tft_hf.png) |
-| <sub>CLOCK > MOON</sub> | <sub>SPACE WX</sub> | <sub>HF: MUF, FOT, LUF y bandas</sub> |
-| ![TELEMETRY](docs/img/screens/tft_telemetry.png) | ![TELEMETRY > NET](docs/img/screens/tft_telemetry_net.png) | ![STATIONS](docs/img/screens/tft_stations.png) |
-| <sub>TELEMETRY</sub> | <sub>TELEMETRY > NET</sub> | <sub>STATIONS</sub> |
-| ![STATIONS con una estación elegida](docs/img/screens/tft_stations_sel.png) | ![Menú de la página](docs/img/screens/tft_menu_sun.png) |
-| <sub>STATIONS con una estación elegida</sub> | <sub>Menú de la página</sub> |
+| ![CLOCK > MOON](docs/img/screens/tft_moon.png) | ![CLOCK > EME](docs/img/screens/tft_eme.png) | ![Menú de una página](docs/img/screens/tft_menu_sun.png) |
+| <sub>CLOCK > MOON</sub> | <sub>CLOCK > EME</sub> | <sub>Menú de una página</sub> |
+| ![MORSE](docs/img/screens/tft_morse.png) | ![MORSE: escucha CW](docs/img/screens/tft_morse_rx.png) | ![WSPR beacon](docs/img/screens/tft_wspr.png) |
+| <sub>MORSE</sub> | <sub>MORSE: escucha CW</sub> | <sub>WSPR beacon</sub> |
+| ![WSPR emitiendo](docs/img/screens/tft_wspr_tx.png) | ![Cuenta atrás del SOS](docs/img/screens/tft_sos.png) |
+| <sub>WSPR emitiendo</sub> | <sub>Cuenta atrás del SOS</sub> |
 
 **Pantallas OLED de 128×64** (T-Beam, T-Beam Supreme, Heltec V3, TTGO LoRa32...)
 
+<details>
+<summary>Ver las mismas páginas en OLED</summary>
+
 | | | |
 |:-:|:-:|:-:|
+| ![MAIN](docs/img/screens/oled_main.png) | ![GPS](docs/img/screens/oled_gps.png) | ![COMPASS hacia una estación](docs/img/screens/oled_compass.png) |
+| <sub>MAIN</sub> | <sub>GPS</sub> | <sub>COMPASS hacia una estación</sub> |
+| ![ALTIMETER con perfil](docs/img/screens/oled_altimeter.png) | ![MESSAGES](docs/img/screens/oled_messages.png) | ![Mensaje abierto](docs/img/screens/oled_message_detail.png) |
+| <sub>ALTIMETER con perfil</sub> | <sub>MESSAGES</sub> | <sub>Mensaje abierto</sub> |
+| ![LAST APRS](docs/img/screens/oled_last_aprs.png) | ![LAST APRS: posición y ruta](docs/img/screens/oled_last_aprs_pos.png) | ![STATIONS](docs/img/screens/oled_stations.png) |
+| <sub>LAST APRS</sub> | <sub>LAST APRS: posición y ruta</sub> | <sub>STATIONS</sub> |
+| ![STATIONS con una estación elegida](docs/img/screens/oled_stations_sel.png) | ![LORA](docs/img/screens/oled_lora.png) | ![TELEMETRY](docs/img/screens/oled_telemetry.png) |
+| <sub>STATIONS con una estación elegida</sub> | <sub>LORA</sub> | <sub>TELEMETRY</sub> |
+| ![TELEMETRY > NET](docs/img/screens/oled_telemetry_net.png) | ![SPACE WX](docs/img/screens/oled_spacewx.png) | ![HF: MUF, FOT, LUF y bandas](docs/img/screens/oled_hf.png) |
+| <sub>TELEMETRY > NET</sub> | <sub>SPACE WX</sub> | <sub>HF: MUF, FOT, LUF y bandas</sub> |
 | ![CLOCK con el Sol](docs/img/screens/oled_clock.png) | ![CLOCK con la Luna](docs/img/screens/oled_clock_moon.png) | ![CLOCK > SUN](docs/img/screens/oled_sun.png) |
 | <sub>CLOCK con el Sol</sub> | <sub>CLOCK con la Luna</sub> | <sub>CLOCK > SUN</sub> |
-| ![CLOCK > MOON](docs/img/screens/oled_moon.png) | ![SPACE WX](docs/img/screens/oled_spacewx.png) | ![HF](docs/img/screens/oled_hf.png) |
-| <sub>CLOCK > MOON</sub> | <sub>SPACE WX</sub> | <sub>HF</sub> |
-| ![TELEMETRY](docs/img/screens/oled_telemetry.png) | ![TELEMETRY > NET](docs/img/screens/oled_telemetry_net.png) | ![STATIONS](docs/img/screens/oled_stations.png) |
-| <sub>TELEMETRY</sub> | <sub>TELEMETRY > NET</sub> | <sub>STATIONS</sub> |
+| ![CLOCK > MOON](docs/img/screens/oled_moon.png) | ![CLOCK > EME](docs/img/screens/oled_eme.png) | ![Menú de una página](docs/img/screens/oled_menu_sun.png) |
+| <sub>CLOCK > MOON</sub> | <sub>CLOCK > EME</sub> | <sub>Menú de una página</sub> |
+| ![MORSE](docs/img/screens/oled_morse.png) | ![MORSE: escucha CW](docs/img/screens/oled_morse_rx.png) | ![WSPR beacon](docs/img/screens/oled_wspr.png) |
+| <sub>MORSE</sub> | <sub>MORSE: escucha CW</sub> | <sub>WSPR beacon</sub> |
+| ![WSPR emitiendo](docs/img/screens/oled_wspr_tx.png) | ![Cuenta atrás del SOS](docs/img/screens/oled_sos.png) |
+| <sub>WSPR emitiendo</sub> | <sub>Cuenta atrás del SOS</sub> |
 
-Más capturas (MAIN, GPS, COMPASS, ALTIMETER, MESSAGES, LORA, MORSE, WSPR, SOS) en [`docs/APRS_PANTALLAS_TRACKER.md`](docs/APRS_PANTALLAS_TRACKER.md) y en el [manual](docs/MANUAL_USUARIO.md).
+</details>
+
+Las capturas se rehacen con `tools/pages_sim/build.sh`, que dibuja las páginas en el PC con el código del firmware.
 
 ## Documentación
 

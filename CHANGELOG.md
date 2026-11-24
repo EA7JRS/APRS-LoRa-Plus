@@ -2,6 +2,7 @@
 
 ## Después de la 5.4.9 (sin publicar)
 
+- **Capturas de las páginas** en el README (26 a color y 26 en OLED) y simulador para rehacerlas (`tools/pages_sim`).
 - **Registro**: tampoco sale ya el «gpio_pullup_en: GPIO number error» que quedaba al abrir el puerto del GPS en las placas con su línea en un GPIO solo de entrada (el 34 de las T-Beam). Sin efecto en el funcionamiento.
 
 ## 5.4.9 — 2026-11-24
