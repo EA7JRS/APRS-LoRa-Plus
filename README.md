@@ -59,6 +59,36 @@ El transponder AIS **MAPRS** (LilyGO T3, 433 MHz) es una variante del propio tra
 
 Detalle completo en [`CHANGELOG.md`](CHANGELOG.md) y en las notas de cada versión ([`docs/releases/`](docs/releases)).
 
+## Pantallas
+
+Ejemplos de las páginas del tracker. Son capturas del simulador del PC, dibujadas con el mismo código que el firmware (versión 5.4.7) y con datos de ejemplo; no son fotos.
+
+**Pantallas a color** (Heltec Wireless Tracker, T-Deck y demás TFT)
+
+| | | |
+|:-:|:-:|:-:|
+| ![CLOCK con el Sol](docs/img/screens/tft_clock.png) | ![CLOCK con la Luna](docs/img/screens/tft_clock_moon.png) | ![CLOCK > SUN](docs/img/screens/tft_sun.png) |
+| <sub>CLOCK con el Sol</sub> | <sub>CLOCK con la Luna</sub> | <sub>CLOCK > SUN</sub> |
+| ![CLOCK > MOON](docs/img/screens/tft_moon.png) | ![SPACE WX](docs/img/screens/tft_spacewx.png) | ![HF: MUF, FOT, LUF y bandas](docs/img/screens/tft_hf.png) |
+| <sub>CLOCK > MOON</sub> | <sub>SPACE WX</sub> | <sub>HF: MUF, FOT, LUF y bandas</sub> |
+| ![TELEMETRY](docs/img/screens/tft_telemetry.png) | ![TELEMETRY > NET](docs/img/screens/tft_telemetry_net.png) | ![STATIONS](docs/img/screens/tft_stations.png) |
+| <sub>TELEMETRY</sub> | <sub>TELEMETRY > NET</sub> | <sub>STATIONS</sub> |
+| ![STATIONS con una estación elegida](docs/img/screens/tft_stations_sel.png) | ![Menú de la página](docs/img/screens/tft_menu_sun.png) |
+| <sub>STATIONS con una estación elegida</sub> | <sub>Menú de la página</sub> |
+
+**Pantallas OLED de 128×64** (T-Beam, T-Beam Supreme, Heltec V3, TTGO LoRa32...)
+
+| | | |
+|:-:|:-:|:-:|
+| ![CLOCK con el Sol](docs/img/screens/oled_clock.png) | ![CLOCK con la Luna](docs/img/screens/oled_clock_moon.png) | ![CLOCK > SUN](docs/img/screens/oled_sun.png) |
+| <sub>CLOCK con el Sol</sub> | <sub>CLOCK con la Luna</sub> | <sub>CLOCK > SUN</sub> |
+| ![CLOCK > MOON](docs/img/screens/oled_moon.png) | ![SPACE WX](docs/img/screens/oled_spacewx.png) | ![HF](docs/img/screens/oled_hf.png) |
+| <sub>CLOCK > MOON</sub> | <sub>SPACE WX</sub> | <sub>HF</sub> |
+| ![TELEMETRY](docs/img/screens/oled_telemetry.png) | ![TELEMETRY > NET](docs/img/screens/oled_telemetry_net.png) | ![STATIONS](docs/img/screens/oled_stations.png) |
+| <sub>TELEMETRY</sub> | <sub>TELEMETRY > NET</sub> | <sub>STATIONS</sub> |
+
+Más capturas (MAIN, GPS, COMPASS, ALTIMETER, MESSAGES, LORA, MORSE, WSPR, SOS) en [`docs/APRS_PANTALLAS_TRACKER.md`](docs/APRS_PANTALLAS_TRACKER.md) y en el [manual](docs/MANUAL_USUARIO.md).
+
 ## Documentación
 
 | Documento | Contenido |
