@@ -621,14 +621,17 @@ Modo **solo recepción** para la red de radioaficionados DAPNET (*Decentralized 
 
 Todo lo nuevo de 5.2.11 y 5.2.12 es parte del firmware común y se compila para **todas** las placas de `variants/`; lo que depende del chip o de la placa se desactiva solo, sin cambiar nada en las demás.
 
-| Función | SX1262 / SX1268 | SX1276 / SX1278 | LLCC68 (E220) |
-|---|---|---|---|
-| APRS LoRa, calibración ppm, campanas APRS, mensajería | sí | sí | sí |
-| APRS FSK 9600 (G3RUH) | sí | sí | no (solo LoRa) |
-| GFSK / GMSK (filtro gaussiano) | BT 0,3 · 0,5 · 0,7 · 1,0 · sin filtro | BT 0,3 · 0,5 · 1,0 · sin filtro (BT 0,7 usa 0,5) | no |
-| MORSE / CW y WSPR (portadora) | sí | no | no |
-| DAPNET (recepción POCSAG) | sí | no | no |
-| LR-FHSS (reservado, desactivado) | sí | no | no |
+| Función | SX1262 / SX1268 | SX1276 / SX1278 | LLCC68 (E220) | SA868 (T-TWR Plus) |
+|---|---|---|---|---|
+| APRS LoRa, calibración ppm | sí | sí | sí | no (APRS AFSK 1200) |
+| Campanas APRS, mensajería | sí | sí | sí | sí |
+| APRS FSK 9600 (G3RUH) | sí | sí | no (solo LoRa) | sí |
+| GFSK / GMSK (filtro gaussiano) | BT 0,3 · 0,5 · 0,7 · 1,0 · sin filtro | BT 0,3 · 0,5 · 1,0 · sin filtro (BT 0,7 usa 0,5) | no | no |
+| MORSE / CW | sí | no | no | sí |
+| WSPR, FT8, FT4, FST4W (portadora) | sí | no | no | no |
+| DAPNET (recepción POCSAG) | sí | no | no | sí |
+| LR-FHSS | sí | no | no | no |
+| M17, FM de voz, receptor AIS (con el módulo de VHF) | no | no | no | sí |
 
 - **El selector de modo** (SELECT MODE) solo ofrece los modos que el chip de la placa puede hacer: en una T-Beam con SX1278 verás *APRS LoRa* y *APRS FSK 9600*; en una con SX1262/SX1268 todos, y *LR-FHSS* solo si se activa en la WebUI. La WebUI muestra todos los grupos en todas las placas, pero los de CW, WSPR, DAPNET y LR-FHSS no hacen nada en chips que no los soportan (lo indican sus textos).
 - **Placas sin botón** (ESP32-C3 SuperMini DIY y heltec_ht-ct62): no hay selector de arranque; arrancan siempre en el último modo APRS guardado.
@@ -636,7 +639,7 @@ Todo lo nuevo de 5.2.11 y 5.2.12 es parte del firmware común y se compila para 
 - **Pantallas distintas:** las pantallas nuevas (CW BEACON, DAPNET, lista de mensajes) se dibujan en el lienzo lógico de 128×64 que ya usa el resto, así que sirven igual en OLED 128×64, en el Heltec Wireless Tracker (160×80) y en el T-Deck (ampliadas ×2).
 - **Zumbador:** las campanas APRS suenan en las placas con zumbador pasivo configurado; en las demás no hacen nada.
 - **Memoria:** DAPNET añade unos 3 KB de RAM estática (decodificador 220 B + 10 mensajes) y el código nuevo unas decenas de KB de flash; todas las placas usan `huge_app.csv`. Al compilar, comprueba el uso de flash de las placas con menos memoria.
-- **Sin compilar ni probar en placa:** he revisado el código con `-Wall` en PC (SX1262, SX1278, SX1276 y LLCC68) y con pruebas unitarias del decodificador POCSAG, pero no con PlatformIO ni en ninguna placa real.
+- **Pruebas:** compilado en la CI para todas las placas y probado en placa (T-Beam Supreme, T-Beam v1.2, T-TWR Plus).
 
 ## 29. FT8 / FT4 / FST4W beacon y LR-FHSS activable (5.3.0)
 
