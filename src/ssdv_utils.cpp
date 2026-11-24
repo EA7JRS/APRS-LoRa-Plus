@@ -40,7 +40,7 @@ namespace SSDV_Utils {
     static size_t       ulExpect = 0;
     static bool         ulActive = false;
     static bool         ulReady  = false;        // una imagen subida por BLE, lista para emitir
-    static uint8_t      pkt[256];
+    static uint8_t*     pkt      = nullptr;       // buffer de un paquete (256 B), en heap para no gastar DRAM estatica
     static char         statusText[48] = "SSDV idle";
     static uint16_t     rxImages  = 0;
     static uint16_t     rxPackets = 0;
@@ -185,9 +185,10 @@ namespace SSDV_Utils {
     // ---- Ciclo de vida -------------------------------------------------------------------------------------------------------
 
     void begin() {
+        if (!pkt)     { pkt = (uint8_t*)malloc(256); }
         if (!jpegBuf) { jpegCap = hasPsram() ? 120 * 1024 : 40 * 1024; jpegBuf = bigAlloc(jpegCap); }
         if (!rxBuf)   { rxCap   = hasPsram() ? 120 * 1024 : 40 * 1024; rxBuf   = bigAlloc(rxCap); }
-        if (!jpegBuf || !rxBuf) { setStatus("SSDV: no RAM"); state = ST_IDLE; return; }
+        if (!pkt || !jpegBuf || !rxBuf) { setStatus("SSDV: no RAM"); state = ST_IDLE; return; }
 
         const bool useLora = Config.ssdv.useLora || !LoRa_Utils::fskAvailable();
         const bool fec     = !useLora;             // LoRa lleva su propia FEC; FSK usa Reed-Solomon
