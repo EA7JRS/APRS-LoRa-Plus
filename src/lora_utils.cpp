@@ -1302,6 +1302,94 @@ namespace LoRa_Utils {
         #endif
     }
 
+    // ---- Modo SSDV: configura la radio para los paquetes de 255 bytes del SSDVClient (TX y RX) ----
+    bool ssdvActive = false;
+
+    bool ssdvAvailable() {
+        return true;                                        // cualquier radio LoRa; la variante FSK necesita fskAvailable()
+    }
+
+    PhysicalLayer* ssdvPhy() {
+        return &radio;
+    }
+
+    int ssdvRadioBegin(bool useLora, long freqHz, int sf, float bwKHz, int cr, long brHz, long devHz, int powerDbm) {
+        radio.standby();
+        const float mhz = (float)((double)(freqHz + ppmCorrectionHz(freqHz)) / 1e6);
+        int state;
+        #if RADIO_HAS_FSK
+        if (!useLora) {
+            float rxBwKHz = (float)(devHz * 2 + brHz) / 1000.0f * 1.2f;
+            if (rxBwKHz < 5.0f) rxBwKHz = 5.0f;
+            state = RLCompat::beginFsk(radio, mhz, brHz / 1000.0f, devHz / 1000.0f, rxBwKHz, powerDbm, 16, BOARD_TCXO_V);
+            if (state == RADIOLIB_ERR_NONE) {
+                uint8_t sync[2] = { 0x2D, 0xD4 };           // sincronismo estandar (emisor y receptor deben coincidir)
+                radio.setSyncWord(sync, 2);
+                radio.setPreambleLength(40);
+                #if defined(HAS_SX1262) || defined(HAS_SX1268)
+                    radio.setCRC(0);                        // SSDV ya lleva CRC-32 (y Reed-Solomon en modo FEC)
+                    radio.setWhitening(false);
+                #else
+                    radio.setCRC(false);
+                    radio.setEncoding(RADIOLIB_ENCODING_NRZ);
+                #endif
+                radio.setDataShaping(RADIOLIB_SHAPING_0_5);
+                radio.fixedPacketLengthMode(255);
+                fskMode = true;
+            }
+        } else
+        #endif
+        {
+            state = RLCompat::beginLoRa(radio, mhz, bwKHz, (uint8_t)sf, (uint8_t)cr, 0x12, powerDbm, 8, BOARD_TCXO_V);
+            if (state == RADIOLIB_ERR_NONE) {
+                radio.setCRC(true);
+                fskMode = false;
+            }
+        }
+        if (state == RADIOLIB_ERR_NONE) {
+            #if defined(HAS_SX1278) || defined(HAS_SX1276)
+                radio.setDio0Action(setFlag, RISING);
+            #else
+                radio.setDio1Action(setFlag);
+            #endif
+            setPower(powerDbm);
+            ssdvActive   = true;
+            operationDone = false;
+            transmitFlag  = false;
+            radio.startReceive();
+        } else {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SSDV", "Modem start failed! State: %d", state);
+            fskMode = !profileIsFsk();
+        }
+        return state;
+    }
+
+    void ssdvRadioEnd() {
+        if (!ssdvActive) return;
+        ssdvActive = false;
+        radio.standby();
+        fskMode = !profileIsFsk();                          // fuerza la reconfiguracion limpia del modem del perfil
+        applyCurrentType();
+        transmitFlag  = true;
+        operationDone = true;
+    }
+
+    bool ssdvRxReady() {
+        return operationDone;
+    }
+
+    void ssdvArmReceive() {
+        operationDone = false;
+        #if RADIO_HAS_FSK
+        if (fskMode) radio.fixedPacketLengthMode(255);
+        #endif
+        radio.startReceive();
+    }
+
+    float ssdvRssi() {
+        return radio.getRSSI();
+    }
+
     void wakeRadio() {
         armReceive();
     }

@@ -522,6 +522,23 @@ namespace {
         FS(LRFHSSConfig, locator,     0, ""),
         FB(LRFHSSConfig, locatorLen,  FF_KEEP, 0),                                  // 4, 6 u 8: se comprueba al leer
     };
+    const Field kSsdvFields[] = {                                                  // los valores que faltan parten de setSsdvDefaults()
+        FB(SSDVConfig, enabled,       FF_KEEP, 0),
+        FC(SSDVConfig, source,        FF_KEEP, 0, 0, 3),
+        FB(SSDVConfig, useLora,       FF_KEEP, 0),
+        FC(SSDVConfig, freqHz,        FF_REQUIRED | FF_KEEP, 0, 400000000, 480000000),
+        FC(SSDVConfig, bwIdx,         FF_KEEP, 0, -1, 9),
+        FC(SSDVConfig, sf,            FF_KEEP, 0, 5, 12),
+        FC(SSDVConfig, cr,            FF_KEEP, 0, 5, 8),
+        FC(SSDVConfig, brHz,          FF_KEEP, 0, 100, 300000),
+        FC(SSDVConfig, devHz,         FF_KEEP, 0, 100, 200000),
+        FC(SSDVConfig, powerDbm,      FF_KEEP, 0, -9, 22),
+        FC(SSDVConfig, quality,       FF_KEEP, 0, 0, 7),
+        FC(SSDVConfig, intervalMin,   FF_KEEP, 0, 0, 1440),
+        FB(SSDVConfig, rxSave,        FF_KEEP, 0),
+        FC(SSDVConfig, camResolution, FF_KEEP, 0, 0, 13),
+        FS(SSDVConfig, url,           0, ""),
+    };
     const Field kLoraFields[] = {
         FB(LoraType, frequency,       0, 433775000),
         FB(LoraType, spreadingFactor, 0, 12),
@@ -656,6 +673,7 @@ bool Configuration::writeFile() {
         }
         writeFields(data["ft"].to<JsonObject>(),           &ft,           kFtFields,           NFIELDS(kFtFields));
         writeFields(data["lrfhss"].to<JsonObject>(),       &lrfhss,       kLrfhssFields,       NFIELDS(kLrfhssFields));
+        writeFields(data["ssdv"].to<JsonObject>(),         &ssdv,         kSsdvFields,         NFIELDS(kSsdvFields));
 
         for (int i = 0; i < loraTypes.size(); i++) {
             writeFields(data["lora"][i].to<JsonObject>(), &loraTypes[i], kLoraFields, NFIELDS(kLoraFields));
@@ -911,6 +929,9 @@ bool Configuration::readFile() {
         setLrfhssDefaults();
         READ("lrfhss", lrfhss, kLrfhssFields);
         if (lrfhss.locatorLen != 4 && lrfhss.locatorLen != 8) lrfhss.locatorLen = 6;
+
+        setSsdvDefaults();
+        READ("ssdv", ssdv, kSsdvFields);
 
         JsonArray LoraTypesArray = data["lora"];
         for (int j = 0; j < LoraTypesArray.size(); j++) {
@@ -1304,6 +1325,24 @@ void Configuration::setLrfhssDefaults() {
     lrfhss.locatorLen  = 6;
 }
 
+void Configuration::setSsdvDefaults() {
+    ssdv.enabled       = false;                 // desactivado por defecto
+    ssdv.source        = 0;                     // patron de prueba
+    ssdv.useLora       = true;                  // LoRa sin RS (237 B utiles); FSK con RS si se pone a false
+    ssdv.freqHz        = 434000000;             // IARU R1: experimentos digitales
+    ssdv.bwIdx         = -1;                    // -1 = usar el perfil LoRa activo
+    ssdv.sf            = 9;
+    ssdv.cr            = 7;                      // 4/7
+    ssdv.brHz          = 2000;                  // FSK de globo tipico: 2000 Bd
+    ssdv.devHz         = 2000;
+    ssdv.powerDbm      = 10;
+    ssdv.quality       = 4;                     // calidad SSDV media
+    ssdv.intervalMin   = 0;                     // solo a peticion
+    ssdv.rxSave        = true;
+    ssdv.camResolution = 0;                     // QVGA 320x240
+    ssdv.url           = "";
+}
+
 void Configuration::setGpsDefaults() {
     // Valores de fabrica del M10 en la Supreme (los GPS_USE_* de board_pinout.h, si existen, prevalecen)
     #ifndef GPS_USE_GPS
@@ -1460,6 +1499,7 @@ void Configuration::setDefaultValues() {
     setCwDefaults();
     setWsprDefaults();
     setLrfhssDefaults();
+    setSsdvDefaults();
     setFtDefaults();
     setDapnetDefaults();
     setSa868Defaults();

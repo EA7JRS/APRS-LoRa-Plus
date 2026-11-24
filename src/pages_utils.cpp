@@ -72,6 +72,8 @@
 #include "dapnet_utils.h"
 #include "sat_config.h"
 #include "sat_utils.h"
+#include "ssdv_config.h"
+#include "ssdv_utils.h"
 #include "net_wx.h"
 #include "ais_utils.h"
 #include "rotor_utils.h"
@@ -132,7 +134,7 @@ using namespace PAGES_Core;
 
 namespace {
 
-    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_FM, PAGE_BCAST, PAGE_AIS, PAGE_COUNT };
+    enum Page : uint8_t { PAGE_MAIN, PAGE_MSG, PAGE_CW, PAGE_CWB, PAGE_WSPR, PAGE_LRF, PAGE_DAP, PAGE_SAT, PAGE_ROT, PAGE_LAST, PAGE_LIST, PAGE_GPS, PAGE_COMPASS, PAGE_ALT, PAGE_WX, PAGE_CLOCK, PAGE_LINK, PAGE_BOARD, PAGE_TEAM, PAGE_FM, PAGE_BCAST, PAGE_AIS, PAGE_SSDV, PAGE_COUNT };
 
     // FT8, FT4 y FST4W comparten la pagina, el estado y el menu de la baliza WSPR (solo uno de los dos modos esta activo a la vez)
     bool ftMode() { return Config.operatingMode == MODE_FT8 || Config.operatingMode == MODE_FT4 || Config.operatingMode == MODE_FST4W; }
@@ -154,10 +156,11 @@ namespace {
         if (Config.operatingMode == MODE_LRFHSS) return p == PAGE_LRF;
         if (Config.operatingMode == MODE_DAPNET) return p == PAGE_DAP;
         if (Config.operatingMode == MODE_SAT) return p == PAGE_SAT;
+        if (Config.operatingMode == MODE_SSDV) return p == PAGE_SSDV;        // modo SSDV: imagenes
         if (Config.operatingMode == MODE_AIS) return p == PAGE_AIS || p == PAGE_GPS || p == PAGE_COMPASS || p == PAGE_CLOCK || p == PAGE_WX;   // receptor AIS de la T-TWR
         if (p == PAGE_AIS) return AIS_Utils::active();                       // con un modulo AIS externo o barcos de la app
         if (p == PAGE_FM) return Config.operatingMode == MODE_FM;           // T-TWR: emisora de voz, junto a las paginas APRS
-        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && (p != PAGE_ROT || rotorPageOn()) && (p != PAGE_TEAM || Config.team.watchActive);
+        return p != PAGE_CW && p != PAGE_CWB && p != PAGE_WSPR && p != PAGE_LRF && p != PAGE_DAP && p != PAGE_SAT && p != PAGE_SSDV && (p != PAGE_ROT || rotorPageOn()) && (p != PAGE_TEAM || Config.team.watchActive);
     }
     // Pagina de entrada de cada modo (al arrancar y si la actual deja de verse)
     uint8_t modeHomePage() {
@@ -166,18 +169,19 @@ namespace {
             case MODE_LRFHSS: return PAGE_LRF;
             case MODE_DAPNET: return PAGE_DAP;
             case MODE_SAT:    return PAGE_SAT;
+            case MODE_SSDV:   return PAGE_SSDV;
             case MODE_AIS:    return PAGE_AIS;
             case MODE_FM:     return PAGE_FM;
             default:          return (Config.operatingMode == MODE_WSPR || ftMode()) ? PAGE_WSPR : PAGE_MAIN;
         }
     }
-    bool aprsMode() { return Config.operatingMode != MODE_AIS && Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && !ftMode(); }
+    bool aprsMode() { return Config.operatingMode != MODE_AIS && Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_SSDV && !ftMode(); }
 
     // Pin del manipulador / teclado FH-2: -1 (sin usar) si es negativo o si lo ocupa la propia placa (Supreme: radio, GPS, IMU, PMU...)
     int cwPin(int pin) { return (pin >= 0 && !POWER_Utils::pinReserved(pin)) ? pin : -1; }
 
     const char* const PAGE_TITLES[PAGE_COUNT] = {
-        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP", "FM", "BCAST", "AIS"
+        "MAIN", "MESSAGES", "MORSE", "CW BEACON", "WSPR", "LR-FHSS", "DAPNET", "SATELLITE", "ROTOR", "LAST APRS", "STATIONS", "GPS", "COMPASS", "ALTIMETER", "TELEMETRY", "CLOCK", "LORA", "SYSTEM", "GROUP", "FM", "BCAST", "AIS", "SSDV"
     };
 
     // Opciones del submenu (pulsacion larga). Las acciones del Tracker (baliza, perfil, menu) las ejecuta el teclado.
@@ -4305,6 +4309,8 @@ namespace PAGES_Utils {
     void lrfhssPoll();                      // idem (modo LR-FHSS)
     void dapnetPoll();                      // idem (modo DAPNET)
     void satPoll();                         // idem (modo SAT)
+    void ssdvPoll();                        // idem (modo SSDV)
+    void drawSsdvPage();                    // pantalla del modo SSDV
     void rotorPoll();                       // idem (rotor; cualquier modo)
     void cwBeaconPoll();                    // idem
     void cwKeypadPoll();                    // idem (teclado Yaesu FH-2)
@@ -4341,6 +4347,7 @@ namespace PAGES_Utils {
         lrfhssPoll();
         dapnetPoll();
         satPoll();
+        ssdvPoll();
         rotorPoll();
 
         if (sosState == SOS_COUNTDOWN) {
@@ -5165,6 +5172,25 @@ namespace PAGES_Utils {
         } else row(3, msDay == 0xFFFFFFFFUL ? "Waiting for GPS time" : "Waiting for slot");
         row(4, "Every %um   Sent %u", (unsigned)lrfhssInterval(), (unsigned)lrfhssTxCount);
         row(5, "Hold: menu");
+    }
+
+    // Modo SSDV: estado de la emision / recepcion de imagenes
+    void drawSsdvPage() {
+        header(PAGE_TITLES[PAGE_SSDV], SSDV_Utils::busy() ? "TX" : "RX");
+        const bool fsk = !(Config.ssdv.useLora || !LoRa_Utils::fskAvailable());
+        row(0, "%.3fMHz %s", Config.ssdv.freqHz / 1e6, fsk ? "FSK" : "LoRa");
+        const char* src = Config.ssdv.source == 1 ? "URL" : Config.ssdv.source == 2 ? "BLE" : Config.ssdv.source == 3 ? "Cam" : "Test";
+        row(1, "Src %s  Q%d", src, Config.ssdv.quality);
+        if (SSDV_Utils::busy()) row(2, "TX %u/%u", (unsigned)SSDV_Utils::txSentPackets(), (unsigned)SSDV_Utils::txTotalPackets());
+        else row(2, "RX img %u  pkt %u", (unsigned)SSDV_Utils::rxImageCount(), (unsigned)SSDV_Utils::rxPacketCount());
+        row(3, "%s", SSDV_Utils::status());
+        row(4, Config.ssdv.intervalMin > 0 ? "Auto every %um" : "Send from app/BLE", (unsigned)Config.ssdv.intervalMin);
+        row(5, "Hold: menu");
+    }
+
+    void ssdvPoll() {
+        if (Config.operatingMode != MODE_SSDV) return;
+        SSDV_Utils::loop();
     }
 
     // Registra por el puerto serie las temperaturas internas disponibles (BME, IMU, PMU, ESP32) para correlacionarlas con la deriva medida con un SDR
@@ -6036,6 +6062,7 @@ namespace PAGES_Utils {
             case PAGE_LRF:     drawLrfPage();   break;
             case PAGE_DAP:     drawDapPage();   break;
             case PAGE_SAT:     drawSatPage();   break;
+            case PAGE_SSDV:    drawSsdvPage();  break;
             case PAGE_ROT:     drawRotPage();   break;
             case PAGE_LAST:    drawLast();      break;
             case PAGE_LIST:    drawList();      break;
@@ -6097,6 +6124,9 @@ namespace PAGES_Utils {
             if (LoRa_Utils::aisAvailable()) options[n++] = Option{ MODE_AIS, "AIS receiver" };
             #ifdef HAS_SAT
             options[n++] = Option{ MODE_SAT, "Satellites" };
+            #endif
+            #ifdef HAS_SSDV
+            if (LoRa_Utils::ssdvAvailable()) options[n++] = Option{ MODE_SSDV, "SSDV image" };
             #endif
             uint8_t sel = 0;
             for (uint8_t i = 0; i < n; i++) if (options[i].mode == Config.savedMode) sel = i;
@@ -6167,13 +6197,13 @@ namespace PAGES_Utils {
                        (int)Config.savedMode, (int)BUTTON_PIN, lowAtStart ? "LOW at start" : "idle", (unsigned)clicks,
                        chosen ? "chosen with a long press" : "no long press in 8 s: saved mode kept");
             Config.operatingMode = mode;
-            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_SAT && mode != MODE_AIS && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
+            if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_SAT && mode != MODE_SSDV && mode != MODE_AIS && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
                 Config.savedMode = mode;
                 Config.writeFile();                                                        // el ultimo modo APRS elegido pasa a ser el predeterminado
             }
         #endif
         }
-        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK && !(Config.operatingMode == MODE_M17 && LoRa_Utils::m17Available()) && !(Config.operatingMode == MODE_FM && LoRa_Utils::fmAvailable()) && !(Config.operatingMode == MODE_AIS && LoRa_Utils::aisAvailable())) Config.operatingMode = MODE_APRS_LORA;
+        if (Config.operatingMode != MODE_MORSE && Config.operatingMode != MODE_WSPR && Config.operatingMode != MODE_LRFHSS && Config.operatingMode != MODE_DAPNET && Config.operatingMode != MODE_SAT && Config.operatingMode != MODE_SSDV && Config.operatingMode != MODE_FT8 && Config.operatingMode != MODE_FT4 && Config.operatingMode != MODE_FST4W && Config.operatingMode != MODE_APRS_FSK && !(Config.operatingMode == MODE_M17 && LoRa_Utils::m17Available()) && !(Config.operatingMode == MODE_FM && LoRa_Utils::fmAvailable()) && !(Config.operatingMode == MODE_AIS && LoRa_Utils::aisAvailable())) Config.operatingMode = MODE_APRS_LORA;
         if (Config.operatingMode == MODE_WSPR || ftMode()) { beaconManualMode = true; page = PAGE_WSPR; wsprOn = true; }
         if (Config.operatingMode == MODE_LRFHSS) { beaconManualMode = true; page = PAGE_LRF; lrfhssOn = true; }
         if (Config.operatingMode == MODE_DAPNET) { beaconManualMode = true; page = PAGE_DAP; DAPNET_Utils::reset(); }       // solo recepcion: sin balizas APRS
@@ -6185,12 +6215,16 @@ namespace PAGES_Utils {
         #ifdef HAS_SAT
         ROTOR_Utils::begin();
         #endif
+        #ifndef HAS_SSDV
+        if (Config.operatingMode == MODE_SSDV) Config.operatingMode = MODE_APRS_LORA;                          // modo no disponible en esta placa
+        #endif
+        if (Config.operatingMode == MODE_SSDV) { beaconManualMode = true; page = PAGE_SSDV; SSDV_Utils::begin(); }   // imagenes SSDV: sin balizas APRS
         if (Config.operatingMode == MODE_MORSE) { beaconManualMode = true; page = PAGE_CW; }                   // en MORSE no hay balizas APRS automaticas
         #ifdef HAS_SA868
         if (Config.operatingMode == MODE_FM) { page = PAGE_FM; beaconManualMode = !Config.fm.aprsBeacon; }     // FM: emisora de voz; balizas APRS si se piden
         #endif
         logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode: %s",
-                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_AIS ? "AIS" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : Config.operatingMode == MODE_M17 ? "M17" : Config.operatingMode == MODE_FM ? "FM voice" : APRS_MAIN_MODE_NAME)));
+                   Config.operatingMode == MODE_WSPR ? "WSPR" : (Config.operatingMode == MODE_FT8 ? "FT8" : Config.operatingMode == MODE_FT4 ? "FT4" : Config.operatingMode == MODE_FST4W ? "FST4W" : Config.operatingMode == MODE_DAPNET ? "DAPNET" : Config.operatingMode == MODE_AIS ? "AIS" : Config.operatingMode == MODE_SAT ? "SAT" : Config.operatingMode == MODE_SSDV ? "SSDV" : Config.operatingMode == MODE_LRFHSS ? "LR-FHSS" : Config.operatingMode == MODE_MORSE ? "MORSE" : (Config.operatingMode == MODE_APRS_FSK ? "APRS FSK" : Config.operatingMode == MODE_M17 ? "M17" : Config.operatingMode == MODE_FM ? "FM voice" : APRS_MAIN_MODE_NAME)));
         return (uint8_t)Config.operatingMode;
     }
 

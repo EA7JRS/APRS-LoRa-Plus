@@ -209,7 +209,7 @@ public:
 #else
     #define APRS_MAIN_MODE_NAME "APRS LoRa"
 #endif
-enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11, MODE_AIS = 12 };
+enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11, MODE_AIS = 12, MODE_SSDV = 13 };
 #ifdef HAS_SA868
     #define DEFAULT_MODE MODE_FM                // T-TWR: emisora de voz de serie (Manuel, 2026-11-10)
 #else
@@ -483,6 +483,27 @@ public:
     int     locatorLen;                         // precision del locator que se emite: 4, 6 (por defecto) u 8 caracteres (8 = unos 700 x 460 m: revela la posicion casi exacta)
 };
 
+// Modo SSDV (Slow Scan Digital Video): transmision de imagenes JPEG en paquetes SSDV (UKHAS) y recepcion/decodificacion.
+// Usa el SSDVClient de RadioLib 8.0.x. FEC Reed-Solomon en FSK; en LoRa sin RS (la propia LoRa lleva FEC). (EA7JRS)
+class SSDVConfig {
+public:
+    bool    enabled;                            // DESACTIVADO por defecto
+    int     source;                             // origen de la imagen a emitir: 0 = patron de prueba, 1 = URL por WiFi, 2 = subida por BLE (app), 3 = camara OV2640
+    bool    useLora;                            // true: SSDV por LoRa (sin RS, 237 B utiles); false: FSK con Reed-Solomon (205 B utiles)
+    int     freqHz;                             // frecuencia central (Hz)
+    int     bwIdx;                              // LoRa: indice de ancho de banda del perfil (como loraTypes); se usa el perfil LoRa activo si vale -1
+    int     sf;                                 // LoRa: factor de ensanchado (solo si useLora)
+    int     cr;                                 // LoRa: 4/N (5..8)
+    int     brHz;                               // FSK: velocidad en baudios (p.ej. 2000, 300, 115200); SSDV de globo tipico 2000 Bd
+    int     devHz;                              // FSK: desviacion de frecuencia (Hz)
+    int     powerDbm;                           // potencia de salida (dBm)
+    int     quality;                            // calidad SSDV 0..7 (JPEG 13..100)
+    int     intervalMin;                        // reemision automatica de la imagen cada N minutos (0 = solo a peticion)
+    bool    rxSave;                             // guardar en SPIFFS las imagenes recibidas (/ssdv_rx.jpg)
+    int     camResolution;                      // camara OV2640: framesize (0 = QVGA 320x240); multiplo de 16
+    String  url;                                // URL del JPEG a descargar por WiFi (source = 1)
+};
+
 #define CW_MESSAGE_COUNT    5
 class CWConfig {
 public:
@@ -544,6 +565,7 @@ public:
     WSPRConfig              wspr;
     FTConfig                ft;
     LRFHSSConfig            lrfhss;
+    SSDVConfig              ssdv;
     DAPNETConfig            dapnet;
     Sa868Config             sa868;
     FmConfig                fm;
@@ -575,6 +597,7 @@ public:
     void setWsprDefaults();
     void setGpsDefaults();
     void setLrfhssDefaults();
+    void setSsdvDefaults();
     void setFtDefaults();
     void setDapnetDefaults();
     void setSa868Defaults();
