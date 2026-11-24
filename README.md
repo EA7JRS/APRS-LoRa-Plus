@@ -80,11 +80,16 @@ El proyecto conserva todas las placas de la base (T-Beam v0.7 / v1.x / S3 Suprem
 
 No todos los modos están disponibles en todos los chips:
 
-| Modo | SX1262 / SX1268 | SX1276 / SX1278 | LLCC68 |
-|---|:-:|:-:|:-:|
-| APRS LoRa | ✔ | ✔ | ✔ |
-| APRS FSK 9600 | ✔ | ✔ | ✘ |
-| CW / WSPR / FT8 / FT4 / FST4W / DAPNET | ✔ | ✘ | ✘ |
+| Modo | SX1262 / SX1268 | SX1276 / SX1278 | LLCC68 | SA868 (T-TWR Plus) |
+|---|:-:|:-:|:-:|:-:|
+| APRS LoRa | ✔ | ✔ | ✔ | ✘ |
+| APRS AFSK 1200 | ✘ | ✘ | ✘ | ✔ |
+| APRS FSK 9600 | ✔ | ✔ | ✘ | ✔ |
+| CW / DAPNET | ✔ | ✘ | ✘ | ✔ |
+| WSPR / FT8 / FT4 / FST4W / LR-FHSS | ✔ | ✘ | ✘ | ✘ |
+| M17 / FM de voz / receptor AIS | ✘ | ✘ | ✘ | ✔ |
+
+El SA868 es un transceptor FM de VHF o UHF (según el módulo); el receptor AIS solo con el de VHF.
 
 **LilyGO T-TWR Plus** (`lilygo_t_twr_plus`, Rev2.0 y Rev2.1, probada): no lleva LoRa sino un transceptor FM SA868; hace **APRS analógico AFSK 1200** en VHF (144,800 MHz) con el módem en el ESP32-S3. Ver [`docs/T_TWR.md`](docs/T_TWR.md).
 
