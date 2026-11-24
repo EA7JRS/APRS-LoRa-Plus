@@ -54,4 +54,8 @@
     #define NMEA_USB            0
     #define NMEA_OUT_ENV        0
 
+    //  Transponder AIS dedicado y muy justo de DRAM: sin los modos de imagen/baliza SSDV ni RTTY
+    #define NO_SSDV
+    #define NO_RTTY
+
 #endif
