@@ -1,5 +1,9 @@
 # Changelog
 
+## Después de la 5.4.9 (sin publicar)
+
+- **Registro**: tampoco sale ya el «gpio_pullup_en: GPIO number error» que quedaba al abrir el puerto del GPS en las placas con su línea en un GPIO solo de entrada (el 34 de las T-Beam). Sin efecto en el funcionamiento.
+
 ## 5.4.9 — 2026-11-24
 
 - **Estado propio una vez**: con el campo Status vacío, el tracker manda una sola vez por versión e indicativo «APRS LoRa+ 5.4.9» (10 min después de arrancar). aprs.fi y otras webs conservan el último estado recibido; en estaciones que venían de otro firmware seguía saliendo el enlace a aquel proyecto (visto en una estación: «Último estado … 2025-08-11»). Con un Status propio se manda ese.

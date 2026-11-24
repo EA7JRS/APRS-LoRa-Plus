@@ -19,6 +19,7 @@
 #include <APRSPacketLib.h>
 #include <TinyGPS++.h>
 #include <SPIFFS.h>
+#include <esp_log.h>
 #include "TimeLib.h"
 #include "smartbeacon_utils.h"
 #include "configuration.h"
@@ -156,11 +157,24 @@ namespace GPS_Utils {
         file.close();
     }
 
+    // Abre el puerto del GPS. En el ESP32 clasico, si su linea de recepcion va a un GPIO solo de entrada (34 a 39, como el 34
+    // de las T-Beam), el driver UART pide la resistencia interna que ese pin no tiene y deja en el registro
+    // «gpio_pullup_en: GPIO number error»: se calla ese aviso solo durante la apertura (EA7JRS)
+    static void gpsSerialBegin(uint32_t baud) {
+        #if defined(CONFIG_IDF_TARGET_ESP32) && (GPS_TX >= 34) && (GPS_TX <= 39)
+            esp_log_level_set("gpio", ESP_LOG_NONE);
+            gpsSerial.begin(baud, SERIAL_8N1, GPS_TX, GPS_RX);
+            esp_log_level_set("gpio", ESP_LOG_ERROR);
+        #else
+            gpsSerial.begin(baud, SERIAL_8N1, GPS_TX, GPS_RX);
+        #endif
+    }
+
     bool probeBaudRate(uint32_t baud) {
         gpsSerial.end();
         delay(50);
         gpsSerial.setRxBufferSize(GPS_RX_BUFFER);               // antes de begin(); 256 bytes se desbordan si el bucle se para (TX LoRa, pantalla)
-        gpsSerial.begin(baud, SERIAL_8N1, GPS_TX, GPS_RX);
+        gpsSerialBegin(baud);
         uint32_t validSentences = gps.passedChecksum();
         uint32_t probeStart     = millis();
         while (millis() - probeStart < GPS_BAUD_PROBE_TIME_MS) {
@@ -770,7 +784,7 @@ namespace GPS_Utils {
             gpsSerial.end();
             delay(50);
             gpsSerial.setRxBufferSize(GPS_RX_BUFFER);
-            gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_TX, GPS_RX);
+            gpsSerialBegin(GPS_BAUD);
         }
         #ifdef GPS_PPS
             pinMode(GPS_PPS, INPUT);
