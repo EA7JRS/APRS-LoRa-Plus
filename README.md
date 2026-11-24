@@ -61,7 +61,7 @@ Detalle completo en [`CHANGELOG.md`](CHANGELOG.md) y en las notas de cada versi�
 
 ## Pantallas
 
-Ejemplos de las páginas del tracker. Son capturas del simulador del PC, dibujadas con el mismo código que el firmware (versión 5.4.7) y con datos de ejemplo; no son fotos.
+Ejemplos de las páginas del tracker. Capturas de pantallas con datos de ejemplo.
 
 **Pantallas a color** (Heltec Wireless Tracker, T-Deck y demás TFT)
 
