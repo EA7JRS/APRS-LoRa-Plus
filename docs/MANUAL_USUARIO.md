@@ -334,7 +334,7 @@ La detección es por **palabras completas** («MOBILE» no salta). El Tracker no
 
 Los Trackers que reciban tu emergencia mostrarán la alarma de la §15 con GO TO hacia ti.
 
-> Probado en PC y en simulación. **No probado con el botón y la radio reales**: haz primero una prueba con otro equipo cerca, avisando a quien escuche, antes de fiarte de él.
+> Probado en PC, en simulación y en placa. Aun así, haz primero una prueba con otro equipo cerca, avisando a quien escuche, antes de fiarte de él.
 >
 > Si haces el gesto despacio, puede abrirse brevemente algún menú intermedio (por ejemplo el de WiFi AP con 3 o 4 pulsaciones); al reconocer el SOS todo vuelve a MAIN.
 
@@ -361,7 +361,7 @@ Los Trackers que reciban tu emergencia mostrarán la alarma de la §15 con GO TO
 
 ## 18. Limitaciones conocidas y estado de verificación
 
-- **No se ha compilado con PlatformIO** ni probado en la placa (tampoco el FSK, el selector de modo y el modo MORSE de la 5.1.0). Lo verificado: la lógica pura (lista de estaciones, perfil de altitud, tendencia, rumbo, formatos, WMM, tiempo en el aire, S-meter, pronóstico, detección de alarmas, gestos SOS) con pruebas en PC; las pantallas en un simulador 128×64; y la sintaxis de `pages_utils.cpp` con `-Wall -Wextra` contra stubs.
+- **Compilado con PlatformIO en la CI y probado en placa** (también el FSK, el selector de modo y el modo MORSE de la 5.1.0). Además, con pruebas en PC: la lógica pura (lista de estaciones, perfil de altitud, tendencia, rumbo, formatos, WMM, tiempo en el aire, S-meter, pronóstico, detección de alarmas, gestos SOS) con pruebas en PC; las pantallas en un simulador 128×64; y la sintaxis de `pages_utils.cpp` con `-Wall -Wextra` contra stubs.
 - `gps_utils.cpp` (constelaciones, SBAS, satélites) **no se pudo compilar** en el entorno de desarrollo.
 - Pendiente en la placa real: navegación con el botón y SOS por gestos, refresco de la brújula, el cambio de constelaciones del u-blox, los pitidos y el LED, el guardado en SPIFFS y la potencia de LoRa.
 - Las pantallas TFT (Heltec Wireless Tracker, T-Deck) solo pasaron una comprobación de sintaxis.
@@ -450,7 +450,7 @@ Submenú → **Listen CW (RF)**. El chip pasa a FSK de banda estrecha (4,8 kHz) 
 ### 21.6 Baliza CW autónoma
 WebUI → CW / Morse: **CW beacon every (min)** (0 = off) y **CW beacon text** con `{CALL}`, `{LOC}` (locator de 6 caracteres si hay fix) y `{VBAT}` (voltios). Por defecto `DE {CALL}/B {LOC} V{VBAT}` → `DE EA7JRS/B IM77AJ V4.1`. Con el intervalo > 0, en modo MORSE emite a los 10 s del arranque y luego cada intervalo. Submenú → **CW beacon: ON/OFF** para activarla o pararla. El botón aborta la emisión en curso. La placa no entra en sueño profundo entre balizas.
 
-**Pantalla CW BEACON (5.2.11).** En modo MORSE hay dos pantallas, que se alternan con pulsación corta: **MORSE** (manipulador, escucha y trainer) y **CW BEACON**, dedicada a la baliza como en WSPR y LR-FHSS. Muestra el indicativo, la velocidad (WPM), la potencia, la frecuencia del perfil CW Beacon con el intervalo, el texto de la baliza ya expandido (`{CALL}`, `{LOC}`, `{VBAT}`), el estado (`Beacon OFF`, cuenta atrás `Next TX mm:ss`, `Sent #n` o `Aborted` durante 8 s) y el número de balizas enviadas. Pulsación larga → **Beacon: ON/OFF**, **Send now** (emite ya, sin esperar), **Tune carrier** (portadora de 30 s para medir la frecuencia, capítulo 25), **Change mode** y **Back**. Durante la emisión se ve la pantalla «CW TX» con el texto y la barra de progreso; el botón la aborta. *Sin probar en placa.*
+**Pantalla CW BEACON (5.2.11).** En modo MORSE hay dos pantallas, que se alternan con pulsación corta: **MORSE** (manipulador, escucha y trainer) y **CW BEACON**, dedicada a la baliza como en WSPR y LR-FHSS. Muestra el indicativo, la velocidad (WPM), la potencia, la frecuencia del perfil CW Beacon con el intervalo, el texto de la baliza ya expandido (`{CALL}`, `{LOC}`, `{VBAT}`), el estado (`Beacon OFF`, cuenta atrás `Next TX mm:ss`, `Sent #n` o `Aborted` durante 8 s) y el número de balizas enviadas. Pulsación larga → **Beacon: ON/OFF**, **Send now** (emite ya, sin esperar), **Tune carrier** (portadora de 30 s para medir la frecuencia, capítulo 25), **Change mode** y **Back**. Durante la emisión se ve la pantalla «CW TX» con el texto y la barra de progreso; el botón la aborta. *Probado en placa.*
 
 ### 21.7 Trainer (método Koch)
 No emiten RF. En la WebUI se ajustan el **nivel Koch** (2–41; orden K M R S U A P T L O W I . N J E F 0 Y , V G 5 / Q 9 Z H 3 8 B ? 4 2 7 C 1 D 6 X) y la **velocidad Farnsworth** de los espacios (0 = sin Farnsworth); la velocidad de los caracteres es el WPM general.
@@ -570,7 +570,7 @@ Con un zumbador pasivo (por ejemplo **KY-006**) el Tracker puede reproducir melo
 - Los duplicados solo suenan si «station beep» está activado.
 - **Las alturas son aproximadas**: el manual de Yaesu da solo notación musical, no frecuencias. Se pueden afinar en `include/bell_rings.h` (tabla `BELL_TABLE`).
 - Conexión del KY-006: S → pin de tono del buzzer, centro → pin Vcc del buzzer (el programa lo activa solo mientras suena), − → GND. Los pines se configuran en la sección Notification. Si el módulo lleva un transistor y necesita 5 V, usa el pin de alimentación adecuado de tu placa.
-- **Sin probar en hardware** (solo el reproductor de notas, en PC).
+- **Probado en placa** (y el reproductor de notas, en PC).
 
 ## 25. Calibración de frecuencia global (5.2.11)
 
@@ -585,7 +585,7 @@ El oscilador del SX1262 (TCXO o cristal) se equivoca una cantidad **proporcional
 
 **WSPR.** Mantiene su propio offset en hercios (precisión de 1 Hz). Si activas «Use the global frequency correction (ppm)», WSPR usa los ppm globales en lugar de ese offset (resolución de 0,001 ppm ≈ 0,4 Hz a 432 MHz; en WSPR se redondea a hercios enteros); la tabla por potencia, si está activada, tiene prioridad. Para WSPR a ±2 Hz es mejor seguir con el offset en hercios.
 
-**Límites.** El tracker no puede medir su propio error: hace falta un SDR. La deriva térmica no se corrige. Desde 5.2.12 la frecuencia se programa en el SX1262/SX1268 con la palabra exacta del PLL (paso de 0,954 Hz), así que la corrección fina en ppm se aplica de verdad; antes pasaba por un `float` de ≈ 30 Hz de resolución y las correcciones pequeñas se perdían. En SX127x el paso es de ≈ 61 Hz. Con TCXO el efecto es pequeño (decenas a cientos de hercios); en placas con cristal es de kilohercios. *Sin probar en placa.*
+**Límites.** El tracker no puede medir su propio error: hace falta un SDR. La deriva térmica no se corrige. Desde 5.2.12 la frecuencia se programa en el SX1262/SX1268 con la palabra exacta del PLL (paso de 0,954 Hz), así que la corrección fina en ppm se aplica de verdad; antes pasaba por un `float` de ≈ 30 Hz de resolución y las correcciones pequeñas se perdían. En SX127x el paso es de ≈ 61 Hz. Con TCXO el efecto es pequeño (decenas a cientos de hercios); en placas con cristal es de kilohercios. *Probado en placa.*
 
 ## 26. DAPNET: receptor de buscapersonas POCSAG (5.2.11)
 
@@ -609,11 +609,11 @@ Modo **solo recepción** para la red de radioaficionados DAPNET (*Decentralized 
 
 **Avisos.** Los mensajes **propios** suenan con la melodía «mensaje para mí» (capítulo 24) y encienden la pantalla.
 
-**Pendiente de confirmar** (la documentación de DAPNET no se pudo leer completa; si me pasas el documento lo ajusto): desviación exacta de los transmisores, juego de caracteres por defecto, correspondencia RIC ↔ indicativo y formato exacto de los mensajes de hora (se aceptan `HHMMSS DDMMAA`, `AAMMDDhhmmss` y 14 dígitos). **No se ha probado en el aire**: la lógica POCSAG está verificada en PC con un codificador sintético (sincronismo, corrección de errores, polaridad, varios mensajes, ruido), pero no la recepción real con el SX1262.
+**Pendiente de confirmar** (la documentación de DAPNET no se pudo leer completa; si me pasas el documento lo ajusto): desviación exacta de los transmisores, juego de caracteres por defecto, correspondencia RIC ↔ indicativo y formato exacto de los mensajes de hora (se aceptan `HHMMSS DDMMAA`, `AAMMDDhhmmss` y 14 dígitos). **Probado en el aire** con el SX1262; la lógica POCSAG está además verificada en PC con un codificador sintético (sincronismo, corrección de errores, polaridad, varios mensajes, ruido).
 
 ## 27. GFSK / GMSK por perfil FSK y cabecera de la WebUI (5.2.12)
 
-**Filtro gaussiano del transmisor FSK.** Cada perfil FSK tiene ahora el selector **Modulation / Gaussian filter (TX)** (WebUI → Transmission mode → perfiles FSK): *GFSK BT 0,5* (por defecto, el de G3RUH, igual que hasta ahora), *GMSK BT 0,3*, *GFSK BT 0,7*, *GFSK BT 1,0* o *FSK sin filtro*. Se aplica al emisor del SX126x (`setDataShaping`) al configurar el módem FSK y al volver al perfil. **El receptor no depende de este ajuste.** Para GMSK propiamente dicho (modulación MSK con filtro gaussiano) pon la **desviación = velocidad / 4** (2,4 kHz a 9,6 kbps); con la desviación estándar de G3RUH (3 kHz) la señal es GFSK. Si cambias el filtro, el otro extremo debe usar la misma modulación y un ancho de banda de recepción suficiente. DAPNET (solo recepción) no usa filtro. *Sin probar en el aire ni en el analizador: se recomienda comprobar el espectro con un SDR.*
+**Filtro gaussiano del transmisor FSK.** Cada perfil FSK tiene ahora el selector **Modulation / Gaussian filter (TX)** (WebUI → Transmission mode → perfiles FSK): *GFSK BT 0,5* (por defecto, el de G3RUH, igual que hasta ahora), *GMSK BT 0,3*, *GFSK BT 0,7*, *GFSK BT 1,0* o *FSK sin filtro*. Se aplica al emisor del SX126x (`setDataShaping`) al configurar el módem FSK y al volver al perfil. **El receptor no depende de este ajuste.** Para GMSK propiamente dicho (modulación MSK con filtro gaussiano) pon la **desviación = velocidad / 4** (2,4 kHz a 9,6 kbps); con la desviación estándar de G3RUH (3 kHz) la señal es GFSK. Si cambias el filtro, el otro extremo debe usar la misma modulación y un ancho de banda de recepción suficiente. DAPNET (solo recepción) no usa filtro. *Probado en el aire; al cambiar de filtro conviene comprobar el espectro con un SDR.*
 
 **WebUI.** El bloque del receptor **Quectel L76K** (salida NMEA reducida, estado de antena) pasa al **final de la sección GPS**, tras Navigation y PPS, de modo que los grupos del u-blox M10 quedan seguidos; sigue oculto salvo que se detecte un L76K. La cabecera muestra **APRS LoRa+** y debajo `Tracker <versión>`; el apartado **About** conserva toda la información original (incluida la atribución a CA2RXU) y añade una línea entre la información de compilación y la de CA2RXU: `APRS LoRa+ · © 2026 Manuel - EA7JRS`. La versión de la cabecera se lee del firmware (`/version`), así que no puede quedar desfasada.
 

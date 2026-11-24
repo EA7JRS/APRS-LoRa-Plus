@@ -335,7 +335,7 @@ Detection is by **whole words** ("MOBILE" does not trigger). The Tracker does no
 
 Trackers that receive your emergency will show the §15 alarm with GO TO towards you.
 
-> Tested on PC and in simulation. **Not tested with the real button and radio**: do a test first with another device nearby, warning anyone listening, before relying on it.
+> Tested on PC, in simulation and on the board. Even so, do a test first with another device nearby, warning anyone listening, before relying on it.
 >
 > If you do the gesture slowly, an intermediate menu may briefly open (for example the WiFi AP one with 3 or 4 presses); when SOS is recognised everything returns to MAIN.
 
@@ -454,7 +454,7 @@ Submenu → **Listen CW (RF)**. The chip switches to narrow-band FSK (4.8 kHz) o
 ### 21.6 Autonomous CW beacon
 WebUI → CW / Morse: **CW beacon every (min)** (0 = off) and **CW beacon text** with `{CALL}`, `{LOC}` (6-character locator if there is a fix) and `{VBAT}` (volts). Default `DE {CALL}/B {LOC} V{VBAT}` → `DE EA7JRS/B IM77AJ V4.1`. With the interval > 0, in MORSE mode it transmits 10 s after boot and then every interval. Submenu → **CW beacon: ON/OFF** to start or stop it. The button aborts the transmission in progress. The board does not enter deep sleep between beacons.
 
-**CW BEACON screen (5.2.11).** In MORSE mode there are two screens, switched with a short press: **MORSE** (key, listening and trainer) and **CW BEACON**, dedicated to the beacon like WSPR and LR-FHSS. It shows the callsign, speed (WPM), power, the CW Beacon profile frequency with the interval, the expanded beacon text (`{CALL}`, `{LOC}`, `{VBAT}`), the status (`Beacon OFF`, `Next TX mm:ss` countdown, `Sent #n` or `Aborted` for 8 s) and the number of beacons sent. Long press → **Beacon: ON/OFF**, **Send now** (transmits immediately), **Tune carrier** (30 s carrier to measure the frequency, chapter 25), **Change mode** and **Back**. While transmitting you see the "CW TX" screen with the text and a progress bar; the button aborts it. *Not tested on hardware.*
+**CW BEACON screen (5.2.11).** In MORSE mode there are two screens, switched with a short press: **MORSE** (key, listening and trainer) and **CW BEACON**, dedicated to the beacon like WSPR and LR-FHSS. It shows the callsign, speed (WPM), power, the CW Beacon profile frequency with the interval, the expanded beacon text (`{CALL}`, `{LOC}`, `{VBAT}`), the status (`Beacon OFF`, `Next TX mm:ss` countdown, `Sent #n` or `Aborted` for 8 s) and the number of beacons sent. Long press → **Beacon: ON/OFF**, **Send now** (transmits immediately), **Tune carrier** (30 s carrier to measure the frequency, chapter 25), **Change mode** and **Back**. While transmitting you see the "CW TX" screen with the text and a progress bar; the button aborts it. *Tested on the board.*
 
 ### 21.7 Trainer (Koch method)
 They do not transmit RF. In the WebUI you set the **Koch level** (2–41; order K M R S U A P T L O W I . N J E F 0 Y , V G 5 / Q 9 Z H 3 8 B ? 4 2 7 C 1 D 6 X) and the **Farnsworth speed** of the spacing (0 = no Farnsworth); the character speed is the general WPM.
@@ -576,7 +576,7 @@ With a passive buzzer (e.g. **KY-006**) the Tracker can play "APRS bell ring" me
 - Duplicates only sound when "station beep" is enabled.
 - **Pitches are approximate**: the Yaesu manual gives musical notation only, not frequencies. They can be tuned in `include/bell_rings.h` (`BELL_TABLE`).
 - KY-006 wiring: S → buzzer tone pin, middle → buzzer Vcc pin (the firmware powers it only while playing), − → GND. Pins are set in the Notification section. If your module has a transistor and needs 5 V, use the appropriate supply pin of your board.
-- **Not tested on hardware** (only the note player, on a PC).
+- **Tested on the board** (and the note player, on a PC).
 
 ## 25. Global frequency calibration (5.2.11)
 
@@ -591,7 +591,7 @@ The SX1262 oscillator (TCXO or crystal) is off by an amount **proportional to fr
 
 **WSPR.** It keeps its own offset in hertz (1 Hz resolution). If you enable "Use the global frequency correction (ppm)", WSPR uses the global ppm instead of that offset (0.001 ppm resolution ≈ 0.4 Hz at 432 MHz; WSPR rounds to whole hertz); the per-power table, if enabled, takes priority. For WSPR within ±2 Hz, the offset in hertz is better.
 
-**Limits.** The tracker cannot measure its own error: an SDR is needed. Thermal drift is not corrected. Since 5.2.12 the frequency is programmed on the SX1262/SX1268 with the exact PLL word (0.954 Hz step), so fine ppm corrections really take effect; before, it went through a `float` with ≈ 30 Hz resolution and small corrections were lost. On SX127x the step is ≈ 61 Hz. With a TCXO the effect is small (tens to hundreds of hertz); on crystal boards it is kilohertz. *Not tested on hardware.*
+**Limits.** The tracker cannot measure its own error: an SDR is needed. Thermal drift is not corrected. Since 5.2.12 the frequency is programmed on the SX1262/SX1268 with the exact PLL word (0.954 Hz step), so fine ppm corrections really take effect; before, it went through a `float` with ≈ 30 Hz resolution and small corrections were lost. On SX127x the step is ≈ 61 Hz. With a TCXO the effect is small (tens to hundreds of hertz); on crystal boards it is kilohertz. *Tested on the board.*
 
 ## 26. DAPNET: POCSAG pager receiver (5.2.11)
 
@@ -615,11 +615,11 @@ The SX1262 oscillator (TCXO or crystal) is off by an amount **proportional to fr
 
 **Alerts.** **Own** messages play the "message to me" melody (chapter 24) and wake the display.
 
-**To be confirmed** (the DAPNET documentation could not be read in full; send me the document and I will adjust): exact transmitter deviation, default character set, RIC ↔ callsign mapping and the exact time-message format (`HHMMSS DDMMYY`, `YYMMDDhhmmss` and 14 digits are accepted). **Not tested on air**: the POCSAG logic is verified on a PC with a synthetic encoder (sync, error correction, polarity, several messages, noise), but real reception with the SX1262 is not.
+**To be confirmed** (the DAPNET documentation could not be read in full; send me the document and I will adjust): exact transmitter deviation, default character set, RIC ↔ callsign mapping and the exact time-message format (`HHMMSS DDMMYY`, `YYMMDDhhmmss` and 14 digits are accepted). **Tested on air** with the SX1262; the POCSAG logic is also verified on a PC with a synthetic encoder (sync, error correction, polarity, several messages, noise).
 
 ## 27. GFSK / GMSK per FSK profile and WebUI header (5.2.12)
 
-**Gaussian filter of the FSK transmitter.** Each FSK profile now has a **Modulation / Gaussian filter (TX)** selector (WebUI → Transmission mode → FSK profiles): *GFSK BT 0.5* (default, the G3RUH one, as before), *GMSK BT 0.3*, *GFSK BT 0.7*, *GFSK BT 1.0* or *FSK, no filter*. It is applied to the SX126x transmitter (`setDataShaping`) when the FSK modem is configured and when returning to the profile. **The receiver does not depend on this setting.** For true GMSK (MSK with a Gaussian filter) set the **deviation = bit rate / 4** (2.4 kHz at 9.6 kbps); with the standard G3RUH deviation (3 kHz) the signal is GFSK. If you change the filter, the other end must use the same modulation and a wide enough receive bandwidth. DAPNET (receive-only) uses no filter. *Not tested on air or on a spectrum analyser: check the spectrum with an SDR.*
+**Gaussian filter of the FSK transmitter.** Each FSK profile now has a **Modulation / Gaussian filter (TX)** selector (WebUI → Transmission mode → FSK profiles): *GFSK BT 0.5* (default, the G3RUH one, as before), *GMSK BT 0.3*, *GFSK BT 0.7*, *GFSK BT 1.0* or *FSK, no filter*. It is applied to the SX126x transmitter (`setDataShaping`) when the FSK modem is configured and when returning to the profile. **The receiver does not depend on this setting.** For true GMSK (MSK with a Gaussian filter) set the **deviation = bit rate / 4** (2.4 kHz at 9.6 kbps); with the standard G3RUH deviation (3 kHz) the signal is GFSK. If you change the filter, the other end must use the same modulation and a wide enough receive bandwidth. DAPNET (receive-only) uses no filter. *Tested on air; when you change the filter, check the spectrum with an SDR.*
 
 **WebUI.** The **Quectel L76K** receiver block (reduced NMEA output, antenna status) moves to the **end of the GPS section**, after Navigation and PPS, so the u-blox M10 groups stay together; it is still hidden unless an L76K is detected. The header shows **APRS LoRa+** with `Tracker <version>` below it; the **About** section keeps all the original information (including the CA2RXU credit) and adds one line between the build information and the CA2RXU line: `APRS LoRa+ · © 2026 Manuel - EA7JRS`. The version in the header is read from the firmware (`/version`), so it cannot go stale.
 
@@ -649,7 +649,7 @@ Everything new in 5.2.11 and 5.2.12 is part of the common firmware and is built 
 
 ## 29. FT8 / FT4 / FST4W beacon and switchable LR-FHSS (5.3.0)
 
-**FT8 beacon / FT4 beacon / FST4W beacon.** Chosen in SELECT MODE (SX1262/SX1268 only) and, like WSPR, not saved. Transmit only; the single screen is the beacon page (countdown, UTC time, satellites). Message "CQ CALL LOCATOR" or free text up to 35 characters. The slot comes from GPS time (FT8 15 s, FT4 7.5 s) and the transmission lasts 12.64 s (FT8) or 5.04 s (FT4). The frequency is the **dial** frequency: tone 0 is sent 1500 Hz above it. FT8 defaults to 432.174 MHz (WSJT-X list); **FT4 has no default and does not transmit until one is entered**. Always pick a channel allowed by the IARU plan of your region and your national rules: the WebUI warns when the segment is for beacons, repeaters or digital voice. The screen is not redrawn while transmitting; the button aborts. **FST4W** sends the 50-bit WSPR message (callsign, 4-character locator and power; power is rounded to 0, 3, 7, 10, 13, 17 or 20 dBm) in 120 s periods (109 s transmission) or 300 s (287 s, experimental), starting 1 s after the period begins. It has no default frequency either. Settings: WebUI → "FT8 / FT4 / FST4W Beacon" card. Not tested on hardware.
+**FT8 beacon / FT4 beacon / FST4W beacon.** Chosen in SELECT MODE (SX1262/SX1268 only) and, like WSPR, not saved. Transmit only; the single screen is the beacon page (countdown, UTC time, satellites). Message "CQ CALL LOCATOR" or free text up to 35 characters. The slot comes from GPS time (FT8 15 s, FT4 7.5 s) and the transmission lasts 12.64 s (FT8) or 5.04 s (FT4). The frequency is the **dial** frequency: tone 0 is sent 1500 Hz above it. FT8 defaults to 432.174 MHz (WSJT-X list); **FT4 has no default and does not transmit until one is entered**. Always pick a channel allowed by the IARU plan of your region and your national rules: the WebUI warns when the segment is for beacons, repeaters or digital voice. The screen is not redrawn while transmitting; the button aborts. **FST4W** sends the 50-bit WSPR message (callsign, 4-character locator and power; power is rounded to 0, 3, 7, 10, 13, 17 or 20 dBm) in 120 s periods (109 s transmission) or 300 s (287 s, experimental), starting 1 s after the period begins. It has no default frequency either. Settings: WebUI → "FT8 / FT4 / FST4W Beacon" card. Tested on the board.
 
 **LR-FHSS beacon.** Enabled with the switch on its WebUI card (off by default); it then appears in SELECT MODE. See `LRFHSS_BALIZA.md`. Experimental; the licensee is responsible for the authorisation that national rules require.
 
