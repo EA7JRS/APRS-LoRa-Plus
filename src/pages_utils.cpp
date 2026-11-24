@@ -6103,6 +6103,8 @@ namespace PAGES_Utils {
             pinMode(BUTTON_PIN, BUTTON_INPUT_MODE);
             const uint32_t TIMEOUT_MS = 8000, HOLD_MS = 700;
             uint32_t waitStart = millis();
+            const bool lowAtStart = digitalRead(BUTTON_PIN) == LOW;                       // para el registro: boton pulsado o atascado al entrar
+            uint16_t clicks = 0;
             while (digitalRead(BUTTON_PIN) == LOW && millis() - waitStart < 3000) delay(10);   // sigue pulsado desde el arranque: se espera a que lo suelte
             uint32_t lastActivity = millis(), downAt = 0, lastShown = 0;
             bool wasDown = false, chosen = false;
@@ -6114,7 +6116,7 @@ namespace PAGES_Utils {
                 if (down && wasDown && now - downAt >= HOLD_MS) { chosen = true; break; }
                 if (!down && wasDown) {
                     wasDown = false;
-                    if (now - downAt >= 30) { sel = (sel + 1) % n; lastActivity = now; shownSeconds = -1; }
+                    if (now - downAt >= 30) { sel = (sel + 1) % n; lastActivity = now; shownSeconds = -1; clicks++; }
                 }
                 if (now - lastActivity >= TIMEOUT_MS) break;
                 int seconds = (int)((TIMEOUT_MS - (now - lastActivity)) / 1000) + 1;
@@ -6160,6 +6162,10 @@ namespace PAGES_Utils {
             if (chosen) while (digitalRead(BUTTON_PIN) == LOW) delay(10);                  // espera a soltar para no generar otra pulsacion
             // MORSE solo se activa si se acepta a mano (pulsacion larga) y no se guarda; sin pulsar nada se arranca el ultimo modo APRS
             uint8_t mode = chosen ? options[sel].mode : (uint8_t)Config.savedMode;
+            // Que vio el menu (EA7JRS): si el modo no cambia, aqui se ve si el boton llego a leerse
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "Main", "Mode menu: saved %d, button GPIO %d %s, %u clicks, %s",
+                       (int)Config.savedMode, (int)BUTTON_PIN, lowAtStart ? "LOW at start" : "idle", (unsigned)clicks,
+                       chosen ? "chosen with a long press" : "no long press in 8 s: saved mode kept");
             Config.operatingMode = mode;
             if (mode != MODE_MORSE && mode != MODE_WSPR && mode != MODE_LRFHSS && mode != MODE_DAPNET && mode != MODE_SAT && mode != MODE_AIS && mode != MODE_FT8 && mode != MODE_FT4 && mode != MODE_FST4W && mode != Config.savedMode) {
                 Config.savedMode = mode;

@@ -17,6 +17,7 @@
 #include "cat_net.h"
 #include "configuration.h"
 #include "display.h"
+#include "lora_utils.h"
 
 #if FW_UPDATE_SUPPORTED
     #include <esp_ota_ops.h>
@@ -314,6 +315,21 @@ namespace FW_Update {
             if (c == '\n' || c == '\r') {
                 line[n] = 0;
                 if (n > 0 && strcmp(line, "APRS-INFO?") == 0) printBanner();
+                // "MODE LORA" / "MODE FSK" por USB (EA7JRS): deja ese modo APRS como el de arranque y reinicia. Para cuando el
+                // boton no llega a elegirlo en el menu; no cambia nada mas de la configuracion
+                else if (n > 0 && (strcasecmp(line, "MODE LORA") == 0 || strcasecmp(line, "MODE FSK") == 0)) {
+                    const int mode = strcasecmp(line, "MODE FSK") == 0 ? MODE_APRS_FSK : MODE_APRS_LORA;
+                    if (mode == MODE_APRS_FSK && !LoRa_Utils::fskAvailable()) {
+                        Serial.println("MODE: FSK is not available on this radio");
+                    } else {
+                        Config.savedMode = mode;
+                        const bool ok = Config.writeFile();
+                        Serial.printf("MODE: boot mode set to %s (%s), restarting\n", mode == MODE_APRS_FSK ? "APRS FSK" : "APRS LoRa", ok ? "saved" : "NOT saved");
+                        Serial.flush();
+                        delay(200);
+                        ESP.restart();
+                    }
+                }
                 n = 0;
             } else if (n < sizeof(line) - 1) {
                 line[n++] = (char)c;
