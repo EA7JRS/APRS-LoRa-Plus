@@ -5935,9 +5935,22 @@ namespace PAGES_Utils {
         const uint8_t wpm   = (uint8_t)constrain(Config.cw.wpm, (int)CWMorse::WPM_MIN, (int)CWMorse::WPM_MAX);
         char right[12];
         uint16_t ok = 0, total = 0;
+        // Estadistica por caracter de esta sesion (en pila, sin DRAM estatica): elige mas los que se fallan (metodo Koch adaptativo)
+        uint8_t hit[CWMorse::KOCH_COUNT] = {0}, tot[CWMorse::KOCH_COUNT] = {0};
+        auto pickKoch = [&]() -> uint8_t {
+            uint32_t cum[CWMorse::KOCH_COUNT]; uint32_t sum = 0;
+            for (uint8_t i = 0; i < level; i++) {
+                uint32_t w = tot[i] == 0 ? 3u : 1u + (uint32_t)(tot[i] - hit[i]) * 4u / tot[i];   // 1 (siempre acierta) .. 5 (siempre falla); sin datos = 3
+                sum += w; cum[i] = sum;
+            }
+            uint32_t r = (uint32_t)random((long)sum);
+            for (uint8_t i = 0; i < level; i++) if (r < cum[i]) return i;
+            return level - 1;
+        };
         bool armed = !cwButtonDown(), quit = false;
         while (!quit) {
-            char target = cwRandomKoch(level);
+            uint8_t targetIdx = pickKoch();
+            char target = CWMorse::KOCH_ORDER[targetIdx];
             char one[2] = { target, 0 };
             snprintf(right, sizeof(right), "%u/%u", (unsigned)ok, (unsigned)total);
             cwTrainerScreen(right, one, 3, CWMorse::pattern(target), "Key it (button: exit)");
@@ -5972,6 +5985,7 @@ namespace PAGES_Utils {
             total++;
             bool right_ = (got == target);
             if (right_) ok++;
+            if (tot[targetIdx] < 255) { tot[targetIdx]++; if (right_) hit[targetIdx]++; }   // alimenta la seleccion adaptativa
             char result[22];
             if (right_) snprintf(result, sizeof(result), "OK!");
             else snprintf(result, sizeof(result), "You keyed %c", got);
@@ -5984,8 +5998,20 @@ namespace PAGES_Utils {
             }
         }
         displayTime = millis();
-        char message[24];
-        snprintf(message, sizeof(message), "Score %u/%u", (unsigned)ok, (unsigned)total);
+        char message[36];
+        char weak = 0; uint32_t worst = 100;                 // caracter con peor acierto (de los practicados)
+        for (uint8_t i = 0; i < level; i++) {
+            if (tot[i] == 0) continue;
+            uint32_t rate = (uint32_t)hit[i] * 100u / tot[i];
+            if (rate < worst) { worst = rate; weak = CWMorse::KOCH_ORDER[i]; }
+        }
+        const uint32_t acc = total ? (uint32_t)ok * 100u / total : 0;
+        if (total >= 10 && acc >= 90 && level < CWMorse::KOCH_COUNT)                      // leccion superada: sugiere subir un caracter
+            snprintf(message, sizeof(message), "Score %u/%u  ready L%u", (unsigned)ok, (unsigned)total, (unsigned)(level + 1));
+        else if (weak && worst < 100)
+            snprintf(message, sizeof(message), "Score %u/%u  weak %c", (unsigned)ok, (unsigned)total, weak);
+        else
+            snprintf(message, sizeof(message), "Score %u/%u", (unsigned)ok, (unsigned)total);
         showToast(message);
     }
 
