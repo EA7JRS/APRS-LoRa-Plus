@@ -86,7 +86,8 @@ No todos los modos están disponibles en todos los chips:
 | APRS AFSK 1200 | ✘ | ✘ | ✘ | ✔ |
 | APRS FSK 9600 | ✔ | ✔ | ✘ | ✔ |
 | CW / DAPNET | ✔ | ✘ | ✘ | ✔ |
-| WSPR / FT8 / FT4 / FST4W / LR-FHSS | ✔ | ✘ | ✘ | ✘ |
+| WSPR / FT8 / FT4 / FST4W | ✔ | ✘ | ✘ | ✘ |
+| LR-FHSS (baliza, apagada de serie) | ✔ | ✘ | ✘ | ✘ |
 | M17 / FM de voz / receptor AIS | ✘ | ✘ | ✘ | ✔ |
 
 El SA868 es un transceptor FM de VHF o UHF (según el módulo); el receptor AIS solo con el de VHF.
