@@ -93,7 +93,8 @@ Ficheros de datos en flash: `/pagesCfg.dat` (9 enteros, compatible hacia atrás)
 | Adafruit SSD1306 / SH110X | 2.5.17 / 2.1.15 | 2.5.17 / 2.1.15 | Sin cambio. |
 | TFT_eSPI | 2.5.43 | 2.5.43 | Sin cambio (placas con TFT). |
 | ArduinoJson | 7.4.3 | 7.4.3 | Sin cambio. |
-| AsyncTCP / ESPAsyncWebServer | 3.5.0 / 3.12.1 | 3.5.0 / 3.12.1 | Sin cambio. |
+| AsyncTCP | 3.5.0 | **3.6.1** | Mantenimiento de ESP32Async. |
+| ESPAsyncWebServer | 3.12.1 | 3.12.1 | Sin cambio. |
 | TinyGPSPlus | 1.1.0 | 1.1.0 | Sin cambio. |
 | Time | 1.6.1 | 1.6.1 | Sin cambio. |
 | esp-logger | 1.0.0 | 1.0.0 | Sin cambio. |
@@ -119,6 +120,6 @@ Versiones más nuevas publicadas que las que fija el proyecto. No se adoptan aut
 | Librería | En el proyecto | Disponible | Impacto | Nota |
 |---|---|---|---|---|
 | [RadioLib](https://github.com/jgromes/RadioLib/releases) | 7.8.1 | **8.0.0** | Alto (rompe API) | La 8.0.0 cambia la API de LoRaWAN, las estructuras de configuración (`config structs`), las configuraciones por enteros, `setIrqAction`, y añade SSDV y códec RS. Como el proyecto solo usa LoRa básico y FSK (no LoRaWAN), la adaptación sería menor, pero hay que revisar las firmas de inicialización. **Sin migrar** hasta probarlo en placa. |
-| [AsyncTCP](https://components.espressif.com/components/esp32async/asynctcp/) | 3.5.0 | **3.6.1** | Bajo | Mantenimiento de `ESP32Async`, compatible con `ESPAsyncWebServer 3.12.1`. Candidata a subir en la próxima versión. |
+| [AsyncTCP](https://components.espressif.com/components/esp32async/asynctcp/) | **3.6.1** | 3.6.1 | — | Subida el 2026-11-24 (era 3.5.0); mantenimiento de `ESP32Async`, compatible con `ESPAsyncWebServer 3.12.1`. |
 
 El resto de librerías de la tabla del apartado 7 están en su última versión publicada a esta fecha.
