@@ -520,6 +520,18 @@ public:
     int     locatorLen;                         // reservado para formatos que usen locator
 };
 
+// Transmision POCSAG (buscapersonas / DAPNET por RF) con el PagerClient de RadioLib. El tracker ya recibe POCSAG en modo DAPNET. (EA7JRS)
+class POCSAGConfig {
+public:
+    int     freqHz;                             // frecuencia (Hz)
+    int     bps;                                // velocidad: 512, 1200 o 2400
+    int     shiftHz;                            // desviacion FSK (Hz); POCSAG estandar 4500
+    bool    invert;                             // invertir el sentido de la FSK
+    int     powerDbm;                           // potencia de salida (dBm)
+    int     address;                            // RIC de destino por defecto (0..2097151)
+    bool    numeric;                            // true: mensaje numerico (BCD); false: alfanumerico (ASCII)
+};
+
 #define CW_MESSAGE_COUNT    5
 class CWConfig {
 public:
@@ -583,6 +595,7 @@ public:
     LRFHSSConfig            lrfhss;
     SSDVConfig              ssdv;
     RTTYConfig              rtty;
+    POCSAGConfig            pocsag;
     DAPNETConfig            dapnet;
     Sa868Config             sa868;
     FmConfig                fm;
@@ -616,6 +629,7 @@ public:
     void setLrfhssDefaults();
     void setSsdvDefaults();
     void setRttyDefaults();
+    void setPocsagDefaults();
     void setFtDefaults();
     void setDapnetDefaults();
     void setSa868Defaults();

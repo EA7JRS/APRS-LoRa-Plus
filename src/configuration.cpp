@@ -552,6 +552,15 @@ namespace {
         FS(RTTYConfig, text,        0, ""),
         FC(RTTYConfig, locatorLen,  FF_KEEP, 0, 4, 8),
     };
+    const Field kPocsagFields[] = {                                                // los valores que faltan parten de setPocsagDefaults()
+        FC(POCSAGConfig, freqHz,    FF_REQUIRED | FF_KEEP, 0, 400000000, 480000000),
+        FC(POCSAGConfig, bps,       FF_KEEP, 0, 512, 2400),
+        FC(POCSAGConfig, shiftHz,   FF_KEEP, 0, 1000, 9000),
+        FB(POCSAGConfig, invert,    FF_KEEP, 0),
+        FC(POCSAGConfig, powerDbm,  FF_KEEP, 0, -9, 22),
+        FC(POCSAGConfig, address,   FF_KEEP, 0, 0, 2097151),
+        FB(POCSAGConfig, numeric,   FF_KEEP, 0),
+    };
     const Field kLoraFields[] = {
         FB(LoraType, frequency,       0, 433775000),
         FB(LoraType, spreadingFactor, 0, 12),
@@ -688,6 +697,7 @@ bool Configuration::writeFile() {
         writeFields(data["lrfhss"].to<JsonObject>(),       &lrfhss,       kLrfhssFields,       NFIELDS(kLrfhssFields));
         writeFields(data["ssdv"].to<JsonObject>(),         &ssdv,         kSsdvFields,         NFIELDS(kSsdvFields));
         writeFields(data["rtty"].to<JsonObject>(),         &rtty,         kRttyFields,         NFIELDS(kRttyFields));
+        writeFields(data["pocsag"].to<JsonObject>(),       &pocsag,       kPocsagFields,       NFIELDS(kPocsagFields));
 
         for (int i = 0; i < loraTypes.size(); i++) {
             writeFields(data["lora"][i].to<JsonObject>(), &loraTypes[i], kLoraFields, NFIELDS(kLoraFields));
@@ -949,6 +959,10 @@ bool Configuration::readFile() {
 
         setRttyDefaults();
         READ("rtty", rtty, kRttyFields);
+
+        setPocsagDefaults();
+        READ("pocsag", pocsag, kPocsagFields);
+        if (pocsag.bps != 512 && pocsag.bps != 1200 && pocsag.bps != 2400) pocsag.bps = 1200;
 
         JsonArray LoraTypesArray = data["lora"];
         for (int j = 0; j < LoraTypesArray.size(); j++) {
@@ -1374,6 +1388,16 @@ void Configuration::setRttyDefaults() {
     rtty.locatorLen  = 6;
 }
 
+void Configuration::setPocsagDefaults() {
+    pocsag.freqHz   = 439987500;                // DAPNET Espana tipico (ajustar segun la red local)
+    pocsag.bps      = 1200;
+    pocsag.shiftHz  = 4500;
+    pocsag.invert   = false;
+    pocsag.powerDbm = 10;
+    pocsag.address  = 0;
+    pocsag.numeric  = false;                    // alfanumerico (ASCII)
+}
+
 void Configuration::setGpsDefaults() {
     // Valores de fabrica del M10 en la Supreme (los GPS_USE_* de board_pinout.h, si existen, prevalecen)
     #ifndef GPS_USE_GPS
@@ -1532,6 +1556,7 @@ void Configuration::setDefaultValues() {
     setLrfhssDefaults();
     setSsdvDefaults();
     setRttyDefaults();
+    setPocsagDefaults();
     setFtDefaults();
     setDapnetDefaults();
     setSa868Defaults();

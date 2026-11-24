@@ -1410,6 +1410,26 @@ namespace LoRa_Utils {
         operationDone = true;
     }
 
+    // Emite un mensaje POCSAG con el PagerClient de RadioLib (bloquea mientras emite) y restaura el modem del perfil
+    int pocsagSend(long freqHz, int bps, long address, bool numeric, bool invert, int shiftHz, int powerDbm, const char* message) {
+        radio.standby();
+        setPower(powerDbm);
+        operationDone = false; transmitFlag = false;
+        PagerClient pager(&radio);
+        const float mhz = (float)((double)(freqHz + ppmCorrectionHz(freqHz)) / 1e6);
+        int state = pager.begin((uint32_t)lroundf(mhz * 1e6f), (uint16_t)bps, invert, (uint16_t)shiftHz);
+        if (state == RADIOLIB_ERR_NONE) {
+            BLE_Control::rfEvent('t');
+            state = pager.transmit(message, (uint32_t)address, numeric ? RADIOLIB_PAGER_BCD : RADIOLIB_PAGER_ASCII);
+            BLE_Control::rfEvent('i');
+            if (state != RADIOLIB_ERR_NONE) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "POCSAG", "Tx error %d", state);
+        } else {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "POCSAG", "begin error %d", state);
+        }
+        rttyFinish();                                       // restaura el modem del perfil (reutiliza la misma restauracion)
+        return state;
+    }
+
     void wakeRadio() {
         armReceive();
     }

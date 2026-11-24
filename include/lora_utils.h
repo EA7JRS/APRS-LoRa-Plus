@@ -83,6 +83,8 @@ namespace LoRa_Utils {
     bool rttyAvailable();                         // true si el chip puede emitir RTTY (cualquier SX12xx)
     void rttyPrepare(int powerDbm);               // standby + potencia, antes de RTTYClient::begin
     void rttyFinish();                            // restaura el modem del perfil activo tras la baliza
+    // ---- Transmision POCSAG (PagerClient de RadioLib): envia un mensaje a un RIC y restaura el modem del perfil ----
+    int  pocsagSend(long freqHz, int bps, long address, bool numeric, bool invert, int shiftHz, int powerDbm, const char* message);  // codigo de RadioLib (0 = ok)
     bool cwRxBegin();                   // modem FSK de banda estrecha (4,8 kHz) en la frecuencia del perfil para escuchar CW; false si no se puede
     float cwRxLevel();                  // RSSI instantaneo en dBm (solo tras cwRxBegin)
     void cwRxEnd();                     // restaura el modem del perfil y la escucha normal                       // termina la transmision CW y vuelve a escuchar
