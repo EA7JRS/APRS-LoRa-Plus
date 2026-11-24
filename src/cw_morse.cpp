@@ -138,10 +138,13 @@ namespace CWMorse {
     // ---- Decoder ------------------------------------------------------------------------------------------------------------
 
     void Decoder::begin(uint8_t wpm, bool adapt) {
-        unit = dotMs(wpm); down = false; downAt = upAt = 0; spacePending = false; len = 0; pat[0] = 0; adaptive = adapt;
+        unit = dotMs(wpm); dotAvg = unit; dashAvg = 3u * unit;
+        down = false; downAt = upAt = 0; spacePending = false; len = 0; pat[0] = 0; adaptive = adapt;
     }
 
     uint8_t Decoder::wpm() const { return (uint8_t)(1200u / (unit ? unit : 1)); }
+    uint32_t Decoder::dotLen() const { return dotAvg; }
+    uint32_t Decoder::dashLen() const { return dashAvg; }
 
     void Decoder::keyDown(uint32_t now) { if (!down) { down = true; downAt = now; } }
 
@@ -151,14 +154,19 @@ namespace CWMorse {
         uint32_t d = now - downAt;
         if (d < 12) return;                                     // rebote de contacto o pico de ruido (< 12 ms; un punto a 40 WPM dura 30 ms)
         upAt = now;
-        bool dash = d >= 2 * unit;
+        // Umbral de division punto/raya a partir de las dos medias (no fijo en 2 unidades): tolera fists y pesos distintos
+        const uint32_t split = (dotAvg + dashAvg) / 2;
+        bool dash = d >= split;
         if (len < sizeof(pat) - 1) { pat[len++] = dash ? '-' : '.'; pat[len] = 0; }
-        if (adaptive && d <= unit * 6) {                        // una pulsacion larguisima (portadora, manipulador atascado) no desajusta la velocidad
-            uint32_t est = dash ? d / 3 : d;
-            unit = (unit * 7 + est * 3) / 10;
-            uint32_t lo = 1200u / WPM_MAX, hi = 1200u / WPM_MIN;
-            if (unit < lo) unit = lo;
-            if (unit > hi) unit = hi;
+        if (adaptive && d <= dashAvg * 2) {                     // una pulsacion larguisima (portadora, manipulador atascado) no desajusta nada
+            if (dash) dashAvg = (dashAvg * 7 + d * 3) / 10;     // media exponencial de cada tipo de elemento
+            else      dotAvg  = (dotAvg  * 7 + d * 3) / 10;
+            const uint32_t lo = 1200u / WPM_MAX, hi = 1200u / WPM_MIN;
+            if (dotAvg < lo) dotAvg = lo;
+            if (dotAvg > hi) dotAvg = hi;
+            if (dashAvg < dotAvg * 2) dashAvg = dotAvg * 2;     // la raya se mantiene en una banda razonable alrededor del punto
+            if (dashAvg > dotAvg * 5) dashAvg = dotAvg * 5;
+            unit = dotAvg;                                      // la velocidad (WPM) se deriva del punto
         }
     }
 

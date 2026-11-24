@@ -93,5 +93,10 @@ jobs:
                   g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/nmea/test_vdo.cpp src/nmea_core.cpp src/nmea0183.cpp src/nmea2000.cpp src/ais_vessel.cpp src/ais_core.cpp -o /tmp/test_vdo
                   /tmp/test_vdo
 
+            - name: CW / Morse (codificador y decodificador adaptativo)
+              run: |
+                  g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tools/test_cw.cpp src/cw_morse.cpp -o /tmp/test_cw
+                  /tmp/test_cw
+
             - name: Comprobacion de la configuracion de la WebUI (Config check)
               run: node tools/test_cfg_check.js

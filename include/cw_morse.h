@@ -84,8 +84,11 @@ namespace CWMorse {
         char tick(uint32_t now);
         const char* pending() const { return pat; }         // elements of the letter in progress
         uint8_t wpm() const;                                // current speed estimate
+        uint32_t dotLen() const;                            // duracion estimada del punto (ms)
+        uint32_t dashLen() const;                           // duracion estimada de la raya (ms)
     private:
         uint32_t unit, downAt, upAt;
+        uint32_t dotAvg, dashAvg;                           // medias adaptativas de punto y raya (ms): umbral de division y peso del fist
         bool     down, spacePending;
         char     pat[10];
         uint8_t  len;
