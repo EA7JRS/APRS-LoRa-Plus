@@ -717,7 +717,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **Over USB:** the same protocol on the board's USB serial port (115200 baud). Enable *CAT over the USB serial port* in Connectivity > CAT (off by default; applies after a restart). While it is on, the log on that port only shows errors. Hamlib has no serial model for this protocol: use the backend in `tools/hamlib_backend` (model "APRS LoRa+ tracker (USB)", DTR and RTS off so the board does not reset) or talk to the port directly. Not available while the tracker is in deep sleep.
 - A frequency change requested over CAT lives in RAM only: it is not saved and is dropped when the profile changes. The AIS profile has a fixed frequency.
 - The mode does not change live (it is chosen at start-up).
-- Full protocol for anyone writing their own client or a Hamlib *backend*: `docs/CAT_HAMLIB.md`. Tested on a PC with `rigctl` 4.6.5; untested on the board.
+- Full protocol for anyone writing their own client or a Hamlib *backend*: `docs/CAT_HAMLIB.md`. Tested on a PC with `rigctl` 4.6.5 and on the board.
 
 ## 34. BLE control, RF CW and automatic IARU region (5.3.4)
 
@@ -725,7 +725,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **RF CW listening:** the first line shows S-meter (S9 = −93 dBm), dBm and SNR; adjustable **squelch** (OFF, −120 to −70 dBm). While listening, short press = next squelch and long press (0.7 s) = exit. The buzzer sounds with macros, FH-2, key, trainer and remote key.
 - **Automatic IARU region:** works out region 1/2/3 from the GPS and sets region, channel and frequency of the LoRa, FSK, FT8 / FT4 / FST4W and CW profiles. Off by default (WebUI → Transmission mode → *IARU region (auto)*); at boot, on request or while running, with *Apply / Keep current* confirmation or directly.
 - **BLE KISS:** the tracker advertises its name again and queues up to 4 frames from the phone.
-- Not tested on the board.
+- Tested on the board.
 
 ## 35. SAT mode, rotor, Android app and less flash (5.3.5)
 
@@ -737,7 +737,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **Splash screen** with the new logo (pin with L+ and three waves).
 - **Less flash:** the configuration is read and written with a field table and the WebUI is lighter (trimmed Bootstrap, shorter help texts). The T-Beam Supreme goes from 91.1 % to 85.2 % of its application partition.
 - **Web installer** with Tracker, Rotor and Gateway launchers (`#rotor`, `#gateway`), all with the same version.
-- Not tested on the board.
+- Tested on the board.
 
 ## 36. T-TWR Plus, satellite groups, AIS and internet weather (5.4.0)
 
@@ -750,7 +750,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **IL2P at 9600** without the G3RUH scrambler, compatible with Dire Wolf and the NinoTNC.
 - **GNSS sky** for the app (satellites, elevation, azimuth, SNR, DOP and error: BLE event `sky`).
 - **WebUI and web installer** with the Android app icon in the header.
-- Not tested on the board.
+- Tested on the board.
 
 ## 37. Names, WebUI and alerts for the app (5.4.1)
 
@@ -760,7 +760,7 @@ The board can speak Hamlib's **NET rigctl** protocol (the one `rigctld` uses), s
 - **T-TWR Plus:** PMU start-up as LilyGO's (USB up to 2 A, VBUS limit 3.88 V, power-off at 2.6 V); the mode chosen at start-up stays on its page; *FM voice* is the default mode.
 - **Reason of the last restart:** after a crash (CRASH), the watchdog (WDT) or low voltage (LOW VOLTAGE) it is shown for 2.5 s at start-up and reaches the app.
 - **Android app:** the band A dial shows the frequency and modulation of the mode in use; TX / RX / MSG / EMG lights; emergency windows (APRS beacon or message, AIS distress and collision, own EAI and man down) with *SILENCE ALARM* (also silences the tracker), *STOP EAI* and *I'M OK*. In Android Auto the alerts are read aloud and senders carry their APRS symbol. Map with the AEMET national radar. Protocol in `BLE_CONTROL.md` (events `status` `f`/`mod`, `rf`, `led`, `eai`; commands `alarm`, `eai`).
-- Not tested on a board.
+- Tested on the board.
 
 ## 38. APRS LoRa+ MAPRS transponder (unreleased)
 
@@ -773,7 +773,7 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 - **On the plotter or the app (NMEA):** own vessel as **`!AIVDO`** (position every 10 s with a fix, static data every 6 min and on change) and the APRS stations heard as AIS targets (`!AIVDM`). Stations **without an AIS profile** (just a callsign and a position) go out as a **virtual aid to navigation (AtoN, message 21)** with the callsign as the name: the plotter draws them as aid marks and raises no collision alarm with them, like the NMEA 2000 gateway does. Those that carry an `AIS:` tag still go out as class B. All of them can be put back to class B (in the code, `NMEA_OUT_AIS_ATON 0`). Over **BLE** (control service with the PIN; the APRS LoRa+ plotter and the app) or over **Bluetooth Classic** with *Bluetooth > Protocol > NMEA (BT Classic)* (OpenCPN and SPP plotters). The ESP32 cannot run BLE and Bluetooth Classic at once: choose one in *Bluetooth Type*. No NMEA over USB (it is the console).
 - **Vessel data from the plotter:** the APRS LoRa+ plotter (Ajustes > Embarcación, "Settings > Vessel") sends the `vessel` command when it links and when you save; the transponder stores them in its nautical profile. If the plotter has no data, it takes the transponder's. The next beacon carries the new tag.
 - **Its own WebUI** (2026-11-15): header "APRS LoRa+ / MAPRS" and only what the transponder uses: **My vessel** (callsign, name, MMSI, maritime call sign with MarineTraffic and the ITU MARS, class B type, length, beam, draft, comment), **GPS**, **MAPRS radio** (APRS LoRa with the nautical AIS profile, 433.775 MHz SF9 CR 4/5, CAD on and the class B rate, all fixed; only the power can be changed), **Connectivity** (Bluetooth, KISS over WiFi, CAT, NMEA output, access point), **Display** (OLED) and **Administration**. No Station, Beaconing, Telemetry, Battery / Notifications / PTT. The firmware skips the mode menu at start-up (always APRS LoRa) and keeps CAD on even if it is turned off in the configuration.
-- Not tested on the board.
+- Tested on the board.
 
 ## 39. New in 5.4.6
 
@@ -803,7 +803,7 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 - **SPACE WX in colour with the NOAA code:** G / R / S and the X-ray class in a yellow (1), light orange (2), orange (3), red (4) or dark red (5) box with black letters; level 0 without colour; Kp bars green below Kp 5 and then in the G1 to G5 colour.
 - **Official APRS identifier:** the tracker's frames go out with the destination **`APLJRT`**, assigned by the aprs-deviceid registry on 2026-11-16 (before, the experimental `APZLRT`); the app uses `APLJRA`. There is room for an own Mic-E suffix once the registry assigns it.
 - **The app's iGate:** the BLE `rf` event of each received frame carries the modem (LoRa APRS, AX.25 or M17), the speed, the frequency and a fingerprint of the frame; the app sends them to APRS-IS as receive metadata (aprsc `#is2-meta`).
-- Not yet tested on the boards: everything in this section has been built for every board and the screens have been drawn on the PC.
+- Tested on the board (T-Beam Supreme).
 
 ## Appendix A — Button map per page
 
@@ -855,7 +855,7 @@ AIS **class B** transponder over APRS LoRa on the **LilyGO T3 v1.6.1** (LoRa32 V
 - **SmartBeacon "APRS standard"** (setting 6 of each beacon, WebUI): 30 min below 5 km/h, 90 s from 100 km/h, a turn of 30° + 240 / speed, at least 15 s between beacons. Much less channel use than the runner, bike and car settings.
 - **Remote in the app:** ◀ ▶ and *Back* act as the device button (the views of each page included) and the GNSS, time zone, power, QNH and declination options are listed one by one.
 - **HF and SPACE WX with the GFZ Hp30** (half-hourly) when the app sends it; otherwise Kp.
-- Not yet tested on the boards.
+- Tested on the board.
 
 ## 42. New in 5.4.9
 

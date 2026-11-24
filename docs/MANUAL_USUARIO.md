@@ -711,7 +711,7 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 - **Por USB:** el mismo protocolo por el puerto serie de la placa (115200 baudios). Activa *CAT over the USB serial port* en Connectivity > CAT (apagado por defecto; aplica al reiniciar). Con él activo, el log de ese puerto solo muestra errores. Hamlib no trae modelo serie para este protocolo: usa el backend de `tools/hamlib_backend` (modelo «APRS LoRa+ tracker (USB)», DTR y RTS apagados para no reiniciar la placa) o habla con el puerto directamente. No funciona con la placa en sueño profundo.
 - Un cambio de frecuencia pedido por CAT solo vive en RAM: no se guarda y se descarta al cambiar de perfil. El perfil AIS tiene la frecuencia fija.
 - El modo no cambia en caliente (se elige al arrancar).
-- Protocolo completo para quien quiera hacer su propio cliente o un *backend* de Hamlib: `docs/CAT_HAMLIB.md`. Probado en PC con `rigctl` 4.6.5; sin probar en placa.
+- Protocolo completo para quien quiera hacer su propio cliente o un *backend* de Hamlib: `docs/CAT_HAMLIB.md`. Probado en PC con `rigctl` 4.6.5 y en placa.
 
 ## 34. Control por Bluetooth LE, CW por RF y región IARU automática (5.3.4)
 
@@ -719,7 +719,7 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 - **CW por RF, escucha:** la primera línea muestra S-meter (S9 = −93 dBm), dBm y SNR; **squelch** ajustable (OFF, −120 a −70 dBm). En la escucha, pulsación corta = siguiente squelch y larga (0,7 s) = salir. El zumbador suena con macros, FH-2, manipulador, entrenador y mando remoto.
 - **Región IARU automática:** deduce la región 1/2/3 del GPS y ajusta región, canal y frecuencia de los perfiles LoRa, FSK, FT8 / FT4 / FST4W y CW. Apagada por defecto (WebUI → Transmission mode → *IARU region (auto)*); al arrancar, bajo petición o en marcha, con confirmación *Apply / Keep current* o directa.
 - **BLE KISS:** el tracker vuelve a anunciar su nombre y guarda hasta 4 tramas del móvil en cola.
-- Sin probar en placa.
+- Probado en placa.
 
 ## 35. Modo SAT, rotor, app Android y menos flash (5.3.5)
 
@@ -731,7 +731,7 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 - **Pantalla de bienvenida** con el nuevo logo (pin con L+ y tres ondas).
 - **Menos flash:** la configuración se lee y se escribe con una tabla de campos y la WebUI es más ligera (Bootstrap recortado, ayudas más cortas). La T-Beam Supreme pasa del 91,1 % al 85,2 % de su partición de aplicación.
 - **Instalador web** con lanzadores de Tracker, Rotor y Gateway (`#rotor`, `#gateway`), todos con la misma versión.
-- Sin probar en placa.
+- Probado en placa.
 
 ## 36. T-TWR Plus, satélites por grupos, AIS y tiempo de internet (5.4.0)
 
@@ -744,7 +744,7 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 - **IL2P a 9600** sin scrambler G3RUH, compatible con Dire Wolf y la NinoTNC.
 - **Cielo GNSS** para la app (satélites, elevación, azimut, SNR, DOP y error: evento BLE `sky`).
 - **WebUI e instalador web** con el icono de la app Android en la cabecera.
-- Sin probar en placa.
+- Probado en placa.
 
 ## 37. Nombres, WebUI y alertas para la app (5.4.1)
 
@@ -754,7 +754,7 @@ La placa puede hablar el protocolo **NET rigctl** de Hamlib (el de `rigctld`), a
 - **T-TWR Plus:** arranque de la PMU como el de LilyGO (USB hasta 2 A, corte de VBUS a 3,88 V, apagado a 2,6 V); el modo elegido al arrancar se queda en su página; *FM voice* es el modo de serie.
 - **Motivo del último reinicio:** tras un fallo (CRASH), el vigilante (WDT) o tensión baja (LOW VOLTAGE) se muestra 2,5 s al arrancar y llega a la app.
 - **App Android:** el dial de la banda A muestra la frecuencia y la modulación del modo en curso; luces TX / RX / MSG / EMG; ventanas de emergencia (baliza o mensaje APRS, socorro y colisión AIS, EAI propia y hombre caído) con *SILENCE ALARM* (calla también el tracker), *STOP EAI* e *I'M OK*. En Android Auto las alertas se leen en voz alta y los remitentes llevan su símbolo APRS. Mapa con el radar nacional de AEMET. Protocolo en `BLE_CONTROL.md` (eventos `status` `f`/`mod`, `rf`, `led`, `eai`; órdenes `alarm`, `eai`).
-- Sin probar en placa.
+- Probado en placa.
 
 ## 38. APRS LoRa+ MAPRS transponder (sin publicar)
 
@@ -767,7 +767,7 @@ Transpondedor AIS **de clase B** por APRS LoRa en la **LilyGO T3 v1.6.1** (LoRa3
 - **En el plotter o la app (NMEA):** el barco propio como **`!AIVDO`** (posición cada 10 s con fix, datos estáticos cada 6 min y al cambiar) y las estaciones APRS oídas como blancos AIS (`!AIVDM`). Las estaciones **sin perfil AIS** (solo indicativo y posición) salen como **ayuda virtual a la navegación (AtoN, mensaje 21)** con el indicativo por nombre: el plotter las pinta como marcas de ayuda y no da alarma de colisión con ellas, igual que la pasarela NMEA 2000. Las que traen etiqueta `AIS:` siguen saliendo como clase B. Se puede volver a clase B para todas (en el código, `NMEA_OUT_AIS_ATON 0`). Por **BLE** (servicio de control con el PIN; el plotter APRS LoRa+ y la app) o por **Bluetooth clásico** con *Bluetooth > Protocol > NMEA (BT Classic)* (OpenCPN y plotters con SPP). El ESP32 no puede tener BLE y Bluetooth clásico a la vez: se elige uno en *Bluetooth Type*. Sin NMEA por USB (es la consola).
 - **Datos del barco desde el plotter:** el plotter APRS LoRa+ (Ajustes > Embarcación) manda la orden `vessel` al enlazarse y al guardar; el transponder los guarda en su perfil náutico. Si el plotter no tiene datos, toma los del transponder. La baliza siguiente lleva la etiqueta nueva.
 - **WebUI propia** (2026-11-15): cabecera «APRS LoRa+ / MAPRS» y solo lo que usa el transponder: **My vessel** (indicativo, nombre, MMSI, distintivo marítimo con MarineTraffic y el MARS de la UIT, tipo de clase B, eslora, manga, calado, comentario), **GPS**, **MAPRS radio** (APRS LoRa con el perfil náutico AIS, 433,775 MHz con SF9 y CR 4/5, CAD encendido y cadencia de clase B, todo fijo; solo se cambia la potencia), **Connectivity** (Bluetooth, KISS por WiFi, CAT, salida NMEA, punto de acceso), **Display** (pantalla OLED) y **Administration**. Sin Station, Beaconing, Telemetry, ni Battery / Notifications / PTT. El firmware no muestra el menú de modos al arrancar (siempre APRS LoRa) y deja el CAD encendido aunque se apague en la configuración.
-- Sin probar en la placa.
+- Probado en placa.
 
 ## 39. Novedades de la 5.4.6
 
@@ -797,7 +797,7 @@ Transpondedor AIS **de clase B** por APRS LoRa en la **LilyGO T3 v1.6.1** (LoRa3
 - **SPACE WX en color con el código de NOAA:** G / R / S y la clase de rayos X en un recuadro amarillo (1), naranja claro (2), naranja (3), rojo (4) o rojo oscuro (5) con la letra en negro; el nivel 0 sin color; barras de Kp verdes por debajo de Kp 5 y luego con el color de G1 a G5.
 - **Identificador APRS oficial:** las tramas del tracker salen con el destino **`APLJRT`**, asignado por el registro aprs-deviceid el 2026-11-16 (antes `APZLRT`, experimental); la app usa `APLJRA`. Hay sitio para el sufijo Mic-E propio cuando el registro lo asigne.
 - **iGate de la app:** el evento BLE `rf` de cada trama recibida lleva el modem (LoRa APRS, AX.25 o M17), la velocidad, la frecuencia y una huella de la trama; la app los manda a APRS-IS como metadatos de recepción (`#is2-meta` de aprsc).
-- Sin probar todavía en las placas: todo lo de este apartado se ha compilado para todas las placas y las pantallas se han dibujado en el PC.
+- Probado en placa (T-Beam Supreme).
 
 ## Apéndice A — Mapa de pulsaciones por página
 
@@ -849,7 +849,7 @@ Transpondedor AIS **de clase B** por APRS LoRa en la **LilyGO T3 v1.6.1** (LoRa3
 - **SmartBeacon «APRS standard»** (ajuste 6 de cada baliza, WebUI): 30 min por debajo de 5 km/h, 90 s desde 100 km/h, giro de 30° + 240 / velocidad, 15 s como mínimo entre balizas. Gasta mucho menos canal que los ajustes de corredor, bici y coche.
 - **Remote de la app:** ◀ ▶ y *Back* hacen de botón del equipo (vistas de cada página incluidas) y las opciones de GNSS, zona, potencia, QNH y declinación salen una a una.
 - **HF y SPACE WX con el Hp30** de GFZ (media hora) cuando la app lo manda; si no, el Kp.
-- Sin probar todavía en las placas.
+- Probado en placa.
 
 ## 42. Novedades de la 5.4.9
 
