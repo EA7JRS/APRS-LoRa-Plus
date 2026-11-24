@@ -31,7 +31,7 @@ El transponder AIS **MAPRS** (LilyGO T3, 433 MHz) es una variante del propio tra
 
 | Área | Qué aporta |
 |---|---|
-| **Modos de funcionamiento** | Selector al arrancar: **APRS LoRa** mejorado, **APRS FSK 9600** (G3RUH, AX.25, FX.25, IL2P), **MORSE / CW**, **WSPR beacon**, **FT8 beacon**, **FT4 beacon**, **FST4W beacon** y *DAPNET pager* (receptor POCSAG, solo recepción). **LR-FHSS** (experimental; la recibe la app Android con un RTL-SDR) se activa desde la WebUI; viene apagado. |
+| **Modos de funcionamiento** | Selector al arrancar: **APRS LoRa** mejorado, **APRS FSK 9600** (G3RUH, AX.25, FX.25, IL2P), **MORSE / CW**, **WSPR beacon**, **FT8 beacon**, **FT4 beacon**, **FST4W beacon** y **DAPNET pager** (receptor POCSAG, solo recepción). **LR-FHSS** (experimental; la recibe la app Android con un RTL-SDR) se activa desde la WebUI; viene apagado. |
 | **Interfaz** | 11 pantallas APRS navegables con un botón (principal, última estación, mensajes, GPS, telemetría, brújula, altímetro, reloj, SOS…), pantalla de bienvenida APRS LoRa+, alarmas y baliza SOS. |
 | **Mensajería** | Lectura de mensajes recibidos y respuesta con mensajes rápidos predefinidos, sin teclado. |
 | **Calibración** | Corrección global del oscilador en ppm (tres decimales) para TX y RX, portadora de prueba CW para medir con un SDR y calibración WSPR por offset y por potencia. |
