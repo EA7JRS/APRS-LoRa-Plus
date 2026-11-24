@@ -508,7 +508,9 @@ public:
     int     keyPower;                           // perfil Telegrafia: potencia (dBm)
     int     keyRegion;                          // perfil Telegrafia: region IARU (1, 2, 3)
     String  beaconText;                         // texto de la baliza; {CALL}, {LOC} (locator 6) y {VBAT} (voltios de bateria)
-    String  messages[CW_MESSAGE_COUNT];         // texto de los mensajes; {CALL} = indicativo sin SSID
+    String  messages[CW_MESSAGE_COUNT];         // texto de los mensajes; macros {CALL} {LOC}/{GRID} {VBAT} {RST} {CNT} (serie de concurso)
+    String  rstSent;                            // control RST que envia la macro {RST} (por defecto 599)
+    int     contestNr;                          // numero de serie de concurso actual para la macro {CNT}; se incrementa al enviar un mensaje que la use
 };
 
 class BLUETOOTH {

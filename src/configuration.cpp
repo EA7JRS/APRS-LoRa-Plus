@@ -299,6 +299,8 @@ namespace {
         FB(CWConfig, keyPower,      0, 0),
         FC(CWConfig, keyRegion,     0, 1, 1, 3),
         FS(CWConfig, beaconText,    FF_KEEP, ""),
+        FS(CWConfig, rstSent,       FF_KEEP, "599"),
+        FC(CWConfig, contestNr,     FF_KEEP, 1, 0, 99999),
     };
     const Field kGpsFields[] = {                                                    // los valores que faltan parten de setGpsDefaults()
         FB(GPSConfig, gnssMask,        FF_REQUIRED | FF_KEEP, 0),                   // combinaciones validas: se comprueba al leer
@@ -1400,6 +1402,8 @@ void Configuration::setCwDefaults() {
     cw.messages[2] = "TEST DE {CALL}";
     cw.messages[3] = "VVV DE {CALL}";
     cw.messages[4] = "QRZ DE {CALL} K";
+    cw.rstSent   = "599";
+    cw.contestNr = 1;
 }
 
 void Configuration::setDefaultValues() {

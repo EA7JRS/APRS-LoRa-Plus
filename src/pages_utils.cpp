@@ -4648,6 +4648,10 @@ namespace PAGES_Utils {
         String loc = "";
         if (gps.location.isValid()) loc = Utils::getMaidenheadLocator(gps.location.lat(), gps.location.lng(), 6);
         message.replace("{LOC}", loc);
+        message.replace("{GRID}", loc);                    // alias de {LOC}
+        message.replace("{RST}", Config.cw.rstSent.length() ? Config.cw.rstSent : String("599"));
+        char cnt[8]; snprintf(cnt, sizeof(cnt), "%03d", Config.cw.contestNr);
+        message.replace("{CNT}", cnt);                     // numero de serie de concurso (3 cifras)
         String vbat = "";
         if (batteryConnected) {
             float v = BATTERY_Utils::getBatteryInfoVoltage().toFloat();
@@ -4684,7 +4688,12 @@ namespace PAGES_Utils {
 
     void sendCw(uint8_t index) {
         if (index >= CW_MESSAGE_COUNT) return;
-        sendCwText(cwExpand(Config.cw.messages[index]));
+        const bool usesCnt = Config.cw.messages[index].indexOf("{CNT}") >= 0;
+        const bool ok = sendCwText(cwExpand(Config.cw.messages[index]));
+        if (ok && usesCnt) {                                // tras un envio con {CNT}, avanza el numero de serie y lo guarda
+            Config.cw.contestNr = (Config.cw.contestNr < 99999) ? Config.cw.contestNr + 1 : 1;
+            Config.writeFile();
+        }
     }
 
     // Texto libre enviado desde la app por BLE (EA7JRS)
