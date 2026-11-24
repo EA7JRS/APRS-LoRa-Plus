@@ -111,3 +111,14 @@ Opciones de compilación que cambian respecto a la base: `-std=gnu++17`; `-Wno-e
 - El ESP32-S3 no tiene Bluetooth clásico y el core 3.x no define `BluetoothSerial` para él: `bluetooth_utils.h/.cpp` quedan protegidos con `HAS_BT_CLASSIC` (como ya estaba en el resto del código) y se quitó el `#include <BluetoothSerial.h>` suelto de `LoRa_APRS_Tracker.cpp`.
 - Arduino core 3.3.x: la libreria `Networking` (cabeceras `Network.h`, `NetworkInterface.h`) la usan WiFi y AsyncTCP, pero el LDF de PlatformIO no les pasa su ruta de inclusion (un simple `-I` fijo tampoco bastó). `tools/fix_network_include.py` (en `extra_scripts` de `platformio.ini`) localiza la carpeta que contiene `Network.h` dentro del framework y la anade a `CPPPATH`; en cores 2.x no hace nada. Tras cambiar de plataforma conviene `pio run -t clean` y borrar `.pio`.
 - `TinyGPS++.cpp` (libreria TinyGPSPlus 1.1.0) tiene un `switch` con caida intencionada que el compilador nuevo (GCC 14) marca como `implicit-fallthrough`; con `-Werror` era error. Se anade `-Wno-error=implicit-fallthrough` (sigue como aviso).
+
+### 7.2 Estado de actualizaciones (noviembre 2026)
+
+Versiones más nuevas publicadas que las que fija el proyecto. No se adoptan automáticamente: las de impacto alto se dejan congeladas hasta revisar y probar los cambios de API en placa.
+
+| Librería | En el proyecto | Disponible | Impacto | Nota |
+|---|---|---|---|---|
+| [RadioLib](https://github.com/jgromes/RadioLib/releases) | 7.8.1 | **8.0.0** | Alto (rompe API) | La 8.0.0 cambia la API de LoRaWAN, las estructuras de configuración (`config structs`), las configuraciones por enteros, `setIrqAction`, y añade SSDV y códec RS. Como el proyecto solo usa LoRa básico y FSK (no LoRaWAN), la adaptación sería menor, pero hay que revisar las firmas de inicialización. **Sin migrar** hasta probarlo en placa. |
+| [AsyncTCP](https://components.espressif.com/components/esp32async/asynctcp/) | 3.5.0 | **3.6.1** | Bajo | Mantenimiento de `ESP32Async`, compatible con `ESPAsyncWebServer 3.12.1`. Candidata a subir en la próxima versión. |
+
+El resto de librerías de la tabla del apartado 7 están en su última versión publicada a esta fecha.
