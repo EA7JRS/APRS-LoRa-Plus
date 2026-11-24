@@ -11,11 +11,16 @@
 
 #ifndef ARDUINO
     #define HAS_SSDV                 // pruebas en el PC
+    #define HAS_RTTY
 #else
     #include <Arduino.h>
     #include "board_pinout.h"
     #if !defined(HAS_SA868) && !defined(NO_SSDV)
         #define HAS_SSDV
+    #endif
+    // Modo RTTY (baliza de radioteletipo): mismas condiciones que SSDV; NO_RTTY lo quita de una placa concreta
+    #if !defined(HAS_SA868) && !defined(NO_RTTY)
+        #define HAS_RTTY
     #endif
 #endif
 

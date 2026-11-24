@@ -1390,6 +1390,26 @@ namespace LoRa_Utils {
         return radio.getRSSI();
     }
 
+    // ---- Modo RTTY: FSK directo (RTTYClient de RadioLib). El RTTYClient fija frecuencia y shift; aqui solo potencia y restauracion ----
+    bool rttyAvailable() {
+        return true;                                        // cualquier SX12xx emite RTTY por desplazamiento de frecuencia
+    }
+
+    void rttyPrepare(int powerDbm) {
+        radio.standby();
+        setPower(powerDbm);
+        operationDone = false;
+        transmitFlag  = false;
+    }
+
+    void rttyFinish() {
+        radio.standby();
+        fskMode = !profileIsFsk();                          // fuerza la reconfiguracion limpia del modem del perfil
+        applyCurrentType();
+        transmitFlag  = true;
+        operationDone = true;
+    }
+
     void wakeRadio() {
         armReceive();
     }

@@ -209,7 +209,7 @@ public:
 #else
     #define APRS_MAIN_MODE_NAME "APRS LoRa"
 #endif
-enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11, MODE_AIS = 12, MODE_SSDV = 13 };
+enum { MODE_APRS_LORA = 0, MODE_APRS_FSK = 1, MODE_MORSE = 2, MODE_WSPR = 3, MODE_LRFHSS = 4, MODE_DAPNET = 5, MODE_FT8 = 6, MODE_FT4 = 7, MODE_FST4W = 8, MODE_SAT = 9, MODE_M17 = 10, MODE_FM = 11, MODE_AIS = 12, MODE_SSDV = 13, MODE_RTTY = 14 };
 #ifdef HAS_SA868
     #define DEFAULT_MODE MODE_FM                // T-TWR: emisora de voz de serie (Manuel, 2026-11-10)
 #else
@@ -504,6 +504,22 @@ public:
     String  url;                                // URL del JPEG a descargar por WiFi (source = 1)
 };
 
+// Modo RTTY (radioteletipo FSK): baliza de telemetria tipo UKHAS ($$CALL,...*CRC) o texto libre, con el RTTYClient de RadioLib. Solo TX. (EA7JRS)
+class RTTYConfig {
+public:
+    bool    enabled;                            // DESACTIVADO por defecto
+    int     freqHz;                             // frecuencia de la marca (Hz)
+    int     shiftHz;                            // separacion marca-espacio (Hz); HAB tipico 425 o 450
+    int     baud;                               // velocidad en baudios (45, 50, 75, 100, 300)
+    int     enc;                                // 0 = ASCII (7 bits), 1 = ASCII extendido (8), 2 = Baudot ITA2 (5)
+    int     stopBits;                           // bits de parada (1 o 2); HAB tipico 2
+    int     powerDbm;                           // potencia de salida (dBm)
+    int     intervalMin;                        // una baliza cada N minutos (0 = solo a peticion)
+    bool    telemetry;                          // true: sentencia UKHAS con GPS; false: texto libre
+    String  text;                               // texto libre (telemetry = false); {CALL} = indicativo
+    int     locatorLen;                         // reservado para formatos que usen locator
+};
+
 #define CW_MESSAGE_COUNT    5
 class CWConfig {
 public:
@@ -566,6 +582,7 @@ public:
     FTConfig                ft;
     LRFHSSConfig            lrfhss;
     SSDVConfig              ssdv;
+    RTTYConfig              rtty;
     DAPNETConfig            dapnet;
     Sa868Config             sa868;
     FmConfig                fm;
@@ -598,6 +615,7 @@ public:
     void setGpsDefaults();
     void setLrfhssDefaults();
     void setSsdvDefaults();
+    void setRttyDefaults();
     void setFtDefaults();
     void setDapnetDefaults();
     void setSa868Defaults();

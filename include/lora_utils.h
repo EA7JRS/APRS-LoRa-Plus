@@ -79,6 +79,10 @@ namespace LoRa_Utils {
     bool ssdvRxReady();                           // true si ha llegado un paquete (bandera de la interrupcion DIO)
     void ssdvArmReceive();                        // rearma la recepcion tras leer o emitir
     float ssdvRssi();                             // RSSI instantaneo (dBm)
+    // ---- Modo RTTY: baliza de radioteletipo (FSK directo) con el RTTYClient de RadioLib (usa ssdvPhy() como capa fisica) ----
+    bool rttyAvailable();                         // true si el chip puede emitir RTTY (cualquier SX12xx)
+    void rttyPrepare(int powerDbm);               // standby + potencia, antes de RTTYClient::begin
+    void rttyFinish();                            // restaura el modem del perfil activo tras la baliza
     bool cwRxBegin();                   // modem FSK de banda estrecha (4,8 kHz) en la frecuencia del perfil para escuchar CW; false si no se puede
     float cwRxLevel();                  // RSSI instantaneo en dBm (solo tras cwRxBegin)
     void cwRxEnd();                     // restaura el modem del perfil y la escucha normal                       // termina la transmision CW y vuelve a escuchar

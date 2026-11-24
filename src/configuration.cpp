@@ -539,6 +539,19 @@ namespace {
         FC(SSDVConfig, camResolution, FF_KEEP, 0, 0, 13),
         FS(SSDVConfig, url,           0, ""),
     };
+    const Field kRttyFields[] = {                                                  // los valores que faltan parten de setRttyDefaults()
+        FB(RTTYConfig, enabled,     FF_KEEP, 0),
+        FC(RTTYConfig, freqHz,      FF_REQUIRED | FF_KEEP, 0, 400000000, 480000000),
+        FC(RTTYConfig, shiftHz,     FF_KEEP, 0, 50, 2000),
+        FC(RTTYConfig, baud,        FF_KEEP, 0, 10, 600),
+        FC(RTTYConfig, enc,         FF_KEEP, 0, 0, 2),
+        FC(RTTYConfig, stopBits,    FF_KEEP, 0, 1, 2),
+        FC(RTTYConfig, powerDbm,    FF_KEEP, 0, -9, 22),
+        FC(RTTYConfig, intervalMin, FF_KEEP, 0, 0, 1440),
+        FB(RTTYConfig, telemetry,   FF_KEEP, 0),
+        FS(RTTYConfig, text,        0, ""),
+        FC(RTTYConfig, locatorLen,  FF_KEEP, 0, 4, 8),
+    };
     const Field kLoraFields[] = {
         FB(LoraType, frequency,       0, 433775000),
         FB(LoraType, spreadingFactor, 0, 12),
@@ -674,6 +687,7 @@ bool Configuration::writeFile() {
         writeFields(data["ft"].to<JsonObject>(),           &ft,           kFtFields,           NFIELDS(kFtFields));
         writeFields(data["lrfhss"].to<JsonObject>(),       &lrfhss,       kLrfhssFields,       NFIELDS(kLrfhssFields));
         writeFields(data["ssdv"].to<JsonObject>(),         &ssdv,         kSsdvFields,         NFIELDS(kSsdvFields));
+        writeFields(data["rtty"].to<JsonObject>(),         &rtty,         kRttyFields,         NFIELDS(kRttyFields));
 
         for (int i = 0; i < loraTypes.size(); i++) {
             writeFields(data["lora"][i].to<JsonObject>(), &loraTypes[i], kLoraFields, NFIELDS(kLoraFields));
@@ -932,6 +946,9 @@ bool Configuration::readFile() {
 
         setSsdvDefaults();
         READ("ssdv", ssdv, kSsdvFields);
+
+        setRttyDefaults();
+        READ("rtty", rtty, kRttyFields);
 
         JsonArray LoraTypesArray = data["lora"];
         for (int j = 0; j < LoraTypesArray.size(); j++) {
@@ -1343,6 +1360,20 @@ void Configuration::setSsdvDefaults() {
     ssdv.url           = "";
 }
 
+void Configuration::setRttyDefaults() {
+    rtty.enabled     = false;
+    rtty.freqHz      = 434000000;               // IARU R1: experimentos digitales
+    rtty.shiftHz     = 450;                     // HAB tipico
+    rtty.baud        = 50;
+    rtty.enc         = 0;                        // ASCII 7 bits (UKHAS)
+    rtty.stopBits    = 2;
+    rtty.powerDbm    = 10;
+    rtty.intervalMin = 0;                        // solo a peticion
+    rtty.telemetry   = true;                     // sentencia UKHAS con GPS
+    rtty.text        = "";
+    rtty.locatorLen  = 6;
+}
+
 void Configuration::setGpsDefaults() {
     // Valores de fabrica del M10 en la Supreme (los GPS_USE_* de board_pinout.h, si existen, prevalecen)
     #ifndef GPS_USE_GPS
@@ -1500,6 +1531,7 @@ void Configuration::setDefaultValues() {
     setWsprDefaults();
     setLrfhssDefaults();
     setSsdvDefaults();
+    setRttyDefaults();
     setFtDefaults();
     setDapnetDefaults();
     setSa868Defaults();
