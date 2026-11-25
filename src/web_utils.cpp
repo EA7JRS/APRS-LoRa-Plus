@@ -779,6 +779,8 @@ namespace WEB_Utils {
 
         //  WiFi AP
         Config.wifiAP.password                  = getParamStringSafe("wifiAP.password", Config.wifiAP.password);
+        Config.wifiAP.webMode                   = getParamIntSafe("wifiAP.webMode", Config.wifiAP.webMode);    // 0 solo AP, 1 LAN en modo config, 2 siempre AP+LAN (EA7JRS)
+        if (Config.wifiAP.webMode < 0 || Config.wifiAP.webMode > 2) Config.wifiAP.webMode = 0;
         Config.wifiAP.active                    = false; // when Configuration is finished Tracker returns to normal mode.
 
         //  Firmware update (5.3.1)

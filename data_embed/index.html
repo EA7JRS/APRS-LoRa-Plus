@@ -1761,6 +1761,17 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                         <input type="password" class="form-control" id="fwUpdate.password" name="fwUpdate.password" maxlength="63">
                                     </div>
                                 </div>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-12">
+                                        <label class="form-label" for="wifiAP.webMode">Web configurator on the local network</label>
+                                        <select class="form-select" id="wifiAP.webMode" name="wifiAP.webMode">
+                                            <option value="0">Only the tracker's own access point (default)</option>
+                                            <option value="1">Join the local network while configuring (http://aprs-lora-plus.local)</option>
+                                            <option value="2">Always on the local network (AP + LAN; keeps WiFi on, more battery)</option>
+                                        </select>
+                                        <small>Needs the Home WiFi above. The tracker keeps its own access point <strong>and</strong> joins your network at the same time (AP+STA), so the configurator answers both at <code>http://192.168.4.1</code> and <code>http://aprs-lora-plus.local</code>. Option 2 keeps WiFi always on (no deep sleep: more battery) &mdash; but if KISS over WiFi / CAT / rotor is already on it adds almost nothing.</small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

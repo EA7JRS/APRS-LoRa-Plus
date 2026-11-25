@@ -1356,6 +1356,7 @@ function loadSettings(settings) {
 
     // WiFi AP
     document.getElementById("wifiAP.password").value                    = settings.wifiAP.password;
+    document.getElementById("wifiAP.webMode").value                     = String(settings.wifiAP.webMode ?? 0);   // acceso a la WebUI desde la red local
 
     // KISS OVER WIFI
     if (settings.kissNet) {
