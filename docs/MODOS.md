@@ -1,6 +1,8 @@
 # Modos de funcionamiento
 
-Tras el mensaje de bienvenida aparece **SELECT MODE**: *APRS LoRa*, *APRS FSK 9600*, *MORSE / CW*, *WSPR beacon*, *LR-FHSS beacon* (si está activada) *DAPNET pager* y *Satellites 70cm* (ver `SAT_MODE.md`); con más de 4 opciones la lista se desplaza (flechas ▲▼). Pulsación corta = siguiente, pulsación larga = aceptar; a los 8 s sin pulsar se arranca el último modo APRS usado (LoRa o FSK; MORSE y WSPR nunca se guardan ni arrancan solos). Una opción solo aparece si la radio la soporta (FSK no en LLCC68; MORSE y WSPR solo con SX1262/SX1268).
+Tras el mensaje de bienvenida aparece **SELECT MODE**: *APRS LoRa*, *APRS FSK 9600*, *MORSE / CW*, *WSPR beacon*, *FT8 / FT4 / FST4W beacon*, *SSDV*, *RTTY beacon*, *LR-FHSS beacon* (si está activada) *DAPNET pager* y *Satellites 70cm* (ver `SAT_MODE.md`); con más de 4 opciones la lista se desplaza (flechas ▲▼). Pulsación corta = siguiente, pulsación larga = aceptar; a los 8 s sin pulsar se arranca el último modo APRS usado (LoRa o FSK; MORSE y WSPR nunca se guardan ni arrancan solos). Una opción solo aparece si la radio la soporta (FSK no en LLCC68; MORSE, WSPR, FT, SSDV, RTTY y LR-FHSS solo con SX1262/SX1268) **y si la placa los lleva** (ver «Modos mínimos» abajo). SSDV, RTTY, FT8/FT4/FST4W y los demás modos de baliza se activan y configuran en la **WebUI**.
+
+> **Modos mínimos (placas de hasta 4 MB).** En placas de **4 MB o menos** (todas las ESP32 clásicas, las ESP32-C3 y la S3 de 4 MB) solo quedan **APRS LoRa, APRS FSK y CW**: SSDV, RTTY, POCSAG/DAPNET, WSPR, FT8/FT4/FST4W, LR-FHSS y SAT se compilan fuera (liberan flash y evitan los buffers de RAM que en un ESP32 sin PSRAM comprometen la memoria). Las placas de **más de 4 MB** (8/16 MB: Supreme, T-TWR, T-Deck, Heltec V3…) conservan todos los modos. No es configurable: depende del tamaño de flash de la placa.
 
 | Modo | Modulación | Páginas | Balizas |
 |---|---|---|---|

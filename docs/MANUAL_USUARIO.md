@@ -375,7 +375,9 @@ Los Trackers que reciban tu emergencia mostrarán la alarma de la §15 con GO TO
 
 ## 19. Selector de modo
 
-Tras la bienvenida aparece **SELECT MODE**. Una opción solo se ofrece si la radio la soporta (FSK no existe en LLCC68; MORSE exige SX1262/SX1268, como la T-Beam S3 Supreme).
+Tras la bienvenida aparece **SELECT MODE**. Una opción solo se ofrece si la radio la soporta (FSK no existe en LLCC68; MORSE exige SX1262/SX1268, como la T-Beam S3 Supreme) **y si la placa lleva ese modo** (ver la nota de modos mínimos).
+
+> **Modos mínimos en placas de hasta 4 MB.** Las placas de **4 MB o menos** (todas las ESP32 clásicas, las ESP32-C3 y la S3 de 4 MB) se quedan solo con **APRS LoRa, APRS FSK y CW**; SSDV, RTTY, POCSAG/DAPNET, WSPR, FT8/FT4/FST4W, LR-FHSS y SAT no se incluyen, para liberar flash y evitar los buffers de RAM que en un ESP32 sin PSRAM comprometen la memoria. Las placas de **más de 4 MB** (8/16 MB: Supreme, T-TWR, T-Deck, Heltec V3…) conservan todos los modos que su radio soporte. Esto depende del tamaño de flash de la placa; no se configura.
 
 | Modo | Modulación | Pantallas | Balizas |
 |---|---|---|---|
