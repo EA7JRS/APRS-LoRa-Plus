@@ -519,6 +519,8 @@ The **CONFIGURATION** menu of the WebUI is now: Beaconing, Station, **GPS**, **T
 ### 23.1 Beaconing
 The "Beacon" block is now called **Beacon User Profile** (per-callsign user profile: SSID, symbol, comment, SmartBeacon and LoRa profile).
 
+**Minimum beacon interval (anti-flood) (5.5.0).** A global floor on the interval between automatic position beacons: **20 s by default** (0 = no floor). No position beacon goes out sooner than this after the previous one, **above** the SmartBeacon profile, the fixed rate and corner pegging. It guarantees the tracker never saturates the LoRa channel or APRS-IS with back-to-back beacons, whatever the configuration (an aggressive profile, continuous turns or a low fixed rate). An **emergency (SOS) beacon is not held back**. 20 s is conservative for LoRa and does not affect normal profiles (their own minimums are already 12–20 s); raise it for less traffic or lower it for faster beacons. The tracker already avoided continuous beacons in each mechanism (the corner-pegging minimum, the standing beacon every *Standing Update Time*, the minimum distance); this floor covers them all.
+
 ### 23.2 GPS
 Applied at start-up (saving restarts the device). The module type is detected automatically.
 
