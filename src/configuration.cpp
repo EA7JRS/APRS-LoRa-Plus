@@ -1054,8 +1054,8 @@ bool Configuration::readFile() {
         nonSmartBeaconRate              = data["other"]["nonSmartBeaconRate"] | 15;
         rememberStationTime             = data["other"]["rememberStationTime"] | 30;
         standingUpdateTime              = data["other"]["standingUpdateTime"] | 15;
-        minBeaconIntervalSec            = data["other"]["minBeaconIntervalSec"] | 20;    // suelo anti-inundacion (s); configs anteriores toman 20 sin reiniciar la configuracion
-        if (minBeaconIntervalSec < 0 || minBeaconIntervalSec > 3600) minBeaconIntervalSec = 20;   // 0 = sin suelo; un valor absurdo no debe bloquear las balizas
+        minBeaconIntervalSec            = data["other"]["minBeaconIntervalSec"] | 30;    // suelo anti-inundacion (s); configs anteriores toman 30 sin reiniciar la configuracion
+        if (minBeaconIntervalSec < 0 || minBeaconIntervalSec > 3600) minBeaconIntervalSec = 30;   // 0 = sin suelo; un valor absurdo no debe bloquear las balizas
         sendAltitude                    = data["other"]["sendAltitude"] | true;
         disableGPS                      = data["other"]["disableGPS"] | false;
         cadActive                       = data["other"]["cadActive"] | true;
@@ -1683,7 +1683,7 @@ void Configuration::setDefaultValues() {
     nonSmartBeaconRate              = 15;
     rememberStationTime             = 30;
     standingUpdateTime              = 15;
-    minBeaconIntervalSec            = 20;    // suelo global anti-inundacion de balizas (s)
+    minBeaconIntervalSec            = 30;    // suelo global anti-inundacion de balizas (s)
     sendAltitude                    = true;
     disableGPS                      = false;
     cadActive                       = true;
