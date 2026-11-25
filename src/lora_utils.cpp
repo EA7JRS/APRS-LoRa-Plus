@@ -35,6 +35,7 @@
 #include "lrfhss.h"
 #include "display.h"
 #include "sat_config.h"
+#include "radiolib_compat.h"    // compatibilidad RadioLib 7.8.x / 8.0.x (EA7JRS)
 
 extern logging::Logger  logger;
 extern Configuration    Config;
@@ -90,6 +91,15 @@ bool cadNoticeShown = false;
 
 #ifndef RADIO_MAX_POWER             // optional per board in board_pinout.h (e.g. 1W PA modules)
     #define RADIO_MAX_POWER CHIP_MAX_POWER
+#endif
+
+// Voltaje del TCXO de la placa (0 V = cristal). En RadioLib 8.0.x se aplica antes de begin() con RLCompat::applyTcxo
+#if defined(RADIO_HAS_XTAL)
+    #define BOARD_TCXO_V 0.0f       // SX126x con cristal: begin() recibia 0 V
+#elif defined(HAS_TCXO)
+    #define BOARD_TCXO_V 1.8f       // SX126x con TCXO
+#else
+    #define BOARD_TCXO_V 0.0f       // SX127x (siempre cristal) y demas
 #endif
 
 namespace LoRa_Utils {
@@ -371,7 +381,7 @@ namespace LoRa_Utils {
             radio.setDio2AsRfSwitch(true);                          // DIO2 drives the 1W PA
         #endif
         #ifdef HAS_TCXO
-            radio.setTCXO(1.8);
+            RLCompat::setTcxoVolts(radio, 1.8f);
         #endif
     }
 
@@ -380,15 +390,7 @@ namespace LoRa_Utils {
         int state;
         #if RADIO_HAS_FSK
         if (profileIsFsk()) {                       // el modem FSK lo decide el modo elegido al arrancar
-            #if defined(HAS_SX1262) || defined(HAS_SX1268)
-                #if defined(RADIO_HAS_XTAL)
-                    state = radio.beginFSK(freq, fskBitRateKbps(), fskDevKHz(), fskRxBwKHz(), 10, 16, 0.0);
-                #else
-                    state = radio.beginFSK(freq, fskBitRateKbps(), fskDevKHz(), fskRxBwKHz(), 10, 16);
-                #endif
-            #else
-                state = radio.beginFSK(freq, fskBitRateKbps(), fskDevKHz(), fskRxBwKHz(), 10, 16);
-            #endif
+            state = RLCompat::beginFsk(radio, freq, fskBitRateKbps(), fskDevKHz(), fskRxBwKHz(), 10, 16, BOARD_TCXO_V);
             if (state == RADIOLIB_ERR_NONE) {
                 fskMode = true;
                 uint8_t noSync[1] = { 0 };
@@ -413,15 +415,15 @@ namespace LoRa_Utils {
         #endif
         #if defined(RADIO_HAS_XTAL)
             // RadioLib >= 7.8: radio.XTAL no longer exists; a TCXO voltage of 0 V means XTAL
-            state = radio.begin(freq, 125.0, 9, 7, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0);
+            state = RLCompat::beginLoRa(radio, freq, 125.0f, 9, 7, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0f);
         #else
-            state = radio.begin(freq);
+            state = RLCompat::beginLoRaDefault(radio, freq, BOARD_TCXO_V);
         #endif
         if (state == RADIOLIB_ERR_NONE) {
             fskMode = false;
             radio.setSpreadingFactor(currentLoRaType->spreadingFactor);
             float signalBandwidth = currentLoRaType->signalBandwidth/1000;
-            radio.setBandwidth(signalBandwidth);
+            RLCompat::setBandwidthKHz(radio, signalBandwidth);
             radio.setCodingRate(currentLoRaType->codingRate4);
             radio.setCRC(true);
         }
@@ -442,11 +444,11 @@ namespace LoRa_Utils {
             logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "LoRa", "Modem: %s", fskMode ? "FSK" : "LoRa");
         } else if (fskMode) {
             #if RADIO_HAS_FSK
-            radio.setFrequency(freq);
+            RLCompat::setFreqMHz(radio, freq);
             refineFrequency();
-            radio.setBitRate(fskBitRateKbps());
-            radio.setFrequencyDeviation(fskDevKHz());
-            radio.setRxBandwidth(fskRxBwKHz());
+            RLCompat::setBitRateKbps(radio, fskBitRateKbps());
+            RLCompat::setFreqDevKHz(radio, fskDevKHz());
+            RLCompat::setRxBandwidthKHz(radio, fskRxBwKHz());
             if (fskShapingValue() != fskShapingApplied) {            // solo si cambia: en el SX127x poner el filtro pasa por standby
                 fskShapingApplied = fskShapingValue();
                 radio.setDataShaping(fskShapingApplied);
@@ -457,11 +459,11 @@ namespace LoRa_Utils {
             fskDecoder.reset();
             #endif
         } else {
-            radio.setFrequency(freq);
+            RLCompat::setFreqMHz(radio, freq);
             refineFrequency();
             radio.setSpreadingFactor(currentLoRaType->spreadingFactor);
             float signalBandwidth = currentLoRaType->signalBandwidth/1000;
-            radio.setBandwidth(signalBandwidth);
+            RLCompat::setBandwidthKHz(radio, signalBandwidth);
             radio.setCodingRate(currentLoRaType->codingRate4);
         }
         setPower(getPower());
@@ -814,7 +816,7 @@ namespace LoRa_Utils {
             if (Config.operatingMode != MODE_MORSE || cwBeaconProfile == beacon) return;
             cwBeaconProfile = beacon;
             radio.standby();
-            int state = radio.setFrequency(radioFreqMHz());
+            int state = RLCompat::setFreqMHz(radio, radioFreqMHz());
             if (state != RADIOLIB_ERR_NONE) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "CW", "setFrequency failed! State: %d", state);
             else refineFrequency();
             setPower(getPower());
@@ -847,11 +849,7 @@ namespace LoRa_Utils {
         #if defined(HAS_SX1262) || defined(HAS_SX1268)
             cwBeaconProfile = false;                // la escucha de CW es del perfil de Telegrafia
             float freq = radioFreqMHz();
-            #if defined(RADIO_HAS_XTAL)
-                int state = radio.beginFSK(freq, 4.8f, 2.4f, 4.8f, 10, 16, 0.0f);
-            #else
-                int state = radio.beginFSK(freq, 4.8f, 2.4f, 4.8f, 10, 16);
-            #endif
+            int state = RLCompat::beginFsk(radio, freq, 4.8f, 2.4f, 4.8f, 10, 16, BOARD_TCXO_V);
             if (state != RADIOLIB_ERR_NONE) {
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "CW Rx", "Narrow FSK start failed! State: %d", state);
                 fskMode = !profileIsFsk();          // el chip queda en un estado desconocido: se fuerza el reinicio al salir
@@ -936,21 +934,13 @@ namespace LoRa_Utils {
             const float mhz = (float)(((double)p.hz + ppmCorrectionHzExact((long)p.hz)) / 1e6);
             int state;
             if (p.kind == 2) {
-                #if defined(RADIO_HAS_XTAL)
-                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0);
-                #else
-                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8);
-                #endif
+                state = RLCompat::beginLoRa(radio, mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, BOARD_TCXO_V);
                 fskMode = false;
             } else {
                 const float baud = p.kind == 0 ? 4.8f : p.baud / 1000.0f;
                 const float dev  = p.kind == 0 ? 2.4f : max(1.0f, p.baud * 0.3f / 1000.0f);
                 const float bw   = p.kind == 0 ? 4.8f : satFskBandwidth(p.baud);
-                #if defined(RADIO_HAS_XTAL)
-                    state = radio.beginFSK(mhz, baud, dev, bw, 10, 16, 0.0f);
-                #else
-                    state = radio.beginFSK(mhz, baud, dev, bw, 10, 16);
-                #endif
+                state = RLCompat::beginFsk(radio, mhz, baud, dev, bw, 10, 16, BOARD_TCXO_V);
                 fskMode = true;
             }
             if (state != RADIOLIB_ERR_NONE) {
@@ -1082,27 +1072,15 @@ namespace LoRa_Utils {
             const float mhz = (float)(((double)p.hz + ppmCorrectionHzExact((long)p.hz)) / 1e6);
             int state;
             if (p.kind == 2) {
-                #if defined(RADIO_HAS_XTAL)
-                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0);
-                #else
-                    state = radio.begin(mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8);
-                #endif
+                state = RLCompat::beginLoRa(radio, mhz, p.bwKHz, p.sf, p.cr, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, BOARD_TCXO_V);
                 fskMode = false;
             } else if (p.kind == 1) {
                 const float baud = p.baud / 1000.0f;
                 const float dev  = max(1.0f, p.baud * 0.3f / 1000.0f);
-                #if defined(RADIO_HAS_XTAL)
-                    state = radio.beginFSK(mhz, baud, dev, satFskBandwidth(p.baud), 10, 16, 0.0f);
-                #else
-                    state = radio.beginFSK(mhz, baud, dev, satFskBandwidth(p.baud), 10, 16);
-                #endif
+                state = RLCompat::beginFsk(radio, mhz, baud, dev, satFskBandwidth(p.baud), 10, 16, BOARD_TCXO_V);
                 fskMode = true;
             } else {
-                #if defined(RADIO_HAS_XTAL)
-                    state = radio.begin(mhz, 125.0, 9, 7, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, 0.0);
-                #else
-                    state = radio.begin(mhz);
-                #endif
+                state = RLCompat::beginLoRa(radio, mhz, 125.0f, 9, 7, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 10, 8, BOARD_TCXO_V);
                 fskMode = false;
             }
             if (state != RADIOLIB_ERR_NONE) {
@@ -1228,7 +1206,7 @@ namespace LoRa_Utils {
         #if defined(HAS_SX1262) || defined(HAS_SX1268)
             radio.standby();
             float freq = (float)((double)frf * 32.0 / 33554432.0);
-            int state = radio.setFrequency(freq);                    // calibra la imagen para la banda
+            int state = RLCompat::setFreqMHz(radio, freq);           // calibra la imagen para la banda
             if (state != RADIOLIB_ERR_NONE) {
                 logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "WSPR", "setFrequency failed! State: %d", state);
                 return false;
@@ -1296,15 +1274,10 @@ namespace LoRa_Utils {
         #if defined(HAS_SX1262) || defined(HAS_SX1268)
             if (len == 0 || len > LRFHSS::MAX_PAYLOAD) return RADIOLIB_ERR_PACKET_TOO_LONG;
             radio.standby();
-            #if defined(RADIO_HAS_XTAL)
-                const float lrfTcxo = 0.0;                          // cristal sin TCXO (igual que beginModem)
-            #else
-                const float lrfTcxo = 1.6;                          // valor por defecto de begin(); applyBoardRadioSettings() lo sube a 1,8 V si la placa lo pide
-            #endif
             // SX1262 / SX1268::beginLRFHSS empieza por la frecuencia (y tapa la version de 3 argumentos de la clase base): llamada
             // con (ancho, tasa, rejilla) el ancho entraba como frecuencia = 0 MHz y devolvia -12 (frecuencia no valida)
             const float lrfMHz = (float)((double)(Config.lrfhss.freqHz + ppmCorrectionHz(Config.lrfhss.freqHz)) / 1e6);     // sin afinado de PLL
-            int state = radio.beginLRFHSS(lrfMHz, LRFHSS_BW[constrain(Config.lrfhss.bwIdx, 0, 9)], LRFHSS_CR[constrain(Config.lrfhss.crIdx, 0, 3)], Config.lrfhss.narrowGrid, 10, lrfTcxo, false);
+            int state = RLCompat::beginLrFhss(radio, lrfMHz, LRFHSS_BW[constrain(Config.lrfhss.bwIdx, 0, 9)], LRFHSS_CR[constrain(Config.lrfhss.crIdx, 0, 3)], Config.lrfhss.narrowGrid, 10, BOARD_TCXO_V);
             if (state == RADIOLIB_ERR_NONE) {
                 applyBoardRadioSettings();
                 setPower(Config.lrfhss.powerDbm);
@@ -1327,6 +1300,134 @@ namespace LoRa_Utils {
             (void)data; (void)len;
             return -1;
         #endif
+    }
+
+    // ---- Modo SSDV: configura la radio para los paquetes de 255 bytes del SSDVClient (TX y RX) ----
+    bool ssdvActive = false;
+
+    bool ssdvAvailable() {
+        return true;                                        // cualquier radio LoRa; la variante FSK necesita fskAvailable()
+    }
+
+    PhysicalLayer* ssdvPhy() {
+        return &radio;
+    }
+
+    int ssdvRadioBegin(bool useLora, long freqHz, int sf, float bwKHz, int cr, long brHz, long devHz, int powerDbm) {
+        radio.standby();
+        const float mhz = (float)((double)(freqHz + ppmCorrectionHz(freqHz)) / 1e6);
+        int state;
+        #if RADIO_HAS_FSK
+        if (!useLora) {
+            float rxBwKHz = (float)(devHz * 2 + brHz) / 1000.0f * 1.2f;
+            if (rxBwKHz < 5.0f) rxBwKHz = 5.0f;
+            state = RLCompat::beginFsk(radio, mhz, brHz / 1000.0f, devHz / 1000.0f, rxBwKHz, powerDbm, 16, BOARD_TCXO_V);
+            if (state == RADIOLIB_ERR_NONE) {
+                uint8_t sync[2] = { 0x2D, 0xD4 };           // sincronismo estandar (emisor y receptor deben coincidir)
+                radio.setSyncWord(sync, 2);
+                radio.setPreambleLength(40);
+                #if defined(HAS_SX1262) || defined(HAS_SX1268)
+                    radio.setCRC(0);                        // SSDV ya lleva CRC-32 (y Reed-Solomon en modo FEC)
+                    radio.setWhitening(false);
+                #else
+                    radio.setCRC(false);
+                    radio.setEncoding(RADIOLIB_ENCODING_NRZ);
+                #endif
+                radio.setDataShaping(RADIOLIB_SHAPING_0_5);
+                radio.fixedPacketLengthMode(255);
+                fskMode = true;
+            }
+        } else
+        #endif
+        {
+            state = RLCompat::beginLoRa(radio, mhz, bwKHz, (uint8_t)sf, (uint8_t)cr, 0x12, powerDbm, 8, BOARD_TCXO_V);
+            if (state == RADIOLIB_ERR_NONE) {
+                radio.setCRC(true);
+                fskMode = false;
+            }
+        }
+        if (state == RADIOLIB_ERR_NONE) {
+            #if defined(HAS_SX1278) || defined(HAS_SX1276)
+                radio.setDio0Action(setFlag, RISING);
+            #else
+                radio.setDio1Action(setFlag);
+            #endif
+            setPower(powerDbm);
+            ssdvActive   = true;
+            operationDone = false;
+            transmitFlag  = false;
+            radio.startReceive();
+        } else {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "SSDV", "Modem start failed! State: %d", state);
+            fskMode = !profileIsFsk();
+        }
+        return state;
+    }
+
+    void ssdvRadioEnd() {
+        if (!ssdvActive) return;
+        ssdvActive = false;
+        radio.standby();
+        fskMode = !profileIsFsk();                          // fuerza la reconfiguracion limpia del modem del perfil
+        applyCurrentType();
+        transmitFlag  = true;
+        operationDone = true;
+    }
+
+    bool ssdvRxReady() {
+        return operationDone;
+    }
+
+    void ssdvArmReceive() {
+        operationDone = false;
+        #if RADIO_HAS_FSK
+        if (fskMode) radio.fixedPacketLengthMode(255);
+        #endif
+        radio.startReceive();
+    }
+
+    float ssdvRssi() {
+        return radio.getRSSI();
+    }
+
+    // ---- Modo RTTY: FSK directo (RTTYClient de RadioLib). El RTTYClient fija frecuencia y shift; aqui solo potencia y restauracion ----
+    bool rttyAvailable() {
+        return true;                                        // cualquier SX12xx emite RTTY por desplazamiento de frecuencia
+    }
+
+    void rttyPrepare(int powerDbm) {
+        radio.standby();
+        setPower(powerDbm);
+        operationDone = false;
+        transmitFlag  = false;
+    }
+
+    void rttyFinish() {
+        radio.standby();
+        fskMode = !profileIsFsk();                          // fuerza la reconfiguracion limpia del modem del perfil
+        applyCurrentType();
+        transmitFlag  = true;
+        operationDone = true;
+    }
+
+    // Emite un mensaje POCSAG con el PagerClient de RadioLib (bloquea mientras emite) y restaura el modem del perfil
+    int pocsagSend(long freqHz, int bps, long address, bool numeric, bool invert, int shiftHz, int powerDbm, const char* message) {
+        radio.standby();
+        setPower(powerDbm);
+        operationDone = false; transmitFlag = false;
+        PagerClient pager(&radio);
+        const float mhz = (float)((double)(freqHz + ppmCorrectionHz(freqHz)) / 1e6);
+        int state = pager.begin((uint32_t)lroundf(mhz * 1e6f), (uint16_t)bps, invert, (uint16_t)shiftHz);
+        if (state == RADIOLIB_ERR_NONE) {
+            BLE_Control::rfEvent('t');
+            state = pager.transmit(message, (uint32_t)address, numeric ? RADIOLIB_PAGER_BCD : RADIOLIB_PAGER_ASCII);
+            BLE_Control::rfEvent('i');
+            if (state != RADIOLIB_ERR_NONE) logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "POCSAG", "Tx error %d", state);
+        } else {
+            logger.log(logging::LoggerLevel::LOGGER_LEVEL_ERROR, "POCSAG", "begin error %d", state);
+        }
+        rttyFinish();                                       // restaura el modem del perfil (reutiliza la misma restauracion)
+        return state;
     }
 
     void wakeRadio() {

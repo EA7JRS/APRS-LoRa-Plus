@@ -55,6 +55,9 @@
     #define NMEA_OUT_ENV        0
 
     //  Transponder AIS dedicado y muy justo de DRAM estatica: sin WebUI por la red local
+    //  ni los modos de imagen/baliza SSDV ni RTTY
     #define NO_WEBUI_LAN
+    #define NO_SSDV
+    #define NO_RTTY
 
 #endif

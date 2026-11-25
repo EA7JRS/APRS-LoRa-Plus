@@ -21,6 +21,7 @@
 
 #include <Arduino.h>
 
+class PhysicalLayer;        // RadioLib: capa fisica comun a SX126x / SX127x (para el SSDVClient)
 
 struct ReceivedLoRaPacket {
     String  text;
@@ -70,6 +71,20 @@ namespace LoRa_Utils {
     void wsprEnd();                               // apaga la portadora y rearma la recepcion
     bool lrfhssAvailable();                       // true si el chip emite LR-FHSS (SX1262/SX1268)
     int  lrfhssSend(const uint8_t* data, size_t len);   // emite una trama LR-FHSS con la configuracion de la baliza (bloquea unos segundos) y restaura el modem LoRa; codigo de estado de RadioLib
+    // ---- Modo SSDV: imagenes JPEG en paquetes SSDV (UKHAS) con el SSDVClient de RadioLib. LoRa sin RS o FSK con RS ----
+    bool ssdvAvailable();                         // true si el chip puede (cualquier radio LoRa; la variante FSK necesita fskAvailable())
+    PhysicalLayer* ssdvPhy();                     // puntero al objeto de radio como PhysicalLayer, para construir el SSDVClient
+    int  ssdvRadioBegin(bool useLora, long freqHz, int sf, float bwKHz, int cr, long brHz, long devHz, int powerDbm);  // configura el modem para SSDV (TX y RX); codigo de RadioLib
+    void ssdvRadioEnd();                          // restaura el modem del perfil activo
+    bool ssdvRxReady();                           // true si ha llegado un paquete (bandera de la interrupcion DIO)
+    void ssdvArmReceive();                        // rearma la recepcion tras leer o emitir
+    float ssdvRssi();                             // RSSI instantaneo (dBm)
+    // ---- Modo RTTY: baliza de radioteletipo (FSK directo) con el RTTYClient de RadioLib (usa ssdvPhy() como capa fisica) ----
+    bool rttyAvailable();                         // true si el chip puede emitir RTTY (cualquier SX12xx)
+    void rttyPrepare(int powerDbm);               // standby + potencia, antes de RTTYClient::begin
+    void rttyFinish();                            // restaura el modem del perfil activo tras la baliza
+    // ---- Transmision POCSAG (PagerClient de RadioLib): envia un mensaje a un RIC y restaura el modem del perfil ----
+    int  pocsagSend(long freqHz, int bps, long address, bool numeric, bool invert, int shiftHz, int powerDbm, const char* message);  // codigo de RadioLib (0 = ok)
     bool cwRxBegin();                   // modem FSK de banda estrecha (4,8 kHz) en la frecuencia del perfil para escuchar CW; false si no se puede
     float cwRxLevel();                  // RSSI instantaneo en dBm (solo tras cwRxBegin)
     void cwRxEnd();                     // restaura el modem del perfil y la escucha normal                       // termina la transmision CW y vuelve a escuchar

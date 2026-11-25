@@ -82,7 +82,7 @@ Ficheros de datos en flash: `/pagesCfg.dat` (9 enteros, compatible hacia atrás)
 | Librería | Antes (CA2RXU 4.0.1) | Ahora (APRS LoRa+ 5.4.9) | Nota |
 |---|---|---|---|
 | Plataforma `espressif32` | 6.12.0 | **8.0.0** | Arduino core 3.3.x (IDF 5.5). `playTone` adaptado a la API LEDC del core 3 (`ledcAttach` / `ledcDetach`). Las variantes T-Deck siguen en 6.3.1 en los dos. |
-| RadioLib | 7.6.0 | **7.8.1** | Desaparece `radio.XTAL` (ahora 0 V de TCXO = XTAL): ajustado en `lora_utils.cpp` bajo `RADIO_HAS_XTAL`. |
+| RadioLib | 7.6.0 | **8.0.0** | Desaparece `radio.XTAL` (0 V de TCXO = XTAL) y en la 8.0.0 `begin*()` pasa a structs y los ajustes a enteros: capa `include/radiolib_compat.h` (`RLCompat::*`), en la rama `radiolib-8` pendiente de prueba en placa (ver 7.2). |
 | NimBLE-Arduino | 1.4.1 | **2.5.2** | Cambio de API: callbacks con `NimBLEConnInfo&` (y `reason` en `onDisconnect`), `service->start()` ya no hace falta, `enableScanResponse` y `setPreferredParams`. Portado en `ble_utils.cpp`; sobre ella va el servicio de control por BLE. **Exige C++17** (`-std=gnu++17`). |
 | Adafruit GFX Library | 1.12.6 | **1.13.0** | Solo correcciones (esp8266, nRF52840, canvas). |
 | XPowersLib | 0.2.4 | **0.3.3** | La inicialización del AXP192 / AXP2101 es idéntica. `getTemperature()` puede devolver `NAN` si la lectura no es válida. |
@@ -119,7 +119,7 @@ Versiones más nuevas publicadas que las que fija el proyecto. No se adoptan aut
 
 | Librería | En el proyecto | Disponible | Impacto | Nota |
 |---|---|---|---|---|
-| [RadioLib](https://github.com/jgromes/RadioLib/releases) | 7.8.1 | **8.0.0** | Alto (rompe API) | La 8.0.0 cambia la API de LoRaWAN, las estructuras de configuración (`config structs`), las configuraciones por enteros, `setIrqAction`, y añade SSDV y códec RS. Como el proyecto solo usa LoRa básico y FSK (no LoRaWAN), la adaptación sería menor, pero hay que revisar las firmas de inicialización. **Sin migrar** hasta probarlo en placa. |
+| [RadioLib](https://github.com/jgromes/RadioLib/releases) | 7.8.1 | **8.0.0** | Alto (rompe API) | La 8.0.0 cambia `begin()` / `beginFSK()` / `beginLRFHSS()` a structs de configuración (`ConfigLoRa_t`, `ConfigFSK_t`, `ConfigLRFHSS_t`), pasa `setFrequency` / `setBandwidth` / `setBitRate` / `setFrequencyDeviation` / `setRxBandwidth` a enteros en Hz / bps y `setTCXO()` a un enum de voltaje. **Migración hecha en la rama `radiolib-8`** con una capa `include/radiolib_compat.h` (funciones `RLCompat::*`) que compila igual con 7.8.x y 8.0.x; el firmware solo usa LoRa / FSK / LR-FHSS, no LoRaWAN. Pendiente: Manuel la prueba en la T-Beam Supreme (SX1262) antes de unir a `main`. |
 | [AsyncTCP](https://components.espressif.com/components/esp32async/asynctcp/) | **3.6.1** | 3.6.1 | — | Subida el 2026-11-24 (era 3.5.0); mantenimiento de `ESP32Async`, compatible con `ESPAsyncWebServer 3.12.1`. |
 
 El resto de librerías de la tabla del apartado 7 están en su última versión publicada a esta fecha.

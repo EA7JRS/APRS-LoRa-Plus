@@ -43,6 +43,8 @@
 #include "sat_tx.h"
 #include "baro_utils.h"
 #include "lora_utils.h"
+#include "ssdv_config.h"
+#include "ssdv_utils.h"
 #include "bcast_radio.h"
 #include "notification_utils.h"
 #include "msg_utils.h"
@@ -326,6 +328,21 @@ namespace {
             caps["dapnet"] = false;
             caps["cw"]     = false;
             caps["modes"]  = false;
+        #endif
+        #ifdef HAS_SSDV                                          // modo SSDV (imagen): ordenes "ssdv", "ssdvtx", "ssdvimg"
+            caps["ssdv"] = LoRa_Utils::ssdvAvailable();
+        #else
+            caps["ssdv"] = false;
+        #endif
+        #ifdef HAS_RTTY                                         // modo RTTY (baliza): se configura por cfgset; la emision la dispara el propio modo
+            caps["rtty"] = LoRa_Utils::rttyAvailable();
+        #else
+            caps["rtty"] = false;
+        #endif
+        #ifndef HAS_SA868                                      // aviso POCSAG (orden "pocsag"): cualquier SX12xx que pueda FSK (no la radio FM SA868)
+            caps["pocsag"] = LoRa_Utils::rttyAvailable();
+        #else
+            caps["pocsag"] = false;
         #endif
         #ifdef HAS_SA868                                         // T-TWR: radio FM SA868 (APRS AFSK 1200); ajustes en el grupo "sa868" (cfgget/cfgset)
             caps["radio"] = "sa868";
@@ -1366,6 +1383,10 @@ namespace {
 
     bool     gpsAidActive = false;
     uint32_t gpsAidBytes  = 0;
+    #ifdef HAS_SSDV
+    bool     ssdvUpActive = false;                                 // subida de imagen SSDV por BLE (origen 2)
+    uint32_t ssdvUpBytes  = 0;
+    #endif
 
     // Base64 estandar (con o sin relleno '='): devuelve los bytes escritos en out, o -1 si el texto no es valido o no cabe
     int base64Decode(const char* in, uint8_t* out, size_t outMax) {
@@ -1853,6 +1874,92 @@ namespace {
             #else
                 reply(cmd, id, "not available");
             #endif
+        }
+        else if (strcmp(cmd, "ssdv") == 0) {                      // estado del modo SSDV (imagen); sin argumentos
+            #ifdef HAS_SSDV
+                JsonDocument ev;
+                ev["e"]    = "ssdv";
+                ev["on"]   = Config.operatingMode == MODE_SSDV;
+                ev["busy"] = SSDV_Utils::busy();
+                ev["tot"]  = SSDV_Utils::txTotalPackets();
+                ev["sent"] = SSDV_Utils::txSentPackets();
+                ev["rxi"]  = SSDV_Utils::rxImageCount();
+                ev["rxp"]  = SSDV_Utils::rxPacketCount();
+                ev["up"]   = ssdvUpActive;
+                ev["st"]   = SSDV_Utils::status();
+                sendDoc(ev);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "ssdvtx") == 0) {                    // emision SSDV (modo SSDV): s = start | stop. Emite; la app exige indicativo validado
+            #ifdef HAS_SSDV
+                if (Config.operatingMode != MODE_SSDV) { reply(cmd, id, "not in SSDV mode"); return; }
+                const char* st = doc["s"] | "start";
+                if (strcmp(st, "stop") == 0) { SSDV_Utils::stopTx(); reply(cmd, id); }
+                else if (strcmp(st, "start") == 0) {
+                    if (!SSDV_Utils::startTx()) { reply(cmd, id, SSDV_Utils::status()); return; }
+                    reply(cmd, id);
+                } else { reply(cmd, id, "bad step"); return; }
+                JsonDocument ev;
+                ev["e"]    = "ssdv";
+                ev["busy"] = SSDV_Utils::busy();
+                ev["tot"]  = SSDV_Utils::txTotalPackets();
+                ev["sent"] = SSDV_Utils::txSentPackets();
+                ev["st"]   = SSDV_Utils::status();
+                sendDoc(ev);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "ssdvimg") == 0) {                   // sube un JPEG por BLE (origen SSDV 2): s = begin (n = bytes) | c (d = base64) | end | abort
+            #ifdef HAS_SSDV
+                const char* st = doc["s"] | "";
+                if (strcmp(st, "begin") == 0) {
+                    if (!SSDV_Utils::uploadBegin((size_t)(doc["n"] | 0))) { reply(cmd, id, "cannot start (busy or too big)"); return; }
+                    ssdvUpActive = true;
+                    ssdvUpBytes  = 0;
+                } else if (strcmp(st, "c") == 0) {
+                    if (!ssdvUpActive) { reply(cmd, id, "no transfer"); return; }
+                    uint8_t bin[192];
+                    const int n = base64Decode(doc["d"] | "", bin, sizeof(bin));
+                    if (n <= 0 || !SSDV_Utils::uploadChunk(bin, (size_t)n)) { ssdvUpActive = false; reply(cmd, id, "bad data"); return; }
+                    ssdvUpBytes += (uint32_t)n;
+                } else if (strcmp(st, "end") == 0) {
+                    const bool ok = ssdvUpActive && SSDV_Utils::uploadEnd();
+                    ssdvUpActive = false;
+                    if (!ok) { reply(cmd, id, "size mismatch"); return; }
+                    logger.log(logging::LoggerLevel::LOGGER_LEVEL_INFO, "SSDV", "image from the app: %lu bytes", (unsigned long)ssdvUpBytes);
+                } else if (strcmp(st, "abort") == 0) {
+                    ssdvUpActive = false;
+                } else { reply(cmd, id, "bad step"); return; }
+                reply(cmd, id);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "pocsag") == 0) {                    // envia un aviso POCSAG (emite). addr = RIC, msg = texto, num = numerico. La app exige indicativo validado
+          #ifndef HAS_SA868
+            String msg = doc["msg"] | "";
+            if (msg.isEmpty()) { reply(cmd, id, "empty message"); return; }
+            if (msg.length() > 80) msg = msg.substring(0, 80);
+            const long addr   = (long)(doc["addr"] | (long)Config.pocsag.address);
+            const bool numeric= doc["num"]    | Config.pocsag.numeric;
+            const long freqHz = (long)(doc["f"]  | (long)Config.pocsag.freqHz);
+            const int  bps    = (int)(doc["bps"] | Config.pocsag.bps);
+            const int  shift  = (int)(doc["sh"]  | Config.pocsag.shiftHz);
+            const bool invert = doc["inv"]   | Config.pocsag.invert;
+            const int  pwr    = (int)(doc["pwr"] | Config.pocsag.powerDbm);
+            if (addr < 0 || addr > 2097151) { reply(cmd, id, "bad RIC (0..2097151)"); return; }
+            const int rc = LoRa_Utils::pocsagSend(freqHz, bps, addr, numeric, invert, shift, pwr, msg.c_str());
+            if (rc != 0) { char why[32]; snprintf(why, sizeof(why), "radio error %d", rc); reply(cmd, id, why); return; }
+            reply(cmd, id);
+            JsonDocument ev;
+            ev["e"] = "pocsag"; ev["ok"] = true; ev["addr"] = addr; ev["f"] = freqHz;
+            sendDoc(ev);
+          #else
+            reply(cmd, id, "not available");
+          #endif
         }
         else if (strcmp(cmd, "tgtlist") == 0) sendTargets();
         else if (strcmp(cmd, "tgt") == 0) {                       // objetivo fijo para el rotor (repetidor, baliza...): i, n, lat, lon, alt, f | del | sel | src
