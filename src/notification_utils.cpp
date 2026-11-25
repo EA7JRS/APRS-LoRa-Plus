@@ -148,70 +148,78 @@ namespace NOTIFICATION_Utils {
         if (!on && vcc >= 0 && !bellPowered) digitalWrite(vcc, LOW);
     }
 
-    // light = true: el flash blanco se enciende y se apaga con la nota (sirena de emergencia)
-    static void playToneLit(int frequency, uint8_t duration, bool light) {
+    // Pulsos de LED en sincronia con un pitido de notificacion (respetan el LED activado en la WebUI; no el flag de modo CW). (EA7JRS)
+    static void ledTxPulse(bool on)  { if (Config.notification.ledTx && Config.notification.ledTxPin >= 0) digitalWrite(Config.notification.ledTxPin, on ? HIGH : LOW); }                           // baliza Tx: LED rojo
+    static void ledMsgPulse(bool on) { if (Config.notification.ledMessage && Config.notification.ledMessagePin >= 0) digitalWrite(Config.notification.ledMessagePin, on ? HIGH : LOW); }             // mensaje: LED de mensaje
+    static void ledRxPulse(bool on)  { if (Config.notification.ledRxBeacon && Config.notification.ledMessagePin >= 0) digitalWrite(Config.notification.ledMessagePin, on ? HIGH : LOW); }            // estacion oida: LED verde (Rx)
+
+    // led: callback que enciende / apaga una luz con la nota (sirena de emergencia o el LED propio de la notificacion); nullptr = solo zumbador
+    static void playToneLit(int frequency, uint8_t duration, void (*led)(bool) = nullptr) {
         #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
         ledcAttach(Config.notification.buzzerPinTone, frequency, resolution);   // Arduino core 3.x API
         ledcWrite(Config.notification.buzzerPinTone, 128);
-        if (light) sirenLight(true);
+        if (led) led(true);
         delay(duration);
         ledcWrite(Config.notification.buzzerPinTone, 0);
         ledcDetach(Config.notification.buzzerPinTone);
-        if (light) sirenLight(false);
+        if (led) led(false);
         #else
         ledcSetup(channel, frequency, resolution);
         ledcAttachPin(Config.notification.buzzerPinTone, 0);
         ledcWrite(channel, 128);
-        if (light) sirenLight(true);
+        if (led) led(true);
         delay(duration);
         ledcWrite(channel, 0);
-        if (light) sirenLight(false);
+        if (led) led(false);
         #endif
         delay(pauseDuration);
     }
 
     void playTone(int frequency, uint8_t duration) {
-        playToneLit(frequency, duration, false);
+        playToneLit(frequency, duration, nullptr);
     }
 
     void beaconTxBeep() {
         if (Config.notification.bellRings) { bell(Bell::BELL_TX); return; }
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playTone(1320,100);
+        playToneLit(1320,100,ledTxPulse);                       // LED rojo (Tx) en sincronia con el pitido
         if (digipeaterActive) {
-            playTone(1560,100);
+            playToneLit(1560,100,ledTxPulse);
         }
+        ledTxPulse(false);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 
     void messageBeep() {
         if (Config.notification.bellRings) { bell(Bell::BELL_MSG_TO_ME); return; }
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playTone(1100,100);
-        playTone(1100,100);
+        playToneLit(1100,100,ledMsgPulse);                      // LED de mensaje en sincronia con el pitido
+        playToneLit(1100,100,ledMsgPulse);
+        ledMsgPulse(false);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 
     void stationHeardBeep() {
         if (Config.notification.bellRings) { bell(Bell::BELL_BEACON_RX); return; }
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playTone(1200,100);
-        playTone(600,100);
+        playToneLit(1200,100,ledRxPulse);                       // LED verde (Rx) en sincronia con el pitido
+        playToneLit(600,100,ledRxPulse);
+        ledRxPulse(false);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 
     void countdownBeep() {
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playToneLit(1500,80,true);
+        playToneLit(1500,80,sirenLight);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 
     void alarmBeep() {
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playToneLit(1800,120,true);
-        playToneLit(1200,120,true);
-        playToneLit(1800,120,true);
-        playToneLit(1200,120,true);
+        playToneLit(1800,120,sirenLight);
+        playToneLit(1200,120,sirenLight);
+        playToneLit(1800,120,sirenLight);
+        playToneLit(1200,120,sirenLight);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 
