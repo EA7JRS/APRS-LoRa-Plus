@@ -613,7 +613,7 @@ namespace {
         FB(Notification, ledMessage,       FF_REQUIRED,            false),
         FB(Notification, ledMessagePin,    FF_REQUIRED | FF_PIN,   NOTIF_DEF_LED_MESSAGE),
         FB(Notification, ledRxBeacon,      0,                      true),
-        FB(Notification, flashEmergency,   0,                      false),
+        FB(Notification, flashEmergency,   0,                      true),
         FB(Notification, ledTxCw,          0,                      false),
         FB(Notification, ledRxCw,          0,                      true),
         FB(Notification, flashCw,          0,                      false),
@@ -1653,7 +1653,7 @@ void Configuration::setDefaultValues() {
     notification.ledTxPin           = defaultPin(NOTIF_DEF_LED_TX);
     notification.ledMessage         = false;
     notification.ledRxBeacon        = true;
-    notification.flashEmergency     = false;
+    notification.flashEmergency     = true;     // flash de emergencia estilo Yaesu activado de serie (EA7JRS)
     notification.ledTxCw            = false;
     notification.ledRxCw            = true;
     notification.flashCw            = false;
