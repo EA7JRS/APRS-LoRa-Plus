@@ -352,7 +352,13 @@ namespace LoRa_Utils {
     bool m17Available() { return false; }                   // M17 (4FSK por audio) solo en la T-TWR (lora_utils_sa868.cpp)
     bool fmAvailable()  { return false; }                   // FM de voz: solo la T-TWR
     bool aisAvailable() { return false; }                   // AIS por radio: solo la T-TWR (las demas, con un modulo AIS por UART)
-    bool wsprAvailable() { return cwAvailable(); }
+    bool wsprAvailable() {                                  // WSPR / FT8 / FT4 / FST4W: fuera en MINIMAL_MODES (hasta 4 MB)
+        #ifdef MINIMAL_MODES
+            return false;
+        #else
+            return cwAvailable();
+        #endif
+    }
 
     bool fskAvailable() {
         return RADIO_HAS_FSK;
@@ -795,10 +801,14 @@ namespace LoRa_Utils {
     // ---- CW (Morse): portadora continua del SX126x con manipulacion todo/nada ---------------------------------------
     // Receptor DAPNET (POCSAG): FSK del SX126x con el flujo de bits sin procesar; el sincronismo y el BCH se hacen por software
     bool dapnetAvailable() {
-        #if RADIO_HAS_FSK && (defined(HAS_SX1262) || defined(HAS_SX1268))
-            return true;
-        #else
+        #ifdef MINIMAL_MODES
             return false;
+        #else
+            #if RADIO_HAS_FSK && (defined(HAS_SX1262) || defined(HAS_SX1268))
+                return true;
+            #else
+                return false;
+            #endif
         #endif
     }
 
@@ -1251,10 +1261,14 @@ namespace LoRa_Utils {
 
     // ---- Baliza LR-FHSS: emision LR-FHSS solo transmision (SX1262/SX1268). RadioLib 7.8: beginLRFHSS(bw, cr, narrowGrid) y transmit() bloqueante ----
     bool lrfhssAvailable() {
-        #if defined(HAS_SX1262) || defined(HAS_SX1268)
-            return true;
-        #else
+        #ifdef MINIMAL_MODES
             return false;
+        #else
+            #if defined(HAS_SX1262) || defined(HAS_SX1268)
+                return true;
+            #else
+                return false;
+            #endif
         #endif
     }
 
