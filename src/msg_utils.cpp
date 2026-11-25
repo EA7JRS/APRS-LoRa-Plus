@@ -88,24 +88,6 @@ uint32_t    messageLedTime      = millis();
 
 namespace MSG_Utils {
 
-    // Mensaje de categoria emergencia: lleva SOS, EMERGENCY o MAYDAY como palabra entera (para parpadear el flash con el pitido). (EA7JRS)
-    static bool messageIsEmergency(const String& payload) {
-        String u = payload; u.toUpperCase();
-        static const char* const words[] = { "SOS", "EMERGENCY", "MAYDAY" };
-        auto wordChar = [](char c) { return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); };
-        for (const char* w : words) {
-            const int wl = (int)strlen(w);
-            int i = u.indexOf(w);
-            while (i >= 0) {
-                const bool lb = (i == 0) || !wordChar(u[i - 1]);
-                const bool rb = (i + wl >= (int)u.length()) || !wordChar(u[i + wl]);
-                if (lb && rb) return true;
-                i = u.indexOf(w, i + 1);
-            }
-        }
-        return false;
-    }
-
     bool warnNoAPRSMessages() {
         return noAPRSMsgWarning;
     }
@@ -538,7 +520,7 @@ namespace MSG_Utils {
                         if (Config.notification.buzzerActive && Config.notification.messageRxBeep) {
                             if (Config.notification.bellRings && lastReceivedPacket.payload.indexOf("ack") == 0)      NOTIFICATION_Utils::bell(Bell::BELL_ACK_RX);
                             else if (Config.notification.bellRings && lastReceivedPacket.payload.indexOf("rej") == 0) NOTIFICATION_Utils::bell(Bell::BELL_REJ_RX);
-                            else NOTIFICATION_Utils::messageBeep(messageIsEmergency(lastReceivedPacket.payload));
+                            else NOTIFICATION_Utils::messageBeep();
                         }
 
                         if (lastReceivedPacket.payload.indexOf("ping") == 0 || lastReceivedPacket.payload.indexOf("Ping") == 0 || lastReceivedPacket.payload.indexOf("PING") == 0) {

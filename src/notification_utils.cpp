@@ -152,7 +152,6 @@ namespace NOTIFICATION_Utils {
     static void ledTxPulse(bool on)  { if (Config.notification.ledTx && Config.notification.ledTxPin >= 0) digitalWrite(Config.notification.ledTxPin, on ? HIGH : LOW); }                           // baliza Tx: LED rojo
     static void ledMsgPulse(bool on) { if (Config.notification.ledMessage && Config.notification.ledMessagePin >= 0) digitalWrite(Config.notification.ledMessagePin, on ? HIGH : LOW); }             // mensaje: LED de mensaje
     static void ledRxPulse(bool on)  { if (Config.notification.ledRxBeacon && Config.notification.ledMessagePin >= 0) digitalWrite(Config.notification.ledMessagePin, on ? HIGH : LOW); }            // estacion oida: LED verde (Rx)
-    static void ledMsgEmerPulse(bool on) { ledMsgPulse(on); lampSet(on); }    // mensaje de EMERGENCIA: LED de mensaje y ademas el flash, en sincronia con el pitido
 
     // led: callback que enciende / apaga una luz con la nota (sirena de emergencia o el LED propio de la notificacion); nullptr = solo zumbador
     static void playToneLit(int frequency, uint8_t duration, void (*led)(bool) = nullptr) {
@@ -191,13 +190,12 @@ namespace NOTIFICATION_Utils {
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 
-    void messageBeep(bool emergency) {
+    void messageBeep() {
         if (Config.notification.bellRings) { bell(Bell::BELL_MSG_TO_ME); return; }
-        void (*led)(bool) = emergency ? ledMsgEmerPulse : ledMsgPulse;    // emergencia: ademas del LED de mensaje, el flash
         digitalWrite(Config.notification.buzzerPinVcc, HIGH);
-        playToneLit(1100,100,led);                              // LED (y flash si emergencia) en sincronia con el pitido
-        playToneLit(1100,100,led);
-        led(false);
+        playToneLit(1100,100,ledMsgPulse);                      // LED de mensaje en sincronia con el pitido
+        playToneLit(1100,100,ledMsgPulse);
+        ledMsgPulse(false);
         digitalWrite(Config.notification.buzzerPinVcc, LOW);
     }
 

@@ -192,7 +192,7 @@ namespace Utils {
         if (NOTIFICATION_Utils::lampBusy()) return;                  // el flash lo lleva la sirena o la lampara Morse (sincronizado con el zumbador / la tecla)
         bool desiredState       = flashlight ? HIGH : LOW;
         uint8_t flashlightPin   = Config.notification.ledFlashlightPin;
-        if (Config.notification.flashEmergency && !Config.notification.buzzerActive) {    // sin zumbador no hay sirena a la que seguir
+        if (Config.notification.flashEmergency) {    // flash de emergencia estilo Yaesu: parpadeo sostenido mientras dura la emergencia, haya zumbador o no (con zumbador, ademas de la sirena) (EA7JRS)
             // Emergencia (alarma recibida o SOS propio): rafagas de 200 ms cada segundo, como mucho 5 minutos seguidos (el LED de 1 W se calienta)
             static bool     strobing    = false;
             static uint32_t strobeStart = 0;
