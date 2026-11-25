@@ -619,6 +619,45 @@ namespace WEB_Utils {
             Config.ft.text = ftText;
             Config.ft.screenOff = request->hasParam("ft.screenOff", true);
         }
+        #ifndef NO_IMAGE_MODES
+        {   // SSDV (imagen) y RTTY (baliza de radioteletipo): frecuencia en MHz en la WebUI, en Hz en la configuracion (EA7JRS)
+            auto mhzToHz = [&](const char* key, int def) -> int {
+                if (!request->hasParam(key, true)) return def;
+                const double mhz = request->getParam(key, true)->value().toDouble();
+                return mhz > 0.0 ? (int)constrain((long)lround(mhz * 1e6), 400000000L, 480000000L) : def;
+            };
+            Config.ssdv.enabled       = request->hasParam("ssdv.enabled", true);
+            Config.ssdv.source        = constrain(getParamIntSafe("ssdv.source", Config.ssdv.source), 0, 3);
+            Config.ssdv.useLora       = request->hasParam("ssdv.useLora", true);
+            Config.ssdv.freqHz        = mhzToHz("ssdv.freqMHz", Config.ssdv.freqHz);
+            Config.ssdv.bwIdx         = constrain(getParamIntSafe("ssdv.bwIdx", Config.ssdv.bwIdx), -1, 9);
+            Config.ssdv.sf            = constrain(getParamIntSafe("ssdv.sf", Config.ssdv.sf), 5, 12);
+            Config.ssdv.cr            = constrain(getParamIntSafe("ssdv.cr", Config.ssdv.cr), 5, 8);
+            Config.ssdv.brHz          = constrain(getParamIntSafe("ssdv.brHz", Config.ssdv.brHz), 100, 300000);
+            Config.ssdv.devHz         = constrain(getParamIntSafe("ssdv.devHz", Config.ssdv.devHz), 100, 200000);
+            Config.ssdv.powerDbm      = constrain(getParamIntSafe("ssdv.powerDbm", Config.ssdv.powerDbm), -9, 22);
+            Config.ssdv.quality       = constrain(getParamIntSafe("ssdv.quality", Config.ssdv.quality), 0, 7);
+            Config.ssdv.intervalMin   = constrain(getParamIntSafe("ssdv.intervalMin", Config.ssdv.intervalMin), 0, 1440);
+            Config.ssdv.rxSave        = request->hasParam("ssdv.rxSave", true);
+            Config.ssdv.camResolution = constrain(getParamIntSafe("ssdv.camResolution", Config.ssdv.camResolution), 0, 13);
+            Config.ssdv.url           = getParamStringSafe("ssdv.url", Config.ssdv.url);
+
+            Config.rtty.enabled     = request->hasParam("rtty.enabled", true);
+            Config.rtty.freqHz      = mhzToHz("rtty.freqMHz", Config.rtty.freqHz);
+            Config.rtty.shiftHz     = constrain(getParamIntSafe("rtty.shiftHz", Config.rtty.shiftHz), 50, 2000);
+            Config.rtty.baud        = constrain(getParamIntSafe("rtty.baud", Config.rtty.baud), 10, 600);
+            Config.rtty.enc         = constrain(getParamIntSafe("rtty.enc", Config.rtty.enc), 0, 2);
+            Config.rtty.stopBits    = constrain(getParamIntSafe("rtty.stopBits", Config.rtty.stopBits), 1, 2);
+            Config.rtty.powerDbm    = constrain(getParamIntSafe("rtty.powerDbm", Config.rtty.powerDbm), -9, 22);
+            Config.rtty.intervalMin = constrain(getParamIntSafe("rtty.intervalMin", Config.rtty.intervalMin), 0, 1440);
+            Config.rtty.telemetry   = request->hasParam("rtty.telemetry", true);
+            Config.rtty.locatorLen  = constrain(getParamIntSafe("rtty.locatorLen", Config.rtty.locatorLen), 4, 8);
+            String rttyText = getParamStringSafe("rtty.text", Config.rtty.text);
+            rttyText.trim();
+            if (rttyText.length() > 64) rttyText = rttyText.substring(0, 64);
+            Config.rtty.text = rttyText;
+        }
+        #endif  // NO_IMAGE_MODES
         // GPS (u-blox M10 / L76K): se aplica al arrancar. Las combinaciones no validas en el M10 se rechazan y se conserva la mascara anterior
         if (request->hasParam("gps.present", true)) {
             int mask = (request->hasParam("gps.useGps", true) ? 1 : 0) | (request->hasParam("gps.useGalileo", true) ? 2 : 0) | (request->hasParam("gps.useBeidou", true) ? 4 : 0) |
