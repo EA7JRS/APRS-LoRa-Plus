@@ -43,3 +43,10 @@ En las placas de radio FM (SA868 / T-TWR) y en el transponder MAPRS (muy justo d
 
 Compila en la CI para todas las placas. **La migración a RadioLib 8 y los modos nuevos están sin probar todavía en la
 T-Beam Supreme.**
+
+## Incidencia conocida
+
+- **CLOCK > MOON lento en placas lentas.** El disco de la Luna (`drawMoonDisc`) se dibuja punto a punto con doble
+  precisión en cada refresco y el ESP32 emula el `double` por software; en algunas placas el bucle se queda ocupado y
+  tarda en responder al botón para pasar a la vista siguiente (EME) o a la página siguiente. Pendiente: cachear el disco y
+  redibujarlo solo cuando cambian los datos de la Luna (cada 5 min), no en cada refresco.
