@@ -133,7 +133,15 @@ namespace Utils {
         return list.indexOf("," + currentBeacon->callsign + ",") < 0;
     }
 
+    // Se manda varias veces (espaciadas por el intervalo de estado) para que llegue seguro a un iGate; solo tras OWN_STATUS_SENDS
+    // envios se apunta en NVS como hecho. El contador va en RAM: si se reinicia antes, reintenta (mas oportunidades). (EA7JRS)
+    static const int OWN_STATUS_SENDS = 3;
+    static String s_ownStatusCall = "";
+    static int    s_ownStatusCnt  = 0;
+
     static void ownStatusDone() {
+        if (s_ownStatusCall != currentBeacon->callsign) { s_ownStatusCall = currentBeacon->callsign; s_ownStatusCnt = 0; }
+        if (++s_ownStatusCnt < OWN_STATUS_SENDS) return;               // aun faltan repeticiones: no lo marca hecho todavia
         Preferences p;
         p.begin("alpst", false);
         String sent = p.getString("sent", "");
