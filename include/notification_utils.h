@@ -28,7 +28,7 @@ namespace NOTIFICATION_Utils {
     void playTone(int frequency, uint8_t duration);
     void sidetone(bool on);         // tono continuo de manipulador CW en el zumbador (700 Hz)
     void beaconTxBeep();
-    void messageBeep();
+    void messageBeep(bool emergency = false);   // emergency = mensaje de categoria emergencia (SOS / EMERGENCY / MAYDAY): ademas del LED de mensaje, parpadea el flash
     void stationHeardBeep();
     void countdownBeep();           // pitido corto de la cuenta atras de SOS
     void alarmBeep();               // sirena de emergencia (Mic-E Emergency, SOS, MOB)
