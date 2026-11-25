@@ -15,6 +15,7 @@
 #include "fw_update.h"
 #include "bcast_radio.h"
 #include "cat_net.h"
+#include "kiss_net.h"
 #include "configuration.h"
 #include "display.h"
 #include "lora_utils.h"
@@ -301,6 +302,7 @@ namespace FW_Update {
         {
             JsonObject modes   = doc["modes"].to<JsonObject>();
             modes["cw"]        = LoRa_Utils::cwAvailable();
+            modes["fsk"]       = LoRa_Utils::fskAvailable();             // APRS FSK 9600: no en LLCC68
             modes["wspr"]      = LoRa_Utils::wsprAvailable();            // cubre WSPR y FT8 / FT4 / FST4W
             modes["lrfhss"]    = LoRa_Utils::lrfhssAvailable();
             modes["dapnet"]    = LoRa_Utils::dapnetAvailable();
@@ -315,6 +317,7 @@ namespace FW_Update {
                 modes["rtty"]  = false;
             #endif
         }
+        doc["kissnet"]         = (bool)KISS_NET_SUPPORTED;             // KISS por WiFi: solo ESP32-S3 / C3 (la WebUI oculta su seccion en el ESP32 clasico)
         doc["wifiConfigured"]  = !Config.fwUpdate.ssid.isEmpty();
         String out;
         serializeJson(doc, out);
