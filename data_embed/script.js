@@ -783,6 +783,7 @@ function loadSettings(settings) {
     document.getElementById("nonSmartBeaconRate").value                 = settings.other.nonSmartBeaconRate;
     document.getElementById("rememberStationTime").value                = settings.other.rememberStationTime;
     document.getElementById("standingUpdateTime").value                 = settings.other.standingUpdateTime;
+    document.getElementById("minBeaconIntervalSec").value               = settings.other.minBeaconIntervalSec ?? 30;
     document.getElementById("sendAltitude").checked                     = settings.other.sendAltitude ;
     document.getElementById("disableGPS").checked                       = settings.other.disableGPS;
     {

@@ -245,6 +245,7 @@ namespace WEB_Utils {
         Config.sendCommentAfterXBeacons         = getParamIntSafe("sendCommentAfterXBeacons", Config.sendCommentAfterXBeacons);
         Config.nonSmartBeaconRate               = getParamIntSafe("nonSmartBeaconRate", Config.nonSmartBeaconRate);
         Config.standingUpdateTime               = getParamIntSafe("standingUpdateTime", Config.standingUpdateTime);
+        Config.minBeaconIntervalSec             = getParamIntSafe("minBeaconIntervalSec", Config.minBeaconIntervalSec);
         Config.email                            = getParamStringSafe("email", Config.email);
         Config.rememberStationTime              = getParamIntSafe("rememberStationTime", Config.rememberStationTime);
         Config.sendAltitude                     = request->hasParam("sendAltitude", true);

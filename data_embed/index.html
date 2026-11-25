@@ -294,6 +294,16 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                         </div>
                                     </div>
                                 </div>
+                                <div class="row mt-3">
+                                    <div class="col-6">
+                                        <label for="minBeaconIntervalSec" class="form-label">Minimum beacon interval (anti-flood)</label>
+                                        <div class="input-group">
+                                            <input type="number" name="minBeaconIntervalSec" id="minBeaconIntervalSec" required class="form-control" placeholder="30" value="30" step="1" min="0" max="3600" />
+                                            <span class="input-group-text">seconds</span>
+                                        </div>
+                                        <small>Hard floor: never two automatic position beacons closer than this, above the SmartBeacon profile, the fixed rate and corner pegging. Avoids saturating APRS over RF or the internet. 0 = no floor (the profile decides). An SOS beacon is not held back.</small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 </section>

@@ -428,6 +428,10 @@ void loop() {
         #ifdef HAS_APRS_PAGES
             if (sendUpdate && !PAGES_Utils::beaconAllowed()) sendUpdate = false;     // modo manual: sin balizas automaticas
         #endif
+        // Suelo global anti-inundacion: ninguna baliza de posicion automatica mas pronto que minBeaconIntervalSec desde la anterior
+        // (por encima del perfil SmartBeacon, de la tasa fija y del corner-pegging). Evita saturar APRS por RF o internet. No afecta a una
+        // emergencia (SOS). 0 = sin suelo. (EA7JRS)
+        if (sendUpdate && !sosActive && Config.minBeaconIntervalSec > 0 && lastTx < (uint32_t)Config.minBeaconIntervalSec * 1000UL) sendUpdate = false;
         if (sendUpdate && gps_loc_update) {
             STATION_Utils::sendBeacon();
             #ifdef HAS_APRS_PAGES
