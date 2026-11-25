@@ -1495,6 +1495,132 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                 <div class="small text-muted mb-2">Default 434.000 MHz, 39 kHz grid, rate 1/3 (inside the IARU R1 125 kHz data-like-LoRa note). Frequencies overlapping 432.000-432.500 or 435-438 MHz are refused. Experimental.</div>
                             </div>
                         </div>
+
+                        <div class="row my-5 d-flex align-items-top" id="grp-ssdv">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>SSDV (slow-scan digital video)</h5>
+                                <small>Image transmission (HAB style). Off until ticked; then it appears in SELECT MODE. Without PSRAM only a small grey test pattern is sent. On boards up to 4&nbsp;MB this mode is not built.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="ssdv.enabled" id="ssdv.enabled" class="form-check-input" />
+                                    <label for="ssdv.enabled" class="form-label">Enable SSDV (adds it to SELECT MODE)</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="ssdv.source" id="ssdv.source"><option value="0">Test pattern</option><option value="1">JPEG from URL (WiFi)</option><option value="2">Upload from the app (BLE)</option><option value="3">OV2640 camera</option></select>
+                                        <label for="ssdv.source">Image source</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="ssdv.useLora" id="ssdv.useLora"><option value="1">LoRa (237 B, no RS)</option><option value="0">FSK + Reed-Solomon (205 B)</option></select>
+                                        <label for="ssdv.useLora">Modulation</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" step="0.000001" class="form-control form-control-sm" name="ssdv.freqMHz" id="ssdv.freqMHz" value="434.000" />
+                                        <label for="ssdv.freqMHz">Frequency (MHz)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.powerDbm" id="ssdv.powerDbm" min="-9" max="22" value="10" />
+                                        <label for="ssdv.powerDbm">Power (dBm)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.quality" id="ssdv.quality" min="0" max="7" value="4" />
+                                        <label for="ssdv.quality">JPEG quality (0-7)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.intervalMin" id="ssdv.intervalMin" min="0" max="1440" value="0" />
+                                        <label for="ssdv.intervalMin">Re-send every (min, 0 = on request)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.camResolution" id="ssdv.camResolution" min="0" max="13" value="0" />
+                                        <label for="ssdv.camResolution">Camera framesize (0-13)</label>
+                                    </div>
+                                </div>
+                                <div class="row" id="ssdv-lora">
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.sf" id="ssdv.sf" min="5" max="12" value="9" />
+                                        <label for="ssdv.sf">LoRa spreading factor (5-12)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.cr" id="ssdv.cr" min="5" max="8" value="5" />
+                                        <label for="ssdv.cr">LoRa coding rate (4/N, 5-8)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.bwIdx" id="ssdv.bwIdx" min="-1" max="9" value="-1" />
+                                        <label for="ssdv.bwIdx">LoRa bandwidth index (-1 = active profile)</label>
+                                    </div>
+                                </div>
+                                <div class="row" id="ssdv-fsk">
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.brHz" id="ssdv.brHz" min="100" max="300000" value="2000" />
+                                        <label for="ssdv.brHz">FSK baud rate</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="ssdv.devHz" id="ssdv.devHz" min="100" max="200000" value="2000" />
+                                        <label for="ssdv.devHz">FSK deviation (Hz)</label>
+                                    </div>
+                                </div>
+                                <div class="form-floating mb-2">
+                                    <input type="text" class="form-control form-control-sm" name="ssdv.url" id="ssdv.url" maxlength="128" placeholder="http://..." />
+                                    <label for="ssdv.url">Image URL (source = JPEG from URL)</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" name="ssdv.rxSave" id="ssdv.rxSave" class="form-check-input" />
+                                    <label for="ssdv.rxSave" class="form-label">Save received images to flash (/ssdv_rx.jpg)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row my-5 d-flex align-items-top" id="grp-rtty">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>RTTY beacon</h5>
+                                <small>Radioteletype beacon (HAB style). Off until ticked; then it appears in SELECT MODE. On boards up to 4&nbsp;MB this mode is not built.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="rtty.enabled" id="rtty.enabled" class="form-check-input" />
+                                    <label for="rtty.enabled" class="form-label">Enable the RTTY beacon (adds it to SELECT MODE)</label>
+                                </div>
+                                <div class="row">
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" step="0.000001" class="form-control form-control-sm" name="rtty.freqMHz" id="rtty.freqMHz" value="434.250" />
+                                        <label for="rtty.freqMHz">Mark frequency (MHz)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rtty.shiftHz" id="rtty.shiftHz" min="50" max="2000" value="450" />
+                                        <label for="rtty.shiftHz">Shift (Hz)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-4 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rtty.baud" id="rtty.baud" min="10" max="600" value="50" />
+                                        <label for="rtty.baud">Baud rate</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="rtty.enc" id="rtty.enc"><option value="0">ASCII (7 bit)</option><option value="1">ASCII (8 bit)</option><option value="2">Baudot ITA2 (5 bit)</option></select>
+                                        <label for="rtty.enc">Encoding</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <select class="form-select form-select-sm" name="rtty.stopBits" id="rtty.stopBits"><option value="1">1</option><option value="2">2</option></select>
+                                        <label for="rtty.stopBits">Stop bits</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rtty.powerDbm" id="rtty.powerDbm" min="-9" max="22" value="10" />
+                                        <label for="rtty.powerDbm">Power (dBm)</label>
+                                    </div>
+                                    <div class="form-floating col-6 col-md-3 px-1 mb-2">
+                                        <input type="number" class="form-control form-control-sm" name="rtty.intervalMin" id="rtty.intervalMin" min="0" max="1440" value="0" />
+                                        <label for="rtty.intervalMin">Beacon every (min, 0 = on request)</label>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input type="checkbox" name="rtty.telemetry" id="rtty.telemetry" class="form-check-input" />
+                                    <label for="rtty.telemetry" class="form-label">UKHAS telemetry sentence with GPS (off = free text below)</label>
+                                </div>
+                                <div class="form-floating mb-2">
+                                    <input type="text" class="form-control form-control-sm" name="rtty.text" id="rtty.text" maxlength="64" placeholder="DE {CALL} RTTY TEST" />
+                                    <label for="rtty.text">Free text ({CALL} = callsign)</label>
+                                </div>
+                            </div>
+                        </div>
                         </section>
 <section class="panel-section" id="sec-connectivity">
                         <div class="row my-5 d-flex align-items-top">   
@@ -1604,6 +1730,25 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                             value="123456"
                                         />
                                         <small>6-digit pairing PIN for the control service. Change the default 123456; changing it forgets paired phones.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row my-5 d-flex align-items-top" id="grp-homewifi">
+                            <div class="col-lg-3 col-sm-12">
+                                <h5>Home WiFi network</h5>
+                                <small>The WiFi the tracker joins. Used by KISS over WiFi, the WebUI on the local network, OTA firmware update, the rotor and the satellite data download.</small>
+                            </div>
+                            <div class="col-lg-9 col-sm-12">
+                                <div class="row g-2 mb-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="fwUpdate.ssid">WiFi network (SSID)</label>
+                                        <input type="text" class="form-control" id="fwUpdate.ssid" name="fwUpdate.ssid" maxlength="32">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="fwUpdate.password">WiFi password</label>
+                                        <input type="password" class="form-control" id="fwUpdate.password" name="fwUpdate.password" maxlength="63">
                                     </div>
                                 </div>
                             </div>
@@ -2525,18 +2670,8 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                     <small class="text-body-secondary">To update over the air, use the APRS LoRa+ Android app (Firmware tab): it downloads the new version and sends it by Bluetooth.</small>
                                 </div>
                                 <hr>
-                                <p class="mb-2"><strong>Your WiFi network</strong><br>
-                                <small>Used by KISS over WiFi, the rotor and the satellite data download.</small></p>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="fwUpdate.ssid">WiFi network (SSID)</label>
-                                        <input type="text" class="form-control" id="fwUpdate.ssid" name="fwUpdate.ssid" maxlength="32">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="fwUpdate.password">WiFi password</label>
-                                        <input type="password" class="form-control" id="fwUpdate.password" name="fwUpdate.password" maxlength="63">
-                                    </div>
-                                </div>
+                                <p class="mb-0"><strong>Your WiFi network</strong><br>
+                                <small>Set the home WiFi (SSID and password) in <strong>Connectivity &gt; Home WiFi network</strong>. The same network is used for OTA update, KISS over WiFi, the WebUI on the LAN, the rotor and the satellite data download.</small></p>
                                 <p class="mb-0 text-body-secondary" id="fw-usb-note" style="display:none"><small>No room for a second firmware copy: update with the USB installer (project web page).</small></p>
                             </div>
                         </div>

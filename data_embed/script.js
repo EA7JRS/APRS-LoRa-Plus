@@ -746,6 +746,37 @@ function loadSettings(settings) {
         document.getElementById("lrfhss.locator").value = lr.locator ?? "";
         document.getElementById("lrfhss.locatorLen").value = String(lr.locatorLen ?? 6);
         lrfhssWire();
+        const ssdv = settings.ssdv;                                    // SSDV / RTTY: no existen en placas de hasta 4 MB (modos minimos)
+        if (ssdv) {
+            document.getElementById("ssdv.enabled").checked = ssdv.enabled ?? false;
+            document.getElementById("ssdv.source").value = String(ssdv.source ?? 0);
+            document.getElementById("ssdv.useLora").value = (ssdv.useLora ?? true) ? "1" : "0";
+            document.getElementById("ssdv.freqMHz").value = ((ssdv.freqHz ?? 434000000) / 1e6).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+            document.getElementById("ssdv.bwIdx").value = ssdv.bwIdx ?? -1;
+            document.getElementById("ssdv.sf").value = ssdv.sf ?? 9;
+            document.getElementById("ssdv.cr").value = ssdv.cr ?? 5;
+            document.getElementById("ssdv.brHz").value = ssdv.brHz ?? 2000;
+            document.getElementById("ssdv.devHz").value = ssdv.devHz ?? 2000;
+            document.getElementById("ssdv.powerDbm").value = ssdv.powerDbm ?? 10;
+            document.getElementById("ssdv.quality").value = ssdv.quality ?? 4;
+            document.getElementById("ssdv.intervalMin").value = ssdv.intervalMin ?? 0;
+            document.getElementById("ssdv.rxSave").checked = ssdv.rxSave ?? false;
+            document.getElementById("ssdv.camResolution").value = ssdv.camResolution ?? 0;
+            document.getElementById("ssdv.url").value = ssdv.url ?? "";
+        } else { const e = document.getElementById("grp-ssdv"); if (e) e.classList.add("d-none"); }
+        const rtty = settings.rtty;
+        if (rtty) {
+            document.getElementById("rtty.enabled").checked = rtty.enabled ?? false;
+            document.getElementById("rtty.freqMHz").value = ((rtty.freqHz ?? 434250000) / 1e6).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+            document.getElementById("rtty.shiftHz").value = rtty.shiftHz ?? 450;
+            document.getElementById("rtty.baud").value = rtty.baud ?? 50;
+            document.getElementById("rtty.enc").value = String(rtty.enc ?? 0);
+            document.getElementById("rtty.stopBits").value = String(rtty.stopBits ?? 2);
+            document.getElementById("rtty.powerDbm").value = rtty.powerDbm ?? 10;
+            document.getElementById("rtty.intervalMin").value = rtty.intervalMin ?? 0;
+            document.getElementById("rtty.telemetry").checked = rtty.telemetry ?? false;
+            document.getElementById("rtty.text").value = rtty.text ?? "";
+        } else { const e = document.getElementById("grp-rtty"); if (e) e.classList.add("d-none"); }
         document.getElementById("wspr.freqHz").value = 432301500;      // fixed: not editable
         document.getElementById("wspr.corrHz").value = wspr.corrHz ?? 0;
         document.getElementById("wspr.useGlobalPpm").checked = wspr.useGlobalPpm ?? false;
@@ -1943,7 +1974,7 @@ function applyRadioSa868(band) {
     RADIO_BAND = uhf ? "UHF" : "VHF";
     document.body.classList.add("radio-sa868");
     const hide = (id, on) => { const e = document.getElementById(id); if (e) e.classList.toggle("d-none", on); };
-    ["grp-lora", "grp-wspr", "grp-ft", "grp-lrfhss"].forEach(id => hide(id, true));
+    ["grp-lora", "grp-wspr", "grp-ft", "grp-lrfhss", "grp-ssdv", "grp-rtty"].forEach(id => hide(id, true));
     hide("grp-fsk", !uhf);                                  // 9600 on VHF goes on the SA868 channel; on UHF it uses the FSK profile frequency
     hide("grp-ais", uhf);
     hide("grp-bcast", false);
