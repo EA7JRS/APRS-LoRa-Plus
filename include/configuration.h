@@ -622,6 +622,7 @@ public:
     int     nonSmartBeaconRate;
     int     rememberStationTime;
     int     standingUpdateTime;
+    int     minBeaconIntervalSec;       // suelo global anti-inundacion: nunca dos balizas de posicion automaticas mas juntas que esto (s); 0 = sin suelo (solo el perfil). Evita saturar APRS por RF o internet (EA7JRS)
     bool    sendAltitude;
     bool    disableGPS;
     bool    cadActive;                  // escuchar antes de transmitir: CAD en LoRa, deteccion de portadora por RSSI en FSK
