@@ -14,7 +14,8 @@
     #include <Arduino.h>
     #include "board_pinout.h"
     #include "display.h"
-    #if defined(HAS_APRS_PAGES) && !defined(NO_SAT) && !defined(CONFIG_IDF_TARGET_ESP32)
+    // MINIMAL_MODES (placas de hasta 4 MB): sin modo SAT ni rotor (Manuel - EA7JRS)
+    #if defined(HAS_APRS_PAGES) && !defined(NO_SAT) && !defined(CONFIG_IDF_TARGET_ESP32) && !defined(MINIMAL_MODES)
         #define HAS_SAT
     #endif
 #endif

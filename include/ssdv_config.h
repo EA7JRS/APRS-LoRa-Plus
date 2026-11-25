@@ -15,16 +15,17 @@
 #else
     #include <Arduino.h>
     #include "board_pinout.h"
-    #if !defined(HAS_SA868) && !defined(NO_SSDV)
+    // MINIMAL_MODES (placas de hasta 4 MB): solo APRS LoRa / FSK / CW, sin SSDV ni RTTY (Manuel - EA7JRS)
+    #if !defined(HAS_SA868) && !defined(NO_SSDV) && !defined(MINIMAL_MODES)
         #define HAS_SSDV
     #endif
     // Modo RTTY (baliza de radioteletipo): mismas condiciones que SSDV; NO_RTTY lo quita de una placa concreta
-    #if !defined(HAS_SA868) && !defined(NO_RTTY)
+    #if !defined(HAS_SA868) && !defined(NO_RTTY) && !defined(MINIMAL_MODES)
         #define HAS_RTTY
     #endif
-    // Placas muy justas de DRAM estatica (el transponder MAPRS): sin los modos de imagen/baliza ni su configuracion
-    // (SSDV, RTTY y POCSAG). Quita de la configuracion global los grupos ssdv / rtty / pocsag y la orden POCSAG.
-    #if defined(NO_SSDV) && defined(NO_RTTY)
+    // Placas muy justas de DRAM estatica (el transponder MAPRS) o de hasta 4 MB (MINIMAL_MODES): sin los modos de
+    // imagen/baliza ni su configuracion (SSDV, RTTY y POCSAG). Quita los grupos ssdv / rtty / pocsag y la orden POCSAG.
+    #if (defined(NO_SSDV) && defined(NO_RTTY)) || defined(MINIMAL_MODES)
         #define NO_IMAGE_MODES
     #endif
 #endif
