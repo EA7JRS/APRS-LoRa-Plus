@@ -73,6 +73,22 @@ const IARU_CHANNELS_UHF = {
     2: [],
     3: [["439.100  APRS (Australia)", 439.1], ["431.040  APRS 1200 baud (Japan)", 431.04]]
 };
+// FT8 on 70 cm: 432.174 MHz dial from the WSJT-X frequency list, valid in all three regions.
+const IARU_CHANNELS_FT8 = {
+    1: [["432.174  FT8 (WSJT-X, 70 cm)", 432.174]], 2: [["432.174  FT8 (WSJT-X, 70 cm)", 432.174]], 3: [["432.174  FT8 (WSJT-X, 70 cm)", 432.174]]
+};
+// WSPR on 70 cm: dial 432.300 MHz -> 432.3015 central (dial + 1500 Hz), WSJT-X list, all regions.
+const IARU_CHANNELS_WSPR = {
+    1: [["432.300  WSPR dial (70 cm)", 432.3015]], 2: [["432.300  WSPR dial (70 cm)", 432.3015]], 3: [["432.300  WSPR dial (70 cm)", 432.3015]]
+};
+// DAPNET (POCSAG) common network frequencies (hampager.de); the network is Europe-centric (Region 1). Elsewhere use the local one.
+const IARU_CHANNELS_DAPNET = {
+    1: [["439.9875  DAPNET (70 cm, Europe)", 439.9875], ["144.8625  DAPNET (2 m, Europe)", 144.8625]], 2: [], 3: []
+};
+// M17 suggested simplex frequencies (M17 project); match the IARU R1 plan: 433.475 (70 cm), 144.875 (2 m).
+const IARU_CHANNELS_M17 = {
+    1: [["433.475  M17 (70 cm)", 433.475], ["144.875  M17 (2 m)", 144.875]], 2: [], 3: []
+};
 // T-TWR (SA868): band of the module and the transmit ranges fixed in the firmware (FmCore::txAllowed, region from the GPS)
 const TTWR_TX = { VHF: { 1: [[144.0, 146.0]], 2: [[144.0, 148.0]], 3: [[144.0, 148.0]] },
                   UHF: { 1: [[430.0, 440.0]], 2: [[430.0, 450.0]], 3: [[430.0, 440.0]] } };
@@ -206,6 +222,83 @@ function iaruProfileWire(root, o) {
     });
     fillPresets();
     refresh();
+}
+
+// ---- Band-plan presets + segment warning for standalone mode frequency fields (FT8, M17, DAPNET, SSDV, RTTY, FT4, FST4W, LR-FHSS) ----
+// Mirrors IARU_Plan::allowed / txWarning of the firmware. Region from the GPS (/api/info "region") or the chosen one; national rules prevail.
+let IARU_REGION_INFO = 0;                                   // region detectada por GPS (0 = desconocida); la fija el handler de /api/info
+const BANDPLAN_REFRESH = [];
+function bandAllowed(region, hz) {                          // = IARU_Plan::allowed
+    if (region === 2) return (hz >= 144e6 && hz <= 148e6) || (hz >= 420e6 && hz <= 450e6) || (hz >= 902e6 && hz <= 928e6);
+    if (region === 3) return (hz >= 144e6 && hz <= 148e6) || (hz >= 430e6 && hz <= 440e6);
+    return (hz >= 144e6 && hz <= 146e6) || (hz >= 430e6 && hz <= 440e6);
+}
+function bandPlanWarn(region, hz, known) {                 // mensaje de aviso ("" si bien); si la region es desconocida solo el satelite (global)
+    if (hz >= 435e6 && hz <= 438e6) return "435–438 MHz is the satellite segment — avoid terrestrial transmission.";
+    if (!known) return "";
+    if (!bandAllowed(region, hz)) return "Outside the amateur band of " + IARU_REGIONS[region].name + " — national rules prevail.";
+    if (region === 1 && hz >= 432.4e6 && hz <= 432.5e6) return "432.400–432.490 MHz is a beacon-only segment (IARU R1) — do not transmit here.";
+    if (region === 2 && hz >= 432.3e6 && hz <= 432.4e6) return "432.300–432.400 MHz is a beacon segment (IARU R2) — do not transmit here.";
+    return "";
+}
+// opt: { unit:'mhz'|'hz', kind:'ft8'|'wspr'|'dapnet'|'m17'|'' , presetRegion:()=>r, warnRegion:()=>r, warnKnown:()=>bool }
+function attachModeBandPlan(freqId, opt) {
+    const freq = document.getElementById(freqId);
+    if (!freq || freq.dataset.bandplan) return;            // ausente o ya enganchado
+    freq.dataset.bandplan = "1";
+    const fc = freq.closest(".form-floating") || freq.parentElement;
+    const toHz = () => opt.unit === "hz" ? Math.round(parseFloat(freq.value)) : Math.round(parseFloat(freq.value) * 1e6);
+    const fromMHz = mhz => opt.unit === "hz" ? String(Math.round(mhz * 1e6)) : mhz.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+    const tables = { ft8: IARU_CHANNELS_FT8, wspr: IARU_CHANNELS_WSPR, dapnet: IARU_CHANNELS_DAPNET, m17: IARU_CHANNELS_M17 };
+    let preset = null;
+    if (opt.kind && tables[opt.kind]) {                    // dropdown de presets delante del campo
+        const wrap = document.createElement("div");
+        wrap.className = "form-floating col-12 col-md-6 px-1 mb-2";
+        preset = document.createElement("select");
+        preset.className = "form-select form-select-sm";
+        preset.id = freqId + ".preset";
+        const lab = document.createElement("label");
+        lab.setAttribute("for", preset.id);
+        lab.textContent = "IARU band plan channel";
+        wrap.appendChild(preset); wrap.appendChild(lab);
+        fc.parentElement.insertBefore(wrap, fc);
+        preset.addEventListener("change", () => { if (preset.value) { freq.value = fromMHz(parseFloat(preset.value)); freq.dispatchEvent(new Event("input", { bubbles: true })); } });
+    }
+    const warn = document.createElement("small");
+    warn.className = "text-muted d-block px-1 mb-1";
+    warn.id = freqId + ".bandwarn";
+    fc.parentElement.insertBefore(warn, fc.nextSibling);
+    const refresh = () => {
+        if (preset) {
+            const r = opt.presetRegion ? opt.presetRegion() : 1;
+            const list = tables[opt.kind][r] || [];
+            preset.innerHTML = ['<option value="">Custom</option>'].concat(list.map(c => '<option value="' + c[1] + '">' + c[0] + '</option>')).join("");
+            const curHz = toHz();
+            const match = [...preset.options].find(o => o.value && Math.round(parseFloat(o.value) * 1e6) === curHz);
+            preset.value = match ? match.value : "";
+        }
+        const r = opt.warnRegion ? opt.warnRegion() : (IARU_REGION_INFO || 1);
+        const known = opt.warnKnown ? opt.warnKnown() : (IARU_REGION_INFO > 0);
+        const v = parseFloat(freq.value);
+        const msg = isFinite(v) ? bandPlanWarn(r, toHz(), known) : "";
+        warn.textContent = msg;
+        warn.className = (msg ? "text-danger fw-semibold" : "text-muted") + " d-block px-1 mb-1";
+    };
+    freq.addEventListener("input", refresh);
+    const regSel = opt.kind === "ft8" ? document.getElementById("ft.ft8Region") : opt.kind === "m17" ? document.getElementById("sa868.iaruRegion") : null;
+    if (regSel) regSel.addEventListener("change", refresh);
+    BANDPLAN_REFRESH.push(refresh);
+    refresh();
+}
+function wireBandPlans() {                                  // llamado al cargar los ajustes (los campos ya tienen valor)
+    attachModeBandPlan("ft.ft8FreqMHz", { unit: "mhz", kind: "ft8", presetRegion: () => parseInt(document.getElementById("ft.ft8Region").value, 10) || 1, warnRegion: () => parseInt(document.getElementById("ft.ft8Region").value, 10) || 1, warnKnown: () => true });
+    attachModeBandPlan("ft.ft4FreqMHz", { unit: "mhz", kind: "", warnRegion: () => parseInt(document.getElementById("ft.ft8Region").value, 10) || 1, warnKnown: () => true });
+    attachModeBandPlan("ft.fstFreqMHz", { unit: "mhz", kind: "", warnRegion: () => parseInt(document.getElementById("ft.ft8Region").value, 10) || 1, warnKnown: () => true });
+    attachModeBandPlan("sa868.m17MHz", { unit: "mhz", kind: "m17", presetRegion: () => parseInt(document.getElementById("sa868.iaruRegion").value, 10) || 1, warnRegion: () => parseInt(document.getElementById("sa868.iaruRegion").value, 10) || 1, warnKnown: () => true });
+    attachModeBandPlan("dapnet.freqMHz", { unit: "mhz", kind: "dapnet", presetRegion: () => 1 });
+    attachModeBandPlan("ssdv.freqMHz", { unit: "mhz", kind: "" });
+    attachModeBandPlan("rtty.freqMHz", { unit: "mhz", kind: "" });
+    attachModeBandPlan("lrfhss.freqHz", { unit: "hz", kind: "" });
 }
 
 // Custom scripts
@@ -1371,6 +1464,7 @@ function loadSettings(settings) {
     pttPinInput.disabled        = !pttTriggerCheckbox.checked;
 
     clampOutOfRangeInputs();
+    wireBandPlans();                                        // presets IARU + aviso de segmento en los campos de frecuencia por modo
     cfgCheckRun();
 }
 
@@ -2025,6 +2119,7 @@ function boardPinInit() {
                 e.classList.add("d-none");
                 e.querySelectorAll("input, select, textarea").forEach(x => { x.disabled = true; });
             };
+            if (typeof i.region === "number") { IARU_REGION_INFO = i.region; BANDPLAN_REFRESH.forEach(f => f()); }   // region por GPS: afina los avisos del plan de bandas
             if (i.sat === false) { killGrp("grp-sat", false); killGrp("grp-rotor", false); }       // modo SAT solo en las placas que lo admiten
             if (i.modes) {                              // modos de TX disponibles segun el chip de radio (placas de hasta 4 MB: solo APRS LoRa / FSK / CW)
                 killGrp("grp-cw", i.modes.cw);          // CW solo con SX1262/SX1268

@@ -13,7 +13,7 @@ start = js.index("const IARU_REGIONS")
 end = js.index("function iaruList")
 code = js[start:end] + """
 const out = {};
-const T = {lora: IARU_CHANNELS, fsk: IARU_CHANNELS_FSK, cw: IARU_CHANNELS_CW, cwb: IARU_CHANNELS_CWB, vhf: IARU_CHANNELS_VHF, uhf: IARU_CHANNELS_UHF};
+const T = {lora: IARU_CHANNELS, fsk: IARU_CHANNELS_FSK, cw: IARU_CHANNELS_CW, cwb: IARU_CHANNELS_CWB, vhf: IARU_CHANNELS_VHF, uhf: IARU_CHANNELS_UHF, ft8: IARU_CHANNELS_FT8, wspr: IARU_CHANNELS_WSPR, dapnet: IARU_CHANNELS_DAPNET, m17: IARU_CHANNELS_M17};
 for (const k of Object.keys(T)) for (const r of [1, 2, 3]) out[k + r] = (T[k][r] || []).map(c => Math.round(c[1] * 1e6));
 out.bands = IARU_REGIONS;
 out.vhfBands = IARU_VHF_BANDS;

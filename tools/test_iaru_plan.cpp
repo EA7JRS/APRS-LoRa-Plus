@@ -12,9 +12,9 @@ static int fails = 0;
 
 int main(int argc, char** argv) {
     if (argc > 1 && !strcmp(argv[1], "--tables")) {
-        const char* names[] = {"lora", "fsk", "cw", "cwb", "vhf", "uhf"};
+        const char* names[] = {"lora", "fsk", "cw", "cwb", "vhf", "uhf", "ft8", "wspr", "dapnet", "m17"};
         printf("{");
-        for (int k = 0; k < 6; k++) for (int r = 1; r <= 3; r++) {
+        for (int k = 0; k < KIND_COUNT; k++) for (int r = 1; r <= 3; r++) {
             printf("%s\"%s%d\":[", (k || r > 1) ? "," : "", names[k], r);
             for (int i = 0; i < channelCount((Kind)k, r); i++) printf("%s%ld", i ? "," : "", channelHz((Kind)k, r, i));
             printf("]");
@@ -68,6 +68,23 @@ int main(int argc, char** argv) {
     CHECK(channelCount(UHF, 2) == 0 && defaultHz(UHF, 2) == 0L && channelHz(UHF, 2, 0) == 0L);
     CHECK(mapFrequency(LORA, 2, 2, 12345L) == 12345L);                // misma region: no se toca
     CHECK(mapFrequency(LORA, 1, 2, 0L) == 0L);
+    // FT8 / WSPR: mismo canal en las tres regiones
+    CHECK(channelCount(FT8, 1) == 1 && channelHz(FT8, 1, 0) == 432174000L && channelHz(FT8, 3, 0) == 432174000L);
+    CHECK(channelCount(WSPR, 2) == 1 && channelHz(WSPR, 2, 0) == 432301500L);
+    CHECK(isPreset(FT8, 1, 432174000L) && !isPreset(FT8, 1, 432175000L));
+    CHECK(mapFrequency(FT8, 1, 2, 432174000L) == 432174000L);     // valido en las tres
+    // DAPNET / M17: solo R1
+    CHECK(channelCount(DAPNET, 1) == 2 && channelCount(DAPNET, 2) == 0);
+    CHECK(defaultHz(DAPNET, 1) == 439987500L && defaultHz(DAPNET, 2) == 0L);
+    CHECK(channelCount(M17, 1) == 2 && channelHz(M17, 1, 0) == 433475000L && channelHz(M17, 1, 1) == 144875000L);
+    // avisos del plan de bandas
+    CHECK(txWarning(1, 432174000L) == WARN_OK);
+    CHECK(txWarning(1, 445000000L) == WARN_OUTSIDE);             // fuera de 430-440 en R1
+    CHECK(txWarning(2, 445000000L) == WARN_OK);                  // dentro de 420-450 en R2
+    CHECK(txWarning(1, 432450000L) == WARN_BEACON);              // R1 balizas 432,4-432,5
+    CHECK(txWarning(2, 432350000L) == WARN_BEACON);              // R2 balizas 432,3-432,4
+    CHECK(txWarning(1, 436000000L) == WARN_SATELLITE);           // 435-438 satelite
+    CHECK(txWarning(3, 437000000L) == WARN_SATELLITE);
     printf(fails ? "%d fallos\n" : "OK\n", fails);
     return fails ? 1 : 0;
 }
