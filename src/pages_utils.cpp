@@ -2964,12 +2964,43 @@ namespace {
     // Disco de la luna con su fase y sus mares; en el hemisferio sur, al reves (la parte iluminada a la izquierda al crecer y la
     // cara girada media vuelta). En color: tierras claras, mares grises y crateres con el borde oscuro; en las OLED los mares a
     // medio tono (un punto si y otro no) y el borde de los crateres apagado
+    // Textura de la cara de la Luna (mares / crateres) por pixel: 0 nada, 1 mar, 2 crater. Solo depende del radio y del
+    // hemisferio (no de la fase), asi que se calcula una vez y se reutiliza en cada refresco (antes se recalculaba punto a
+    // punto con trigonometria de doble precision en cada vuelta, y en placas lentas bloqueaba el paso de pagina). En el heap
+    // (no en DRAM estatica, que el MAPRS va muy justo); si no hay memoria, se calcula en linea como antes. (EA7JRS)
+    static uint8_t* s_moonTex = nullptr;
+    static int      s_moonTexR = -1;
+    static bool     s_moonTexSouth = false;
+
+    static void moonBuildTex(int r, bool south) {
+        const int side = 2 * r + 1;
+        uint8_t* buf = (uint8_t*)malloc((size_t)side * side);
+        if (!buf) { free(s_moonTex); s_moonTex = nullptr; s_moonTexR = -1; return; }
+        const int NM = sizeof(MOON_MARIA) / sizeof(MOON_MARIA[0]), NC = sizeof(MOON_CRATERS) / sizeof(MOON_CRATERS[0]);
+        for (int dy = -r; dy <= r; dy++) {
+            const int W = (int)floor(sqrt((double)(r * r - dy * dy)));
+            uint8_t* row = buf + (size_t)(dy + r) * side;
+            for (int dx = -r; dx <= r; dx++) {
+                if (dx < -W || dx > W) { row[dx + r] = 0; continue; }
+                const double X = (south ? -dx : dx) / (r + 0.5), Y = (south ? dy : -dy) / (r + 0.5);
+                const double sinLat = Y, cosLat = sqrt(max(0.0, 1 - Y * Y));
+                const double lon = cosLat > 1e-6 ? asin(constrain(X / cosLat, -1.0, 1.0)) : 0;
+                const bool crater = moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, 0) && !moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, -1.6);
+                row[dx + r] = crater ? 2 : (moonSpotAt(MOON_MARIA, NM, sinLat, cosLat, lon, 0) ? 1 : 0);
+            }
+        }
+        free(s_moonTex); s_moonTex = buf; s_moonTexR = r; s_moonTexSouth = south;
+    }
+
     static void drawMoonDisc(int cx, int cy, int r, const MoonInfo& mi, bool south) {
         const double th = (mi.waxing ? mi.elong : 360 - mi.elong) * DEG_TO_RAD;
         const double c = cos(th);
         const bool color = pagesHasColor();
         const bool texture = r >= 8;                            // en los iconos pequenos del reloj, solo la fase
         const int NM = sizeof(MOON_MARIA) / sizeof(MOON_MARIA[0]), NC = sizeof(MOON_CRATERS) / sizeof(MOON_CRATERS[0]);
+        if (texture && (s_moonTexR != r || s_moonTexSouth != south)) moonBuildTex(r, south);
+        const uint8_t* tex = (texture && s_moonTexR == r && s_moonTexSouth == south) ? s_moonTex : nullptr;
+        const int side = 2 * r + 1;
         for (int dy = -r; dy <= r; dy++) {
             const double w = sqrt((double)(r * r - dy * dy));
             const int W = (int)floor(w);
@@ -2989,19 +3020,29 @@ namespace {
                 pagesFillRect(cx + a, cy + dy, b - a + 1, 1, true);
                 continue;
             }
-            for (int dx = a; dx <= b; dx++) {
-                // punto de la cara: proyeccion ortografica (y hacia arriba); en el sur, girada 180 grados
-                const double X = (south ? -dx : dx) / (r + 0.5), Y = (south ? dy : -dy) / (r + 0.5);
-                const double sinLat = Y, cosLat = sqrt(max(0.0, 1 - Y * Y));
-                const double lon = cosLat > 1e-6 ? asin(constrain(X / cosLat, -1.0, 1.0)) : 0;
-                const bool crater = moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, 0) && !moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, -1.6);
-                const bool mare = moonSpotAt(MOON_MARIA, NM, sinLat, cosLat, lon, 0);
-                if (color) {
-                    pagesInk(crater ? INK_MUTED : mare ? INK_MARIA : INK_MOON);
-                    pagesFillRect(cx + dx, cy + dy, 1, 1, true);
-                } else if (!crater && (!mare || ((cx + dx + cy + dy) & 1))) {
-                    pagesFillRect(cx + dx, cy + dy, 1, 1, true);
+            const uint8_t* row = tex ? tex + (size_t)(dy + r) * side : nullptr;
+            // tramos del mismo tipo seguidos (run-length) para no pintar pixel a pixel
+            int dx = a;
+            while (dx <= b) {
+                uint8_t code;
+                if (row) code = row[dx + r];
+                else {
+                    const double X = (south ? -dx : dx) / (r + 0.5), Y = (south ? dy : -dy) / (r + 0.5);
+                    const double sinLat = Y, cosLat = sqrt(max(0.0, 1 - Y * Y));
+                    const double lon = cosLat > 1e-6 ? asin(constrain(X / cosLat, -1.0, 1.0)) : 0;
+                    const bool cr = moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, 0) && !moonSpotAt(MOON_CRATERS, NC, sinLat, cosLat, lon, -1.6);
+                    code = cr ? 2 : (moonSpotAt(MOON_MARIA, NM, sinLat, cosLat, lon, 0) ? 1 : 0);
                 }
+                int dx2 = dx;
+                if (row) { while (dx2 + 1 <= b && row[dx2 + 1 + r] == code) dx2++; }   // solo con cache: agrupa iguales
+                if (color) {
+                    pagesInk(code == 2 ? INK_MUTED : code == 1 ? INK_MARIA : INK_MOON);
+                    pagesFillRect(cx + dx, cy + dy, dx2 - dx + 1, 1, true);
+                } else {
+                    for (int x = dx; x <= dx2; x++)
+                        if (code != 2 && (code != 1 || ((cx + x + cy + dy) & 1))) pagesFillRect(cx + x, cy + dy, 1, 1, true);
+                }
+                dx = dx2 + 1;
             }
         }
         pagesInk(INK_MUTED);
