@@ -43,6 +43,7 @@
 #include "sat_tx.h"
 #include "baro_utils.h"
 #include "lora_utils.h"
+#include "ssdv_config.h"
 #include "ssdv_utils.h"
 #include "bcast_radio.h"
 #include "notification_utils.h"
@@ -338,7 +339,11 @@ namespace {
         #else
             caps["rtty"] = false;
         #endif
-        caps["pocsag"] = LoRa_Utils::rttyAvailable();           // aviso POCSAG (orden "pocsag"): cualquier SX12xx que pueda FSK
+        #ifndef HAS_SA868                                      // aviso POCSAG (orden "pocsag"): cualquier SX12xx que pueda FSK (no la radio FM SA868)
+            caps["pocsag"] = LoRa_Utils::rttyAvailable();
+        #else
+            caps["pocsag"] = false;
+        #endif
         #ifdef HAS_SA868                                         // T-TWR: radio FM SA868 (APRS AFSK 1200); ajustes en el grupo "sa868" (cfgget/cfgset)
             caps["radio"] = "sa868";
             JsonObject sa = doc["sa868"].to<JsonObject>();
@@ -1378,8 +1383,10 @@ namespace {
 
     bool     gpsAidActive = false;
     uint32_t gpsAidBytes  = 0;
+    #ifdef HAS_SSDV
     bool     ssdvUpActive = false;                                 // subida de imagen SSDV por BLE (origen 2)
     uint32_t ssdvUpBytes  = 0;
+    #endif
 
     // Base64 estandar (con o sin relleno '='): devuelve los bytes escritos en out, o -1 si el texto no es valido o no cabe
     int base64Decode(const char* in, uint8_t* out, size_t outMax) {
@@ -1932,6 +1939,7 @@ namespace {
             #endif
         }
         else if (strcmp(cmd, "pocsag") == 0) {                    // envia un aviso POCSAG (emite). addr = RIC, msg = texto, num = numerico. La app exige indicativo validado
+          #ifndef HAS_SA868
             String msg = doc["msg"] | "";
             if (msg.isEmpty()) { reply(cmd, id, "empty message"); return; }
             if (msg.length() > 80) msg = msg.substring(0, 80);
@@ -1949,6 +1957,9 @@ namespace {
             JsonDocument ev;
             ev["e"] = "pocsag"; ev["ok"] = true; ev["addr"] = addr; ev["f"] = freqHz;
             sendDoc(ev);
+          #else
+            reply(cmd, id, "not available");
+          #endif
         }
         else if (strcmp(cmd, "tgtlist") == 0) sendTargets();
         else if (strcmp(cmd, "tgt") == 0) {                       // objetivo fijo para el rotor (repetidor, baliza...): i, n, lat, lon, alt, f | del | sel | src
