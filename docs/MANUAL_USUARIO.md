@@ -410,6 +410,8 @@ Velocidad (9,6 kbps), desviación (3,0 kHz) y ancho de banda de recepción (39 k
 ### 20.4 Plan de bandas IARU en la WebUI
 Cada perfil tiene **IARU region** (1, 2, 3) y **IARU band plan channel** con los canales digitales de 70 cm del plan IARU R1 / WIA y las frecuencias LoRa APRS habituales. La WebUI avisa en rojo si la frecuencia queda fuera de la asignación de aficionados de la región (R1 430–440 MHz; R2 420–450 y 902–928 MHz; R3 430–450 MHz). Las normas nacionales prevalecen: el aviso es informativo y no impide guardar.
 
+**Presets por modo (5.5.0).** Cada frecuencia de modo lleva también su desplegable **IARU band plan channel** con el canal del plan de bandas de la región: **FT8** 432,174 MHz (las tres regiones), **WSPR** 432,300 MHz (fija), **DAPNET** 439,9875 / 144,8625 MHz y **M17** 433,475 / 144,875 MHz (R1). La región sale del GPS (región IARU detectada) o de la del modo. Debajo del campo, un aviso del plan de bandas avisa si la frecuencia cae en un **segmento de balizas** (432,400–432,490 R1, 432,300–432,400 R2: *no emitir*), en el **segmento de satélite** (435–438 MHz: evitar emisión terrestre) o **fuera de banda**. Los modos sin canal fijo en ningún plan (**FT4, FST4W, SSDV, RTTY, LR-FHSS**) se dejan a mano, solo con ese aviso. La app Android muestra el mismo aviso en su *Config check*. Valores contrastados con la lista de frecuencias de WSJT-X y el plan de 70 cm de la IARU R1 / RSGB.
+
 ### 20.5 Limitaciones
 - El chip solo mueve bloques de 255 bytes: preámbulo máximo ~50 ms y tramas de hasta ~150 bytes.
 - La recepción decodifica por software bloques de 255 bytes sin sincronismo de chip. **Es experimental y no está comprobada en hardware real.**

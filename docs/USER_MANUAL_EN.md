@@ -414,6 +414,8 @@ Bit rate (9.6 kbps), deviation (3.0 kHz) and receive bandwidth (39 kHz). SF, CR 
 ### 20.4 IARU band plan in the WebUI
 Each profile has an **IARU region** (1, 2, 3) and an **IARU band plan channel** with the 70 cm digital channels of the IARU R1 / WIA plan and the usual LoRa APRS frequencies. The WebUI warns in red if the frequency falls outside the region's amateur allocation (R1 430–440 MHz; R2 420–450 and 902–928 MHz; R3 430–450 MHz). National rules prevail: the warning is informative and does not prevent saving.
 
+**Per-mode presets (5.5.0).** Each mode frequency also has its **IARU band plan channel** dropdown with the band-plan channel for the region: **FT8** 432.174 MHz (all three regions), **WSPR** 432.300 MHz (fixed), **DAPNET** 439.9875 / 144.8625 MHz and **M17** 433.475 / 144.875 MHz (R1). The region comes from the GPS (detected IARU region) or from the mode. Below the field, a band-plan note warns if the frequency falls in a **beacon segment** (432.400–432.490 R1, 432.300–432.400 R2: *do not transmit*), in the **satellite segment** (435–438 MHz: avoid terrestrial transmission) or **outside the band**. Modes with no fixed channel in any plan (**FT4, FST4W, SSDV, RTTY, LR-FHSS**) are left manual, with that note only. The Android app shows the same warning in its *Config check*. Values checked against the WSJT-X frequency list and the 70 cm IARU R1 / RSGB band plan.
+
 ### 20.5 Limitations
 - The chip only moves blocks of 255 bytes: preamble of at most ~50 ms and frames up to ~150 bytes.
 - Reception decodes 255-byte blocks in software without chip synchronisation. **It is experimental and not verified on real hardware.**
