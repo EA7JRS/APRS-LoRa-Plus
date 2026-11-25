@@ -2132,6 +2132,13 @@ function boardPinInit() {
                 killGrp("grp-dapnet", i.modes.dapnet);
             }
             if (i.kissnet === false) killGrp("grp-kissnet", false);        // KISS por WiFi solo en ESP32-S3 / C3
+            if (i.btClassic === false) {                                   // S3 / C3: sin Bluetooth clasico (SPP), solo BLE; se quitan las opciones que no aplican
+                const rm = (selId, val) => { const s = document.getElementById(selId); if (!s) return; [...s.options].filter(o => o.value === val).forEach(o => o.remove()); if (s.value === "" && s.options.length) s.value = s.options[0].value; };
+                const bt = document.getElementById("bluetooth.useBLE");
+                if (bt) { rm("bluetooth.useBLE", "0"); bt.value = "1"; const n = bt.parentElement.querySelector("small"); if (n) n.textContent = "This board has BLE only (no Bluetooth Classic). Bluetooth (BLE) and WiFi can be used at the same time."; }
+                rm("bluetooth.useKISS", "2");                              // NMEA por BT solo por Bluetooth clasico
+                rm("rotor.transport", "1");                                // rotor por Bluetooth SPP (GS-232) solo por Bluetooth clasico
+            }
             const bc = document.getElementById("grp-bcast");               // radio comercial I2C: solo si el chip esta presente (cualquier placa)
             if (bc) { if (i.bcast && i.bcast !== "none") bc.classList.remove("d-none"); else { bc.classList.add("d-none"); bc.querySelectorAll("input, select, textarea").forEach(x => { x.disabled = true; }); } }
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
