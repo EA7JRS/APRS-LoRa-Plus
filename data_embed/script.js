@@ -1977,7 +1977,7 @@ function applyRadioSa868(band) {
     ["grp-lora", "grp-wspr", "grp-ft", "grp-lrfhss", "grp-ssdv", "grp-rtty"].forEach(id => hide(id, true));
     hide("grp-fsk", !uhf);                                  // 9600 on VHF goes on the SA868 channel; on UHF it uses the FSK profile frequency
     hide("grp-ais", uhf);
-    hide("grp-bcast", false);
+    // grp-bcast lo gobierna el handler de /api/info por presencia del chip I2C (cualquier placa)
     const rx = TTWR_RX[RADIO_BAND];
     document.getElementById("sa868-title").textContent = (uhf ? "UHF" : "VHF") + " radio (SA868)";
     document.getElementById("sa868-band-note").textContent = uhf ? " on 70 cm" : " on 2 m";
@@ -2026,7 +2026,9 @@ function boardPinInit() {
                 e.querySelectorAll("input, select, textarea").forEach(x => { x.disabled = true; });
             };
             if (i.sat === false) { killGrp("grp-sat", false); killGrp("grp-rotor", false); }       // modo SAT solo en las placas que lo admiten
-            if (i.modes) {                              // modos de TX disponibles (placas de hasta 4 MB: solo APRS LoRa / FSK / CW)
+            if (i.modes) {                              // modos de TX disponibles segun el chip de radio (placas de hasta 4 MB: solo APRS LoRa / FSK / CW)
+                killGrp("grp-cw", i.modes.cw);          // CW solo con SX1262/SX1268
+                if (i.radio !== "sa868") killGrp("grp-fsk", i.modes.fsk);   // FSK no en LLCC68 (en la SA868 lo gobierna su bloque)
                 killGrp("grp-wspr", i.modes.wspr);
                 killGrp("grp-ft", i.modes.wspr);        // FT8 / FT4 / FST4W van con WSPR
                 killGrp("grp-lrfhss", i.modes.lrfhss);
@@ -2034,6 +2036,9 @@ function boardPinInit() {
                 killGrp("grp-rtty", i.modes.rtty);
                 killGrp("grp-dapnet", i.modes.dapnet);
             }
+            if (i.kissnet === false) killGrp("grp-kissnet", false);        // KISS por WiFi solo en ESP32-S3 / C3
+            const bc = document.getElementById("grp-bcast");               // radio comercial I2C: solo si el chip esta presente (cualquier placa)
+            if (bc) { if (i.bcast && i.bcast !== "none") bc.classList.remove("d-none"); else { bc.classList.add("d-none"); bc.querySelectorAll("input, select, textarea").forEach(x => { x.disabled = true; }); } }
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
                 applyRadioSa868((i.sa868 && i.sa868.band) || "");
