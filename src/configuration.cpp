@@ -1568,9 +1568,11 @@ void Configuration::setDefaultValues() {
     setCwDefaults();
     setWsprDefaults();
     setLrfhssDefaults();
+    #ifndef NO_IMAGE_MODES
     setSsdvDefaults();
     setRttyDefaults();
     setPocsagDefaults();
+    #endif
     setFtDefaults();
     setDapnetDefaults();
     setSa868Defaults();
