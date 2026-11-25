@@ -2796,16 +2796,15 @@ namespace {
         char right[10];
         if (best >= 0) snprintf(right, sizeof(right), "DX %s", HF_BANDS[best].name); else snprintf(right, sizeof(right), "%s", alt > 0 ? "day" : "night");
         header("HF", right);
-        // primera linea centrada, de mayor a menor: MUF, frecuencia optima de trabajo (FOT, el 85 % de la MUF) y LUF; cada nombre con
-        // su valor a 2 px y los tres grupos repartidos por el ancho. En 128 px no caben las tres con decimal: desde 10 MHz sin el
-        // (con decimal en las de 160 px)
-        auto mhz = [&](char* out, size_t n, float v) { if (v < 10 || PW > 128) snprintf(out, n, "%.1f", v); else snprintf(out, n, "%.0f", v); };
+        // primera linea centrada en la pantalla, de menor a mayor: LUF, frecuencia optima de trabajo (FOT, el 85 % de la MUF) y MUF;
+        // cada nombre con su valor con un decimal, los tres grupos repartidos por el ancho (EA7JRS)
+        auto mhz = [&](char* out, size_t n, float v) { snprintf(out, n, "%.1f", v); };
         char val[3][8];
-        static const char* const LBL[3] = { "MUF", "FOT", "LUF" };
-        mhz(val[0], sizeof(val[0]), e.muf); mhz(val[1], sizeof(val[1]), e.muf * 0.85f); mhz(val[2], sizeof(val[2]), e.luf);
+        static const char* const LBL[3] = { "LUF", "FOT", "MUF" };
+        mhz(val[0], sizeof(val[0]), e.luf); mhz(val[1], sizeof(val[1]), e.muf * 0.85f); mhz(val[2], sizeof(val[2]), e.muf);
         int wGroup[3], total = 0;
         for (int i = 0; i < 3; i++) { wGroup[i] = 18 + 2 + 6 * (int)strlen(val[i]) - 1; total += wGroup[i]; }
-        const int gap = max(4, (PW - total) / 4);
+        const int gap = max(PW <= 128 ? 2 : 4, (PW - total) / 4);     // en 128 px (OLED) menos separacion para que quepan con decimal
         int x = max(0, (PW - total - 2 * gap) / 2);
         pagesInk(kp >= 4.5f ? INK_LV2 : INK_ACCENT);                     // con tormenta, en naranja
         for (int i = 0; i < 3; i++) {
@@ -2814,7 +2813,7 @@ namespace {
             x += wGroup[i] + gap;
         }
         pagesInk(INK_TEXT);
-        snprintf(mirrorRows[0], sizeof(mirrorRows[0]), "MUF %s FOT %s LUF %s", val[0], val[1], val[2]);
+        snprintf(mirrorRows[0], sizeof(mirrorRows[0]), "LUF %s FOT %s MUF %s", val[0], val[1], val[2]);
         // dos columnas: 160-30 m a la izquierda y 20-10 m a la derecha, cada estado con el color de lo que vale
         for (int r = 0; r < 5; r++) {
             const int yy = ROW_Y0 + (r + 1) * ROW_PITCH + rowDy;
@@ -3249,7 +3248,13 @@ namespace {
         const int a360 = ((int)lround(az) + 360) % 360;
         row(3, "Az %05.1f %s", azTenths(az), cardinal16(a360));
         row(4, "Alt %+.2f", app);
-        row(5, "%.0fkm", dist);
+        { // distancia con separador de millares (punto) y la unidad separada: «359.528 Km» (EA7JRS)
+            char raw[12]; snprintf(raw, sizeof(raw), "%ld", (long)llround(dist));
+            char grp[16]; int gi = 0, len = (int)strlen(raw);
+            for (int i = 0; i < len; i++) { if (i > 0 && (len - i) % 3 == 0) grp[gi++] = '.'; grp[gi++] = raw[i]; }
+            grp[gi] = 0;
+            row(5, "%s Km", grp);
+        }
         rowLimit = COLS;
         drawMoonDisc(cx, cy, r, mi, lat < 0);
     }
@@ -3400,7 +3405,7 @@ namespace {
             snprintf(buffer, sizeof(buffer), "Moon %d%%%c %s-%s", (int)lround(mi.lit * 100), mi.waxing ? '+' : '-', a, b);   // + creciente, - menguante
             text(skyX(buffer), Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            { int cx, cy, r; skyIcon(cx, cy, r); if (r >= 4) drawMoonDisc(cx, cy, r, mi, lat < 0); }
+            { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 5 : 3; if (r >= 3) drawMoonDisc(cx, cy, r, mi, lat < 0); }   // mismo radio que el disco del sol
         } else if (ownPosition(lat, lon)) {
             int y, m, d;
             civilFromEpoch((int64_t)t, y, m, d);
@@ -3417,7 +3422,7 @@ namespace {
             }
             text(skyX(buffer), Y_SKY, buffer);
             textRight = max(textRight, 4 + 6 * (int)strlen(buffer));
-            { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 4 : 2; if (r >= 3) drawSunIcon(cx, cy, r); }   // r = hasta la punta de los rayos
+            { int cx, cy, r; skyIcon(cx, cy, r); r -= r >= 10 ? 5 : 3; if (r >= 3) drawSunIcon(cx, cy, r); }   // disco del sol (los rayos salen un poco mas); la luna usa este mismo radio
         }
     }
 
