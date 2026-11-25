@@ -22,6 +22,11 @@
     #if !defined(HAS_SA868) && !defined(NO_RTTY)
         #define HAS_RTTY
     #endif
+    // Placas muy justas de DRAM estatica (el transponder MAPRS): sin los modos de imagen/baliza ni su configuracion
+    // (SSDV, RTTY y POCSAG). Quita de la configuracion global los grupos ssdv / rtty / pocsag y la orden POCSAG.
+    #if defined(NO_SSDV) && defined(NO_RTTY)
+        #define NO_IMAGE_MODES
+    #endif
 #endif
 
 #endif

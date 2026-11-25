@@ -5190,6 +5190,7 @@ namespace PAGES_Utils {
     }
 
     // Modo SSDV: estado de la emision / recepcion de imagenes
+#ifdef HAS_SSDV
     void drawSsdvPage() {
         header(PAGE_TITLES[PAGE_SSDV], SSDV_Utils::busy() ? "TX" : "RX");
         const bool fsk = !(Config.ssdv.useLora || !LoRa_Utils::fskAvailable());
@@ -5207,9 +5208,14 @@ namespace PAGES_Utils {
         if (Config.operatingMode != MODE_SSDV) return;
         SSDV_Utils::loop();
     }
+#else
+    void drawSsdvPage() {}                                          // placa sin SSDV (MAPRS): pagina inalcanzable
+    void ssdvPoll() {}
+#endif
 
     // Modo RTTY: baliza de radioteletipo
     uint32_t rttyNextAt = 0;
+#ifdef HAS_RTTY
     void drawRttyPage() {
         header(PAGE_TITLES[PAGE_RTTY], Config.rtty.telemetry ? "TLM" : "TXT");
         row(0, "%.3fMHz %dHz", Config.rtty.freqHz / 1e6, Config.rtty.shiftHz);
@@ -5232,6 +5238,10 @@ namespace PAGES_Utils {
         if (RTTY_Utils::sendBeacon()) rttyNextAt = millis() + (uint32_t)Config.rtty.intervalMin * 60000UL;
         else rttyNextAt = millis() + 15000UL;                     // reintento en 15 s (p.ej. esperando GPS)
     }
+#else
+    void drawRttyPage() {}                                         // placa sin RTTY (MAPRS): pagina inalcanzable
+    void rttyPoll() {}
+#endif
 
     // Registra por el puerto serie las temperaturas internas disponibles (BME, IMU, PMU, ESP32) para correlacionarlas con la deriva medida con un SDR
     void wsprLogTemps(uint32_t seconds) {

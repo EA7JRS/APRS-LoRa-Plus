@@ -22,6 +22,7 @@
 #include <Arduino.h>
 #include <vector>
 #include <FS.h>
+#include "ssdv_config.h"                                            // HAS_SSDV / HAS_RTTY / NO_IMAGE_MODES segun la placa
 
 
 class WiFiAP {
@@ -596,9 +597,11 @@ public:
     WSPRConfig              wspr;
     FTConfig                ft;
     LRFHSSConfig            lrfhss;
+    #ifndef NO_IMAGE_MODES
     SSDVConfig              ssdv;
     RTTYConfig              rtty;
     POCSAGConfig            pocsag;
+    #endif
     DAPNETConfig            dapnet;
     Sa868Config             sa868;
     FmConfig                fm;
@@ -630,9 +633,11 @@ public:
     void setWsprDefaults();
     void setGpsDefaults();
     void setLrfhssDefaults();
+    #ifndef NO_IMAGE_MODES
     void setSsdvDefaults();
     void setRttyDefaults();
     void setPocsagDefaults();
+    #endif
     void setFtDefaults();
     void setDapnetDefaults();
     void setSa868Defaults();

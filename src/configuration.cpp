@@ -525,6 +525,7 @@ namespace {
         FS(LRFHSSConfig, locator,     0, ""),
         FB(LRFHSSConfig, locatorLen,  FF_KEEP, 0),                                  // 4, 6 u 8: se comprueba al leer
     };
+    #ifndef NO_IMAGE_MODES
     const Field kSsdvFields[] = {                                                  // los valores que faltan parten de setSsdvDefaults()
         FB(SSDVConfig, enabled,       FF_KEEP, 0),
         FC(SSDVConfig, source,        FF_KEEP, 0, 0, 3),
@@ -564,6 +565,7 @@ namespace {
         FC(POCSAGConfig, address,   FF_KEEP, 0, 0, 2097151),
         FB(POCSAGConfig, numeric,   FF_KEEP, 0),
     };
+    #endif  // NO_IMAGE_MODES
     const Field kLoraFields[] = {
         FB(LoraType, frequency,       0, 433775000),
         FB(LoraType, spreadingFactor, 0, 12),
@@ -698,9 +700,11 @@ bool Configuration::writeFile() {
         }
         writeFields(data["ft"].to<JsonObject>(),           &ft,           kFtFields,           NFIELDS(kFtFields));
         writeFields(data["lrfhss"].to<JsonObject>(),       &lrfhss,       kLrfhssFields,       NFIELDS(kLrfhssFields));
+        #ifndef NO_IMAGE_MODES
         writeFields(data["ssdv"].to<JsonObject>(),         &ssdv,         kSsdvFields,         NFIELDS(kSsdvFields));
         writeFields(data["rtty"].to<JsonObject>(),         &rtty,         kRttyFields,         NFIELDS(kRttyFields));
         writeFields(data["pocsag"].to<JsonObject>(),       &pocsag,       kPocsagFields,       NFIELDS(kPocsagFields));
+        #endif
 
         for (int i = 0; i < loraTypes.size(); i++) {
             writeFields(data["lora"][i].to<JsonObject>(), &loraTypes[i], kLoraFields, NFIELDS(kLoraFields));
@@ -957,6 +961,7 @@ bool Configuration::readFile() {
         READ("lrfhss", lrfhss, kLrfhssFields);
         if (lrfhss.locatorLen != 4 && lrfhss.locatorLen != 8) lrfhss.locatorLen = 6;
 
+        #ifndef NO_IMAGE_MODES
         setSsdvDefaults();
         READ("ssdv", ssdv, kSsdvFields);
 
@@ -966,6 +971,7 @@ bool Configuration::readFile() {
         setPocsagDefaults();
         READ("pocsag", pocsag, kPocsagFields);
         if (pocsag.bps != 512 && pocsag.bps != 1200 && pocsag.bps != 2400) pocsag.bps = 1200;
+        #endif
 
         JsonArray LoraTypesArray = data["lora"];
         for (int j = 0; j < LoraTypesArray.size(); j++) {
@@ -1359,6 +1365,7 @@ void Configuration::setLrfhssDefaults() {
     lrfhss.locatorLen  = 6;
 }
 
+#ifndef NO_IMAGE_MODES
 void Configuration::setSsdvDefaults() {
     ssdv.enabled       = false;                 // desactivado por defecto
     ssdv.source        = 0;                     // patron de prueba
@@ -1400,6 +1407,7 @@ void Configuration::setPocsagDefaults() {
     pocsag.address  = 0;
     pocsag.numeric  = false;                    // alfanumerico (ASCII)
 }
+#endif  // NO_IMAGE_MODES
 
 void Configuration::setGpsDefaults() {
     // Valores de fabrica del M10 en la Supreme (los GPS_USE_* de board_pinout.h, si existen, prevalecen)

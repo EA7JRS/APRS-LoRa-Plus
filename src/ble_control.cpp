@@ -339,7 +339,7 @@ namespace {
         #else
             caps["rtty"] = false;
         #endif
-        #ifndef HAS_SA868                                      // aviso POCSAG (orden "pocsag"): cualquier SX12xx que pueda FSK (no la radio FM SA868)
+        #if !defined(HAS_SA868) && !defined(NO_IMAGE_MODES)    // aviso POCSAG (orden "pocsag"): cualquier SX12xx que pueda FSK (no la radio FM SA868 ni el MAPRS)
             caps["pocsag"] = LoRa_Utils::rttyAvailable();
         #else
             caps["pocsag"] = false;
@@ -1939,7 +1939,7 @@ namespace {
             #endif
         }
         else if (strcmp(cmd, "pocsag") == 0) {                    // envia un aviso POCSAG (emite). addr = RIC, msg = texto, num = numerico. La app exige indicativo validado
-          #ifndef HAS_SA868
+          #if !defined(HAS_SA868) && !defined(NO_IMAGE_MODES)
             String msg = doc["msg"] | "";
             if (msg.isEmpty()) { reply(cmd, id, "empty message"); return; }
             if (msg.length() > 80) msg = msg.substring(0, 80);
