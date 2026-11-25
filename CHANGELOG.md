@@ -2,6 +2,7 @@
 
 ## 5.5.0 — 2026-11-25
 
+- **CLOCK > SUN / MOON: «Sun track» / «Moon track»**: la opción para que el rotor siga al Sol o a la Luna aparece siempre en el submenú de esas vistas (antes solo con el rotor activado y con la etiqueta genérica «Rotor»); si el rotor está apagado, avisa de que hay que activarlo en la WebUI.
 - **RadioLib 8.0.0**: migración del control de la radio a la API nueva de RadioLib (estructuras de configuración, frecuencias y velocidades en Hz / bps, voltaje del TCXO por enumerado). Capa de compatibilidad `radiolib_compat.h` (despacho según el chip, SX126x con TCXO y SX127x sin él), probada en el PC contra la 7.x y la 8.x. Sin cambios de comportamiento para APRS.
 - **Modo SSDV** (imagen, UKHAS, con el `SSDVClient` de RadioLib): emisión y recepción de imágenes JPEG en paquetes SSDV por LoRa (237 B útiles) o FSK con Reed-Solomon (205 B). Origen de la imagen: patrón de prueba, URL por WiFi, subida por BLE desde la app o cámara OV2640. Codificador JPEG propio `jo_jpeg` para el patrón y la cámara. Ajustes en la WebUI (grupo `ssdv`). Órdenes BLE `ssdv` / `ssdvtx` / `ssdvimg`.
 - **Modo RTTY** (baliza de radioteletipo, con el `RTTYClient`): sentencia UKHAS `$$INDICATIVO,contador,hora,lat,lon,alt,sats*CRC` con el GPS, o texto libre; Baudot ITA2 o ASCII, velocidad, desplazamiento y bits de parada configurables. Ajustes en la WebUI (grupo `rtty`).

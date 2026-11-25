@@ -560,9 +560,9 @@ namespace {
             case PAGE_COMPASS:  PAGES_ITEMS(ITEMS_COMPASS);
             case PAGE_ALT:      PAGES_ITEMS(ITEMS_ALT);
             case PAGE_CLOCK:
-                if (clockView == 0 || clockView > 2 || !Config.rotor.enabled) { PAGES_ITEMS(ITEMS_CLOCK); }
-                count = 0;                                       // SUN / MOON con rotor (EA7JRS): seguir al astro con la antena
-                clockItems[count++] = Item{"Rotor", C_CLK_ROTOR};
+                if (clockView == 0 || clockView > 2) { PAGES_ITEMS(ITEMS_CLOCK); }
+                count = 0;                                       // SUN / MOON (EA7JRS): seguir al astro con el rotor (Sun track / Moon track)
+                clockItems[count++] = Item{clockView == 2 ? "Moon track" : "Sun track", C_CLK_ROTOR};
                 for (const Item& it : ITEMS_CLOCK) clockItems[count++] = it;
                 return clockItems;
             case PAGE_WX:       PAGES_ITEMS(ITEMS_WX);
@@ -672,8 +672,8 @@ namespace {
             case C_CLK_FORMAT:  return clock24h ? "Format: 24h" : "Format: 12h";
             case C_CLK_ROTOR: {
                 const int sky = clockView == 2 ? RotorFollow::SRC_MOON : RotorFollow::SRC_SUN;
-                if (Config.rotor.source == sky) return clockView == 2 ? "Rotor: stop Moon" : "Rotor: stop Sun";
-                return clockView == 2 ? "Rotor to Moon" : "Rotor to Sun";
+                if (Config.rotor.enabled && Config.rotor.source == sky) return clockView == 2 ? "Stop Moon track" : "Stop Sun track";
+                return clockView == 2 ? "Moon track" : "Sun track";
             }
             case C_ZN_MODE: {
                 static char buffer[24];
@@ -7267,7 +7267,7 @@ namespace PAGES_Utils {
                 break;
             }
             case C_CLK_ROTOR: {                                  // SUN / MOON: el rotor sigue al astro; otra vez, vuelve a la fuente de antes
-                if (!Config.rotor.enabled) { showToast("Rotor off (WebUI)"); break; }
+                if (!Config.rotor.enabled) { showToast("Enable the rotor in WebUI"); break; }
                 const int sky = clockView == 2 ? RotorFollow::SRC_MOON : RotorFollow::SRC_SUN;
                 if (Config.rotor.source == sky) {
                     int back = rotBeforeSky;
