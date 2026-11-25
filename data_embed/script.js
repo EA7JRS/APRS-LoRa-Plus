@@ -2016,7 +2016,24 @@ function boardPinInit() {
                 document.title = "APRS LoRa+ MAPRS";
                 aisClassBOnly();
             }
-            if (i.sat === false) ["grp-sat", "grp-rotor"].forEach(id => { const e = document.getElementById(id); if (e) e.classList.add("d-none"); });       // modo SAT solo en las placas que lo admiten
+            // Oculta y DESHABILITA la seccion de un modo que la placa no lleva: deshabilitado = no se envia en el POST, asi no
+            // engorda el guardado ni lo bloquea (placas de hasta 4 MB con modos minimos). (Manuel - EA7JRS)
+            const killGrp = (id, ok) => {
+                if (ok) return;
+                const e = document.getElementById(id);
+                if (!e) return;
+                e.classList.add("d-none");
+                e.querySelectorAll("input, select, textarea").forEach(x => { x.disabled = true; });
+            };
+            if (i.sat === false) { killGrp("grp-sat", false); killGrp("grp-rotor", false); }       // modo SAT solo en las placas que lo admiten
+            if (i.modes) {                              // modos de TX disponibles (placas de hasta 4 MB: solo APRS LoRa / FSK / CW)
+                killGrp("grp-wspr", i.modes.wspr);
+                killGrp("grp-ft", i.modes.wspr);        // FT8 / FT4 / FST4W van con WSPR
+                killGrp("grp-lrfhss", i.modes.lrfhss);
+                killGrp("grp-ssdv", i.modes.ssdv);
+                killGrp("grp-rtty", i.modes.rtty);
+                killGrp("grp-dapnet", i.modes.dapnet);
+            }
             if (i.bcast) document.getElementById("bcast-status").textContent = "Receiver: " + (i.bcast === "none" ? "not found (or not enabled)" : i.bcast);
             if (i.radio === "sa868") {                  // T-TWR: radio FM, sin los modos del SX126x
                 applyRadioSa868((i.sa868 && i.sa868.band) || "");

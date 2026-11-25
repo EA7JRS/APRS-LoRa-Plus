@@ -296,6 +296,25 @@ namespace FW_Update {
         #else
             doc["sat"]         = false;
         #endif
+        // Modos de TX disponibles en esta placa: la WebUI oculta las secciones de los que no estan (p. ej. placas de hasta
+        // 4 MB con modos minimos solo tienen APRS LoRa / FSK / CW). (Manuel - EA7JRS)
+        {
+            JsonObject modes   = doc["modes"].to<JsonObject>();
+            modes["cw"]        = LoRa_Utils::cwAvailable();
+            modes["wspr"]      = LoRa_Utils::wsprAvailable();            // cubre WSPR y FT8 / FT4 / FST4W
+            modes["lrfhss"]    = LoRa_Utils::lrfhssAvailable();
+            modes["dapnet"]    = LoRa_Utils::dapnetAvailable();
+            #ifdef HAS_SSDV
+                modes["ssdv"]  = LoRa_Utils::ssdvAvailable();
+            #else
+                modes["ssdv"]  = false;
+            #endif
+            #ifdef HAS_RTTY
+                modes["rtty"]  = LoRa_Utils::rttyAvailable();
+            #else
+                modes["rtty"]  = false;
+            #endif
+        }
         doc["wifiConfigured"]  = !Config.fwUpdate.ssid.isEmpty();
         String out;
         serializeJson(doc, out);
