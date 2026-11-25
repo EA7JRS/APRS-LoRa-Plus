@@ -16,6 +16,7 @@
 #include "bcast_radio.h"
 #include "cat_net.h"
 #include "kiss_net.h"
+#include "iaru_auto.h"
 #include "configuration.h"
 #include "display.h"
 #include "lora_utils.h"
@@ -317,6 +318,7 @@ namespace FW_Update {
                 modes["rtty"]  = false;
             #endif
         }
+        doc["region"]          = IARU_Auto::detected();               // region IARU detectada por GPS (0 = sin fix estable): la WebUI avisa del plan de bandas con ella (o con la del perfil LoRa)
         doc["kissnet"]         = (bool)KISS_NET_SUPPORTED;             // KISS por WiFi: solo ESP32-S3 / C3 (la WebUI oculta su seccion en el ESP32 clasico)
         doc["wifiConfigured"]  = !Config.fwUpdate.ssid.isEmpty();
         String out;

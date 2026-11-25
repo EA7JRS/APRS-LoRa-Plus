@@ -42,18 +42,30 @@ namespace IARU_Plan {
         // Australia) y 431,040 (tabla japonesa de frecuencias APRS). La Region 2 no tiene una frecuencia comun: la frecuencia es propia
         const long UHF_1[]  = {432500000};
         const long UHF_3[]  = {439100000, 431040000};
+        // FT8 en 70 cm: 432,174 MHz (dial) de la lista de frecuencias de WSJT-X, valido en las tres regiones.
+        const long FT8_ALL[]  = {432174000};
+        // WSPR en 70 cm: dial 432,300 MHz -> 432,3015 (central = dial + 1500 Hz), lista de WSJT-X; las tres regiones.
+        const long WSPR_ALL[] = {432301500};
+        // DAPNET (POCSAG): frecuencias comunes de la red (hampager.de); red centrada en Europa (R1): 439,9875 (70 cm) y 144,8625 (2 m).
+        const long DAPNET_1[] = {439987500, 144862500};
+        // M17: frecuencias simplex sugeridas (proyecto M17), coinciden con el plan IARU R1: 433,475 (70 cm) y 144,875 (2 m).
+        const long M17_1[]    = {433475000, 144875000};
 
         #define ARR(a) a, (int)(sizeof(a) / sizeof(a[0]))
         struct List { const long* hz; int n; };
         List listFor(Kind k, int region) {
             if (region < 1 || region > 3) region = 1;
             switch (k) {
-                case FSK:  return region == 1 ? List{ARR(FSK_1)}  : (region == 2 ? List{ARR(LORA_2)} : List{ARR(LORA_3)});
-                case CW:   return region == 1 ? List{ARR(CW_1)}   : (region == 2 ? List{ARR(CW_2)}   : List{ARR(CW_3)});
-                case CWB:  return region == 1 ? List{ARR(CWB_1)}  : (region == 2 ? List{ARR(CWB_2)}  : List{ARR(CWB_3)});
-                case VHF:  return region == 1 ? List{ARR(VHF_1)}  : (region == 2 ? List{ARR(VHF_2)}  : List{ARR(VHF_3)});
-                case UHF:  return region == 1 ? List{ARR(UHF_1)}  : (region == 2 ? List{nullptr, 0}  : List{ARR(UHF_3)});
-                default:   return region == 1 ? List{ARR(LORA_1)} : (region == 2 ? List{ARR(LORA_2)} : List{ARR(LORA_3)});
+                case FSK:    return region == 1 ? List{ARR(FSK_1)}  : (region == 2 ? List{ARR(LORA_2)} : List{ARR(LORA_3)});
+                case CW:     return region == 1 ? List{ARR(CW_1)}   : (region == 2 ? List{ARR(CW_2)}   : List{ARR(CW_3)});
+                case CWB:    return region == 1 ? List{ARR(CWB_1)}  : (region == 2 ? List{ARR(CWB_2)}  : List{ARR(CWB_3)});
+                case VHF:    return region == 1 ? List{ARR(VHF_1)}  : (region == 2 ? List{ARR(VHF_2)}  : List{ARR(VHF_3)});
+                case UHF:    return region == 1 ? List{ARR(UHF_1)}  : (region == 2 ? List{nullptr, 0}  : List{ARR(UHF_3)});
+                case FT8:    return List{ARR(FT8_ALL)};                      // mismo canal en las tres regiones
+                case WSPR:   return List{ARR(WSPR_ALL)};
+                case DAPNET: return region == 1 ? List{ARR(DAPNET_1)} : List{nullptr, 0};   // red europea: fuera de R1, canal propio
+                case M17:    return region == 1 ? List{ARR(M17_1)}    : List{nullptr, 0};
+                default:     return region == 1 ? List{ARR(LORA_1)} : (region == 2 ? List{ARR(LORA_2)} : List{ARR(LORA_3)});
             }
         }
     }
@@ -78,12 +90,25 @@ namespace IARU_Plan {
 
     long defaultHz(Kind kind, int region) {
         switch (kind) {
-            case CW:  return 432050000L;                          // centro de actividad de telegrafia (existe en las tres regiones)
-            case CWB: return region == 1 ? 432410000L : (region == 2 ? 432320000L : 432050000L);
-            case VHF: return region == 1 ? 144800000L : 144390000L;   // R3: 144,390 (Indonesia, Malasia, Tailandia); Australia, Nueva Zelanda, China y Japon en la lista
-            case UHF: return region == 1 ? 432500000L : (region == 3 ? 439100000L : 0L);
-            default:  return 433775000L;                          // LoRa APRS (existe en las tres regiones, tambien en la lista FSK)
+            case CW:     return 432050000L;                       // centro de actividad de telegrafia (existe en las tres regiones)
+            case CWB:    return region == 1 ? 432410000L : (region == 2 ? 432320000L : 432050000L);
+            case VHF:    return region == 1 ? 144800000L : 144390000L;   // R3: 144,390 (Indonesia, Malasia, Tailandia); Australia, Nueva Zelanda, China y Japon en la lista
+            case UHF:    return region == 1 ? 432500000L : (region == 3 ? 439100000L : 0L);
+            case FT8:    return 432174000L;                       // 70 cm, WSJT-X, las tres regiones
+            case WSPR:   return 432301500L;                       // 70 cm, dial 432,300 + 1500 Hz
+            case DAPNET: return region == 1 ? 439987500L : 0L;    // red europea
+            case M17:    return region == 1 ? 433475000L : 0L;
+            default:     return 433775000L;                       // LoRa APRS (existe en las tres regiones, tambien en la lista FSK)
         }
+    }
+
+    // Aviso del plan de bandas (segmentos verificados contra RSGB / IARU R1; satelite por el art. 5.282 UIT en las tres regiones).
+    int txWarning(int region, long hz) {
+        if (!allowed(region, hz)) return WARN_OUTSIDE;
+        if (hz >= 435000000L && hz <= 438000000L) return WARN_SATELLITE;     // 435-438 MHz: servicio de aficionados por satelite (evitar emision terrestre)
+        if (region == 1 && hz >= 432400000L && hz <= 432500000L) return WARN_BEACON;   // R1: 432,400-432,490 balizas exclusivas
+        if (region == 2 && hz >= 432300000L && hz <= 432400000L) return WARN_BEACON;   // R2: 432,300-432,400 balizas de telegrafia
+        return WARN_OK;
     }
 
     bool isPreset(Kind kind, int region, long hz) {

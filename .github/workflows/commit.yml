@@ -100,3 +100,11 @@ jobs:
 
             - name: Comprobacion de la configuracion de la WebUI (Config check)
               run: node tools/test_cfg_check.js
+
+            - name: Plan de bandas IARU (regiones, canales, avisos de segmento)
+              run: |
+                  g++ -std=c++11 -O2 -Iinclude -Isrc tools/test_iaru_plan.cpp src/iaru_plan.cpp -o /tmp/test_iaru
+                  /tmp/test_iaru
+
+            - name: Tablas IARU del firmware == WebUI (presets de frecuencia)
+              run: python3 tools/check_iaru_tables.py
