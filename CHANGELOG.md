@@ -1,7 +1,14 @@
 # Changelog
 
-## Después de la 5.4.9 (sin publicar)
+## 5.5.0 — 2026-11-25
 
+- **RadioLib 8.0.0**: migración del control de la radio a la API nueva de RadioLib (estructuras de configuración, frecuencias y velocidades en Hz / bps, voltaje del TCXO por enumerado). Capa de compatibilidad `radiolib_compat.h` (despacho según el chip, SX126x con TCXO y SX127x sin él), probada en el PC contra la 7.x y la 8.x. Sin cambios de comportamiento para APRS.
+- **Modo SSDV** (imagen, UKHAS, con el `SSDVClient` de RadioLib): emisión y recepción de imágenes JPEG en paquetes SSDV por LoRa (237 B útiles) o FSK con Reed-Solomon (205 B). Origen de la imagen: patrón de prueba, URL por WiFi, subida por BLE desde la app o cámara OV2640. Codificador JPEG propio `jo_jpeg` para el patrón y la cámara. Ajustes en la WebUI (grupo `ssdv`). Órdenes BLE `ssdv` / `ssdvtx` / `ssdvimg`.
+- **Modo RTTY** (baliza de radioteletipo, con el `RTTYClient`): sentencia UKHAS `$$INDICATIVO,contador,hora,lat,lon,alt,sats*CRC` con el GPS, o texto libre; Baudot ITA2 o ASCII, velocidad, desplazamiento y bits de parada configurables. Ajustes en la WebUI (grupo `rtty`).
+- **POCSAG (emisión)**: envía un aviso POCSAG a un RIC con el `PagerClient` de RadioLib (512 / 1200 / 2400 bps, numérico o alfanumérico); desde la app con la orden BLE `pocsag`. Ajustes en la WebUI (grupo `pocsag`).
+- **WebUI accesible desde la red local** (`wifiAP.webMode`): además del punto de acceso de configuración, el equipo puede unirse a la red local y servir la WebUI (modo de configuración a demanda o siempre), reutilizando la WiFi del enlace KISS / OTA; mDNS `aprs-lora-plus.local`. Antes solo se llegaba a la configuración por el punto de acceso propio.
+- **CW / Morse mejorado**: decodificador adaptativo (umbral punto/raya según el ritmo real del operador, no fijo); macros `{RST}` `{CNT}` `{GRID}` y número de serie de concurso que se incrementa solo; trainer Koch adaptativo que pondera los caracteres fallados y muestra el progreso.
+- **Control BLE de SSDV y POCSAG** para la app: `caps.ssdv` / `caps.rtty` / `caps.pocsag` en `info`; subida de la imagen por BLE en base64 troceado; las órdenes que emiten exigen indicativo validado en la app. En placas de radio FM (SA868) y en el transponder MAPRS (muy justo de DRAM) estos modos no se incluyen.
 - **AsyncTCP 3.6.1** (antes 3.5.0): subida de mantenimiento de ESP32Async, compatible con ESPAsyncWebServer 3.12.1.
 - **Capturas de las páginas** en el README (26 a color y 26 en OLED) y simulador para rehacerlas (`tools/pages_sim`).
 - **Registro**: tampoco sale ya el «gpio_pullup_en: GPIO number error» que quedaba al abrir el puerto del GPS en las placas con su línea en un GPIO solo de entrada (el 34 de las T-Beam). Sin efecto en el funcionamiento.
