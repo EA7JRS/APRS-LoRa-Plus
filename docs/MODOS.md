@@ -21,3 +21,42 @@ Tras el mensaje de bienvenida aparece **SELECT MODE**: *APRS LoRa*, *APRS FSK 96
 ## DAPNET (receptor POCSAG)
 
 Solo recepción de la red DAPNET (hampager.de): 439,9875 MHz, 1200 baud. No emite nada. Detalle, ajustes y limitaciones en el capítulo 26 del manual (`MANUAL_USUARIO.md`).
+
+## Qué decodifica cada tracker (RX)
+
+El **SX1262/SX1268** (RadioLib 8.0.x) solo tiene dos demoduladores por hardware: **LoRa** y **(G)FSK**. Todo lo que el tracker recibe va montado sobre uno de esos dos; RadioLib entrega la lectura cruda y el *framing* lo hace el software del firmware. El **SA868** (LilyGO T-TWR) es un transceptor FM de VHF y aporta su propio bloque de modos FM/digitales.
+
+| Modo | Función | Decodificación (RX) | Chips |
+|---|---|---|---|
+| APRS LoRa | TX + RX | paquete LoRa nativo | SX126x, SX127x, LLCC68 |
+| APRS FSK (G3RUH 9600, Bell 1200) | TX + RX | FSK cruda + G3RUH/NRZI/HDLC/CRC AX.25 por software (FX.25, IL2P) | SX126x, SX127x (no LLCC68); SA868 (AFSK 1200) |
+| CW / Morse | TX + RX | FSK de banda estrecha + envolvente RSSI + decodificador propio (evento `cwrx`: letra, dBm, SNR, wpm) | SX1262/68; SA868 |
+| DAPNET (POCSAG) | **solo RX** | FSK cruda + sincronismo POCSAG por software (439,9875 MHz, 1200 bd) | SX1262/68; SA868 |
+| SSDV (imágenes) | TX + RX | paquetes SSDV sobre LoRa (sin RS) o FSK (con RS); reconstruye el JPEG | SX1262/68 |
+| M17 | TX + RX | demodulador M17 (`M17M::Rx`) | SA868 (T-TWR) |
+| AIS | **solo RX** | demodulador AIS GMSK 9600 (`AisCore::Demod`), VHF marina | SA868 (T-TWR) o módulo externo |
+| FM voz | TX + RX | recepción analógica (no es decodificar un modo de datos) | SA868 (T-TWR) |
+| WSPR / FT8 / FT4 / FST4W | **solo TX** | el tracker no las decodifica: FFT/DSP en la **app Android** (librerías nativas) o WSJT-X/SDR | SX1262/68 |
+| RTTY | **solo TX** | `RTTYClient` de RadioLib es solo emisión | SX1262/68 |
+| LR-FHSS | **solo TX** | el SX1262/68 solo lo **emite**; no tiene demodulador de recepción (recepción con **RTL-SDR** en la app) | SX1262/68 |
+
+> La variante **LLCC68** es solo LoRa (sin FSK): de la tabla solo le queda **APRS LoRa**.
+
+## Alcance por modo (resumen)
+
+Cifras orientativas del estudio completo ([`ESTUDIO_COBERTURA.md`](ESTUDIO_COBERTURA.md): tracker a 20 dBm, antena de −2 dBi, margen de 10 dB, 432,5 MHz). Dependen de potencia, antenas y terreno. En los modos **solo TX** el alcance es tracker → estación que los decodifica (iGate, pasarela, receptor de señal débil o RTL-SDR), no entre dos trackers.
+
+| Modo | Sensibilidad efectiva (dBm) | Urbano | Campo abierto | Cima | Notas |
+|---|---|---|---|---|---|
+| LoRa SF12 (BW 125, CR 4/5) | −136 | ~5 km | ≥20 km | ≥120 km | mejor presupuesto de enlace de los modos de paquete |
+| LoRa SF9 | −129 | ~3 km | ~11 km | ≥120 km | 6× más rápido, ~61 % del alcance de SF12 |
+| LR-FHSS (CR 1/3) | −136 | ~5 km | ≥20 km | ≥120 km | **solo TX**: lo recibe una pasarela/RTL-SDR, no otro tracker |
+| APRS FSK 9600 | −107 | ~0,8 km | ~5 km | ~41 km | sin FEC; mucho más corto que LoRa a igual potencia |
+| DAPNET (POCSAG, RX) | −115 | — | — | — | solo recepción de la red DAPNET |
+| CW / Morse | −142 | ~6–12 km | ≥20 km | ≥120 km | señal débil; con estación de señal débil (yagi) aún más |
+| WSPR | −168 | ≥20 km | ≥20 km | ≥120 km | **solo TX**; señal débil extrema |
+| FST4W-120 | −170 | ≥20 km | ≥20 km | ≥120 km | **solo TX** |
+| FT8 / FT4 | −158 / −154 | ~15–18 km | ≥20 km | ≥120 km | **solo TX** |
+| AIS / M17 / FM (SA868, ~1 W) | — | línea de vista | ~20–40 mn (AIS, mar) | — | VHF FM; depende de altura de antenas |
+
+Las tablas completas (por potencia, por escenario y con margen sobrante) están en [`ESTUDIO_COBERTURA.md`](ESTUDIO_COBERTURA.md).

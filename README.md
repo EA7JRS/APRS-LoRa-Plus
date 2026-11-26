@@ -127,7 +127,8 @@ Las capturas se rehacen con `tools/pages_sim/build.sh`, que dibuja las páginas 
 |---|---|
 | [`docs/GUIA_RAPIDA.md`](docs/GUIA_RAPIDA.md) / [`docs/QUICK_GUIDE_EN.md`](docs/QUICK_GUIDE_EN.md) | Guía rápida (ES / EN) |
 | [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md) / [`docs/USER_MANUAL_EN.md`](docs/USER_MANUAL_EN.md) | Manual de usuario (ES / EN), también en PDF |
-| [`docs/MODOS.md`](docs/MODOS.md) | Modos de funcionamiento y selector de arranque |
+| [`docs/MODOS.md`](docs/MODOS.md) | Modos de funcionamiento, selector de arranque, **qué decodifica cada chip** y resumen de alcance |
+| [`docs/ESTUDIO_COBERTURA.md`](docs/ESTUDIO_COBERTURA.md) | Estudio de cobertura y alcance por modo (sensibilidad, km por escenario y potencia) |
 | [`docs/CW_MORSE.md`](docs/CW_MORSE.md), [`docs/FSK_G3RUH.md`](docs/FSK_G3RUH.md), [`docs/WSPR.md`](docs/WSPR.md), [`docs/WSPR_CALIBRACION.md`](docs/WSPR_CALIBRACION.md) | Modos CW, FSK y WSPR; calibración de frecuencia |
 | [`docs/LRFHSS_BALIZA.md`](docs/LRFHSS_BALIZA.md) | Baliza LR-FHSS (apagada de serie; recepción con la app Android) |
 | [`docs/SAT_MODE.md`](docs/SAT_MODE.md), [`docs/AIS.md`](docs/AIS.md), [`docs/T_TWR.md`](docs/T_TWR.md), [`docs/BROADCAST_RADIO.md`](docs/BROADCAST_RADIO.md), [`docs/CAT_HAMLIB.md`](docs/CAT_HAMLIB.md) | Modo SAT, receptor AIS, LilyGO T-TWR Plus, radio comercial, CAT por WiFi |
@@ -140,19 +141,24 @@ Las capturas se rehacen con `tools/pages_sim/build.sh`, que dibuja las páginas 
 
 El proyecto conserva todas las placas de la base (T-Beam v0.7 / v1.x / S3 Supreme / 1W, Heltec V2 / V3 / Wireless Tracker / Wireless Stick Lite V3, TTGO LoRa32, T-Deck, T3S3, LightTracker Plus, MeshCom, DIY con SX127x / E22 / E220, ESP32-C3, etc.). La lista completa está en [`platformio.ini`](platformio.ini) y en la carpeta [`variants/`](variants).
 
-No todos los modos están disponibles en todos los chips:
+No todos los modos están disponibles en todos los chips. La columna **Función** indica si el tracker además de emitir **decodifica** ese modo (RX): *solo TX* = lo emite pero no lo recibe (su recepción la hace la **app Android** con librerías nativas, o un **RTL-SDR**).
 
-| Modo | SX1262 / SX1268 | SX1276 / SX1278 | LLCC68 | SA868 (T-TWR Plus) |
-|---|:-:|:-:|:-:|:-:|
-| APRS LoRa | ✅ | ✅ | ✅ | ❌ |
-| APRS AFSK 1200 | ❌ | ❌ | ❌ | ✅ |
-| APRS FSK 9600 | ✅ | ✅ | ❌ | ✅ |
-| CW / DAPNET | ✅ | ❌ | ❌ | ✅ |
-| WSPR / FT8 / FT4 / FST4W | ✅ | ❌ | ❌ | ❌ |
-| LR-FHSS (baliza, apagada de serie) | ✅ | ❌ | ❌ | ❌ |
-| M17 / FM de voz / receptor AIS | ❌ | ❌ | ❌ | ✅ |
+| Modo | Función | SX1262 / SX1268 | SX1276 / SX1278 | LLCC68 | SA868 (T-TWR Plus) |
+|---|:-:|:-:|:-:|:-:|:-:|
+| APRS LoRa | TX + RX | ✅ | ✅ | ✅ | ❌ |
+| APRS AFSK 1200 | TX + RX | ❌ | ❌ | ❌ | ✅ |
+| APRS FSK 9600 (G3RUH; FX.25, IL2P) | TX + RX | ✅ | ✅ | ❌ | ✅ |
+| CW / Morse | TX + RX | ✅ | ❌ | ❌ | ✅ |
+| DAPNET (POCSAG) | **solo RX** | ✅ | ❌ | ❌ | ✅ |
+| SSDV (imágenes) | TX + RX | ✅ | ❌ | ❌ | ❌ |
+| M17 | TX + RX | ❌ | ❌ | ❌ | ✅ |
+| FM de voz | TX + RX (analógico) | ❌ | ❌ | ❌ | ✅ |
+| Receptor AIS | **solo RX** | ❌ | ❌ | ❌ | ✅ |
+| WSPR / FT8 / FT4 / FST4W | **solo TX** | ✅ | ❌ | ❌ | ❌ |
+| RTTY | **solo TX** | ✅ | ❌ | ❌ | ❌ |
+| LR-FHSS (baliza, apagada de serie) | **solo TX** | ✅ | ❌ | ❌ | ❌ |
 
-El SA868 es un transceptor FM de VHF o UHF (según el módulo); el receptor AIS solo con el de VHF.
+El SA868 es un transceptor FM de VHF o UHF (según el módulo); el receptor AIS solo con el de VHF. El **SX1262/68** solo tiene dos demoduladores por hardware (**LoRa** y **(G)FSK**): todo lo que decodifica va montado sobre uno de esos dos (G3RUH, POCSAG, la envolvente de CW y el troceo de SSDV los hace el software del firmware). **LR-FHSS** el chip solo lo emite, no lo recibe; **WSPR/FT8/FT4/FST4W** y **RTTY** no se decodifican en el ESP32. Detalle en [`docs/MODOS.md`](docs/MODOS.md) y alcance por modo en [`docs/ESTUDIO_COBERTURA.md`](docs/ESTUDIO_COBERTURA.md).
 
 > **Modos mínimos en placas de hasta 4 MB.** La tabla anterior es por chip de radio; además hay un límite por **tamaño de flash**. En placas de **4 MB o menos** (todas las ESP32 clásicas, las ESP32-C3 y la S3 de 4 MB) solo quedan **APRS LoRa, APRS FSK y CW**; SSDV, RTTY, POCSAG/DAPNET, WSPR/FT8/FT4/FST4W, LR-FHSS y SAT se compilan fuera. Las placas de **más de 4 MB** (8/16 MB) conservan todos los modos que su radio soporte.
 
