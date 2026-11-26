@@ -89,6 +89,12 @@ const IARU_CHANNELS_DAPNET = {
 const IARU_CHANNELS_M17 = {
     1: [["433.475  M17 (70 cm)", 433.475], ["144.875  M17 (2 m)", 144.875]], 2: [], 3: []
 };
+// RTTY en 70 cm (IARU R1 / Espana): referencia clasica AFSK 433.600 dentro del tramo de modos digitales/todos los modos
+// (433.600-434.000); 432.600 aparece en planes historicos (tramo de todos los modos 432.500-432.975). Modo raro en UHF (la
+// actividad RTTY esta en HF). R2/R3 sin referencia fija -> Custom + aviso de segmento. Fuentes: planes de banda URE (EA7JRS).
+const IARU_CHANNELS_RTTY = {
+    1: [["433.600  RTTY reference (70 cm, IARU R1)", 433.6], ["432.600  RTTY (historical, 70 cm, R1)", 432.6]], 2: [], 3: []
+};
 // T-TWR (SA868): band of the module and the transmit ranges fixed in the firmware (FmCore::txAllowed, region from the GPS)
 const TTWR_TX = { VHF: { 1: [[144.0, 146.0]], 2: [[144.0, 148.0]], 3: [[144.0, 148.0]] },
                   UHF: { 1: [[430.0, 440.0]], 2: [[430.0, 450.0]], 3: [[430.0, 440.0]] } };
@@ -249,7 +255,7 @@ function attachModeBandPlan(freqId, opt) {
     const fc = freq.closest(".form-floating") || freq.parentElement;
     const toHz = () => opt.unit === "hz" ? Math.round(parseFloat(freq.value)) : Math.round(parseFloat(freq.value) * 1e6);
     const fromMHz = mhz => opt.unit === "hz" ? String(Math.round(mhz * 1e6)) : mhz.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
-    const tables = { ft8: IARU_CHANNELS_FT8, wspr: IARU_CHANNELS_WSPR, dapnet: IARU_CHANNELS_DAPNET, m17: IARU_CHANNELS_M17 };
+    const tables = { ft8: IARU_CHANNELS_FT8, wspr: IARU_CHANNELS_WSPR, dapnet: IARU_CHANNELS_DAPNET, m17: IARU_CHANNELS_M17, rtty: IARU_CHANNELS_RTTY };
     let preset = null;
     if (opt.kind && tables[opt.kind]) {                    // dropdown de presets delante del campo
         const wrap = document.createElement("div");
@@ -297,7 +303,7 @@ function wireBandPlans() {                                  // llamado al cargar
     attachModeBandPlan("sa868.m17MHz", { unit: "mhz", kind: "m17", presetRegion: () => parseInt(document.getElementById("sa868.iaruRegion").value, 10) || 1, warnRegion: () => parseInt(document.getElementById("sa868.iaruRegion").value, 10) || 1, warnKnown: () => true });
     attachModeBandPlan("dapnet.freqMHz", { unit: "mhz", kind: "dapnet", presetRegion: () => 1 });
     attachModeBandPlan("ssdv.freqMHz", { unit: "mhz", kind: "" });
-    attachModeBandPlan("rtty.freqMHz", { unit: "mhz", kind: "" });
+    attachModeBandPlan("rtty.freqMHz", { unit: "mhz", kind: "rtty", presetRegion: () => IARU_REGION_INFO || 1 });
     attachModeBandPlan("lrfhss.freqHz", { unit: "hz", kind: "" });
 }
 
