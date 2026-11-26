@@ -1751,6 +1751,11 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
                                 <small>The WiFi the tracker joins. Used by KISS over WiFi, the WebUI on the local network, OTA firmware update, the rotor and the satellite data download.</small>
                             </div>
                             <div class="col-lg-9 col-sm-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="fwUpdate.enabled" name="fwUpdate.enabled">
+                                    <label class="form-check-label" for="fwUpdate.enabled">Home WiFi enabled</label>
+                                    <small class="d-block">Master switch for the local network. When off, the tracker never joins your home WiFi (even if KISS over WiFi, CAT, the rotor or the LAN configurator are on): it saves battery and allows deep sleep. The SSID and password below are kept.</small>
+                                </div>
                                 <div class="row g-2 mb-2">
                                     <div class="col-md-6">
                                         <label class="form-label" for="fwUpdate.ssid">WiFi network (SSID)</label>

@@ -106,6 +106,7 @@ namespace {
     }
 
     bool wanted() {                                         // el enlace WiFi se mantiene si KISS, CAT, rotor o la WebUI siempre-on lo piden
+        if (!Config.fwUpdate.enabled) return false;         // interruptor maestro del WiFi domestico apagado: no se levanta el enlace STA (EA7JRS)
         bool w = Config.kissNet.enabled || Config.cat.enabled || Config.rotor.serverEnabled;
         #ifndef NO_WEBUI_LAN
             w = w || Config.wifiAP.webMode == 2;

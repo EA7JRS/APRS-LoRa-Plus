@@ -46,7 +46,7 @@ namespace WIFI_Utils {
         #ifdef NO_WEBUI_LAN
             return false;
         #else
-            return Config.wifiAP.webMode >= 1 && !Config.fwUpdate.ssid.isEmpty();
+            return Config.fwUpdate.enabled && Config.wifiAP.webMode >= 1 && !Config.fwUpdate.ssid.isEmpty();
         #endif
     }
 

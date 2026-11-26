@@ -195,6 +195,7 @@ namespace {
         FC(WiFiAP, webMode,  FF_KEEP, 0, 0, 2),
     };
     const Field kFwUpdateFields[] = {
+        FB(FwUpdate, enabled,  0,           true),                              // WiFi domestico: on por defecto (compatibilidad con configuraciones previas)
         FS(FwUpdate, ssid,     FF_REQUIRED, ""),
         FS(FwUpdate, password, 0,           ""),
     };
@@ -1516,6 +1517,7 @@ void Configuration::setDefaultValues() {
     wifiAP.password                 = "1234567890";
     wifiAP.webMode                  = 0;            // por defecto solo el punto de acceso propio
 
+    fwUpdate.enabled                = true;         // WiFi domestico encendido por defecto (el enlace STA solo se levanta si ademas KISS/CAT/rotor/WebUI-LAN lo piden)
     fwUpdate.ssid                   = "";
     fwUpdate.password               = "";
 

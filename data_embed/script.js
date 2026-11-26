@@ -1406,8 +1406,9 @@ function loadSettings(settings) {
         document.getElementById("team.eaiMinutes").value                = settings.team.eaiMinutes;
     }
 
-    // FIRMWARE UPDATE
+    // FIRMWARE UPDATE / HOME WIFI
     if (settings.fwUpdate) {
+        document.getElementById("fwUpdate.enabled").checked             = settings.fwUpdate.enabled !== false;   // interruptor maestro del WiFi domestico (on por defecto)
         document.getElementById("fwUpdate.ssid").value                  = settings.fwUpdate.ssid;
         document.getElementById("fwUpdate.password").value              = settings.fwUpdate.password;
     }

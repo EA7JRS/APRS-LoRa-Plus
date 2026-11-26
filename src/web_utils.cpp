@@ -783,7 +783,8 @@ namespace WEB_Utils {
         if (Config.wifiAP.webMode < 0 || Config.wifiAP.webMode > 2) Config.wifiAP.webMode = 0;
         Config.wifiAP.active                    = false; // when Configuration is finished Tracker returns to normal mode.
 
-        //  Firmware update (5.3.1)
+        //  Firmware update (5.3.1) / WiFi domestico
+        Config.fwUpdate.enabled                 = request->hasParam("fwUpdate.enabled", true);               // interruptor maestro del WiFi domestico (STA); apagado = no se une a la red local (EA7JRS)
         Config.fwUpdate.ssid                    = getParamStringSafe("fwUpdate.ssid", Config.fwUpdate.ssid);
         Config.fwUpdate.password                = getParamStringSafe("fwUpdate.password", Config.fwUpdate.password);
 

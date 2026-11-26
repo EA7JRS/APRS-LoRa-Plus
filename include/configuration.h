@@ -76,6 +76,7 @@ public:
 
 class FwUpdate {
 public:
+    bool    enabled;                    // interruptor maestro del WiFi domestico (STA): off = el equipo no se une a la red local aunque KISS/CAT/rotor/WebUI-LAN lo pidan (ahorro de bateria, permite sueno profundo). On por defecto (EA7JRS)
     String  ssid;                       // red WiFi (cliente) de casa: la usan el KISS por WiFi, el rotor y la descarga de satelites (el nombre de la clase es historico)
     String  password;
 };

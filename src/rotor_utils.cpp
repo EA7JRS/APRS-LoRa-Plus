@@ -98,6 +98,7 @@ namespace ROTOR_Utils {
 
         bool ensureWifi() {
             if (WiFi.status() == WL_CONNECTED) return true;
+            if (!Config.fwUpdate.enabled) { setState(ST_ERROR, "Home WiFi off"); return false; }                 // interruptor maestro del WiFi domestico (EA7JRS)
             if (Config.fwUpdate.ssid.isEmpty()) { setState(ST_ERROR, "Set WiFi in WebUI"); return false; }
             setState(ST_WAIT, "WiFi...");
             const wifi_mode_t m = WiFi.getMode();
