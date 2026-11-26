@@ -6163,6 +6163,7 @@ namespace PAGES_Utils {
     }
 
     void show() {
+        pagesRunning = true;                            // el carrusel gobierna ya la pantalla: displayShow() deja de pintar avisos legacy encima (Manuel - EA7JRS)
         if (!pageVisible(page)) { page = modeHomePage(); if (!pageVisible(page)) page = PAGE_MAIN; changedPage(); }
         themeBegin();
         memset(mirrorRows, 0, sizeof(mirrorRows));

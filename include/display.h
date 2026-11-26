@@ -35,6 +35,8 @@ void displayToggle(bool toggle);
 void displayShow(const String& header, const String& line1, const String& line2, int wait = 0);
 void displayShow(const String& header, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5, int wait = 0);
 
+extern bool pagesRunning;   // true cuando el carrusel de paginas APRS ya gobierna la pantalla principal (Manuel - EA7JRS)
+
 // Aviso en ventana emergente pequena: titulo, 2 lineas y barra de progreso (percent < 0 = sin barra)
 void displayPopup(const String& title, const String& line1, const String& line2, int percent = -1, int wait = 0);
 

@@ -94,6 +94,12 @@ extern Configuration    Config;
 extern Beacon           *currentBeacon;
 extern int              menuDisplay;
 extern bool             bluetoothConnected;
+
+// Cierto cuando el carrusel de paginas APRS ya gobierna la pantalla principal (primer show() del bucle): a partir de ahi,
+// un displayShow() de estado (TX/RX/telemetria/WiFi...) con menuDisplay == 0 no debe pintar la pantalla legacy ni su simbolo
+// APRS encima de la pagina; esos avisos ya los muestra la UI de paginas (onTx/onRx/onAprsPacket). Las pantallas de arranque
+// (LAST RESET, PMU OFF) se dibujan antes del primer show(), con esto en false, y siguen viendose (Manuel - EA7JRS).
+bool                    pagesRunning = false;
 extern bool             displayState;
 
 const char* symbolArray[]     = { "[", ">", "j", "b", "<", "s", "u", "R", "v", "(", ";", "-", "k",
@@ -336,6 +342,9 @@ void displayToggle(bool toggle) {
 }
 
 void displayShow(const String& header, const String& line1, const String& line2, int wait) {
+    #ifdef HAS_APRS_PAGES
+        if (pagesRunning && menuDisplay == 0) return;   // el carrusel de paginas gobierna la pantalla: no se pinta el aviso legacy ni su simbolo APRS (Manuel - EA7JRS)
+    #endif
     #ifdef HAS_TFT
         #if defined(TTGO_T_DECK_GPS) || defined(TTGO_T_DECK_PLUS)
             draw_T_DECK_Top();
@@ -515,6 +524,9 @@ void drawSymbol(int symbolIndex, bool bluetoothActive) {
 #endif
 
 void displayShow(const String& header, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5, int wait) {
+    #ifdef HAS_APRS_PAGES
+        if (pagesRunning && menuDisplay == 0) return;   // el carrusel de paginas gobierna la pantalla: no se pinta el aviso legacy ni su simbolo APRS (Manuel - EA7JRS)
+    #endif
     #ifdef HAS_TFT
         #if defined(TTGO_T_DECK_GPS) || defined(TTGO_T_DECK_PLUS)
             draw_T_DECK_Top();
