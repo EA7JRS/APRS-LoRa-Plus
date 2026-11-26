@@ -397,6 +397,24 @@ After the welcome screen **SELECT MODE** appears. An option is only offered if t
 
 > **Each mode transmits only its own signal.** In MORSE/CW, WSPR and LR-FHSS the tracker does not transmit APRS packets: no SOS beacon (the emergency gesture shows "SOS: APRS modes only"), messages, ACKs, digipeater, telemetry or Bluetooth packets. To transmit APRS, reboot and choose an APRS mode.
 
+### 19.1 What the tracker decodes (RX) and range
+
+Not everything the tracker **transmits** it can **receive**. The **SX1262/SX1268** chip has only two hardware demodulators (**LoRa** and **(G)FSK**): everything it decodes rides on one of those two, and the framing (G3RUH, POCSAG, the CW envelope, SSDV packetising) is done in software. The **SA868** on the T-TWR adds its own FM block (M17, AIS, FM voice).
+
+| Mode | Function | Does the tracker decode it? |
+|---|---|---|
+| APRS LoRa | TX + RX | yes |
+| APRS FSK 9600 / AFSK 1200 | TX + RX | yes (G3RUH/AX.25; FX.25, IL2P) |
+| CW / Morse | TX + RX | yes (RSSI envelope + decoder; `cwrx` event) |
+| DAPNET (POCSAG) | RX only | yes |
+| SSDV (images) | TX + RX | yes (rebuilds the JPEG) |
+| M17 · AIS · FM voice | TX+RX / RX / TX+RX | yes (T-TWR with SA868 only) |
+| WSPR · FT8 · FT4 · FST4W | **TX only** | **no**: decoded by the **Android app** or WSJT-X/SDR |
+| RTTY | **TX only** | **no** |
+| LR-FHSS | **TX only** | **no**: the chip only transmits it; received with an **RTL-SDR** from the app |
+
+**Range (indicative, tracker at 20 dBm, −2 dBi antenna, 3 dBi omni station; see `ESTUDIO_COBERTURA.md`):** LoRa SF12 ~5 km in town and ≥20 km in open country (≥120 km from a hilltop); LoRa SF9 about 61 % of that; LR-FHSS like LoRa SF12; APRS FSK 9600 much less (~0.8 km town, ~5 km open). Weak-signal modes (CW, WSPR, FST4W, FT8/FT4) reach ≥20 km even in town towards a weak-signal station, but WSPR/FT8/FST4W are **transmit only**. AIS/M17/FM (SA868, VHF FM, ~1 W) are **line-of-sight**: ~20–40 NM for AIS to a well-sited coastal station. The full matrix and per-scenario figures are in [`MODOS.md`](MODOS.md) and [`ESTUDIO_COBERTURA.md`](ESTUDIO_COBERTURA.md).
+
 ## 20. APRS FSK 9600 mode (AX.25 G3RUH) and IARU band plan
 
 ### 20.1 What is transmitted

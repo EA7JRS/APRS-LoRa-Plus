@@ -249,6 +249,24 @@ En estos modos el tracker solo recibe: la cobertura depende de la PIRE del trans
 | 10 dBm | 0.5 | 1.0 | 3.5 | 4.7 | 21 |
 | 20 dBm | 1.0 | 2.0 | 6.7 | 8.4 | 65 |
 
+### Modos FM del SA868 (T-TWR): AIS, M17 y voz
+
+Estos modos no van por el SX126x sino por el transceptor **FM SA868** (VHF, 144 MHz; AIS en 162 MHz de banda marina), con **≈1 W (30 dBm)**. A diferencia de los modos de 70 cm de este estudio, el enlace FM **no está limitado por el ruido** dentro del horizonte: con 1 W y estas sensibilidades, el presupuesto de enlace sobra, así que **el alcance lo marca el horizonte radio** (la altura de las antenas), no la potencia.
+
+Sensibilidades (**supuestas**, receptor típico): FM voz ≈ −120 dBm (12 dB SINAD), M17 (4-FSK 9600) ≈ −118 dBm, AIS (GMSK 9600) ≈ −107 dBm (el mismo supuesto GMSK de la sección 4). Comprobación del margen a 28 km (horizonte con 2 m / 30 m): pérdida de espacio libre a 162 MHz ≈ 105,5 dB → con 30 dBm, antena del tracker −2 dBi y estación 3 dBi llegan unos **−74 dBm**, es decir **~45 dB por encima** de la sensibilidad de FM. El enlace cierra mucho más allá del horizonte: el límite es geométrico.
+
+Horizonte radio (k = 4/3): **d(km) ≈ 4,12·(√h₁ + √h₂)**, con las alturas en metros.
+
+| Escenario (alturas) | Horizonte | Nota |
+|---|---|---|
+| Tracker 2 m ↔ otro portátil 2 m | ~12 km | móvil a móvil (FM / M17) |
+| Tracker 2 m ↔ estación/mástil 10 m | ~19 km | repetidor o iGate FM bajo |
+| Tracker 2 m ↔ mástil 30 m | ~28 km | estación bien situada |
+| Barco 3 m ↔ estación costera AIS 50 m | ~35 km (~19 mn) | AIS a tierra |
+| Barco 3 m ↔ barco 3 m | ~14 km (~8 mn) | AIS entre barcos |
+
+Por eso en el resumen se dan **~20–40 mn para AIS** hacia una estación costera alta y **línea de vista** (~10–28 km) para M17/FM según las antenas. Son cifras **orientativas**: con el tracker en una cima o la estación en un edificio alto el horizonte crece; bajo cubierta, en un valle o con el cuerpo delante, cae. No se modela difracción ni conductos.
+
 ## 6. Lectura de los resultados
 
 - **Cobertura APRS con iGates.** LoRa SF12 a 20 dBm es la opción de red: 5/10/>20 km (urbano/suburbano/abierto). Bajar a SF9 reduce el alcance a ≈60 % y acorta el paquete de 2,6 s a 0,37 s, lo que importa si hay mucho tráfico en el canal.

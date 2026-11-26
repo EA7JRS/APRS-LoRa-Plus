@@ -393,6 +393,24 @@ Tras la bienvenida aparece **SELECT MODE**. Una opción solo se ofrece si la rad
 
 > **Cada modo emite solo lo suyo.** En MORSE/CW, WSPR y LR-FHSS el tracker no transmite paquetes APRS: ni la baliza SOS (el gesto de emergencia muestra «SOS: APRS modes only»), ni mensajes, ACK, digipeater, telemetría o paquetes de Bluetooth. Para emitir APRS, reinicia y elige un modo APRS.
 
+### 19.1 Qué decodifica el tracker (RX) y alcance
+
+No todo lo que el tracker **emite** lo **recibe**. El chip **SX1262/SX1268** solo tiene dos demoduladores por hardware (**LoRa** y **(G)FSK**): todo lo que decodifica va montado sobre uno de esos dos, y el *framing* (G3RUH, POCSAG, la envolvente de CW, el troceo de SSDV) lo hace el software. El **SA868** de la T-TWR aporta su propio bloque FM (M17, AIS, FM voz).
+
+| Modo | Función | ¿Lo decodifica el tracker? |
+|---|---|---|
+| APRS LoRa | TX + RX | sí |
+| APRS FSK 9600 / AFSK 1200 | TX + RX | sí (G3RUH/AX.25; FX.25, IL2P) |
+| CW / Morse | TX + RX | sí (envolvente RSSI + decodificador; evento `cwrx`) |
+| DAPNET (POCSAG) | solo RX | sí |
+| SSDV (imágenes) | TX + RX | sí (reconstruye el JPEG) |
+| M17 · AIS · FM voz | TX+RX / RX / TX+RX | sí (solo en la T-TWR con SA868) |
+| WSPR · FT8 · FT4 · FST4W | **solo TX** | **no**: su decodificación la hace la **app Android** o WSJT-X/SDR |
+| RTTY | **solo TX** | **no** |
+| LR-FHSS | **solo TX** | **no**: el chip solo lo emite; se recibe con un **RTL-SDR** desde la app |
+
+**Alcance (orientativo, tracker a 20 dBm, antena −2 dBi, estación omni 3 dBi; ver `ESTUDIO_COBERTURA.md`):** LoRa SF12 ~5 km en ciudad y ≥20 km en campo abierto (≥120 km desde una cima); LoRa SF9 un ~61 % de eso; LR-FHSS como LoRa SF12; APRS FSK 9600 mucho menos (~0,8 km ciudad, ~5 km campo). Los modos de señal débil (CW, WSPR, FST4W, FT8/FT4) llegan ≥20 km incluso en ciudad hacia una estación de señal débil, pero en WSPR/FT8/FST4W es **solo emisión**. AIS/M17/FM (SA868, VHF FM, ~1 W) van por **línea de vista**: ~20–40 mn para AIS hacia una estación costera bien situada. La matriz completa y los números por escenario están en [`MODOS.md`](MODOS.md) y [`ESTUDIO_COBERTURA.md`](ESTUDIO_COBERTURA.md).
+
 ## 20. Modo APRS FSK 9600 (AX.25 G3RUH) y plan de bandas IARU
 
 ### 20.1 Qué se transmite
