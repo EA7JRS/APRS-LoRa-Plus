@@ -1288,7 +1288,23 @@ const PAGES_Core::HfBand PAGES_Core::HF_BANDS[10] = {
     {"20m", 14.15f}, {"17m", 18.1f}, {"15m", 21.2f}, {"12m", 24.93f}, {"10m", 28.5f}
 };
 
-PAGES_Core::HfEstimate PAGES_Core::hfEstimate(float sfi, double sunElevDeg, double xray) {
+// L1 (DSCOVR / ACE): el Bz sur con viento rapido impulsa la tormenta y la absorcion auroral/polar en HF, antes de que suba el
+// Kp de 3 h. Nivel 0..9 tipo Kp del campo electrico del viento solar rectificado Ey = -Bz*V (mV/m). 0 si el Bz es norte o falta
+// (centinela ~1000). windKms <= 0 = sin dato (se usa 400 km/s).
+float PAGES_Core::hfWindStorm(float bzNt, float windKms) {
+    if (bzNt > 900.0f || bzNt >= 0.0f) return 0.0f;
+    const float v = windKms > 0.0f ? windKms : 400.0f;
+    float st = -bzNt * v * 1e-3f;
+    if (st < 0) st = 0; if (st > 9) st = 9;
+    return st;
+}
+
+float PAGES_Core::hfEffectiveKp(float geomagKp, float bzNt, float windKms) {
+    const float w = hfWindStorm(bzNt, windKms);
+    return w > geomagKp ? w : geomagKp;
+}
+
+PAGES_Core::HfEstimate PAGES_Core::hfEstimate(float sfi, double sunElevDeg, double xray, float bzNt, float windKms) {
     HfEstimate e;
     const double s = sunElevDeg > 0 ? sin(sunElevDeg * M_PI / 180.0) : 0;
     const double mufBase = 7.0 + (sfi - 65) * 0.06;
@@ -1301,6 +1317,8 @@ PAGES_Core::HfEstimate PAGES_Core::hfEstimate(float sfi, double sunElevDeg, doub
     else if (xray > 1e-6) dAbs = 1.5;       // C
     else if (xray > 1e-7) dAbs = 0.5;       // B
     luf += dAbs * pow(s, 0.75);             // como el D-RAP de SWPC: cos(zenit)^0,75, nada de noche
+    const double storm = hfWindStorm(bzNt, windKms);   // viento solar de L1: sube la LUF (absorcion auroral/polar)
+    if (storm > 4.0) luf += 0.3 * (storm - 4.0);
     e.luf = (float)fmax(0.5, luf);
     return e;
 }

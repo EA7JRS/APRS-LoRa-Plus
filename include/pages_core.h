@@ -212,9 +212,12 @@ namespace PAGES_Core {
     // MUF (3000 km) y LUF estimadas con el flujo solar, la altura del sol sobre la estacion y los rayos X (la absorcion de la capa
     // D): de noche la MUF baja y la LUF tambien. Estado de cada banda como en sat-aprs: abierta hasta el 85 % de la MUF (frecuencia
     // optima), justa hasta la MUF, cerrada por encima y absorbida por debajo de la LUF; con tormenta (Kp >= 4,5) lo abierto queda
-    // degradado (desvanecimientos, ruido).
+    // degradado (desvanecimientos, ruido). La sonda de L1 (DSCOVR / ACE: Bz sur y velocidad del viento solar) sube la LUF
+    // (absorcion auroral/polar) y el nivel efectivo de tormenta, antes de que reaccione el Kp de 3 h.
     struct HfEstimate { float muf, luf; };
-    HfEstimate  hfEstimate(float sfi, double sunElevDeg, double xrayWm2);
+    HfEstimate  hfEstimate(float sfi, double sunElevDeg, double xrayWm2, float bzNt = 1000.0f, float windKms = -1.0f);
+    float       hfWindStorm(float bzNt, float windKms);                               // L1: tormenta 0..9 tipo Kp del Ey = -Bz*V
+    float       hfEffectiveKp(float geomagKp, float bzNt, float windKms);             // max(Hp30/Kp medido, estimacion de L1)
     enum HfState : uint8_t { HF_SHUT, HF_FAIR, HF_OPEN, HF_ABSORBED, HF_POOR };
     HfState     hfBandState(float mhz, const HfEstimate& e, float kp);
     const char* hfStateShort(HfState s);                                              // "shut" "fair" "open" "abs" "poor"

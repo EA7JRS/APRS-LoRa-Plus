@@ -2788,8 +2788,8 @@ namespace {
         double h;
         plotter::unixToUtc((long long)now(), y, m, d, h);
         plotter::sunPosition(y, m, d, h, lat, lon, alt, az);
-        const HfEstimate e = hfEstimate(hfSfi(), alt, xrayFluxFromClass(w.xray.c_str()));
-        const float kp = ALERTS::spaceGeomag();                 // Hp30 reciente o, si no, el Kp
+        const HfEstimate e = hfEstimate(hfSfi(), alt, xrayFluxFromClass(w.xray.c_str()), w.bz, w.windKms);
+        const float kp = hfEffectiveKp(ALERTS::spaceGeomag(), w.bz, w.windKms);   // Hp30/Kp o el viento solar de L1, el peor
         HfState st[10];
         int best = -1;
         for (int i = 0; i < 10; i++) { st[i] = hfBandState(HF_BANDS[i].mhz, e, kp); if (st[i] == HF_OPEN || st[i] == HF_POOR) best = i; }

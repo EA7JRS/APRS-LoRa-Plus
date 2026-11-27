@@ -2,6 +2,7 @@
 
 ## 5.5.1 — 2026-11-27
 
+- **HF: viento solar de L1** (TELEMETRY > HF): la estimación tiene en cuenta el Bz y la velocidad del viento solar de la sonda de L1 (DSCOVR / ACE). Un Bz sur con viento rápido sube la LUF (absorción auroral/polar) y el nivel efectivo de tormenta de las bandas, antes de que reaccione el Kp de 3 h (`PAGES_Core::hfWindStorm` / `hfEffectiveKp`).
 - **SSDV: descarga de la imagen recibida por BLE** (orden `ssdvrx`): el tracker guarda una copia de la última imagen SSDV recibida completa y la sirve por BLE a trozos (base64), para que la app Android la vea, la guarde y la comparta (WhatsApp, Telegram…). `s=info` → `{have,len}`; `s=get, off=<desplazamiento>` → `{off, d, last}`. Añadido `base64Encode` en `ble_control.cpp` y `SSDV_Utils::rxImageLen` / `rxImageRead`.
 
 ## 5.5.0 — 2026-11-25
