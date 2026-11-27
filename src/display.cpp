@@ -585,6 +585,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
                 }
             }
         #endif
+            #ifndef HAS_APRS_PAGES    // en placas con carrusel de paginas el simbolo/indicativo lo pinta la UI de paginas, nunca la pantalla legacy (Manuel - EA7JRS)
             if (menuDisplay == 0 && Config.display.showSymbol) {
                 int symbol = 100;
                 for (int i = 0; i < symbolArraySize; i++) {
@@ -607,6 +608,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
                     drawSymbol(symbol, true);
                 }
             }
+            #endif
         sprite.pushSprite(0,0);
     #elif !defined(HELTEC_WSL_V3_TNC)
         const String* const lines[] = {&line1, &line2, &line3, &line4, &line5};
@@ -636,6 +638,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
             display.setContrast(screenBrightness);
         #endif
 
+        #ifndef HAS_APRS_PAGES    // en placas con carrusel de paginas el simbolo/indicativo lo pinta la UI de paginas, nunca la pantalla legacy (Manuel - EA7JRS)
         if (menuDisplay == 0 && Config.display.showSymbol) {
             int symbol = 100;
             for (int i = 0; i < symbolArraySize; i++) {
@@ -659,6 +662,7 @@ void displayShow(const String& header, const String& line1, const String& line2,
                 drawSymbol(symbol, true);
             }
         }
+        #endif
         display.display(); oledFrameKnown = false;
     #endif
     #ifndef HELTEC_WSL_V3_TNC
