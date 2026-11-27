@@ -27,6 +27,10 @@ namespace ALERTS {
     static float                    swHp        = -1;           // Hp30 de GFZ (media hora, sin tope en 9) y su hora; -1 = sin dato
     static int64_t                  swHpTime    = 0;
     static float                    swSsn       = -1;           // manchas solares: no esta en SpaceWx del nucleo del plotter
+    static float                    swFof2      = -1;           // foF2 medido por la ionosonda mas cercana (KC2G), -1 sin dato
+    static float                    swMuf       = -1;           // MUF(3000) medido por esa ionosonda; se prefiere a la estimada en HF
+    static std::string              swIono;                     // nombre de la ionosonda
+    static uint32_t                 swIonoMs    = 0;            // cuando llego la medida de la ionosonda
     static uint16_t                 ver         = 0;
     static std::vector<std::string> unseen;                 // id de los avisos nuevos (para la ventana)
     static std::vector<std::string> closed;                 // cerrados por el usuario (con su nivel, "id#2")
@@ -123,6 +127,13 @@ namespace ALERTS {
         swHp = d["hp"] | -1.0f;
         swHpTime = (int64_t)(d["ht"] | 0LL);
         swMs = millis() ? millis() : 1;
+        // ionosonda medida (la app la baja de KC2G): foF2, MUF(3000) y nombre; se mantiene si esta orden no la trae
+        if (!d["fo"].isNull() || !d["mu"].isNull()) {
+            swFof2 = d["fo"] | -1.0f;
+            swMuf = d["mu"] | -1.0f;
+            swIono = cut(d["io"] | "", 40);
+            swIonoMs = millis() ? millis() : 1;
+        }
         ver++;
         return true;
     }
@@ -188,6 +199,11 @@ namespace ALERTS {
     bool hasSpace() { return swMs != 0 && millis() - swMs < 6UL * 3600000UL; }
     uint32_t spaceAgeS() { return swMs ? (millis() - swMs) / 1000 : 0; }
     float spaceSsn() { return swSsn; }
+
+    // Ionosonda medida (KC2G): MUF(3000) y foF2 si llegaron hace menos de 2 h; -1 sin dato reciente. La HF prefiere esta MUF
+    float spaceMuf()  { return (swIonoMs && millis() - swIonoMs < 2UL * 3600000UL) ? swMuf  : -1.0f; }
+    float spaceFof2() { return (swIonoMs && millis() - swIonoMs < 2UL * 3600000UL) ? swFof2 : -1.0f; }
+    const std::string& spaceIono() { return swIono; }
 
     // Indice geomagnetico con el que trabajar ahora: el Hp30 si su media hora empezo hace menos de 2 h (reacciona antes que el Kp
     // de 3 h), acotado a 9; si no, el Kp; 0 sin ninguno. *isHp dice cual

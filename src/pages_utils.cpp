@@ -2788,7 +2788,9 @@ namespace {
         double h;
         plotter::unixToUtc((long long)now(), y, m, d, h);
         plotter::sunPosition(y, m, d, h, lat, lon, alt, az);
-        const HfEstimate e = hfEstimate(hfSfi(), alt, xrayFluxFromClass(w.xray.c_str()), w.bz, w.windKms);
+        HfEstimate e = hfEstimate(hfSfi(), alt, xrayFluxFromClass(w.xray.c_str()), w.bz, w.windKms);
+        const float measMuf = ALERTS::spaceMuf();                                 // MUF medida por la ionosonda (app, KC2G); -1 sin dato
+        if (measMuf > 0) e.muf = measMuf;                                         // la medida manda sobre la estimacion
         const float kp = hfEffectiveKp(ALERTS::spaceGeomag(), w.bz, w.windKms);   // Hp30/Kp o el viento solar de L1, el peor
         HfState st[10];
         int best = -1;
