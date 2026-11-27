@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.5.1 — 2026-11-27
+
+- **SSDV: descarga de la imagen recibida por BLE** (orden `ssdvrx`): el tracker guarda una copia de la última imagen SSDV recibida completa y la sirve por BLE a trozos (base64), para que la app Android la vea, la guarde y la comparta (WhatsApp, Telegram…). `s=info` → `{have,len}`; `s=get, off=<desplazamiento>` → `{off, d, last}`. Añadido `base64Encode` en `ble_control.cpp` y `SSDV_Utils::rxImageLen` / `rxImageRead`.
+
 ## 5.5.0 — 2026-11-25
 
 - **CLOCK > SUN / MOON: «Sun track» / «Moon track»**: la opción para que el rotor siga al Sol o a la Luna aparece siempre en el submenú de esas vistas (antes solo con el rotor activado y con la etiqueta genérica «Rotor»); si el rotor está apagado, avisa de que hay que activarlo en la WebUI.
