@@ -1,6 +1,6 @@
 # APRS LoRa+ tracker 5.5.1
 
-Versión del tracker alineada con la app Android 5.5.1 (el resto del ecosistema sigue en la 5.5.0). Un solo cambio.
+Versión del tracker alineada con la app Android 5.5.1 (el resto del ecosistema sigue en la 5.5.0). Dos cambios.
 
 ## SSDV: descarga de la imagen recibida por BLE
 
@@ -14,3 +14,11 @@ Versión del tracker alineada con la app Android 5.5.1 (el resto del ecosistema 
 
 El envío de SSDV desde la app (foto / galería / tarjeta QSL) y la recepción por el RTL-SDR del móvil ya funcionaban con
 el firmware 5.5.0; esta versión solo añade la descarga a la app de las imágenes que **recibe el tracker**.
+
+## HF: MUF medida por ionosonda
+
+- La app Android baja la ionosonda GIRO más cercana (servicio KC2G) y manda al tracker la **foF2 y la MUF(3000) medidas**
+  en la orden **`spacewx`**, con los campos nuevos **`fo`** (foF2 en MHz) y **`mu`** (MUF 3000 en MHz).
+- `ALERTS` las guarda (`spaceMuf` / `spaceFof2`, frescas menos de 2 h) y la página **TELEMETRY > HF** usa esa **MUF real**
+  en vez de la estimada a partir del flujo solar; así la frecuencia máxima utilizable y el estado de las bandas son más
+  fiables cuando hay una ionosonda cerca. El nombre de la ionosonda no se guarda ni se muestra.

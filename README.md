@@ -32,6 +32,7 @@ El transponder AIS **MAPRS** (LilyGO T3, 433 MHz) es una variante del propio tra
 | Área | Qué aporta |
 |---|---|
 | **SSDV: descarga de la imagen recibida a la app** *(5.5.1)* | Orden BLE nueva `ssdvrx`: el tracker guarda la última imagen SSDV recibida completa y la sirve por BLE a trozos (base64) para que la app Android la **vea, guarde y comparta**. El envío de SSDV desde la app (foto / galería / tarjeta QSL) y la recepción por el RTL-SDR del móvil ya iban con la 5.5.0. |
+| **MUF medida por ionosonda en HF** *(5.5.1)* | La app Android baja la ionosonda GIRO más cercana (servicio KC2G) y manda al tracker la **foF2 y la MUF(3000) medidas** en la orden `spacewx` (`fo` / `mu`). Con menos de 2 h, **TELEMETRY > HF usa esa MUF real** en vez de la estimada; el nombre de la ionosonda no se guarda ni se muestra. |
 | **Modos de funcionamiento** | Selector al arrancar: **APRS LoRa** mejorado, **APRS FSK 9600** (G3RUH, AX.25, FX.25, IL2P), **MORSE / CW**, **WSPR beacon**, **FT8 beacon**, **FT4 beacon**, **FST4W beacon** y **DAPNET pager** (receptor POCSAG, solo recepción). **LR-FHSS** (experimental; la recibe la app Android con un RTL-SDR) se activa desde la WebUI; viene apagado. |
 | **Interfaz** | 11 pantallas APRS navegables con un botón (principal, última estación, mensajes, GPS, telemetría, brújula, altímetro, reloj, SOS…), pantalla de bienvenida APRS LoRa+, alarmas y baliza SOS. |
 | **Mensajería** | Lectura de mensajes recibidos y respuesta con mensajes rápidos predefinidos, sin teclado. |
