@@ -27,6 +27,10 @@ namespace SSDV_Utils {
     uint16_t rxImageCount();                        // imagenes recibidas completas en esta sesion
     uint16_t rxPacketCount();                       // paquetes validos recibidos de la imagen en curso
 
+    // Descarga a la app de la ultima imagen RX completa (orden "ssdvrx")
+    size_t rxImageLen();                            // bytes de la ultima imagen recibida (0 si no hay)
+    size_t rxImageRead(size_t off, uint8_t* out, size_t max);  // copia hasta max bytes desde off; devuelve los copiados
+
     // Subida de la imagen a emitir desde la app por BLE (origen = 2)
     bool uploadBegin(size_t totalLen);              // reserva el buffer; false si no cabe
     bool uploadChunk(const uint8_t* data, size_t len);  // anade un trozo

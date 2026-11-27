@@ -34,6 +34,9 @@ namespace SSDV_Utils {
     static size_t       jpegLen  = 0;
     static uint8_t*     rxBuf    = nullptr;      // JPEG reconstruido (RX)
     static size_t       rxCap    = 0;
+    static uint8_t*     lastImg  = nullptr;      // copia de la ultima imagen RX completa (para descargarla por BLE a la app)
+    static size_t       lastImgCap = 0;
+    static size_t       lastImgLen = 0;
     static uint8_t*     ulBuf    = nullptr;      // subida por BLE
     static size_t       ulCap    = 0;
     static size_t       ulLen    = 0;
@@ -273,6 +276,9 @@ namespace SSDV_Utils {
                     uint8_t* jp = nullptr; size_t jl = 0;
                     if (client->getJpeg(&jp, &jl) == RADIOLIB_ERR_NONE && jl > 0) {
                         rxImages++;
+                        // guarda una copia (del tamano justo de la imagen) para que la app la descargue por BLE y la vea / guarde / comparta
+                        if (lastImgCap < jl) { if (lastImg) free(lastImg); lastImg = (uint8_t*)bigAlloc(jl); lastImgCap = lastImg ? jl : 0; }
+                        if (lastImg) { memcpy(lastImg, jp, jl); lastImgLen = jl; } else { lastImgLen = 0; }
                         if (Config.ssdv.rxSave && SPIFFS.begin(true)) {
                             File f = SPIFFS.open("/ssdv_rx.jpg", "w");
                             if (f) { f.write(jp, jl); f.close(); }
@@ -292,6 +298,15 @@ namespace SSDV_Utils {
     uint16_t txSentPackets()  { return client ? client->currentPacketIndex() : 0; }
     uint16_t rxImageCount()   { return rxImages; }
     uint16_t rxPacketCount()  { return rxPackets; }
+
+    // Descarga de la ultima imagen RX completa (la app la pide por trozos con "ssdvrx")
+    size_t rxImageLen() { return lastImgLen; }
+    size_t rxImageRead(size_t off, uint8_t* out, size_t max) {
+        if (!lastImg || off >= lastImgLen) return 0;
+        size_t n = lastImgLen - off; if (n > max) n = max;
+        memcpy(out, lastImg + off, n);
+        return n;
+    }
 
     // ---- Subida por BLE ------------------------------------------------------------------------------------------------------
 
@@ -335,6 +350,8 @@ namespace SSDV_Utils {
     uint16_t txSentPackets() { return 0; }
     uint16_t rxImageCount() { return 0; }
     uint16_t rxPacketCount() { return 0; }
+    size_t rxImageLen() { return 0; }
+    size_t rxImageRead(size_t, uint8_t*, size_t) { return 0; }
     bool uploadBegin(size_t) { return false; }
     bool uploadChunk(const uint8_t*, size_t) { return false; }
     bool uploadEnd() { return false; }

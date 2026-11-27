@@ -1414,6 +1414,25 @@ namespace {
         return (int)n;
     }
 
+    // Codifica len bytes en base64 (sin saltos de linea) en out (ha de tener >= ((len+2)/3)*4 + 1). Devuelve la longitud.
+    size_t base64Encode(const uint8_t* in, size_t len, char* out, size_t outMax) {
+        static const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        size_t o = 0;
+        for (size_t i = 0; i < len; i += 3) {
+            const uint32_t b0 = in[i];
+            const uint32_t b1 = (i + 1 < len) ? in[i + 1] : 0;
+            const uint32_t b2 = (i + 2 < len) ? in[i + 2] : 0;
+            const uint32_t v = (b0 << 16) | (b1 << 8) | b2;
+            if (o + 4 >= outMax) break;
+            out[o++] = B64[(v >> 18) & 0x3F];
+            out[o++] = B64[(v >> 12) & 0x3F];
+            out[o++] = (i + 1 < len) ? B64[(v >> 6) & 0x3F] : '=';
+            out[o++] = (i + 2 < len) ? B64[v & 0x3F] : '=';
+        }
+        out[o] = '\0';
+        return o;
+    }
+
     // ---------------------------------------------------------------- ordenes
 
     void setMode(int mode, const char* cmd, int id) {
@@ -1934,6 +1953,37 @@ namespace {
                     ssdvUpActive = false;
                 } else { reply(cmd, id, "bad step"); return; }
                 reply(cmd, id);
+            #else
+                reply(cmd, id, "not available");
+            #endif
+        }
+        else if (strcmp(cmd, "ssdvrx") == 0) {                    // descarga de la ultima imagen SSDV recibida: s = info | get (off = desplazamiento)
+            #ifdef HAS_SSDV
+                const char* st = doc["s"] | "info";
+                const size_t len = SSDV_Utils::rxImageLen();
+                if (strcmp(st, "info") == 0) {
+                    JsonDocument ev;
+                    ev["e"]   = "ssdvrx";
+                    ev["have"]= len > 0;
+                    ev["len"] = (uint32_t)len;
+                    sendDoc(ev);
+                    reply(cmd, id);
+                } else if (strcmp(st, "get") == 0) {
+                    if (len == 0) { reply(cmd, id, "no image"); return; }
+                    const size_t off = (size_t)(doc["off"] | 0);
+                    if (off >= len) { reply(cmd, id, "bad offset"); return; }
+                    uint8_t bin[135];                             // 135 B -> 180 caracteres base64 (cabe en una linea de control)
+                    const size_t n = SSDV_Utils::rxImageRead(off, bin, sizeof(bin));
+                    char b64[184];
+                    base64Encode(bin, n, b64, sizeof(b64));
+                    JsonDocument ev;
+                    ev["e"]   = "ssdvrx";
+                    ev["off"] = (uint32_t)off;
+                    ev["d"]   = b64;
+                    ev["last"]= (off + n >= len);
+                    sendDoc(ev);
+                    reply(cmd, id);
+                } else { reply(cmd, id, "bad step"); return; }
             #else
                 reply(cmd, id, "not available");
             #endif
