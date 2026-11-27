@@ -23,7 +23,7 @@ namespace ALERTS {
     bool        fromJson(JsonVariantConst doc, String& error);  // orden "alert": id, s, lv, ev, ar, tx, on, ex, la, lo
     bool        remove(const char* id);
     void        clear(const char* src);                         // codigo de fuente ("aemet", "nws"...) o "" = todas
-    bool        spaceFromJson(JsonVariantConst doc);            // orden "spacewx": g, r, s, gm, kp[], kt, sfi, sn, bz, bt, ws, xr, fo, mu, io
+    bool        spaceFromJson(JsonVariantConst doc);            // orden "spacewx": g, r, s, gm, kp[], kt, sfi, sn, bz, bt, ws, xr, fo, mu
     void        onSame(const char* header);                     // cabecera SAME confirmada (T-TWR)
     void        add(const plotter::Alert& a, bool notify);
 
@@ -34,7 +34,6 @@ namespace ALERTS {
     float       spaceSsn();                                     // numero de manchas solares (SWPC); -1 = sin dato
     float       spaceMuf();                                     // MUF(3000) medido por la ionosonda (KC2G, < 2 h); -1 = sin dato
     float       spaceFof2();                                    // foF2 medido por la ionosonda; -1 = sin dato
-    const std::string& spaceIono();                            // nombre de la ionosonda medida
     float       spaceGeomag(bool* isHp = nullptr);              // Hp30 reciente (acotado a 9) o, si no, el Kp; 0 sin dato
     float       spaceHp();                                      // ultimo Hp30 (GFZ); -1 = sin dato
     uint16_t    version();                                      // cambia con la lista (para Display y la app)
