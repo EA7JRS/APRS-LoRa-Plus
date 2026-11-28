@@ -49,27 +49,51 @@ double elongation(double jd) {
     return norm360(s.moonLon - s.sunLon);
 }
 
-// Extremo (minimo si minimum) de f a partir de jd: busca el primer cambio de tendencia en pasos de step dias y lo afina
-// con la seccion aurea hasta ~1 minuto
+// Distancia geocentrica Tierra-Sol (UA). celnav situa el Sol respecto al baricentro Tierra-Luna; el geocentro esta
+// desplazado f*R_luna hacia la Luna (f = m_luna / (m_tierra + m_luna) = 0,0121506), asi que la distancia geocentrica
+// bambolea ~±4700 km cada mes. Ese bamboleo decide el instante del perihelio / afelio que publican las efemerides
+// oficiales (USNO / IMCCE / OAN): con la distancia al baricentro (lisa) el perihelio se iba hasta ~1 dia.
+constexpr double kMoonMassFrac = 0.0121505843;      // m_luna / (m_tierra + m_luna)
+
+double sunDistanceGeocentricAu(double jd) {
+    double gs, ds, gm, dm, km;
+    sunGhaDec(jd, gs, ds);
+    moonGhaDec(jd, gm, dm, km);
+    const double rs = sunDistanceAu(jd), rm = km / kAuKm;
+    auto vec = [](double ghaDeg, double decDeg, double r, double* v) {
+        const double H = deg2rad(-ghaDeg), D = deg2rad(decDeg);
+        v[0] = r * std::cos(D) * std::cos(H); v[1] = r * std::cos(D) * std::sin(H); v[2] = r * std::sin(D);
+    };
+    double S[3], M[3];
+    vec(gs, ds, rs, S);
+    vec(gm, dm, rm, M);                              // vector geocentrico de la Luna (celnav ya es geocentrico)
+    const double x = S[0] + kMoonMassFrac * M[0], y = S[1] + kMoonMassFrac * M[1], z = S[2] + kMoonMassFrac * M[2];
+    return std::sqrt(x * x + y * y + z * z);
+}
+
+// Extremo (minimo si minimum) de f despues de jd: localiza el cambio de signo de la derivada (df/dt) en pasos de step dias
+// y lo afina por biseccion sobre la derivada. Robusto en extremos planos (perihelio/afelio de la Tierra), donde buscar el
+// minimo del propio valor con la seccion aurea erraba el instante o se saltaba el extremo. La derivada se mide con un
+// incremento central h = step/4: el cero de f(t+h)-f(t-h) coincide con el de df/dt para f suave, independiente de h.
 template <typename F>
 double nextExtremum(F f, double jd, double step, int maxSteps, bool minimum, double& value) {
-    const double sgn = minimum ? 1.0 : -1.0;
-    double a = jd, fa = sgn * f(a), b = a + step, fb = sgn * f(b);
+    const double sgn = minimum ? 1.0 : -1.0;                        // buscamos un minimo de sgn*f (derivada sube de - a +)
+    const double h = step * 0.25;
+    auto deriv = [&](double t) { return sgn * (f(t + h) - f(t - h)); };
+    double a = jd, da = deriv(a);
     for (int i = 0; i < maxSteps; i++) {
-        const double c = b + step, fc = sgn * f(c);
-        if (fb <= fa && fb <= fc && !(i == 0 && fa < fb)) {
-            double lo = a, hi = c;
-            const double g = 0.6180339887498949;
-            double x1 = hi - g * (hi - lo), x2 = lo + g * (hi - lo), f1 = sgn * f(x1), f2 = sgn * f(x2);
-            while (hi - lo > 0.0005) {
-                if (f1 < f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - g * (hi - lo); f1 = sgn * f(x1); }
-                else         { lo = x1; x1 = x2; f1 = f2; x2 = lo + g * (hi - lo); f2 = sgn * f(x2); }
+        const double b = a + step, db = deriv(b);
+        if (da < 0.0 && db >= 0.0) {                                // la derivada cruza de bajar a subir: minimo entre a y b
+            double lo = a, hi = b, flo = da;
+            for (int k = 0; k < 50 && hi - lo > 1e-6; k++) {       // biseccion sobre la derivada (~0,1 s)
+                const double mid = 0.5 * (lo + hi), fm = deriv(mid);
+                if (flo * fm <= 0.0) hi = mid; else { lo = mid; flo = fm; }
             }
-            const double x = (lo + hi) / 2;
+            const double x = 0.5 * (lo + hi);
             value = f(x);
             return x;
         }
-        a = b; fa = fb; b = c; fb = fc;
+        a = b; da = db;
     }
     value = 0;
     return 0;
@@ -244,7 +268,8 @@ double nextSeason(double jd, int& season) {
 }
 
 double nextEarthApsis(double jd, bool perihelion, double& distAu) {
-    return nextExtremum([](double t) { return sunDistanceAu(t); }, jd, 8.0, 60, perihelion, distAu);
+    // con la distancia geocentrica (con el bamboleo lunar), como las efemerides oficiales; paso de 4 dias
+    return nextExtremum([](double t) { return sunDistanceGeocentricAu(t); }, jd, 4.0, 120, perihelion, distAu);
 }
 
 // ---------------------------------------------------------------- Tierra
