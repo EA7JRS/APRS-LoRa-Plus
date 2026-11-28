@@ -562,6 +562,7 @@ On other boards the section reads "Not configurable". The L76K commands (CASIC `
 - **Eco mode**: if the receiver's power is cut at rest, on wake-up the baud rate is detected and the receiver is configured again.
 - Satellites in view: BeiDou `BDGSV` sentences are counted too.
 - There are no verified equivalents of dynamic model, static hold, AssistNow or PPS configuration (the pulse is fixed, 100 ms, rising edge): those settings are dimmed.
+- For a receiver without hardware static hold (L76K and other basic GPS modules), the **"Freeze beacon position when stopped"** option (`gps.posHold` in the WebUI, off by default) does the same in software: while stopped the beacon sends a fixed position instead of the drifting fix; once actually moving it follows the live fix again. With a u-blox it is not needed (its static hold already does it).
 - On the device's GPS screen, Galileo, SBAS and QZSS report that they cannot be changed on the L76K.
 
 The PC test covers the commands against the manufacturer's examples (checksums) and the parsing of `GPTXT` and `BDGSV` with the TinyGPS++ library. A test on a real board is still missing.

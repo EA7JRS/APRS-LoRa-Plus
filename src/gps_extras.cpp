@@ -19,12 +19,14 @@
 // Funciones auxiliares del GPS: filtro de velocidad/rumbo con la unidad parada y ultima posicion valida.
 
 #include "board_pinout.h"
+#include "configuration.h"
 #include "gps_utils.h"
 #include "baro_utils.h"
 #include "imu_utils.h"
 #include <TinyGPS++.h>
 
-extern TinyGPSPlus gps;
+extern TinyGPSPlus   gps;
+extern Configuration Config;
 
 #ifdef GPS_SPEED_FILTER
 
@@ -223,3 +225,31 @@ namespace GPS_Utils {
 }
 
 #endif
+
+// Congelado por software de la posicion de la baliza con el equipo parado (Config.gps.posHold). Es la red de seguridad para
+// un GPS que no haga static hold por hardware: el fix baila unos metros aunque la unidad no se mueva y la baliza lo emitiria.
+// Mientras GPS_Utils::isMoving() es false se usa la posicion congelada; al moverse de verdad se sigue el fix en vivo, y un
+// salto mayor de 15 m estando parado (glitch o movimiento sin velocidad fiable) reubica la referencia. Mismo criterio que el
+// filtro de velocidad y que plotter::PosHold del resto del ecosistema (que salio de este gps_extras).
+namespace {
+    bool    beaconPosHeld = false;
+    double  beaconPosLat  = 0;
+    double  beaconPosLng  = 0;
+}
+
+namespace GPS_Utils {
+
+    void updatePositionHold() {
+        if (!Config.gps.posHold || !gps.location.isValid()) { beaconPosHeld = false; return; }
+        const double lat = gps.location.lat();
+        const double lng = gps.location.lng();
+        if (isMoving()) { beaconPosHeld = false; beaconPosLat = lat; beaconPosLng = lng; return; }
+        if (!beaconPosHeld) { beaconPosLat = lat; beaconPosLng = lng; beaconPosHeld = true; return; }
+        if (TinyGPSPlus::distanceBetween(beaconPosLat, beaconPosLng, lat, lng) > 15.0) { beaconPosLat = lat; beaconPosLng = lng; }
+    }
+
+    bool   positionHeld() { return beaconPosHeld; }
+    double getBeaconLat() { return beaconPosHeld ? beaconPosLat : gps.location.lat(); }
+    double getBeaconLng() { return beaconPosHeld ? beaconPosLng : gps.location.lng(); }
+
+}

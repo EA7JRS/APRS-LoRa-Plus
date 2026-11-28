@@ -46,6 +46,12 @@ namespace GPS_Utils {
     float   getCourseDeg();
     bool    isMoving();
 
+    // Posicion de la baliza congelada con el equipo parado (Config.gps.posHold; red de seguridad para GPS sin static hold)
+    void    updatePositionHold();
+    bool    positionHeld();
+    double  getBeaconLat();
+    double  getBeaconLng();
+
     // Ultima posicion valida (con GPS_LAST_POSITION)
     void    loadLastPosition();
     void    updateLastPosition();

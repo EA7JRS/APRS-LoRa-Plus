@@ -650,6 +650,11 @@ body.radio-sa868 .lora-only,body.radio-sa868 .radio-word{display:none!important;
 
                                 </div>
                                 </div>
+                                <div class="form-check form-switch mb-1">
+                                    <input type="checkbox" name="gps.posHold" id="gps.posHold" class="form-check-input" />
+                                    <label for="gps.posHold" class="form-label">Freeze beacon position when stopped<small class="text-muted"> (software fallback for a GPS without hardware static hold)</small></label>
+                                </div>
+                                <small class="text-muted d-block mb-2">While the tracker is stopped, the beacon keeps the frozen position instead of the drifting fix; it follows the live fix again once moving. With a u-blox the static hold above already does this at the receiver.</small>
                                 <div id="gps-l76k" hidden>
                                     <hr class="my-4" />
                                     <h6>Quectel L76K receiver</h6>

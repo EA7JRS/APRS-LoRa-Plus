@@ -624,7 +624,7 @@ namespace FM_Utils {
     bool satSendPosition(const char* comment) {
         if (!satAprs()) { note("Not an APRS sat"); return false; }
         double lat, lon;
-        if (gps.location.isValid() && gps.location.age() < 10000UL) { lat = gps.location.lat(); lon = gps.location.lng(); }
+        if (gps.location.isValid() && gps.location.age() < 10000UL) { lat = GPS_Utils::getBeaconLat(); lon = GPS_Utils::getBeaconLng(); }
         else { SatCore::Observer o; if (!SAT_Utils::observer(o)) { note("No position"); return false; } lat = o.latDeg; lon = o.lonDeg; }
         if (!currentBeacon) return false;
         String p = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, APRS_TOCALL, Config.sat.aprsPath, currentBeacon->overlay,

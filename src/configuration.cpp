@@ -311,6 +311,7 @@ namespace {
         FC(GPSConfig, minElev,         FF_KEEP, 0, 0, 30),
         FC(GPSConfig, staticHoldCms,   FF_KEEP, 0, 0, 255),
         FC(GPSConfig, staticHoldDistM, FF_KEEP, 0, 0, 1000),
+        FB(GPSConfig, posHold,         FF_KEEP, 0),
         FB(GPSConfig, sbasDiffCorr,    FF_KEEP, 0),
         FB(GPSConfig, sbasRanging,     FF_KEEP, 0),
         FB(GPSConfig, sbasIntegrity,   FF_KEEP, 0),
@@ -1449,6 +1450,7 @@ void Configuration::setGpsDefaults() {
     gps.minElev         = 5;                    // el del receptor
     gps.staticHoldCms   = GPS_STATIC_HOLD_CMS;
     gps.staticHoldDistM = GPS_STATIC_HOLD_DIST_M;
+    gps.posHold         = false;                // de serie apagado: el static hold del receptor ya lo hace; esto es la red de seguridad por software
     gps.sbasDiffCorr    = true;                 // valores del receptor
     gps.sbasRanging     = true;
     gps.sbasIntegrity   = false;

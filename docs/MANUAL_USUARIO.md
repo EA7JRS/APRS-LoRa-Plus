@@ -556,6 +556,7 @@ En otras placas la sección indica «Not configurable». Los comandos del L76K (
 - **Modo eco**: si la alimentación del receptor se corta en reposo, al despertarlo se detecta la velocidad y se vuelve a configurar.
 - Satélites a la vista: se cuentan también las frases `BDGSV` de BeiDou.
 - No hay equivalentes verificados de modelo dinámico, static hold, AssistNow ni configuración de PPS (el pulso es fijo, de 100 ms, flanco de subida): esos ajustes quedan atenuados.
+- Para un receptor sin static hold por hardware (L76K y otros GPS básicos), la opción **«Congelar la posición de la baliza con el equipo parado»** (`gps.posHold` en la WebUI, apagada de serie) hace lo mismo por software: estando parado la baliza emite una posición fija en vez del fix que baila; al moverse de verdad sigue el fix en vivo. Con un u-blox no hace falta (lo hace su static hold).
 - En la pantalla GPS del equipo, Galileo, SBAS y QZSS avisan de que no se pueden cambiar en el L76K.
 
 La prueba en PC cubre los comandos con los ejemplos del fabricante (suma de verificación) y la lectura de `GPTXT` y `BDGSV` con la librería TinyGPS++. Falta la prueba en una placa real.

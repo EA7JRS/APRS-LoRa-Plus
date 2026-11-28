@@ -250,6 +250,7 @@ public:
     int     minElev;                            // elevacion minima de satelite (grados, 0-30)
     int     staticHoldCms;                      // static hold: velocidad (cm/s); 0 = valor del firmware del receptor
     int     staticHoldDistM;                    // static hold: distancia de salida (m)
+    bool    posHold;                            // congelar por software la posicion de la baliza con el equipo parado (red de seguridad para GPS sin static hold)
     bool    sbasDiffCorr;                       // SBAS: usar correcciones diferenciales
     bool    sbasRanging;                        // SBAS: usar los satelites GEO como fuente de medida
     bool    sbasIntegrity;                      // SBAS: usar informacion de integridad

@@ -1315,6 +1315,7 @@ function loadSettings(settings) {
     document.getElementById("gps.minElev").value            = gpsCfg.minElev ?? 5;
     document.getElementById("gps.staticHoldCms").value      = gpsCfg.staticHoldCms ?? 0;
     document.getElementById("gps.staticHoldDistM").value    = gpsCfg.staticHoldDistM ?? 0;
+    document.getElementById("gps.posHold").checked          = gpsCfg.posHold ?? false;
     document.getElementById("gps.sbasDiffCorr").checked     = gpsCfg.sbasDiffCorr ?? true;
     document.getElementById("gps.sbasRanging").checked      = gpsCfg.sbasRanging ?? true;
     document.getElementById("gps.sbasIntegrity").checked    = gpsCfg.sbasIntegrity ?? false;

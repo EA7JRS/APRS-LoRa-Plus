@@ -412,6 +412,7 @@ void loop() {
         if (gps_loc_update) {
             Utils::checkStatus();
             GPS_Utils::updateLastPosition();
+            GPS_Utils::updatePositionHold();
             MAG_Utils::feedGpsCourse(GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKmph(),
                                      gps.satellites.value() >= 6 && gps.hdop.isValid() && gps.hdop.hdop() <= 2.5 && gps.course.isValid());
         }

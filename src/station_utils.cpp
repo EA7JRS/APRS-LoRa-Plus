@@ -224,9 +224,9 @@ namespace STATION_Utils {
         if (GPS_Utils::getSpeedKmph() > 200 || GPS_Utils::getAltitudeMeters() > 9000) path = ""; // avoid plane speed and altitude
         String packet;
         if (miceActive) {
-            packet = APRSPacketLib::generateMiceGPSBeaconPacket(currentBeacon->micE, currentBeacon->callsign, currentBeacon->symbol, currentBeacon->overlay, path, gps.location.lat(), gps.location.lng(), GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), GPS_Utils::getAltitudeMeters());
+            packet = APRSPacketLib::generateMiceGPSBeaconPacket(currentBeacon->micE, currentBeacon->callsign, currentBeacon->symbol, currentBeacon->overlay, path, GPS_Utils::getBeaconLat(), GPS_Utils::getBeaconLng(), GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), GPS_Utils::getAltitudeMeters());
         } else {
-            packet = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, APRS_TOCALL, path, currentBeacon->overlay, APRSPacketLib::encodeGPSIntoBase91(gps.location.lat(), gps.location.lng(), GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), currentBeacon->symbol, Config.sendAltitude, GPS_Utils::getAltitudeFeet(), sendStandingUpdate));
+            packet = APRSPacketLib::generateBase91GPSBeaconPacket(currentBeacon->callsign, APRS_TOCALL, path, currentBeacon->overlay, APRSPacketLib::encodeGPSIntoBase91(GPS_Utils::getBeaconLat(), GPS_Utils::getBeaconLng(), GPS_Utils::getCourseDeg(), GPS_Utils::getSpeedKnots(), currentBeacon->symbol, Config.sendAltitude, GPS_Utils::getAltitudeFeet(), sendStandingUpdate));
         }
 
         String batteryVoltage = BATTERY_Utils::getBatteryInfoVoltage();
